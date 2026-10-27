@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\RendersModals;
 use App\Models\Branch;
+use App\Models\PayrollPeriod;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\User;
@@ -13,6 +14,7 @@ use App\Support\Rbac;
 use App\Support\Ui;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -64,7 +66,8 @@ class StaffAttendanceController extends Controller
         if ($view === 'day' && ($status = $filters['status'] ?? null)) {
             $users->where(match ($status) {
                 'checked_in' => fn (Builder $q) => $q->whereHas('staffAttendances', fn ($a) => $a->whereDate('work_date', $day)->whereNotNull('check_in_at')),
-                'late' => fn (Builder $q) => $q->whereHas('staffAttendances', fn ($a) => $a->whereDate('work_date', $day)->where('late_minutes', '>', 0)),
+                // Cùng tiêu chí thẻ "Đi muộn": muộn quá ngưỡng và không có đơn xin đi muộn / nghỉ được duyệt.
+                'late' => fn (Builder $q) => $q->whereHas('staffAttendances', fn ($a) => $a->whereDate('work_date', $day)->where('late_minutes', '>', 0)->where('late_excused', false)),
                 'leave' => fn (Builder $q) => $q->whereHas('staffAttendanceRequests', fn ($r) => $r->approved()->where('type', StaffAttendanceRequest::TYPE_LEAVE)->overlapping($day, $day)),
                 'missing' => fn (Builder $q) => $q->whereDoesntHave('staffAttendances', fn ($a) => $a->whereDate('work_date', $day)->whereNotNull('check_in_at'))
                     ->whereDoesntHave('staffAttendanceRequests', fn ($r) => $r->approved()->where('type', StaffAttendanceRequest::TYPE_LEAVE)->overlapping($day, $day)),
@@ -86,7 +89,8 @@ class StaffAttendanceController extends Controller
                 ->with('penalty:id,code,status')->get()->keyBy('user_id');
             $leaves = StaffAttendanceRequest::query()->approved()->whereIn('user_id', $ids)
                 ->where('type', StaffAttendanceRequest::TYPE_LEAVE)->overlapping($day, $day)->get()->keyBy('user_id');
-            $rows = $page->through(function (User $u) use ($records, $leaves, $viewer) {
+            $canEdit = $viewer->can('staff_checkin.approve');
+            $rows = $page->through(function (User $u) use ($records, $leaves, $viewer, $canEdit, $day) {
                 $a = $records->get($u->id);
 
                 return [
@@ -98,6 +102,7 @@ class StaffAttendanceController extends Controller
                         // Nhân sự làm nhiều cơ sở có thể chấm ở cơ sở ngoài phạm vi người xem: ảnh chỉ hiện khi được xem.
                         'check_in_photo' => $a->check_in_photo && self::canSee($viewer, $a) ? route('staff-attendance.photo', [$a->id, 'in']) : null,
                         'check_in_distance' => $a->check_in_distance,
+                        'low_accuracy' => max((int) $a->check_in_accuracy, (int) $a->check_out_accuracy) > StaffAttendance::LOW_ACCURACY_METERS,
                         'expected' => trim(substr((string) $a->expected_start, 0, 5).' – '.substr((string) $a->expected_end, 0, 5), ' –'),
                         'status_label' => $a->statusLabel(),
                         'status_tone' => $a->statusTone(),
@@ -105,6 +110,9 @@ class StaffAttendanceController extends Controller
                         'penalty' => $a->penalty?->code,
                     ] : null,
                     'leave' => $leaves->get($u->id)?->reason,
+                    // Chưa chấm mà hôm đó không phải làm (part-time không có buổi, ngày lễ, ngày nghỉ cố định): không tính thiếu công.
+                    'off' => ! $a && ! $leaves->has($u->id) ? $this->attendance->punchBlockReason($u, $u->branch, Carbon::parse($day)) : null,
+                    'edit_url' => $canEdit && (int) $u->id !== (int) $viewer->id ? route('staff-attendance.edit', ['user_id' => $u->id, 'date' => $day]) : null,
                 ];
             });
         }
@@ -146,10 +154,14 @@ class StaffAttendanceController extends Controller
         return $this->modalPage('StaffAttendance/Show', [
             'attendance' => [
                 'id' => $attendance->id,
+                'user_id' => $attendance->user_id,
+                'can_edit' => $attendance->user && (int) $attendance->user_id !== (int) $request->user()->id
+                    && $this->attendance->canManageStaff($request->user(), $attendance->user),
                 'user' => $attendance->user?->name,
                 'code' => $attendance->user?->employee_code,
                 'branch' => $branch?->name,
                 'radius' => $branch?->checkin_radius,
+                'low_accuracy_meters' => StaffAttendance::LOW_ACCURACY_METERS,
                 'date' => $attendance->work_date->toDateString(),
                 'source' => $attendance->source,
                 'expected_start' => $attendance->expected_start ? substr((string) $attendance->expected_start, 0, 5) : null,
@@ -165,6 +177,63 @@ class StaffAttendanceController extends Controller
                 ] : null,
             ],
         ]);
+    }
+
+    /** Sửa giờ công 1 ngày của 1 nhân sự + thu hồi đơn nghỉ / đi muộn đã duyệt của ngày đó (modal). */
+    public function edit(Request $request): Response
+    {
+        $data = $request->validate(['user_id' => ['required', 'integer'], 'date' => ['required', 'date']]);
+        $staff = User::query()->findOrFail($data['user_id']);
+        abort_unless($this->attendance->canManageStaff($request->user(), $staff) && (int) $staff->id !== (int) $request->user()->id, 403);
+        $date = Carbon::parse($data['date'])->startOfDay();
+        $day = $date->toDateString();
+        $row = StaffAttendance::forDay($staff->id, $date);
+        $requests = StaffAttendanceRequest::query()->approved()->where('user_id', $staff->id)
+            ->whereIn('type', [StaffAttendanceRequest::TYPE_LEAVE, StaffAttendanceRequest::TYPE_LATE_EARLY])
+            ->overlapping($day, $day)->orderBy('date_from')->get();
+
+        return $this->modalPage('StaffAttendance/Edit', [
+            'staff' => ['id' => $staff->id, 'name' => $staff->name, 'code' => $staff->employee_code],
+            'date' => $day,
+            'locked' => PayrollPeriod::isLockedFor($date) ? PayrollPeriod::lockedMessage($date) : null,
+            'attendance' => $row ? [
+                'check_in' => $row->check_in_at?->format('H:i'),
+                'check_out' => $row->check_out_at?->format('H:i'),
+                'status_label' => $row->statusLabel(),
+                'status_tone' => $row->statusTone(),
+                'note' => $row->note,
+            ] : null,
+            'requests' => $requests->map(fn (StaffAttendanceRequest $r) => [
+                'id' => $r->id,
+                'type_label' => $r->typeLabel(),
+                'period' => $r->periodLabel(),
+                'reason' => $r->reason,
+            ])->values()->all(),
+        ]);
+    }
+
+    public function adjust(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer'],
+            'work_date' => ['required', 'date'],
+            'check_in_time' => ['nullable', 'date_format:H:i'],
+            'check_out_time' => ['nullable', 'date_format:H:i'],
+            'reason' => ['required', 'string', 'max:300'],
+        ], ['reason.required' => 'Nhập lý do sửa công.']);
+        $staff = User::query()->findOrFail($data['user_id']);
+        $date = Carbon::parse($data['work_date'])->startOfDay();
+        $this->attendance->adjust($staff, $request->user(), $date, $data['check_in_time'] ?? null, $data['check_out_time'] ?? null, $data['reason']);
+
+        return $this->modalSaved('Đã sửa công ngày '.$date->format('d/m/Y').' của '.$staff->name.'.', route('staff-attendance.index', ['date' => $date->toDateString()]), 'success');
+    }
+
+    public function revoke(Request $request, StaffAttendanceRequest $attendanceRequest): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'max:1000']], ['reason.required' => 'Nhập lý do thu hồi.']);
+        $this->attendance->revoke($attendanceRequest, $request->user(), $data['reason']);
+
+        return $this->modalSaved('Đã thu hồi đơn '.$attendanceRequest->typeLabel().' '.$attendanceRequest->periodLabel().'.', route('staff-attendance.index', ['date' => $attendanceRequest->date_from->toDateString()]), 'success');
     }
 
     /** Nhân sự (có cổng nhân sự, đang hoạt động) làm việc ở chi nhánh trong phạm vi người xem (chi nhánh chính hoặc làm thêm). */

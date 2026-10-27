@@ -71,7 +71,7 @@ class ClassSession extends Model
     /** Cảnh báo GV khi cửa sổ check-in còn dưới số phút này. */
     public const CHECKIN_WARNING_MINUTES = 15;
 
-    /** Điểm danh học sinh của GV chỉ mở trong ±N giờ (SLA gv.attendance_window, mặc định 24h) quanh giờ bắt đầu buổi (Học vụ có attendance_student.record_any thì không giới hạn). */
+    /** Điểm danh học sinh của GV đóng sau N giờ (SLA gv.attendance_window, mặc định 24h) kể từ giờ bắt đầu buổi (Học vụ có attendance_student.record_any thì không giới hạn). */
     public static function attendanceWindowHours(): int
     {
         return \App\Services\Sla\Sla::value('gv.attendance_window');
@@ -89,14 +89,26 @@ class ClassSession extends Model
         return $this->startsAt()->addHours(self::checkinWindowHours());
     }
 
-    /** Cửa sổ điểm danh của GV: [bắt đầu − N giờ, bắt đầu + N giờ] (N = attendanceWindowHours()). */
+    /** GV mở điểm danh sớm nhất bao nhiêu phút trước giờ bắt đầu buổi (điểm danh khi vào lớp, không điểm danh trước). */
+    public const ATTENDANCE_EARLY_MINUTES = 15;
+
+    /**
+     * Cửa sổ điểm danh của GV: [bắt đầu − ATTENDANCE_EARLY_MINUTES phút, bắt đầu + N giờ] (N = attendanceWindowHours()).
+     * Trước đây mở cả N giờ trước buổi: GV lưu điểm danh (mặc định "Có mặt") cho buổi chưa học và buổi bị chốt "đã học".
+     */
     public function withinTeacherAttendanceWindow(?\Carbon\CarbonInterface $now = null): bool
     {
         $now ??= now();
         $start = $this->startsAt();
-        $hours = self::attendanceWindowHours();
 
-        return $now->gte($start->copy()->subHours($hours)) && $now->lte($start->copy()->addHours($hours));
+        return $now->gte($start->copy()->subMinutes(self::ATTENDANCE_EARLY_MINUTES))
+            && $now->lte($start->copy()->addHours(self::attendanceWindowHours()));
+    }
+
+    /** Buổi chưa tới giờ mở điểm danh của GV. */
+    public function beforeTeacherAttendanceWindow(?\Carbon\CarbonInterface $now = null): bool
+    {
+        return ($now ?? now())->lt($this->startsAt()->subMinutes(self::ATTENDANCE_EARLY_MINUTES));
     }
 
     /** Tên ca theo khung giờ ca dạy (Ca 1, Ca 2, Ca chiều…); tên tạm cũ "Slot n" không hiển thị. */

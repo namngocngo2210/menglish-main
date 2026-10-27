@@ -379,7 +379,7 @@ const inputClass =
                 <!-- Bảng tính hoàn phí / chuyển nhượng -->
                 <div v-show="calc.actionType !== 'deferral'" class="mb-lg space-y-sm rounded-lg border border-outline-variant p-md">
                     <div class="grid grid-cols-2 gap-md sm:grid-cols-4">
-                        <UiInput id="attendedLessons" :model-value="calc.attendedLessons" type="number" label="Số buổi đã học (điểm danh)" min="0" class="font-code text-code" @update:model-value="calc.attendedLessons = $event === '' ? 0 : Number($event)" />
+                        <UiInput id="attendedLessons" :model-value="calc.attendedLessons" type="number" label="Số buổi đã trừ (sổ buổi, vắng vẫn trừ)" min="0" class="font-code text-code" @update:model-value="calc.attendedLessons = $event === '' ? 0 : Number($event)" />
                         <div>
                             <span class="mb-xs block font-caption text-caption text-on-surface-variant">Đơn giá / buổi</span>
                             <span class="font-code text-code text-on-surface">{{ money(unitPrice) }}</span>

@@ -341,6 +341,27 @@ class SessionLedgerTest extends TestCase
         ]);
     }
 
+    public function test_tuition_session_stats_follow_ledger_absences_still_count(): void
+    {
+        // Hoàn phí / bảo lưu / công nợ dùng sessionStats(): khớp sổ buổi — vắng vẫn trừ, buổi trước khi vào lớp không trừ.
+        $student = $this->makeStudent($this->classA, '2026-09-10');
+        $this->sessions($this->classA, ['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
+        $tuition = $this->paidTuition($student, 4800000);
+        // Chỉ điểm danh có mặt 1 buổi, 2 buổi vắng, 1 buổi GV quên điểm danh.
+        $sessions = ClassSession::where('class_id', $this->classA->id)->orderBy('date')->get();
+        foreach ([[1, 'present'], [2, 'absent']] as [$i, $status]) {
+            \App\Models\StudentAttendance::create([
+                'class_id' => $this->classA->id, 'class_session_id' => $sessions[$i]->id, 'student_id' => $student->id,
+                'session_date' => $sessions[$i]->date, 'status' => $status,
+            ]);
+        }
+
+        $this->assertSame(['total' => 24, 'attended' => 3, 'remaining' => 21, 'source' => 'course'], $tuition->fresh()->sessionStats());
+
+        StudentTuition::preloadSessionStats([$fresh = $tuition->fresh()]);
+        $this->assertSame(3, $fresh->sessionStats()['attended']);
+    }
+
     private function makeStudent(ClassModel $class, string $enrolledAt): Student
     {
         $this->codeSeq++;

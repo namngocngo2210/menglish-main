@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\SupportListService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,15 @@ class StudentAttendance extends Model
             }
         });
         static::deleted(fn (StudentAttendance $attendance) => app(SupportListService::class)->forget(SupportListService::SOURCE_ATTENDANCE, $attendance->id));
+    }
+
+    /**
+     * Điểm danh được tính vào chuyên cần (cổng học viên / phụ huynh, số buổi đã học của hồ sơ): mọi dòng trừ dòng Học vụ
+     * trả lại để sửa. Trước đây chỉ tính dòng đã duyệt nên Học vụ chưa rà soát thì phụ huynh thấy chuyên cần 0.
+     */
+    public function scopeCounted(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->whereNull('review_status')->orWhere('review_status', '!=', 'rejected'));
     }
 
     /** Người thực sự lưu điểm danh (Học vụ/Quản lý khi điểm danh thay giáo viên). */

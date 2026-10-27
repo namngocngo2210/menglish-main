@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Điểm danh theo buổi (mockup 03_Cong_Giao_Vien/02_diem_danh_lop_giao_vien): tiêu đề buổi + khung giờ / phòng / sĩ số, cửa sổ ±24h,
+ * Điểm danh theo buổi (mockup 03_Cong_Giao_Vien/02_diem_danh_lop_giao_vien): tiêu đề buổi + khung giờ / phòng / sĩ số, cửa sổ điểm danh (15 phút trước → 24h sau giờ học),
  * thống kê nhanh 4 trạng thái, quy tắc nghiệp vụ, danh sách lớp với trạng thái + ghi chú (bắt buộc khi nghỉ).
  */
 import { computed, ref, watch } from 'vue';
@@ -16,7 +16,7 @@ const props = defineProps({
     session: { type: Object, default: null },
     students: { type: Array, default: () => [] },
     blockReason: { type: String, default: null },
-    // Ngoài khung ±24h quanh giờ bắt đầu (chỉ GV/TA; Học vụ record_any không bị giới hạn) → khóa nút lưu.
+    // Ngoài khung điểm danh (15 phút trước → N giờ sau giờ bắt đầu (chỉ GV/TA; Học vụ record_any không bị giới hạn) → khóa nút lưu.
     windowReason: { type: String, default: null },
     onBehalf: { type: Boolean, default: false },
     onBehalfName: { type: String, default: null },
@@ -117,16 +117,16 @@ function pickSession(event) {
                 Bạn đang điểm danh thay {{ onBehalfName }}. Hệ thống ghi nhận bạn là người lưu điểm danh.
             </UiAlert>
             <UiAlert v-if="windowReason" type="warning" data-testid="attendance-window-blocked">{{ windowReason }}</UiAlert>
-            <!-- Gộp cửa sổ ±24h, "điểm danh bù" và quy định thành một dòng; quy định mở khi cần. -->
+            <!-- Gộp cửa sổ điểm danh (15 phút trước → 24h sau giờ học), "điểm danh bù" và quy định thành một dòng; quy định mở khi cần. -->
             <details :class="['group rounded-lg border', attendanceWindow === 'closed' ? 'border-warning/30 bg-warning-container' : 'border-tertiary/30 bg-tertiary-fixed/20']" data-testid="attendance-window">
                 <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-sm gap-y-xs px-md py-sm [&::-webkit-details-marker]:hidden">
                     <span class="relative flex h-3 w-3 shrink-0">
                         <span v-if="attendanceWindow !== 'closed'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tertiary-container opacity-60"></span>
                         <span :class="['relative inline-flex h-3 w-3 rounded-full', attendanceWindow === 'closed' ? 'bg-warning' : 'bg-tertiary-container']"></span>
                     </span>
-                    <span class="font-body-medium text-body-medium text-on-surface">{{ windowReason ? `Ngoài khung ±${windowHours}h — không thể điểm danh` : (attendanceWindow === 'closed' ? `Ngoài cửa sổ ${windowHours}h — Học vụ điểm danh bù` : 'Đang trong cửa sổ điểm danh') }}</span>
+                    <span class="font-body-medium text-body-medium text-on-surface">{{ windowReason ? 'Ngoài khung điểm danh — chưa / không thể điểm danh' : (attendanceWindow === 'closed' ? `Ngoài cửa sổ ${windowHours}h — Học vụ điểm danh bù` : 'Đang trong cửa sổ điểm danh') }}</span>
                     <span class="font-caption text-caption text-on-surface-variant">
-                        Quy định: Buổi học ±{{ windowHours }} giờ{{ attendanceWindow === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}{{ session.is_past ? ' · Điểm danh bù cho buổi đã qua ngày ' + session.date : '' }}
+                        Quy định: từ 15 phút trước giờ học tới {{ windowHours }} giờ sau{{ attendanceWindow === 'closed' ? ' · Học vụ sẽ rà soát' : '' }}{{ session.is_past ? ' · Điểm danh bù cho buổi đã qua ngày ' + session.date : '' }}
                     </span>
                     <span class="ml-auto inline-flex items-center gap-xs font-caption text-caption font-semibold text-primary">
                         Xem quy định<span class="material-symbols-outlined text-[16px] transition-transform group-open:rotate-180" aria-hidden="true">expand_more</span>
@@ -137,7 +137,7 @@ function pickSession(event) {
                     <ul class="list-disc space-y-xs pl-md">
                         <li>Người điểm danh được ghi nhận tự động theo tài khoản đang đăng nhập (GV chính/GVNN/Trợ giảng).</li>
                         <li>Khi chọn <strong>"Nghỉ có phép"</strong> hoặc <strong>"Nghỉ không phép"</strong>, ô <strong>Ghi chú là bắt buộc</strong> để lưu trữ lý do vắng học của học viên.</li>
-                        <li>Giáo viên chỉ điểm danh trong khung ±{{ windowHours }}h quanh giờ bắt đầu buổi học (cập nhật lại được nhiều lần); ngoài khung này chỉ Học vụ điểm danh bù. Không điểm danh không làm mất công dạy.</li>
+                        <li>Giáo viên điểm danh từ 15 phút trước giờ bắt đầu buổi tới {{ windowHours }}h sau giờ bắt đầu (cập nhật lại được nhiều lần); ngoài khung này chỉ Học vụ điểm danh bù. Không điểm danh không làm mất công dạy.</li>
                     </ul>
                 </div>
             </details>
@@ -169,6 +169,7 @@ function pickSession(event) {
                             <div class="font-caption text-caption text-on-surface-variant">
                                 <span class="font-code">{{ student.code }}</span>
                                 <template v-if="student.linked"> · Học viên liên kết lớp</template>
+                                <template v-if="student.joined_on"> · Vào lớp từ {{ student.joined_on }}</template>
                                 <template v-if="student.recorder_name"> · Lưu bởi {{ student.recorder_name }}</template>
                             </div>
                         </div>
@@ -178,6 +179,7 @@ function pickSession(event) {
                             :aria-label="`Trạng thái điểm danh ${student.name}`"
                             :class="['w-full rounded-lg border py-sm pl-md pr-xl font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/50', OPTIONS[statuses[student.id]]?.tone ?? 'border-outline-variant']"
                         >
+                            <option v-if="student.joined_on" value="">— Chưa vào lớp —</option>
                             <option v-for="(opt, value) in OPTIONS" :key="value" :value="value">{{ opt.label }}</option>
                         </select>
                         <div>

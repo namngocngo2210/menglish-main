@@ -372,7 +372,7 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))->assertOk()
             ->assertSee('Điểm danh — Kids Explorer MK2, 07/10/2026')
             ->assertSee('Khung giờ: 07:30 – 08:45')->assertSee('Phòng 204 · Cầu Giấy')->assertSee('Sĩ số lớp:')
-            ->assertSee('Đang trong cửa sổ điểm danh')->assertSee('Quy định: Buổi học ±24 giờ')
+            ->assertSee('Đang trong cửa sổ điểm danh')->assertSee('Quy định: từ 15 phút trước giờ học tới 24 giờ sau')
             ->assertSee('Đúng giờ')->assertSee('Đi muộn')->assertSee('Nghỉ có phép')->assertSee('Nghỉ không phép')
             ->assertSee('Quy tắc nghiệp vụ điểm danh dành cho Giáo viên:')
             ->assertSee('Danh sách học sinh trong lớp (Roster)')
@@ -393,7 +393,7 @@ class Phase2MockupClassesTest extends TestCase
         // Buổi ngoài khung ±24h quanh giờ bắt đầu → GV không điểm danh được (windowReason khóa nút Lưu); Học vụ vẫn điểm danh bù.
         $old = $this->makeSession('2026-10-05', '07:30', '08:45');
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
-            ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
+            ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', 'Quá 24h kể từ giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
         $this->actingAs($this->admin)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $old->id]))
             ->assertOk()->assertInertia(fn ($page) => $page->where('windowReason', null));
     }

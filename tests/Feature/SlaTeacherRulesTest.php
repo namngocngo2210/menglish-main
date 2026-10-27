@@ -175,29 +175,34 @@ class SlaTeacherRulesTest extends TestCase
         $this->assertDatabaseHas('teacher_timesheets', ['class_session_id' => $session->id, 'status' => 'valid', 'source' => 'schedule']);
     }
 
-    // ───────────── D. Điểm danh ±24h ─────────────
+    // ───────────── D. Khung điểm danh (15 phút trước → 24h sau giờ học) ─────────────
 
     public function test_teacher_attendance_blocked_outside_24h_window_but_allowed_inside(): void
     {
         $outside = $this->makeSession('2026-10-05', '08:00', '09:30'); // start+24h đã qua
         $inside = $this->makeSession('2026-10-06', '18:00', '19:30');
-        $future = $this->makeSession('2026-10-08', '09:00', '10:30'); // start−24h = 07/10 09:00 → đã mở
+        $future = $this->makeSession('2026-10-08', '09:00', '10:30'); // buổi ngày mai: chưa mở điểm danh
+        $soon = $this->makeSession('2026-10-07', '10:10', '11:40'); // còn 10 phút tới giờ học → đã mở
 
         $payload = fn (ClassSession $s) => ['class_session_id' => $s->id, 'status' => [$this->student->id => 'present']];
         $store = route('teacher.attendance.store', $this->class->id);
 
         $this->actingAs($this->teacher)->post($store, $payload($outside))
-            ->assertSessionHasErrors(['session' => 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.']);
+            ->assertSessionHasErrors(['session' => 'Quá 24h kể từ giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.']);
         $this->assertDatabaseCount('student_attendances', 0);
 
         $this->actingAs($this->teacher)->post($store, $payload($inside))->assertSessionHasNoErrors();
-        $this->actingAs($this->teacher)->post($store, $payload($future))->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->post($store, $payload($soon))->assertSessionHasNoErrors();
+        // Không điểm danh trước giờ học (mặc định "Có mặt" sẽ ghi có mặt cả lớp và chốt buổi chưa học).
+        $this->actingAs($this->teacher)->post($store, $payload($future))
+            ->assertSessionHasErrors(['session' => 'Buổi học chưa bắt đầu — mở điểm danh từ 08:45 08/10.']);
+        $this->assertSame('scheduled', $future->fresh()->status);
         $this->assertDatabaseCount('student_attendances', 2);
 
         // Trang điểm danh báo lý do để Vue khóa nút Lưu.
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->class->id, 'session' => $outside->id]))
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('windowReason', 'Ngoài khung ±24h so với giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
+                ->where('windowReason', 'Quá 24h kể từ giờ bắt đầu buổi học — liên hệ Học vụ để điểm danh.'));
     }
 
     public function test_academic_staff_can_record_attendance_any_time(): void

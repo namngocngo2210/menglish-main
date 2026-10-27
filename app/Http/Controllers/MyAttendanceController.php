@@ -43,7 +43,8 @@ class MyAttendanceController extends Controller
         $user = $request->user()->loadMissing('branch');
         $branch = $user->branch;
         $now = now();
-        $today = StaffAttendance::forDay($user->id, $now);
+        // Sau nửa đêm (tới 06:00) mà hôm qua chưa chấm ra: màn hiện ngày công hôm qua để chấm ra.
+        $today = StaffAttendance::forDay($user->id, $now) ?? $this->attendance->openOvernight($user, $now);
         $expected = $this->attendance->expectedTimes($user, $branch, $now);
         $workBranches = $this->attendance->workBranches($user);
         // Nhiều cơ sở: chỉ khóa khi mọi cơ sở đều không chấm được (máy chủ kiểm tra lại theo cơ sở thực tế lúc bấm).
@@ -97,7 +98,11 @@ class MyAttendanceController extends Controller
         $time = ($in ? $record->check_in_at : $record->check_out_at)->format('H:i');
         $message = ($in ? 'Đã chấm công vào lúc ' : 'Đã chấm công ra lúc ').$time.'.';
         if ($in && $record->isLate()) {
-            return redirect()->route('my-attendance.home')->with('warning', $message.' Bạn đi muộn '.$record->late_minutes.' phút, hệ thống đã lập biên bản chờ giải trình.');
+            $note = $record->penalty_id
+                ? ', hệ thống đã lập biên bản chờ giải trình.'
+                : ' (tính trên check-in ca dạy, không lập biên bản riêng).';
+
+            return redirect()->route('my-attendance.home')->with('warning', $message.' Bạn đi muộn '.$record->late_minutes.' phút'.$note);
         }
 
         return redirect()->route('my-attendance.home')->with('success', $message);

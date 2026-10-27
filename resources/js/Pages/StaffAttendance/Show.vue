@@ -15,6 +15,7 @@ defineProps({
                 <UiBadge :color="attendance.status_tone">{{ attendance.status_label }}</UiBadge>
                 <span v-if="attendance.expected_start" class="font-body-small text-body-small text-on-surface-variant">Giờ phải có mặt {{ attendance.expected_start }}<template v-if="attendance.expected_end"> – {{ attendance.expected_end }}</template></span>
                 <a v-if="attendance.penalty" :href="attendance.penalty.url" class="font-body-small text-body-small text-error underline">Biên bản {{ attendance.penalty.code }}</a>
+                <UiButton v-if="attendance.can_edit" class="ml-auto" size="sm" variant="secondary" icon="edit" :href="route('staff-attendance.edit', { user_id: attendance.user_id, date: attendance.date })" modal="md">Sửa giờ công / đơn</UiButton>
             </div>
 
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
@@ -27,7 +28,7 @@ defineProps({
                         <span class="font-body-small text-body-small">{{ punch.data ? 'Không có ảnh (bổ sung công)' : 'Chưa chấm' }}</span>
                     </div>
                     <p v-if="punch.data?.distance !== null && punch.data?.distance !== undefined" class="mt-xs font-body-small text-body-small text-on-surface-variant">
-                        Cách cơ sở {{ formatNumber(punch.data.distance) }} m (cho phép {{ attendance.radius }} m)<template v-if="punch.data.accuracy"> · sai số GPS {{ punch.data.accuracy }} m</template>
+                        Cách cơ sở {{ formatNumber(punch.data.distance) }} m (cho phép {{ attendance.radius }} m)<template v-if="punch.data.accuracy"> · sai số GPS <span :class="punch.data.accuracy > attendance.low_accuracy_meters ? 'font-semibold text-warning' : ''">{{ punch.data.accuracy }} m</span></template>
                     </p>
                     <a v-if="punch.data?.map" :href="punch.data.map" target="_blank" rel="noopener" class="mt-xs inline-flex items-center gap-xs font-body-small text-body-small text-primary hover:underline">
                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">map</span>Xem vị trí trên bản đồ

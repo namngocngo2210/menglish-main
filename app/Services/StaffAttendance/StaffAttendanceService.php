@@ -18,6 +18,7 @@ use App\Support\Roles;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,7 @@ use Illuminate\Validation\ValidationException;
  *    18:10…, khung giờ ca dạy), không theo một giờ chung cố định; không có buổi → không tính muộn;
  *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → tự lập biên bản "chờ giải trình",
  *    0đ (người chốt quyết mức phạt, giống biên bản SLA); đơn xin đi muộn được duyệt → không tính lỗi, biên bản tự hủy.
+ *    GV / TA không lập biên bản ở đây: đi muộn đã trừ trên check-in ca dạy (tránh phạt 2 lần).
  *  - Ngày thuộc kỳ lương đã chốt thì không chấm / không sửa được nữa.
  *  - Ngày được chấm (22/10/2026, punchBlockReason): part-time (xếp loại như bảng lương) chỉ ngày có buổi dạy / dạy thay /
  *    học bù chưa hủy; nhân sự khác mọi ngày trừ ngày nghỉ của cơ sở. Áp cả khi bấm chấm công và đơn "Bổ sung công".
@@ -45,6 +47,9 @@ class StaffAttendanceService
     public const IN = 'in';
 
     public const OUT = 'out';
+
+    /** Chấm ra cho ngày hôm qua (chưa chấm ra) được tới giờ này sáng hôm sau. */
+    public const OVERNIGHT_CHECKOUT_UNTIL = 6;
 
     /** Đơn xin nghỉ tối đa bao nhiêu ngày một lần. */
     public const MAX_LEAVE_DAYS = 31;
@@ -59,10 +64,14 @@ class StaffAttendanceService
     public function punch(User $user, string $kind, float $latitude, float $longitude, ?float $accuracy, UploadedFile $photo): StaffAttendance
     {
         $now = now();
+        $existing = StaffAttendance::forDay($user->id, $now);
+        // Chấm ra sau nửa đêm (tới 06:00) cho ngày hôm qua còn thiếu giờ ra — ca tối kéo dài / quên chấm ra.
+        $overnight = $kind === self::OUT && ! $existing?->check_in_at ? $this->openOvernight($user, $now) : null;
+        $existing = $overnight ?? $existing;
         $branch = $this->ensureCanPunchAt($user, $now)
             ->sortBy(fn (Branch $b) => $b->distanceTo($latitude, $longitude))
             ->first();
-        if ($reason = $this->punchBlockReason($user, $branch, $now)) {
+        if ($reason = $this->punchBlockReason($user, $branch, $overnight?->work_date ?? $now)) {
             throw ValidationException::withMessages(['kind' => $reason]);
         }
         $distance = $branch->distanceTo($latitude, $longitude);
@@ -73,7 +82,6 @@ class StaffAttendanceService
             ]);
         }
 
-        $existing = StaffAttendance::forDay($user->id, $now);
         if ($kind === self::IN && $existing?->check_in_at) {
             throw ValidationException::withMessages(['kind' => 'Hôm nay bạn đã chấm công vào lúc '.$existing->check_in_at->format('H:i').'.']);
         }
@@ -88,7 +96,28 @@ class StaffAttendanceService
         // Ngày làm ở nhiều cơ sở (vào ở A, ra ở B): bản ghi công giữ cơ sở chấm vào, giờ làm / muộn tính theo cơ sở đó.
         $dayBranch = ($existing?->branch_id ? $existing->branch : null) ?? $branch;
 
-        $attendance = DB::transaction(function () use ($user, $dayBranch, $now, $existing, $prefix, $path, $latitude, $longitude, $distance, $accuracy) {
+        try {
+            $attendance = $this->savePunch($user, $dayBranch, $now, $existing, $prefix, $path, $latitude, $longitude, $distance, $accuracy);
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            // Bấm chấm vào 2 lần cùng lúc (mạng chậm): lượt sau vướng khóa 1 dòng / người / ngày.
+            if ($e instanceof UniqueConstraintViolationException) {
+                throw ValidationException::withMessages(['kind' => 'Lượt chấm công vừa được ghi nhận. Hãy tải lại trang để xem giờ đã chấm.']);
+            }
+            throw $e;
+        }
+
+        // Chấm ra lần nữa (về muộn hơn) thay ảnh cũ.
+        if ($oldPhoto && $oldPhoto !== $path) {
+            Storage::disk('local')->delete($oldPhoto);
+        }
+
+        return $attendance;
+    }
+
+    private function savePunch(User $user, Branch $dayBranch, CarbonInterface $now, ?StaffAttendance $existing, string $prefix, string $path, float $latitude, float $longitude, ?int $distance, ?float $accuracy): StaffAttendance
+    {
+        return DB::transaction(function () use ($user, $dayBranch, $now, $existing, $prefix, $path, $latitude, $longitude, $distance, $accuracy) {
             $attendance = $existing ?? new StaffAttendance([
                 'user_id' => $user->id,
                 'work_date' => $now->toDateString(),
@@ -109,13 +138,18 @@ class StaffAttendanceService
 
             return $attendance;
         });
+    }
 
-        // Chấm ra lần nữa (về muộn hơn) thay ảnh cũ.
-        if ($oldPhoto && $oldPhoto !== $path) {
-            Storage::disk('local')->delete($oldPhoto);
+    /** Ngày công hôm qua đã chấm vào, chưa chấm ra, còn trong giờ chấm ra qua đêm (trước 06:00) và kỳ lương chưa khóa. */
+    public function openOvernight(User $user, CarbonInterface $now): ?StaffAttendance
+    {
+        if ($now->hour >= self::OVERNIGHT_CHECKOUT_UNTIL) {
+            return null;
         }
+        $yesterday = StaffAttendance::forDay($user->id, $now->copy()->subDay());
 
-        return $attendance;
+        return $yesterday?->check_in_at && ! $yesterday->check_out_at && ! PayrollPeriod::isLockedFor($yesterday->work_date)
+            ? $yesterday : null;
     }
 
     /**
@@ -176,13 +210,22 @@ class StaffAttendanceService
         }
 
         $holiday = Holiday::query()->coveringBranch($date->toDateString(), $branch?->id)->value('name');
+        if ($holiday !== null) {
+            return "Hôm nay là ngày nghỉ ({$holiday}), không chấm công.";
+        }
+        // Ngày nghỉ cố định trong tuần (lịch làm việc riêng) — trừ khi hôm đó có buổi dạy / dạy thay.
+        if ($user->isWeeklyDayOff($date) && ! ClassSession::query()->forStaff($user->id)
+            ->whereDate('date', $date->toDateString())->where('status', '!=', 'cancelled')->exists()) {
+            return 'Hôm nay là ngày nghỉ cố định trong tuần của bạn, không chấm công.';
+        }
 
-        return $holiday !== null ? "Hôm nay là ngày nghỉ ({$holiday}), không chấm công." : null;
+        return null;
     }
 
     /**
      * Giờ phải có mặt / được về của nhân sự trong ngày ("HH:MM", null = không tính muộn / về sớm). Giáo viên / trợ giảng
-     * (quyền Cổng giáo viên / trợ giảng) tính theo buổi dạy trong ngày, nhân sự khác theo giờ làm việc của cơ sở.
+     * (quyền Cổng giáo viên / trợ giảng) tính theo buổi dạy trong ngày, nhân sự khác theo lịch làm việc riêng (nếu có)
+     * rồi tới giờ làm việc của cơ sở.
      *
      * Kèm danh sách ca dạy trong ngày (tên ca + giờ + lớp) để nhân sự thấy giờ đối chiếu.
      *
@@ -210,6 +253,16 @@ class StaffAttendanceService
                     'time' => $s->start_time?->format('H:i').'–'.$s->end_time?->format('H:i'),
                     'class' => $s->classModel?->code ?? $s->classModel?->name,
                 ])->values()->all(),
+            ];
+        }
+
+        // Lịch làm việc riêng của nhân sự (ca chiều, ca tối…) thay giờ làm việc chung của cơ sở.
+        if ($user->work_start_time || $user->work_end_time) {
+            return [
+                'start' => $user->work_start_time ? substr((string) $user->work_start_time, 0, 5) : $branch?->workStart(),
+                'end' => $user->work_end_time ? substr((string) $user->work_end_time, 0, 5) : $branch?->workEnd(),
+                'basis' => 'Theo lịch làm việc riêng',
+                'sessions' => [],
             ];
         }
 
@@ -249,6 +302,16 @@ class StaffAttendanceService
         // Biên bản tự động của ngày công, bất kể người đang thao tác (duyệt đơn, sửa giờ) có thấy biên bản đó hay không.
         $penalty = $attendance->penalty()->withoutViewerScope()->first();
         $violation = 'Đi muộn '.$attendance->late_minutes.' phút (chấm công ngày '.$attendance->work_date->format('d/m/Y').')';
+
+        // GV / TA: đi muộn đã tính trên check-in ca dạy (trừ tiền ca theo số phút muộn) — chấm công chỉ ghi nhận,
+        // không lập thêm biên bản để không phạt 2 lần cho cùng một lần vào lớp muộn.
+        if ($attendance->isLate() && ! $this->latePenalized($attendance)) {
+            if ($penalty && in_array($penalty->status, ['pending', 'explained'], true)) {
+                $penalty->update(['status' => 'cancelled', 'decided_at' => now(), 'decision_note' => 'Tự hủy: đi muộn của GV / TA tính theo check-in ca dạy.']);
+            }
+
+            return;
+        }
 
         if ($attendance->isLate()) {
             if ($penalty && $penalty->status !== 'cancelled') {
@@ -293,6 +356,14 @@ class StaffAttendanceService
         }
     }
 
+    /** Đi muộn của ngày công có lập biên bản không: không với GV / TA (giờ phải có mặt theo buổi dạy). */
+    private function latePenalized(StaffAttendance $attendance): bool
+    {
+        $user = $attendance->user;
+
+        return ! ($user && ($user->can('portal.teacher') || $user->can('portal.assistant')));
+    }
+
     private function hasApproved(int $userId, string $type, CarbonInterface $date): bool
     {
         $day = $date->toDateString();
@@ -326,14 +397,19 @@ class StaffAttendanceService
             if ($from->isAfter(today())) {
                 throw ValidationException::withMessages(['date_from' => 'Chỉ bổ sung công cho hôm nay hoặc ngày đã qua.']);
             }
-            if ($reason = $this->punchBlockReason($user, $user->branch, $from)) {
+            $dayBranch = ($branchId = $this->requestBranchId($user, $from, $from)) ? Branch::find($branchId) : $user->branch;
+            if ($reason = $this->punchBlockReason($user, $dayBranch, $from)) {
                 throw ValidationException::withMessages(['date_from' => str_replace('Hôm nay', 'Ngày '.$from->format('d/m/Y'), $reason)]);
             }
             if (empty($data['check_in_time']) && empty($data['check_out_time'])) {
                 throw ValidationException::withMessages(['check_in_time' => 'Nhập giờ vào hoặc giờ ra cần bổ sung.']);
             }
-            if (! empty($data['check_in_time']) && ! empty($data['check_out_time']) && $data['check_out_time'] <= $data['check_in_time']) {
-                throw ValidationException::withMessages(['check_out_time' => 'Giờ ra phải sau giờ vào.']);
+            // Chỉ khai 1 giờ thì so với giờ đã chấm của ngày đó (giờ ra không được sớm hơn giờ vào đã có, và ngược lại).
+            $punched = StaffAttendance::forDay($user->id, $from);
+            $in = $data['check_in_time'] ?? null ?: $punched?->check_in_at?->format('H:i');
+            $out = $data['check_out_time'] ?? null ?: $punched?->check_out_at?->format('H:i');
+            if ($in && $out && $out <= $in) {
+                throw ValidationException::withMessages(['check_out_time' => 'Giờ ra phải sau giờ vào ('.$in.').']);
             }
         }
         foreach ([$from, $to] as $day) {
@@ -349,7 +425,7 @@ class StaffAttendanceService
 
         return StaffAttendanceRequest::create([
             'user_id' => $user->id,
-            'branch_id' => $user->branch_id,
+            'branch_id' => $this->requestBranchId($user, $from, $to),
             'type' => $type,
             'date_from' => $from->toDateString(),
             'date_to' => $to->toDateString(),
@@ -358,6 +434,24 @@ class StaffAttendanceService
             'reason' => trim($data['reason']),
             'status' => StaffAttendanceRequest::STATUS_PENDING,
         ]);
+    }
+
+    /**
+     * Cơ sở của đơn (quyết định Quản lý cơ sở nào duyệt): cơ sở đã chấm công ngày đó → cơ sở của buổi dạy trong khoảng
+     * ngày (GV / TA dùng chung chưa gắn cơ sở, hoặc dạy ở cơ sở phụ) → cơ sở chính của nhân sự.
+     */
+    private function requestBranchId(User $user, CarbonInterface $from, CarbonInterface $to): ?int
+    {
+        $punched = StaffAttendance::query()->where('user_id', $user->id)->whereNotNull('branch_id')
+            ->whereDate('work_date', '>=', $from->toDateString())->whereDate('work_date', '<=', $to->toDateString())
+            ->orderBy('work_date')->value('branch_id');
+        $taught = $punched ? null : ClassSession::query()->forStaff($user->id)->whereNotNull('branch_id')
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
+            ->orderBy('date')->orderBy('start_time')->value('branch_id');
+        $id = $punched ?? $taught ?? $user->branch_id;
+
+        return $id ? (int) $id : null;
     }
 
     /** Người gửi rút đơn còn chờ duyệt. */
@@ -372,12 +466,21 @@ class StaffAttendanceService
     /** Đơn đang chờ mà người duyệt xử lý được: trong phạm vi chi nhánh, không phải đơn của chính mình. */
     public function reviewQuery(User $reviewer): Builder
     {
-        $query = StaffAttendanceRequest::query()->pending()->where('user_id', '!=', $reviewer->id);
+        return $this->managedRequests($reviewer)->pending();
+    }
+
+    /** Đơn (mọi trạng thái) của nhân sự khác trong phạm vi duyệt của người duyệt. */
+    public function managedRequests(User $reviewer): Builder
+    {
+        $query = StaffAttendanceRequest::query()->where('user_id', '!=', $reviewer->id);
         if (! $reviewer->can('staff_checkin.approve')) {
             return $query->whereRaw('1 = 0');
         }
 
-        return DataScope::apply($query, $reviewer, 'staff_checkin', null, fn (Builder $q, array $ids) => $q->whereIn('branch_id', $ids));
+        // Đơn chưa xác định được cơ sở (nhân sự dùng chung không có buổi / ngày công) → quản lý các cơ sở nhân sự làm việc.
+        return DataScope::apply($query, $reviewer, 'staff_checkin', null, fn (Builder $q, array $ids) => $q->where(fn (Builder $w) => $w
+            ->whereIn('branch_id', $ids)
+            ->orWhere(fn (Builder $o) => $o->whereNull('branch_id')->whereHas('user', fn (Builder $u) => $u->inBranches($ids)))));
     }
 
     /** @throws ValidationException */
@@ -416,6 +519,101 @@ class StaffAttendanceService
         $this->notifyRequester($request, 'Từ chối', $reason);
     }
 
+    /**
+     * Thu hồi đơn xin nghỉ / xin đi muộn đã duyệt (duyệt nhầm, nhân sự vẫn đi làm…): đơn chuyển "Đã thu hồi", ngày công
+     * tính lại (đi muộn không còn được miễn → biên bản tự lập lại). Đơn bổ sung công không thu hồi — sửa giờ công trực tiếp.
+     *
+     * @throws ValidationException
+     */
+    public function revoke(StaffAttendanceRequest $request, User $reviewer, string $reason): void
+    {
+        $revocable = $request->status === StaffAttendanceRequest::STATUS_APPROVED
+            && in_array($request->type, [StaffAttendanceRequest::TYPE_LEAVE, StaffAttendanceRequest::TYPE_LATE_EARLY], true)
+            && $this->managedRequests($reviewer)->whereKey($request->id)->exists();
+        if (! $revocable) {
+            throw ValidationException::withMessages(['request' => 'Chỉ thu hồi được đơn xin nghỉ / xin đi muộn đã duyệt của nhân sự trong phạm vi của bạn.']);
+        }
+        foreach ([$request->date_from, $request->date_to] as $day) {
+            if (PayrollPeriod::isLockedFor($day)) {
+                throw ValidationException::withMessages(['request' => PayrollPeriod::lockedMessage($day)]);
+            }
+        }
+
+        DB::transaction(function () use ($request, $reviewer, $reason) {
+            $request->update([
+                'status' => StaffAttendanceRequest::STATUS_REVOKED,
+                'reviewed_by' => $reviewer->id,
+                'reviewed_at' => now(),
+                'rejection_reason' => $reason,
+            ]);
+            $this->applyApproved($request);
+        });
+
+        $this->notifyRequester($request, 'Thu hồi', $reason);
+    }
+
+    /**
+     * Quản lý sửa giờ vào / ra của 1 ngày công (nhân sự quên chấm, chấm sai, đã nghỉ việc…), ghi lý do vào ghi chú.
+     * Ô để trống giữ giờ đang có. Ngày thuộc kỳ lương đã khóa thì không sửa.
+     *
+     * @throws ValidationException
+     */
+    public function adjust(User $staff, User $editor, CarbonInterface $date, ?string $checkIn, ?string $checkOut, string $reason): StaffAttendance
+    {
+        if ((int) $staff->id === (int) $editor->id || ! $this->canManageStaff($editor, $staff)) {
+            throw ValidationException::withMessages(['user_id' => 'Bạn không sửa được công của nhân sự này (ngoài phạm vi hoặc của chính bạn).']);
+        }
+        if ($date->isAfter(today())) {
+            throw ValidationException::withMessages(['work_date' => 'Chỉ sửa công hôm nay hoặc ngày đã qua.']);
+        }
+        if (PayrollPeriod::isLockedFor($date)) {
+            throw ValidationException::withMessages(['work_date' => PayrollPeriod::lockedMessage($date)]);
+        }
+        $attendance = StaffAttendance::forDay($staff->id, $date) ?? new StaffAttendance([
+            'user_id' => $staff->id,
+            'work_date' => $date->toDateString(),
+            'source' => StaffAttendance::SOURCE_MANUAL,
+            'branch_id' => $this->requestBranchId($staff, $date, $date),
+        ]);
+        $in = filled($checkIn) ? $date->copy()->startOfDay()->setTimeFromTimeString($checkIn) : $attendance->check_in_at;
+        $out = filled($checkOut) ? $date->copy()->startOfDay()->setTimeFromTimeString($checkOut) : $attendance->check_out_at;
+        if (! $in && ! $out) {
+            throw ValidationException::withMessages(['check_in_time' => 'Nhập giờ vào hoặc giờ ra.']);
+        }
+        if ($in && $out && $out->lte($in)) {
+            throw ValidationException::withMessages(['check_out_time' => 'Giờ ra phải sau giờ vào.']);
+        }
+
+        $stamp = '['.now()->format('d/m H:i').'] '.$editor->name.' sửa công';
+        $attendance->fill([
+            'check_in_at' => $in,
+            'check_out_at' => $out,
+            'note' => mb_substr(trim(($attendance->note ? $attendance->note."\n" : '').$stamp.': '.trim($reason)), -500),
+        ]);
+
+        return DB::transaction(function () use ($attendance, $staff) {
+            $this->recalculate($attendance, $staff, $attendance->branch ?? $staff->branch);
+            $attendance->save();
+            $this->syncLatePenalty($attendance->fresh(['penalty']));
+
+            return $attendance->fresh();
+        });
+    }
+
+    /** Người duyệt chấm công quản lý được nhân sự này (phạm vi chi nhánh: cơ sở chính hoặc làm thêm của nhân sự). */
+    public function canManageStaff(User $manager, User $staff): bool
+    {
+        if (! $manager->can('staff_checkin.approve')) {
+            return false;
+        }
+        $ids = DataScope::branchIds($manager, 'staff_checkin');
+        if ($ids === null) {
+            return true;
+        }
+
+        return User::query()->whereKey($staff->id)->inBranches($ids)->exists();
+    }
+
     private function ensureReviewable(StaffAttendanceRequest $request, User $reviewer): void
     {
         if (! $this->reviewQuery($reviewer)->whereKey($request->id)->exists()) {
@@ -423,7 +621,7 @@ class StaffAttendanceService
         }
     }
 
-    /** Áp đơn đã duyệt vào bảng công (đơn xin nghỉ chỉ cần trạng thái đã duyệt). */
+    /** Áp đơn đã duyệt (hoặc vừa thu hồi) vào bảng công: tính lại muộn có phép / biên bản các ngày của đơn. */
     private function applyApproved(StaffAttendanceRequest $request): void
     {
         $user = $request->user;
@@ -434,7 +632,7 @@ class StaffAttendanceService
 
         foreach ($days as $day) {
             $attendance = StaffAttendance::forDay($user->id, $day);
-            if ($request->type === StaffAttendanceRequest::TYPE_CORRECTION) {
+            if ($request->type === StaffAttendanceRequest::TYPE_CORRECTION && $request->status === StaffAttendanceRequest::STATUS_APPROVED) {
                 $attendance ??= new StaffAttendance([
                     'user_id' => $user->id,
                     'work_date' => $day->toDateString(),
@@ -484,16 +682,27 @@ class StaffAttendanceService
             ->get(['check_in_at', 'check_out_at', 'late_minutes', 'early_minutes', 'late_excused', 'work_date']);
         $late = $rows->filter(fn (StaffAttendance $a) => $a->isLate());
 
-        $leaveDays = StaffAttendanceRequest::query()->approved()->where('user_id', $userId)
+        // Ngày nghỉ phép = ngày làm việc trong đơn nghỉ đã duyệt: bỏ ngày lễ của cơ sở, ngày nghỉ cố định trong tuần và
+        // ngày nhân sự vẫn chấm công vào (đi làm dù có đơn); nhiều đơn trùng ngày chỉ tính 1 lần.
+        $user = User::find($userId);
+        $worked = $rows->whereNotNull('check_in_at')->map(fn (StaffAttendance $a) => $a->work_date->toDateString())->flip();
+        $leaveDates = [];
+        StaffAttendanceRequest::query()->approved()->where('user_id', $userId)
             ->where('type', StaffAttendanceRequest::TYPE_LEAVE)
             ->overlapping($start->toDateString(), $end->toDateString())
             ->get(['date_from', 'date_to'])
-            ->sum(function (StaffAttendanceRequest $r) use ($start, $end) {
-                $from = $r->date_from->max($start->copy()->startOfDay());
+            ->each(function (StaffAttendanceRequest $r) use ($start, $end, $user, $worked, &$leaveDates) {
                 $to = $r->date_to->min($end->copy()->startOfDay());
-
-                return $to->lt($from) ? 0 : (int) $from->diffInDays($to) + 1;
+                for ($day = $r->date_from->max($start->copy()->startOfDay())->copy(); $day->lte($to); $day->addDay()) {
+                    $key = $day->toDateString();
+                    if (isset($worked[$key]) || $user?->isWeeklyDayOff($day)
+                        || Holiday::query()->coveringBranch($key, $user?->branch_id)->exists()) {
+                        continue;
+                    }
+                    $leaveDates[$key] = true;
+                }
             });
+        $leaveDays = count($leaveDates);
 
         return [
             'days' => $rows->whereNotNull('check_in_at')->count(),

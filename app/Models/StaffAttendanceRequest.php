@@ -34,11 +34,15 @@ class StaffAttendanceRequest extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    /** Quản lý thu hồi đơn đã duyệt (duyệt nhầm). */
+    public const STATUS_REVOKED = 'revoked';
+
     public const STATUSES = [
         self::STATUS_PENDING => 'Chờ duyệt',
         self::STATUS_APPROVED => 'Đã duyệt',
         self::STATUS_REJECTED => 'Từ chối',
         self::STATUS_CANCELLED => 'Đã rút',
+        self::STATUS_REVOKED => 'Đã thu hồi',
     ];
 
     protected $fillable = [
@@ -110,7 +114,7 @@ class StaffAttendanceRequest extends Model
     {
         return match ($this->status) {
             self::STATUS_APPROVED => 'success',
-            self::STATUS_REJECTED => 'error',
+            self::STATUS_REJECTED, self::STATUS_REVOKED => 'error',
             self::STATUS_PENDING => 'warning',
             default => 'neutral',
         };

@@ -394,7 +394,8 @@ class MyAttendanceTest extends TestCase
         $row = StaffAttendance::sole();
         $this->assertSame('2026-10-05 18:20', $row->check_in_at->format('Y-m-d H:i'));
         $this->assertSame(20, $row->late_minutes);
-        $this->assertNotNull($row->penalty_id);
+        // GV: đi muộn tính trên check-in ca dạy, chấm công không lập thêm biên bản (không phạt 2 lần).
+        $this->assertNull($row->penalty_id);
 
         // Check-in ca dạy trên Cổng giáo viên cũng ghi 18:20, muộn 20 phút.
         $this->actingAs($teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])->assertSessionHasNoErrors();
@@ -611,5 +612,130 @@ class MyAttendanceTest extends TestCase
         $this->get('/m/xin-duyet')->assertRedirect('/cham-cong/don');
         $this->get('/m/can-duyet')->assertRedirect('/approvals');
         $this->assertSame(url('/cham-cong'), route('my-attendance.home'));
+    }
+    public function test_admin_adjusts_attendance_with_reason_and_recalculates_lateness(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-05 08:30:00'));
+        $this->punch($this->staff);
+        $row = StaffAttendance::sole();
+        $this->assertTrue($row->isLate());
+        $penalty = Penalty::findOrFail($row->penalty_id);
+
+        // Không ghi lý do → chặn; tự sửa công của mình → chặn.
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
+            'user_id' => $this->staff->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58',
+        ])->assertSessionHasErrors('reason');
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
+            'user_id' => $this->admin->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58', 'reason' => 'x',
+        ])->assertSessionHasErrors('user_id');
+
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
+            'user_id' => $this->staff->id, 'work_date' => '2026-10-05', 'check_in_time' => '07:58', 'check_out_time' => '17:35', 'reason' => 'Máy chủ lỗi, đối chiếu camera',
+        ])->assertSessionHasNoErrors();
+        $row->refresh();
+        $this->assertSame('07:58', $row->check_in_at->format('H:i'));
+        $this->assertSame('17:35', $row->check_out_at->format('H:i'));
+        $this->assertFalse($row->isLate());
+        $this->assertStringContainsString('Máy chủ lỗi', $row->note);
+        $this->assertSame('cancelled', $penalty->fresh()->status);
+
+        // Ngày chưa có lượt chấm: quản lý tạo ngày công (nhân sự quên chấm cả ngày).
+        $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
+            'user_id' => $this->staff->id, 'work_date' => '2026-10-02', 'check_in_time' => '08:00', 'reason' => 'Quên chấm',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(StaffAttendance::SOURCE_MANUAL, StaffAttendance::forDay($this->staff->id, '2026-10-02')->source);
+
+        $this->actingAs($this->admin)->get(route('staff-attendance.edit', ['user_id' => $this->staff->id, 'date' => '2026-10-05']))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('StaffAttendance/Edit')->where('attendance.check_in', '07:58'));
+    }
+
+    public function test_admin_revokes_approved_leave_and_late_is_counted_again(): void
+    {
+        $this->actingAs($this->staff)->post(route('my-attendance.requests.store'), [
+            'type' => StaffAttendanceRequest::TYPE_LATE_EARLY, 'date_from' => '2026-10-05', 'reason' => 'Đưa con đi khám',
+        ])->assertSessionHasNoErrors();
+        $request = StaffAttendanceRequest::sole();
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id]]);
+
+        $this->travelTo(Carbon::parse('2026-10-05 08:30:00'));
+        $this->punch($this->staff);
+        $this->assertFalse(StaffAttendance::sole()->isLate());
+        $this->assertNull(StaffAttendance::sole()->penalty_id);
+
+        $this->actingAs($this->admin)->post(route('staff-attendance.requests.revoke', $request->id), ['reason' => 'Duyệt nhầm'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(StaffAttendanceRequest::STATUS_REVOKED, $request->fresh()->status);
+        $row = StaffAttendance::sole();
+        $this->assertTrue($row->isLate());
+        $this->assertNotNull($row->penalty_id);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->staff->id, 'type' => 'staff_attendance_request', 'title' => 'Thu hồi đơn Xin đi muộn / về sớm ngày 05/10/2026']);
+
+        // Đơn đã thu hồi không thu hồi lại được.
+        $this->actingAs($this->admin)->post(route('staff-attendance.requests.revoke', $request->id), ['reason' => 'Lần 2'])->assertSessionHasErrors('request');
+    }
+
+    public function test_personal_schedule_overrides_branch_hours_and_weekly_day_off_blocks_punch(): void
+    {
+        // Ca chiều 14:00–21:00, nghỉ Chủ nhật.
+        $this->staff->update(['work_start_time' => '14:00', 'work_end_time' => '21:00', 'weekly_days_off' => [7]]);
+
+        $this->travelTo(Carbon::parse('2026-10-05 13:55:00'));
+        $this->punch($this->staff)->assertSessionHas('success');
+        $row = StaffAttendance::sole();
+        $this->assertSame('14:00', substr((string) $row->expected_start, 0, 5));
+        $this->assertSame(0, $row->late_minutes);
+
+        $this->travelTo(Carbon::parse('2026-10-11 09:00:00')); // Chủ nhật
+        $this->punch($this->staff)->assertSessionHasErrors('kind');
+        $this->actingAs($this->manager)->get(route('staff-attendance.index', ['date' => '2026-10-11']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('rows.data', fn ($rows) => collect($rows)
+                ->firstWhere('user.id', $this->staff->id)['off'] === 'Hôm nay là ngày nghỉ cố định trong tuần của bạn, không chấm công.'));
+    }
+
+    public function test_check_out_after_midnight_closes_yesterday_and_reminder_is_sent_once(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-05 07:55:00'));
+        $this->punch($this->staff);
+
+        $this->travelTo(Carbon::parse('2026-10-05 21:45:00'));
+        $this->artisan('staff-attendance:remind-checkout')->assertSuccessful();
+        $this->artisan('staff-attendance:remind-checkout')->assertSuccessful();
+        $this->assertSame(1, \App\Models\AdminNotification::where('user_id', $this->staff->id)->where('type', 'staff_checkout_reminder')->count());
+
+        $this->travelTo(Carbon::parse('2026-10-06 00:40:00'));
+        $this->punch($this->staff, 'out')->assertSessionHasNoErrors();
+        $row = StaffAttendance::sole();
+        $this->assertSame('2026-10-05', $row->work_date->toDateString());
+        $this->assertSame('2026-10-06 00:40', $row->check_out_at->format('Y-m-d H:i'));
+    }
+
+    public function test_teacher_request_without_branch_is_filed_under_teaching_branch(): void
+    {
+        $teacher = $this->user('teacher', null);
+        $this->sessionFor('2026-10-07', ['teacher_id' => $teacher->id]);
+        $this->actingAs($teacher)->post(route('my-attendance.requests.store'), [
+            'type' => StaffAttendanceRequest::TYPE_LEAVE, 'date_from' => '2026-10-07', 'reason' => 'Ốm',
+        ])->assertSessionHasNoErrors();
+        $request = StaffAttendanceRequest::sole();
+        $this->assertSame($this->branch->id, (int) $request->branch_id);
+
+        $this->actingAs($this->admin)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ['staff_attendance_request:'.$request->id]]);
+        $this->assertSame(StaffAttendanceRequest::STATUS_APPROVED, $request->fresh()->status);
+    }
+
+    public function test_leave_days_skip_holidays_weekly_days_off_and_days_worked(): void
+    {
+        $this->staff->update(['weekly_days_off' => [7]]);
+        $holiday = Holiday::create(['code' => 'HOL-ATT-9', 'name' => 'Nghỉ bù', 'start_date' => '2026-10-07', 'end_date' => '2026-10-07', 'is_system_wide' => true]);
+        StaffAttendanceRequest::create([
+            'user_id' => $this->staff->id, 'branch_id' => $this->branch->id, 'type' => StaffAttendanceRequest::TYPE_LEAVE,
+            'date_from' => '2026-10-05', 'date_to' => '2026-10-11', 'reason' => 'Nghỉ phép', 'status' => StaffAttendanceRequest::STATUS_APPROVED,
+        ]);
+        $this->punch($this->staff); // 05/10 vẫn đi làm
+
+        // 05→11/10 = 7 ngày, trừ ngày đi làm (05), ngày lễ (07), Chủ nhật (11) → 4 ngày nghỉ phép.
+        $summary = app(\App\Services\StaffAttendance\StaffAttendanceService::class)->summary($this->staff->id, Carbon::parse('2026-10-01'), Carbon::parse('2026-10-31'));
+        $this->assertSame(4, $summary['leave_days']);
+        $this->assertNotNull($holiday);
     }
 }

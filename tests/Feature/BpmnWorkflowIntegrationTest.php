@@ -85,6 +85,7 @@ class BpmnWorkflowIntegrationTest extends TestCase
         $this->assertSame('pending_review', $timesheet->status);
         $this->assertNotNull($timesheet->class_session_id);
 
+        $this->travelTo(now()->setTime(18, 0)); // điểm danh khi vào lớp (mở từ 15 phút trước giờ học)
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
             'status' => [$this->student->id => 'present'],
         ])->assertRedirect();

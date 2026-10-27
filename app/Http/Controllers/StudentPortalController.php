@@ -185,9 +185,9 @@ class StudentPortalController extends Controller
             $classIds = $student->activeClassIds();
             $studentClasses = ClassModel::with('teacher')->whereIn('id', $classIds)->orderBy('name')->get();
 
-            $approvedAttendances = StudentAttendance::where('student_id', $student->id)->where('review_status', 'approved');
-            $learningProgress['attendance_total'] = (clone $approvedAttendances)->count();
-            $learningProgress['attendance_present'] = (clone $approvedAttendances)->whereIn('status', ['present', 'late'])->count();
+            $countedAttendances = StudentAttendance::where('student_id', $student->id)->counted();
+            $learningProgress['attendance_total'] = (clone $countedAttendances)->count();
+            $learningProgress['attendance_present'] = (clone $countedAttendances)->whereIn('status', ['present', 'late'])->count();
             $learningProgress['homework_total'] = Homework::whereIn('class_id', $classIds)->count();
             $learningProgress['homework_submitted'] = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
                 ->where('data->student_id', (string) $student->id)->count();

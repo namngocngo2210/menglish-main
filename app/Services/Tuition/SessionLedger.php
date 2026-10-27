@@ -144,6 +144,39 @@ class SessionLedger
     }
 
     /**
+     * Số buổi đã trừ của từng khoản học phí (cùng quy tắc sổ buổi: buổi lớp diễn ra khi học viên thuộc lớp, vắng vẫn
+     * trừ, bảo lưu không trừ). Sổ buổi tính theo học viên nên chia cho các khoản theo thứ tự lập: khoản cũ dùng hết số
+     * buổi của nó rồi mới sang khoản sau (không khoản nào vượt số buổi của nó).
+     * Dùng cho số buổi đã học / còn lại của khoản (hoàn phí, bảo lưu, công nợ) để khớp với hồ sơ học viên.
+     *
+     * @param  iterable<int>  $studentIds
+     * @return array<int, int> id khoản học phí => số buổi đã trừ
+     */
+    public function tuitionUsage(iterable $studentIds, ?CarbonInterface $now = null): array
+    {
+        $ids = collect($studentIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $used = $this->usedSessions($ids, $now);
+        $result = [];
+        StudentTuition::query()->with('classModel.course', 'student.currentClass.course')
+            ->whereIn('student_id', $ids)->orderBy('id')->get()
+            ->groupBy('student_id')
+            ->each(function (Collection $tuitions, $studentId) use ($used, &$result) {
+                $left = (int) ($used[(int) $studentId] ?? 0);
+                foreach ($tuitions as $tuition) {
+                    $size = $tuition->sessionSize();
+                    $result[(int) $tuition->id] = min($left, $size);
+                    $left = max(0, $left - $size);
+                }
+            });
+
+        return $result;
+    }
+
+    /**
      * Số buổi đã trừ của từng học viên: buổi của các lớp học viên thuộc về (từ ngày xếp lớp tới trước ngày rời lớp),
      * bỏ các buổi nằm trong thời gian bảo lưu đã duyệt.
      *

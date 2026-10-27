@@ -18,6 +18,12 @@ class StaffAttendance extends Model
 
     public const SOURCE_REQUEST = 'request';
 
+    /** Quản lý sửa giờ công trực tiếp (Chấm công hằng ngày → Sửa giờ công). */
+    public const SOURCE_MANUAL = 'manual';
+
+    /** Sai số GPS (m) quá mức này → màn quản lý gắn cờ "vị trí kém tin cậy" để đối chiếu ảnh (không chặn chấm công). */
+    public const LOW_ACCURACY_METERS = 100;
+
     /** Thư mục ảnh trên disk local (storage/app/private, không public). */
     public const PHOTO_DIR = 'staff-attendance';
 

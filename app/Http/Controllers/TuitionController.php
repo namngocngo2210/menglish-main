@@ -196,7 +196,7 @@ class TuitionController extends Controller
                 'days_overdue' => $t->days_overdue,
                 'session_lines' => $stats ? [
                     ['label' => 'Số buổi còn tồn', 'value' => $t->frozen_remaining_sessions ?? $stats['remaining']],
-                    ['label' => 'Số buổi đã học', 'value' => $stats['attended']],
+                    ['label' => 'Số buổi đã trừ (vắng vẫn trừ)', 'value' => $stats['attended']],
                     ['label' => 'Tổng số buổi', 'value' => $stats['total']],
                 ] : [],
                 'last_contact' => $t->last_contact ? [

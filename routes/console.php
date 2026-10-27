@@ -55,6 +55,8 @@ Schedule::command('reports:remind-monthly')->dailyAt('08:00');
 // Báo cáo ngày Học vụ / Học thuật (hạn 09:00 sáng hôm sau): 08:00 nhắc người chưa nộp hôm qua; 09:05 gửi Admin bản tổng hợp đã nộp / còn thiếu (idempotent theo ngày).
 Schedule::command('reports:remind-daily')->dailyAt('08:00');
 Schedule::command('reports:daily-digest')->dailyAt('09:05');
+// Chấm công: 21:45 nhắc nhân sự đã chấm vào hôm nay mà chưa chấm ra (1 lần / ngày công; chấm ra được tới 06:00 sáng mai).
+Schedule::command('staff-attendance:remind-checkout')->dailyAt('21:45');
 // Nộp phạt trong N ngày (Cấu hình SLA, mặc định 2): hạn nộp là ngày mai / hôm nay → nhắc nhân sự vi phạm (idempotent theo ngày).
 Schedule::command('penalties:remind-due')->dailyAt('08:30');
 // Lịch chốt lương: cuối tháng nhắc chốt KPI, +1/+2 ngày nhắc chốt công / lỗi, ngày 10 nhắc trả lương 10–15 (idempotent theo ngày).

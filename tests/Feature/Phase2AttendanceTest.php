@@ -86,7 +86,7 @@ class Phase2AttendanceTest extends TestCase
     {
         $past = $this->makeSession('2026-10-06'); // trong khung ±24h (start 18:00 hôm qua + 24h = 18:00 hôm nay)
         $today = $this->makeSession('2026-10-07', '08:00', '09:30');
-        $makeup = $this->makeSession('2026-10-07', '14:00', '15:30', ClassSession::TYPE_MAKEUP);
+        $makeup = $this->makeSession('2026-10-07', '10:05', '11:30', ClassSession::TYPE_MAKEUP);
 
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $past->id]))
             ->assertOk()->assertSee('Điểm danh bù')->assertSee($this->student->name);
@@ -251,6 +251,7 @@ class Phase2AttendanceTest extends TestCase
         $this->assertSame(2, $this->classModel->occupiedSeats());
 
         $session = $this->makeSession('2026-10-07');
+        Carbon::setTestNow('2026-10-07 18:05:00'); // điểm danh mở từ 15 phút trước giờ học
         $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id]))
             ->assertSee('Học viên Liên Kết')->assertDontSee('Học viên Bảo Lưu')->assertDontSee('Học viên Thôi Học');
         $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
@@ -268,6 +269,7 @@ class Phase2AttendanceTest extends TestCase
     public function test_absence_and_low_scores_feed_the_support_list_idempotently(): void
     {
         $session = $this->makeSession('2026-10-07');
+        Carbon::setTestNow('2026-10-07 18:05:00');
         $post = fn (string $status) => $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
             'class_session_id' => $session->id, 'status' => [$this->student->id => $status], 'note' => [$this->student->id => 'Lý do vắng'],
         ]);
@@ -593,6 +595,49 @@ class Phase2AttendanceTest extends TestCase
     }
 
     // ── helpers ───────────────────────────────────────────────────────────
+
+    public function test_makeup_attendance_leaves_students_who_joined_later_blank(): void
+    {
+        $past = $this->makeSession('2026-10-06'); // trong khung (18:00 hôm qua + 24h)
+        $late = $this->makeStudent('Học viên vào sau', $this->classModel);
+        \App\Models\ClassEnrollment::create(['student_id' => $late->id, 'class_id' => $this->classModel->id, 'enrolled_at' => '2026-10-07', 'status' => 'completed']);
+
+        $this->actingAs($this->teacher)->get(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $past->id]))
+            ->assertInertia(fn ($page) => $page->where('students', fn ($students) => collect($students)->firstWhere('id', $late->id)['status'] === ''
+                && collect($students)->firstWhere('id', $late->id)['joined_on'] === '07/10/2026'
+                && collect($students)->firstWhere('id', $this->student->id)['status'] === 'present'));
+
+        // Ô để trống không lưu điểm danh cho học viên đó.
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $past->id, 'status' => [$this->student->id => 'present', $late->id => ''],
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseMissing('student_attendances', ['student_id' => $late->id]);
+        $this->assertDatabaseHas('student_attendances', ['student_id' => $this->student->id, 'class_session_id' => $past->id]);
+    }
+
+    public function test_resaving_keeps_review_and_rejected_attendance_notifies_teacher(): void
+    {
+        $today = $this->makeSession('2026-10-07', '09:50', '11:20');
+        $other = $this->makeStudent('Học viên Hai', $this->classModel);
+        $store = fn (array $status, array $note = []) => $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $today->id, 'status' => $status, 'note' => $note,
+        ]);
+        $store([$this->student->id => 'present', $other->id => 'present'])->assertSessionHasNoErrors();
+        $row = StudentAttendance::where('student_id', $this->student->id)->sole();
+
+        $this->actingAs($this->academicStaff)->post(route('kpi.attendance-review.update', $row->id), ['decision' => 'approved'])->assertRedirect();
+        // Lưu lại, chỉ đổi học viên khác: dòng đã duyệt giữ nguyên.
+        $store([$this->student->id => 'present', $other->id => 'late'])->assertSessionHasNoErrors();
+        $this->assertSame('approved', $row->fresh()->review_status);
+
+        $this->actingAs($this->academicStaff)->post(route('kpi.attendance-review.update', $row->id), ['decision' => 'rejected', 'review_note' => 'Sai trạng thái'])->assertRedirect();
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'attendance_rejected']);
+
+        // Quá khung điểm danh vẫn sửa được dòng bị trả lại.
+        Carbon::setTestNow('2026-10-09 10:00:00');
+        $store([$this->student->id => 'late', $other->id => 'late'])->assertSessionHasNoErrors();
+        $this->assertSame('pending_review', $row->fresh()->review_status);
+    }
 
     private function makeUser(string $role): User
     {

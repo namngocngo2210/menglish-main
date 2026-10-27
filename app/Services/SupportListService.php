@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BigTestResult;
 use App\Models\ClassReportStudentSupport;
+use App\Models\ClassSession;
 use App\Models\MiniTestScore;
 use App\Models\StudentAttendance;
 
@@ -38,13 +39,13 @@ class SupportListService
 
     public function syncAttendance(StudentAttendance $attendance): void
     {
-        if (! in_array($attendance->status, self::ABSENT_STATUSES, true)) {
+        $session = $attendance->classSession;
+        // Vắng buổi phụ đạo không tạo thêm dòng bổ trợ (bổ trợ cho chính buổi bổ trợ); Học vụ xếp lại buổi phụ đạo đó.
+        if (! in_array($attendance->status, self::ABSENT_STATUSES, true) || $session?->type === ClassSession::TYPE_SUPPORT) {
             $this->forget(self::SOURCE_ATTENDANCE, $attendance->id);
 
             return;
         }
-
-        $session = $attendance->classSession;
         $date = ($session?->date ?? $attendance->session_date)?->format('d/m/Y');
         $label = trim('Buổi '.$date.' '.($session?->shift_name ?? ''));
 
