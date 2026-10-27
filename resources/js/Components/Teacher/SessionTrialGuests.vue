@@ -16,7 +16,7 @@ defineProps({
                 <span class="material-symbols-outlined text-[20px] text-secondary" aria-hidden="true">person_search</span>
                 Khách học thử buổi này ({{ guests.items.length }})
             </h2>
-            <UiButton size="sm" variant="secondary" icon="rate_review" :href="route('teacher.trial-guests', { scope: guests.scope })">Nhận xét học thử</UiButton>
+            <UiButton v-if="canAny('portal.teacher', 'lead.trial_feedback')" size="sm" variant="secondary" icon="rate_review" :href="route('teacher.trial-guests', { scope: guests.scope })">Nhận xét học thử</UiButton>
         </div>
         <ul class="mt-sm space-y-xs font-body-small text-body-small">
             <li v-for="guest in guests.items" :key="guest.id" class="rounded-lg bg-surface-container-lowest px-sm py-xs">

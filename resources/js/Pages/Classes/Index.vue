@@ -24,6 +24,8 @@ const chipClass = (active) =>
     (active ? 'border-primary-container bg-primary-container text-white' : 'border-outline-variant bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface');
 const countClass = (active) => 'rounded-full px-1.5 font-code text-xs leading-4 ' + (active ? 'bg-white/25' : 'bg-surface-container-high');
 const chipUrl = (key, value) => urlWith({ page: null, [key]: props.filters[key] === value ? null : value });
+// "Lớp của tôi" (giáo viên / trợ giảng): thẻ số liệu và nút xoá lọc giữ bộ lọc lớp của mình.
+const mine = props.filters.mine ? { mine: 1 } : {};
 const progress = (c) => (c.total_sessions > 0 ? Math.round((c.done_sessions * 100) / c.total_sessions) : null);
 </script>
 
@@ -37,19 +39,20 @@ const progress = (c) => (c.total_sessions > 0 ? Math.round((c.done_sessions * 10
     <div class="space-y-5">
         <!-- Việc cần chú ý -->
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Link :href="route('classes.index', { status: 'active' })" class="block">
+            <Link :href="route('classes.index', { ...mine, status: 'active' })" class="block">
                 <UiStatCard label="Đang học" :value="stats.active" tone="success" icon="play_circle" />
             </Link>
-            <Link :href="route('classes.index', { status: 'pending_schedule' })" class="block">
+            <Link :href="route('classes.index', { ...mine, status: 'pending_schedule' })" class="block">
                 <UiStatCard label="Chờ cấu hình lịch" :value="stats.pending_schedule" :tone="stats.pending_schedule ? 'warning' : 'default'" icon="edit_calendar" />
             </Link>
             <UiStatCard label="Chưa đủ ngưỡng khai giảng" :value="stats.short" :tone="stats.short ? 'warning' : 'default'" icon="group_add" />
-            <Link :href="route('tasks.classes-dashboard', { attendance: 'missing' })" class="block">
+            <!-- Lịch học các lớp là màn của người quản lý lớp; giáo viên / trợ giảng điểm danh ở Cổng giáo viên. -->
+            <Link :href="can('class.update') ? route('tasks.classes-dashboard', { attendance: 'missing' }) : route('teacher.home')" class="block">
                 <UiStatCard label="Buổi hôm nay chưa điểm danh" :value="stats.missing_attendance" :tone="stats.missing_attendance ? 'error' : 'default'" icon="fact_check" />
             </Link>
         </div>
 
-        <UiFilterBar :action="route('classes.index')" placeholder="Tìm tên lớp hoặc mã lớp..." :reset-url="route('classes.index')" class="!mb-0">
+        <UiFilterBar :action="route('classes.index')" placeholder="Tìm tên lớp hoặc mã lớp..." :reset-url="route('classes.index', mine)" class="!mb-0">
             <template #quick>
                 <div class="space-y-sm">
                     <nav class="flex flex-wrap items-center gap-xs" aria-label="Lọc theo trạng thái lớp">

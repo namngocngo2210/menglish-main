@@ -50,6 +50,10 @@ function switchStudent(event) {
             <!-- Đổi học viên nhanh -->
             <UiSelect v-if="students.length > 1" class="!min-w-0 py-1 text-xs font-semibold" aria-label="Chọn học viên" :options="options" :value="student?.id" @change="switchStudent" />
 
+            <!-- Hướng dẫn sử dụng cho phụ huynh / học sinh (thay cho mục ở menu "Của tôi" của nhân sự). -->
+            <Link :href="route('guide.index')" title="Hướng dẫn sử dụng" aria-label="Hướng dẫn sử dụng" class="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container active:scale-95">
+                <span class="material-symbols-outlined text-[22px]" aria-hidden="true">help</span>
+            </Link>
             <Link :href="route('portal.app-shell', { student_id: student?.id })" title="Xem App Shell & Menu" class="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-primary-container/10 text-primary transition-opacity hover:opacity-80 active:scale-95">
                 <span class="material-symbols-outlined text-[22px]">account_circle</span>
             </Link>
