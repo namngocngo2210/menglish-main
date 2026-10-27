@@ -202,6 +202,7 @@ class PracticeExamControllerTest extends TestCase
 
     public function test_import_is_queued_with_stored_files_and_page_shows_pending(): void
     {
+        config(['queue.default' => 'database']); // có worker thật: job vào hàng đợi
         Queue::fake();
 
         $this->actingAs($this->lead)
@@ -220,7 +221,7 @@ class PracticeExamControllerTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('imports.0.pending', true)
                 ->where('imports.0.stalled', false)
-                ->where('imports.0.status_label', 'Đang chờ'));
+                ->where('imports.0.status_label', 'Chờ xử lý'));
         $this->travel(3)->minutes();
         $this->get(route('question-bank.exams.index'))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('imports.0.stalled', true));
@@ -250,7 +251,7 @@ class PracticeExamControllerTest extends TestCase
 
         $this->get(route('question-bank.exams.index'))
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('imports.0.status_label', 'Lỗi')
+                ->where('imports.0.status_label', 'Thất bại')
                 ->where('imports.0.report', null));
     }
 

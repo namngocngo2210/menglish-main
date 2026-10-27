@@ -57,14 +57,28 @@ async function bulk(action) {
     });
 }
 
+// Import: bấm là đóng modal ngay; file tải lên ở nền, tiến độ (đang tải lên % → chờ / đang xử lý → hoàn thành /
+// thất bại) hiện ở danh sách import phía trên các khối.
 const importOpen = ref(false);
-const fileNames = ref('');
+const pickedFiles = ref([]);
+const upload = ref(null); // { files, percent, error }
 function onPick(event) {
-    fileNames.value = [...(event.target.files ?? [])].map((f) => f.name).join(', ');
+    pickedFiles.value = [...(event.target.files ?? [])];
 }
-function onImported() {
+function submitImport() {
+    if (!pickedFiles.value.length) return;
+    const files = pickedFiles.value;
+    upload.value = { files: files.map((f) => f.name), percent: 0, error: null };
     importOpen.value = false;
-    fileNames.value = '';
+    pickedFiles.value = [];
+    router.post(route('question-bank.exams.import'), { files }, {
+        forceFormData: true,
+        preserveScroll: true,
+        onProgress: (e) => upload.value && (upload.value.percent = Math.round(e?.percentage ?? 0)),
+        onError: (errors) => upload.value && (upload.value.error = errors.files || errors['files.0'] || Object.values(errors)[0] || 'Tải file lên thất bại.'),
+        onSuccess: () => (upload.value = null),
+        onNetworkError: () => upload.value && (upload.value.error = 'Mất kết nối khi tải file lên.'),
+    });
 }
 
 const latest = computed(() => props.imports[0] ?? null);
@@ -90,7 +104,7 @@ onBeforeUnmount(() => timer && window.clearInterval(timer));
 <template>
     <UiPageHeader title="Đề cố định" description="Nguyên bộ đề theo mã (vd. đề GK1 khối 6 mã 601). Học viên chỉ thấy đề đã mở của khối mình và chọn từng đề để làm.">
         <template v-if="canManage" #actions>
-            <UiButton icon="upload_file" @click="importOpen = true">Import đề</UiButton>
+            <UiButton icon="upload_file" :disabled="!!(upload && !upload.error)" @click="importOpen = true">Import đề</UiButton>
         </template>
     </UiPageHeader>
 
@@ -101,7 +115,14 @@ onBeforeUnmount(() => timer && window.clearInterval(timer));
         <UiTab :href="route('question-bank.analysis')">Phân tích câu hỏi</UiTab>
     </UiTabs>
 
-    <section v-if="imports.length" class="mb-lg space-y-sm" data-imports>
+    <section v-if="imports.length || upload" class="mb-lg space-y-sm" data-imports>
+        <div v-if="upload" class="flex flex-wrap items-center gap-sm rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm" data-import="uploading">
+            <span v-if="!upload.error" class="material-symbols-outlined animate-spin text-[18px] text-primary" aria-hidden="true">progress_activity</span>
+            <UiBadge :color="upload.error ? 'error' : 'info'">{{ upload.error ? 'Thất bại' : `Đang tải lên ${upload.percent}%` }}</UiBadge>
+            <span class="min-w-0 flex-1 truncate font-body-small text-body-small text-on-surface" :title="upload.files.join(', ')">{{ upload.files.join(', ') }}</span>
+            <UiButton v-if="upload.error" size="sm" variant="ghost" @click="upload = null">Đóng</UiButton>
+            <p v-if="upload.error" class="w-full font-body-small text-body-small text-error" role="alert">{{ upload.error }}</p>
+        </div>
         <div
             v-for="imp in imports"
             :key="imp.id"
@@ -194,28 +215,25 @@ onBeforeUnmount(() => timer && window.clearInterval(timer));
     </section>
 
     <UiModal v-if="canManage" :show="importOpen" title="Import đề cố định" max-width="lg" @close="importOpen = false">
-        <UiForm :action="route('question-bank.exams.import')" method="post" class="space-y-md" reset-on-success @success="onImported">
-            <template #default="{ errors, processing }">
-                <label class="flex cursor-pointer flex-col items-center justify-center gap-sm rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-lg text-center hover:border-primary-container">
-                    <span class="material-symbols-outlined text-[32px] text-primary" aria-hidden="true">upload_file</span>
-                    <span class="font-body-medium text-body-medium text-on-surface">Chọn file .zip, hoặc các file .xlsx + .docx (tối đa 50MB mỗi file)</span>
-                    <input type="file" name="files[]" accept=".zip,.xlsx,.docx" multiple class="sr-only" required @change="onPick" />
-                    <span v-if="fileNames" class="font-body-small text-body-small text-on-surface-variant">Đã chọn: {{ fileNames }}</span>
-                </label>
-                <p v-if="errors.files || errors['files.0']" class="font-body-small text-body-small text-error" role="alert">{{ errors.files || errors['files.0'] }}</p>
-                <UiAlert type="info" title="Lưu ý">
-                    <ul class="list-disc space-y-0.5 pl-md">
-                        <li>File Excel đề kèm đáp án: mỗi sheet một mã đề, tiêu đề dạng "ĐỀ KIỂM TRA GIỮA HỌC KÌ I … TIẾNG ANH 6 – MÃ ĐỀ 601".</li>
-                        <li>Kèm file Word của đề để giữ gạch chân câu Phát âm (Excel không lưu gạch chân).</li>
-                        <li>Đề mới vào trạng thái <b>Nháp</b>. Đề đã mở / đã ẩn giữ nguyên khi import lại.</li>
-                        <li>Import chạy nền: tải file lên xong là đóng được, kết quả hiện trên trang này khi xong.</li>
-                    </ul>
-                </UiAlert>
-                <div class="flex justify-end gap-sm">
-                    <UiButton variant="secondary" :disabled="processing" @click="importOpen = false">Hủy</UiButton>
-                    <UiButton type="submit" icon="upload_file" :disabled="processing">{{ processing ? 'Đang tải file lên…' : 'Import' }}</UiButton>
-                </div>
-            </template>
-        </UiForm>
+        <form class="space-y-md" @submit.prevent="submitImport">
+            <label class="flex cursor-pointer flex-col items-center justify-center gap-sm rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-lg text-center hover:border-primary-container">
+                <span class="material-symbols-outlined text-[32px] text-primary" aria-hidden="true">upload_file</span>
+                <span class="font-body-medium text-body-medium text-on-surface">Chọn file .zip, hoặc các file .xlsx + .docx (tối đa 50MB mỗi file)</span>
+                <input type="file" name="files[]" accept=".zip,.xlsx,.docx" multiple class="sr-only" required @change="onPick" />
+                <span v-if="pickedFiles.length" class="font-body-small text-body-small text-on-surface-variant">Đã chọn: {{ pickedFiles.map((f) => f.name).join(', ') }}</span>
+            </label>
+            <UiAlert type="info" title="Lưu ý">
+                <ul class="list-disc space-y-0.5 pl-md">
+                    <li>File Excel đề kèm đáp án: mỗi sheet một mã đề, tiêu đề dạng "ĐỀ KIỂM TRA GIỮA HỌC KÌ I … TIẾNG ANH 6 – MÃ ĐỀ 601".</li>
+                    <li>Kèm file Word của đề để giữ gạch chân câu Phát âm (Excel không lưu gạch chân).</li>
+                    <li>Đề mới vào trạng thái <b>Nháp</b>. Đề đã mở / đã ẩn giữ nguyên khi import lại.</li>
+                    <li>Bấm Import là đóng cửa sổ này; tiến độ (đang tải lên, đang xử lý, hoàn thành / thất bại) hiện ở danh sách đề.</li>
+                </ul>
+            </UiAlert>
+            <div class="flex justify-end gap-sm">
+                <UiButton variant="secondary" @click="importOpen = false">Hủy</UiButton>
+                <UiButton type="submit" icon="upload_file" :disabled="!pickedFiles.length || !!(upload && !upload.error)">Import</UiButton>
+            </div>
+        </form>
     </UiModal>
 </template>

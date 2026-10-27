@@ -20,10 +20,10 @@ class PracticeExamImport extends Model
     public const FAILED = 'failed';
 
     public const STATUSES = [
-        self::QUEUED => 'Đang chờ',
-        self::RUNNING => 'Đang import',
-        self::DONE => 'Xong',
-        self::FAILED => 'Lỗi',
+        self::QUEUED => 'Chờ xử lý',
+        self::RUNNING => 'Đang xử lý',
+        self::DONE => 'Hoàn thành',
+        self::FAILED => 'Thất bại',
     ];
 
     protected $fillable = ['user_id', 'status', 'file_names', 'message', 'report', 'started_at', 'finished_at'];
