@@ -1917,11 +1917,13 @@ class StaffReportController extends Controller
         $to = $this->filterDate($request->input('to') ?? $request->input('date'));
         $userId = $request->integer('user_id') ?: null;
         $branchId = $request->integer('branch_id') ?: null;
+        $role = is_string($request->input('role')) && $request->input('role') !== '' ? $request->input('role') : null;
         $inBranch = fn ($q) => $q->where('branch_id', $branchId)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId));
 
         $query = $this->scopeViewer(StaffReport::with(['user.roles', 'user.branch:id,name', 'followups', 'reviewer:id,name']))->where('status', '!=', 'draft');
         $query->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->when($branchId, fn ($q) => $q->whereHas('user', $inBranch))
+            ->when($role, fn ($q) => $q->whereHas('user.roles', fn ($r) => $r->where('name', $role)))
             ->when($to, fn ($q) => $q->whereDate('report_date', '<=', $to->toDateString()))
             ->when($from, fn ($q) => $q->where(fn ($p) => $p
                 ->where(fn ($d) => $d->whereNotIn('type', ['weekly', 'monthly', 'quarterly'])->whereDate('report_date', '>=', $from->toDateString()))
@@ -1961,6 +1963,7 @@ class StaffReportController extends Controller
                 'updated_at' => $r->updated_at && $r->created_at && $r->updated_at->diffInMinutes($r->created_at, true) >= 1 ? $r->updated_at->toIso8601String() : null,
                 'late' => DailyReportDue::isLate($r),
                 'user' => $r->user?->name,
+                'role' => ($name = $r->user?->roles->first()?->name) ? AclHelper::shortRoleLabel($name) : null,
                 'branch' => $r->user?->branch?->name,
                 'followups_count' => $r->followups->count(),
                 'reviewable' => $r->type !== 'journal',
@@ -2000,6 +2003,7 @@ class StaffReportController extends Controller
                 'review' => $review,
                 'user_id' => $userId,
                 'branch_id' => $branchId,
+                'role' => $role,
                 'from' => $from?->toDateString(),
                 'to' => $to?->toDateString(),
             ],
@@ -2008,6 +2012,10 @@ class StaffReportController extends Controller
             'typeCounts' => $typeCounts,
             // Ngày hôm nay theo múi giờ ứng dụng: khoảng ngày chọn nhanh (7 ngày qua, tháng này…) tính từ đây, không theo đồng hồ máy người xem.
             'today' => today()->toDateString(),
+            // Vai trò của những người đã viết báo cáo (bộ lọc "Vai trò").
+            'roles' => DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', (new User)->getMorphClass())->whereIn('model_has_roles.model_id', $scoped()->select('user_id')->distinct())
+                ->distinct()->orderBy('roles.name')->pluck('roles.name')->map(fn (string $n) => ['value' => $n, 'label' => AclHelper::shortRoleLabel($n)])->values()->all(),
             'users' => User::whereIn('id', $scoped()->select('user_id')->distinct())->orderBy('name')->get(['id', 'name'])
                 ->map(fn (User $u) => ['value' => $u->id, 'label' => $u->name])->all(),
             'branches' => Branch::where('is_active', true)->when($staffIds !== null, fn ($q) => $q->whereIn('id', Auth::user()->branchIds()))

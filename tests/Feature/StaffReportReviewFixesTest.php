@@ -219,6 +219,13 @@ class StaffReportReviewFixesTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('filters.review', 'pending')->has('reports.data', 1)
                 ->where('reports.data.0.id', $pending->id)->where('typeCounts', ['daily' => 1])->where('stats.urgent_open', 1)->where('stats.followups_overdue', 0));
 
+        // Lọc theo vai trò người nộp; mỗi dòng ghi vai trò để hiện cột "Người nộp".
+        $teacherReport = $this->dailyReport($this->makeUser('teacher', ['name' => 'Giáo viên CG']), '2026-10-14');
+        $this->actingAs($admin)->get(route('reports.all', ['role' => 'teacher']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('reports.data', 1)->where('reports.data.0.id', $teacherReport->id)
+                ->where('filters.role', 'teacher')->where('roles', fn ($roles) => collect($roles)->pluck('value')->sort()->values()->all() === ['academic_staff', 'teacher']));
+        $teacherReport->delete();
+
         // Tab "Tất cả": cả nhật ký; lọc loại vẫn giữ số đếm của mọi loại trong tab.
         $this->actingAs($admin)->get(route('reports.all', ['review' => 'all', 'type' => 'journal']))
             ->assertInertia(fn (AssertableInertia $page) => $page->has('reports.data', 1)->where('reports.data.0.type', 'journal')

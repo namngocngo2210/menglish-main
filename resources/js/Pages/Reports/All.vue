@@ -29,6 +29,7 @@ const props = defineProps({
     typeCounts: { type: Object, default: () => ({}) },
     today: { type: String, default: null },
     users: { type: Array, default: () => [] },
+    roles: { type: Array, default: () => [] },
     branches: { type: Array, default: () => [] },
     canReview: { type: Boolean, default: false },
     openId: { type: Number, default: null },
@@ -56,16 +57,16 @@ const countTone = {
 };
 const base = computed(() => ({ user_id: props.filters.user_id, branch_id: props.filters.branch_id }));
 const tabHref = (key) =>
-    route('reports.all', compactQuery(['missing', 'followups'].includes(key) ? { view: key, ...base.value } : { review: key === 'pending' ? null : key, type: props.filters.type, ...(props.view === 'list' ? { from: props.filters.from, to: props.filters.to } : {}), ...base.value }));
+    route('reports.all', compactQuery(['missing', 'followups'].includes(key) ? { view: key, ...base.value } : { review: key === 'pending' ? null : key, type: props.filters.type, role: props.filters.role, ...(props.view === 'list' ? { from: props.filters.from, to: props.filters.to } : {}), ...base.value }));
 
 // ── Bộ lọc: chọn là lọc ngay ──
 function apply(changes) {
     const query = { ...props.filters, ...changes, view: props.view === 'list' ? null : props.view };
-    if (props.view !== 'list') Object.assign(query, { review: null, type: null });
+    if (props.view !== 'list') Object.assign(query, { review: null, type: null, role: null });
     else if (query.review === 'pending') query.review = null;
     router.get(route('reports.all'), compactQuery(query), { preserveState: true, preserveScroll: true });
 }
-const hasFilters = computed(() => Boolean(props.filters.type || props.filters.user_id || props.filters.branch_id || props.filters.from || props.filters.to));
+const hasFilters = computed(() => Boolean(props.filters.type || props.filters.role || props.filters.user_id || props.filters.branch_id || props.filters.from || props.filters.to));
 const clearFilters = () => router.get(route('reports.all', compactQuery(props.view === 'list' ? { review: review.value === 'pending' ? null : review.value } : { view: props.view })));
 
 // Loại báo cáo kèm số đếm trong tab hiện tại; "Nhật ký" chỉ có ở tab Tất cả (nhật ký sự vụ không qua kiểm tra).
@@ -126,7 +127,7 @@ function choosePreset(value) {
 }
 
 const sheetOpen = ref(false);
-const activeCount = computed(() => [props.filters.type, props.filters.user_id, props.filters.branch_id].filter(Boolean).length);
+const activeCount = computed(() => [props.filters.type, props.filters.role, props.filters.user_id, props.filters.branch_id].filter(Boolean).length);
 
 // ── Chọn nhiều báo cáo đang chờ để "Đã kiểm tra" một lần ──
 const selectable = computed(() => props.reports.data.filter((r) => r.reviewable && r.status === 'submitted' && !r.reviewed_at).map((r) => r.id));
@@ -201,9 +202,10 @@ const pct = (n, total) => (total ? `${(n / total) * 100}%` : '0%');
                 </button>
             </div>
             <div class="flex-1" />
-            <UiSelect class="!w-52" :options="users" :value="filters.user_id" placeholder="Mọi người viết" aria-label="Người viết" :searchable="users.length > 8" @change="apply({ user_id: $event.target.value || null })" />
-            <UiSelect v-if="branches.length > 1" class="!w-44" :options="branches" :value="filters.branch_id" placeholder="Mọi chi nhánh" aria-label="Chi nhánh" @change="apply({ branch_id: $event.target.value || null })" />
-            <UiSelect class="!w-44" :options="presets" :value="preset" :placeholder="null" aria-label="Khoảng ngày" data-date-preset @change="choosePreset($event.target.value)" />
+            <UiSelect v-if="view === 'list' && roles.length > 1" class="!w-40" :options="roles" :value="filters.role" placeholder="Mọi vai trò" aria-label="Vai trò" data-role-filter @change="apply({ role: $event.target.value || null })" />
+            <UiSelect class="!w-48" :options="users" :value="filters.user_id" placeholder="Mọi người viết" aria-label="Người viết" :searchable="users.length > 8" @change="apply({ user_id: $event.target.value || null })" />
+            <UiSelect v-if="branches.length > 1" class="!w-40" :options="branches" :value="filters.branch_id" placeholder="Mọi chi nhánh" aria-label="Chi nhánh" @change="apply({ branch_id: $event.target.value || null })" />
+            <UiSelect class="!w-40" :options="presets" :value="preset" :placeholder="null" aria-label="Khoảng ngày" data-date-preset @change="choosePreset($event.target.value)" />
             <template v-if="preset === 'custom'">
                 <UiDate :value="from" aria-label="Từ ngày" class="!w-40" @change="apply({ from: $event.target.value || null, date: null })" />
                 <span class="text-on-surface-subtle">–</span>
@@ -250,6 +252,10 @@ const pct = (n, total) => (total ? `${(n / total) * 100}%` : '0%');
                                 @click="apply({ type: c.value })"
                             >{{ c.label }} {{ c.count }}</button>
                         </div>
+                    </div>
+                    <div v-if="view === 'list' && roles.length > 1" class="mb-4">
+                        <p class="mb-1.5 text-[13px] font-semibold text-on-surface-variant">Vai trò</p>
+                        <UiSelect :options="roles" :value="filters.role" placeholder="Mọi vai trò" aria-label="Vai trò" @change="apply({ role: $event.target.value || null })" />
                     </div>
                     <div class="mb-4">
                         <p class="mb-1.5 text-[13px] font-semibold text-on-surface-variant">Người viết</p>
@@ -333,15 +339,28 @@ const pct = (n, total) => (total ? `${(n / total) * 100}%` : '0%');
         <!-- Danh sách báo cáo -->
         <template v-else>
             <div class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm max-md:border-0 max-md:bg-transparent max-md:shadow-none">
-                <label v-if="canReview && selectable.length" class="flex cursor-pointer items-center gap-3 border-b border-surface-container-highest bg-surface-container-low/50 px-4 py-2.5 text-[13px] font-semibold text-on-surface-variant max-md:mb-2 max-md:rounded-xl max-md:border" data-bulk-review>
+                <!-- Hàng tiêu đề cột (máy tính) kiêm "chọn tất cả" -->
+                <div class="grid grid-cols-[1rem_8.5rem_minmax(0,1fr)_13rem_7.5rem_16rem] items-center gap-4 border-b border-surface-container-highest bg-surface-container-low/50 px-4 py-2.5 text-xs font-semibold text-on-surface-variant max-md:hidden">
                     <input
+                        v-if="canReview && selectable.length"
                         type="checkbox"
                         class="rounded border-outline-variant text-primary-container focus:ring-primary-container"
                         :checked="allSelected"
                         :indeterminate="someSelected"
+                        :aria-label="`Chọn tất cả ${selectable.length} báo cáo chờ kiểm tra trên trang`"
+                        data-bulk-review
                         @change="toggleAll"
                     />
-                    Chọn tất cả {{ selectable.length }} báo cáo chờ kiểm tra<span class="max-md:hidden"> trên trang</span>
+                    <span v-else />
+                    <span>Loại</span>
+                    <span>Báo cáo</span>
+                    <span>Người nộp</span>
+                    <span>Nộp lúc</span>
+                    <span />
+                </div>
+                <label v-if="canReview && selectable.length" class="mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-surface-container-highest bg-surface-container-low/50 px-4 py-2.5 text-[13px] font-semibold text-on-surface-variant md:hidden">
+                    <input type="checkbox" class="rounded border-outline-variant text-primary-container focus:ring-primary-container" :checked="allSelected" :indeterminate="someSelected" @change="toggleAll" />
+                    Chọn tất cả {{ selectable.length }} báo cáo chờ kiểm tra
                 </label>
 
                 <div class="divide-y divide-surface-container-highest max-md:space-y-2.5 max-md:divide-y-0">
@@ -349,7 +368,8 @@ const pct = (n, total) => (total ? `${(n / total) * 100}%` : '0%');
                         v-for="r in reports.data"
                         :key="r.id"
                         :class="[
-                            'flex cursor-pointer gap-3 px-4 py-3 hover:bg-surface-container-low/40 max-md:rounded-2xl max-md:border max-md:bg-surface-container-lowest max-md:p-3',
+                            'cursor-pointer px-4 py-3 hover:bg-surface-container-low/40 md:grid md:grid-cols-[1rem_8.5rem_minmax(0,1fr)_13rem_7.5rem_16rem] md:items-center md:gap-4',
+                            'max-md:flex max-md:gap-3 max-md:rounded-2xl max-md:border max-md:bg-surface-container-lowest max-md:p-3',
                             selected.includes(r.id) ? 'bg-primary-light/50 max-md:border-primary-fixed max-md:bg-primary-light/50' : 'max-md:border-surface-container-highest',
                         ]"
                         :data-report-row="r.id"
@@ -360,40 +380,44 @@ const pct = (n, total) => (total ? `${(n / total) * 100}%` : '0%');
                             v-model="selected"
                             type="checkbox"
                             :value="r.id"
-                            class="mt-1 shrink-0 rounded border-outline-variant text-primary-container focus:ring-primary-container md:mt-0 md:self-center"
+                            class="shrink-0 rounded border-outline-variant text-primary-container focus:ring-primary-container max-md:mt-1"
                             :aria-label="`Chọn ${r.title}`"
                             @click.stop
                         />
-                        <span v-else-if="canReview && selectable.length" class="w-4 shrink-0" aria-hidden="true" />
+                        <span v-else class="w-4 shrink-0" aria-hidden="true" />
 
-                        <div class="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-4">
-                            <div class="flex flex-wrap items-center gap-1.5 md:w-36 md:shrink-0">
-                                <span :class="['rounded-md px-2 py-0.5 text-xs font-semibold', typeTag[r.type] ?? typeTag.journal]">
+                        <!-- Điện thoại: thẻ gộp; máy tính: các ô dưới đây thành cột nhờ md:contents -->
+                        <div class="min-w-0 flex-1 max-md:space-y-1 md:contents">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span :class="['rounded-md px-2 py-0.5 text-xs font-semibold', typeTag[r.type] ?? typeTag.journal]" data-report-type-cell>
                                     {{ typeShort[r.type] ?? r.type_label }}<template v-if="r.type === 'journal' && r.severity_label"> · {{ r.severity_label }}</template><template v-else-if="r.for"> · {{ r.for }}</template>
                                 </span>
                                 <UiBadge v-if="r.late" class="md:hidden" color="error" pill :dot="false">Trễ</UiBadge>
                             </div>
-                            <div class="min-w-0 flex-1">
+                            <div class="min-w-0">
                                 <p class="truncate text-sm font-semibold text-on-surface max-md:whitespace-normal">{{ r.title }}</p>
-                                <p class="mt-0.5 truncate text-xs text-on-surface-subtle max-md:whitespace-normal">
-                                    {{ formatDate(r.report_date) }} · <span class="font-semibold text-on-surface-variant">{{ r.user }}</span>
-                                    <template v-if="r.branch"> · {{ r.branch }}</template>
-                                    <template v-if="r.reviewable && r.submitted_at"> · nộp {{ formatDate(r.submitted_at, 'H:i d/m') }}</template>
-                                    <template v-if="r.reviewable && r.updated_at"> · sửa {{ formatDate(r.updated_at, 'H:i d/m') }}</template>
-                                    <template v-if="r.reviewed_at"> · {{ r.reviewed_by ?? 'Admin' }} kiểm tra {{ formatDate(r.reviewed_at, 'H:i d/m') }}</template>
-                                    <span v-if="r.preview" class="max-md:hidden" data-report-preview> · “{{ r.preview }}”</span>
-                                </p>
-                                <p v-if="r.status === 'returned' && r.review_note" class="mt-0.5 line-clamp-2 text-xs text-warning">Đã yêu cầu: {{ r.review_note }}</p>
+                                <p v-if="r.status === 'returned' && r.review_note" class="mt-0.5 truncate text-xs text-warning">Đã yêu cầu: {{ r.review_note }}</p>
+                                <p v-else-if="r.reviewed_at" class="mt-0.5 truncate text-xs text-on-surface-subtle">{{ r.reviewed_by ?? 'Admin' }} kiểm tra {{ formatDate(r.reviewed_at, 'H:i d/m') }}</p>
                             </div>
-                            <div class="flex shrink-0 items-center gap-2 max-md:justify-end">
+                            <div class="min-w-0 max-md:text-xs" data-report-writer>
+                                <p class="truncate text-sm font-semibold text-on-surface-variant max-md:inline max-md:text-xs">{{ r.user }}</p>
+                                <p v-if="r.role" class="truncate text-xs text-on-surface-subtle max-md:inline"><span class="md:hidden"> · </span>{{ r.role }}</p>
+                            </div>
+                            <div class="text-xs text-on-surface-variant">
+                                <template v-if="r.reviewable && r.submitted_at">
+                                    <span class="md:hidden">Nộp </span>{{ formatDate(r.submitted_at, 'H:i d/m') }}
+                                    <UiBadge v-if="r.late" class="ml-1 max-md:hidden" color="error" pill :dot="false" data-late>Trễ</UiBadge>
+                                </template>
+                                <template v-else>{{ formatDate(r.report_date) }}</template>
+                            </div>
+                            <div class="flex items-center justify-end gap-2 max-md:pt-1">
                                 <template v-if="current === 'all' && r.reviewable">
                                     <UiBadge v-if="r.status === 'returned'" color="warning" pill>Đã yêu cầu bổ sung</UiBadge>
                                     <UiBadge v-else-if="r.reviewed_at" color="success" pill>Đã kiểm tra</UiBadge>
                                     <UiBadge v-else color="warning" pill>Chờ kiểm tra</UiBadge>
                                 </template>
-                                <UiBadge v-if="r.late" class="max-md:hidden" color="error" pill :dot="false" data-late>Trễ</UiBadge>
-                                <span v-if="r.followups_count" class="flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-0.5 text-xs font-semibold text-on-surface-variant">
-                                    <span class="material-symbols-outlined text-[15px]" aria-hidden="true">task_alt</span>{{ r.followups_count }} follow-up
+                                <span v-if="r.followups_count" class="flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-0.5 text-xs font-semibold text-on-surface-variant" :title="`${r.followups_count} việc follow-up`">
+                                    <span class="material-symbols-outlined text-[15px]" aria-hidden="true">task_alt</span>{{ r.followups_count }}
                                 </span>
                                 <UiButton size="sm" variant="secondary" class="md:hidden" @click.stop="openDetail(r.id)">Chi tiết</UiButton>
                                 <template v-if="canReview && r.reviewable">
