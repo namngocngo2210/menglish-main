@@ -354,8 +354,9 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Thứ Tư, 07/10')->assertSee('hôm nay bạn có 1 ca dạy')
             // Thẻ ca: 3 bước Check-in → Điểm danh → Báo cáo buổi; điểm danh mở ngăn kéo (URL thật của ngăn điểm danh).
             ->assertSee('Ca dạy hôm nay')->assertSee('đến 11:30')->assertSee('Phòng 204, Cầu Giấy')
-            ->assertSeeInOrder(['data-step="checkin"', 'data-step="attendance"', 'data-step="report"'], false)
-            ->assertSee('Cần điểm danh trước')
+            // 5 bước theo thứ tự; chưa check-in thì mọi bước sau bị khoá.
+            ->assertSeeInOrder(['data-step="checkin"', 'data-step="attendance"', 'data-step="lesson"', 'data-step="homework"', 'data-step="report"'], false)
+            ->assertSee('Mở sau khi check-in')->assertSee('Cần điểm danh và dạy xong bài giảng')->assertSee('Cần giao bài tập trước')
             ->assertSee($attendanceUrl, false)
             ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
             // Bỏ thẻ lương, chấm công, vi phạm khỏi Lịch dạy hôm nay (chủ dự án 28/10/2026).
@@ -375,6 +376,32 @@ class Phase2MockupClassesTest extends TestCase
         \App\Models\TeacherSessionReport::create(['class_id' => $this->classModel->id, 'class_session_id' => $past->id,
             'teacher_id' => $this->teacher->id, 'content' => 'Đã dạy Unit 3', 'submitted_at' => now()]);
         $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()->assertDontSee('Báo cáo buổi chưa nộp');
+    }
+
+    public function test_lesson_done_requires_checkin_and_unlocks_homework_then_report(): void
+    {
+        $session = $this->makeSession('2026-10-07', '10:00', '11:30');
+        $done = fn () => $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk();
+
+        // Chưa check-in: không đánh dấu dạy xong được.
+        $this->actingAs($this->teacher)->post(route('teacher.lesson-done', $session->id))->assertSessionHasErrors('session');
+        $this->assertNull($session->fresh()->lesson_done_at);
+
+        // Trợ giảng của buổi không đánh dấu dạy xong.
+        $this->actingAs($this->assistant)->post(route('teacher.lesson-done', $session->id))->assertForbidden();
+
+        $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$session->id]])->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->post(route('teacher.lesson-done', $session->id))->assertSessionHasNoErrors();
+        $this->assertNotNull($session->fresh()->lesson_done_at);
+        $this->assertSame($this->teacher->id, $session->fresh()->lesson_done_by);
+
+        // Dạy xong nhưng chưa điểm danh → Giao bài tập vẫn khoá.
+        $done()->assertInertia(fn ($page) => $page->where('shifts.0.lesson_done', true)->where('shifts.0.homework_done', false)->etc())
+            ->assertSee('Cần điểm danh trước');
+
+        \App\Models\Homework::create(['class_id' => $this->classModel->id, 'class_session_id' => $session->id, 'user_id' => $this->teacher->id,
+            'title' => 'Bài tập buổi', 'due_at' => '2026-10-09 10:00:00']);
+        $done()->assertInertia(fn ($page) => $page->where('shifts.0.homework_done', true)->etc());
     }
 
     public function test_teacher_attendance_matches_mockup_and_requires_note_for_absences(): void

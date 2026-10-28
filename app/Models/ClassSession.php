@@ -40,12 +40,15 @@ class ClassSession extends Model
         'notes',
         'holiday_id',
         'rescheduled_from_id',
+        'lesson_done_at',
+        'lesson_done_by',
     ];
 
     protected $casts = [
         'date' => 'date',
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
+        'lesson_done_at' => 'datetime',
     ];
 
     /**

@@ -850,6 +850,7 @@ Route::middleware('auth')->group(function () {
     Route::controller(TeacherPortalController::class)->prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/home', 'home')->name('home');
         Route::post('/checkin', 'checkin')->name('checkin');
+        Route::post('/lesson-done/{session}', 'lessonDone')->whereNumber('session')->name('lesson-done');
         Route::get('/attendance/{classId}', 'attendance')->name('attendance');
         Route::post('/attendance/{classId}', 'attendanceStore')->name('attendance.store');
         Route::get('/homework/{classId}', 'homework')->name('homework');
