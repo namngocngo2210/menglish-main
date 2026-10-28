@@ -611,6 +611,8 @@ class StaffReportController extends Controller
             'dateLabel' => Str::ucfirst(Carbon::parse($date)->locale('vi')->isoFormat('dddd, D [tháng] M, YYYY')),
             'today' => now()->toDateString(),
             'deadline' => DailyReportDue::deadline(Carbon::parse($date))->format('H:i d/m'),
+            'deadlineAt' => DailyReportDue::deadline(Carbon::parse($date))->toIso8601String(),
+            'week' => $this->dailyWeek($user),
             'sections' => $metrics['sections'],
             'computedAt' => $metrics['computed_at'] ?? null,
             'live' => $live,
@@ -635,6 +637,41 @@ class StaffReportController extends Controller
             'history' => $history,
             'legacy' => $this->legacyReports('daily'),
         ]);
+    }
+
+    /**
+     * Dãy 7 ngày gần nhất (tới hôm nay) trên đầu màn báo cáo ngày (thiết kế 27/10/2026): mỗi ngày một trạng thái
+     * đã nộp / nộp trễ / chưa nộp (ngày phải nộp) / nghỉ (Chủ nhật, lễ, phép) / hôm nay đang mở.
+     *
+     * @return list<array{date: string, weekday: string, day: string, status: string, href: string}>
+     */
+    private function dailyWeek(User $user): array
+    {
+        $from = today()->subDays(6);
+        $required = DailyReportDue::requiredDays($user, $from, today())->mapWithKeys(fn (Carbon $d) => [$d->toDateString() => true]);
+        $reports = StaffReport::where('user_id', $user->id)->where('type', 'daily')->where('status', '!=', 'draft')
+            ->whereDate('report_date', '>=', $from->toDateString())->whereDate('report_date', '<=', today()->toDateString())
+            ->get(['id', 'type', 'report_date', 'created_at'])
+            ->keyBy(fn (StaffReport $r) => $r->report_date->toDateString());
+
+        return collect(range(0, 6))->map(function (int $i) use ($from, $required, $reports) {
+            $d = $from->copy()->addDays($i);
+            $key = $d->toDateString();
+            $report = $reports->get($key);
+
+            return [
+                'date' => $key,
+                'weekday' => $d->isSunday() ? 'CN' : 'T'.($d->dayOfWeek + 1),
+                'day' => $d->format('d/m'),
+                'status' => match (true) {
+                    $report !== null => DailyReportDue::isLate($report) ? 'late' : 'submitted',
+                    $d->isToday() => 'open',
+                    $required->has($key) => 'missing',
+                    default => 'off',
+                },
+                'href' => route('reports.periodic.daily', ['date' => $key]),
+            ];
+        })->all();
     }
 
     public function dailyStore(Request $request): RedirectResponse
@@ -1883,9 +1920,6 @@ class StaffReportController extends Controller
         $inBranch = fn ($q) => $q->where('branch_id', $branchId)->orWhereHas('branches', fn ($b) => $b->where('branches.id', $branchId));
 
         $query = $this->scopeViewer(StaffReport::with(['user.roles', 'user.branch:id,name', 'followups', 'reviewer:id,name']))->where('status', '!=', 'draft');
-        if ($type = $request->input('type')) {
-            $query->where('type', $type);
-        }
         $query->when($userId, fn ($q) => $q->where('user_id', $userId))
             ->when($branchId, fn ($q) => $q->whereHas('user', $inBranch))
             ->when($to, fn ($q) => $q->whereDate('report_date', '<=', $to->toDateString()))
@@ -1894,9 +1928,10 @@ class StaffReportController extends Controller
                 ->orWhere(fn ($w) => $w->where('type', 'weekly')->whereDate('report_date', '>=', $from->copy()->subDays(6)->toDateString()))
                 ->orWhere(fn ($m) => $m->where('type', 'monthly')->whereDate('report_date', '>=', $from->copy()->startOfMonth()->toDateString()))
                 ->orWhere(fn ($m) => $m->where('type', 'quarterly')->whereDate('report_date', '>=', $from->copy()->firstOfQuarter()->toDateString()))));
-        // Hàng chờ Admin kiểm tra (báo cáo định kỳ; nhật ký sự vụ không cần kiểm tra ở đây).
-        $review = $request->input('review');
-        if (in_array($review, ['pending', 'done', 'returned'], true)) {
+        // Tab trạng thái (thiết kế lại 27/10/2026): mặc định "Chờ kiểm tra"; `review=all` = mọi báo cáo kể cả nhật ký sự vụ.
+        // Hàng chờ Admin kiểm tra chỉ gồm báo cáo định kỳ (nhật ký sự vụ không cần kiểm tra ở đây).
+        $review = in_array($request->input('review'), ['pending', 'done', 'returned', 'all'], true) ? $request->input('review') : 'pending';
+        if ($review !== 'all') {
             $query->where('type', '!=', 'journal');
             match ($review) {
                 'pending' => $query->where('status', 'submitted')->whereNull('reviewed_at'),
@@ -1904,6 +1939,12 @@ class StaffReportController extends Controller
                 'returned' => $query->where('status', 'returned'),
             };
         }
+
+        // Số báo cáo theo loại trong tab + bộ lọc hiện tại (nút chọn loại), rồi mới lọc loại.
+        $typeCounts = (clone $query)->setEagerLoads([])->reorder()->selectRaw('type, count(*) as total')->groupBy('type')->pluck('total', 'type')
+            ->map(fn ($n) => (int) $n)->all();
+        $type = array_key_exists((string) $request->input('type'), StaffReport::TYPE_LABELS) ? $request->input('type') : null;
+        $query->when($type, fn ($q) => $q->where('type', $type));
 
         $reports = $query->orderByRaw($review === 'pending' ? 'updated_at desc' : 'report_date desc')->latest('id')->paginate(20)->withQueryString()
             ->through(fn (StaffReport $r) => [
@@ -1942,6 +1983,9 @@ class StaffReportController extends Controller
         $writers = DailyReportDue::writers($staffIds);
         $yesterday = today()->subDay();
         $stats['missing_yesterday'] = $writers->filter(fn (User $u) => DailyReportDue::missingDays($u, $yesterday, $yesterday)->isNotEmpty())->count();
+        // Nhãn "N quá hạn" trên tab Việc follow-up: task tạo từ báo cáo trong tháng này còn quá hạn.
+        $followUps = $view === 'followups' ? $this->followUpSummary($staffIds, $from ?? today()->startOfMonth(), $to ?? today(), $userId, $branchId) : null;
+        $stats['followups_overdue'] = collect($followUps && ! $from && ! $to && ! $userId && ! $branchId ? $followUps['rows'] : $this->followUpSummary($staffIds, today()->startOfMonth(), today(), null, null)['rows'])->sum('overdue');
 
         $openId = $request->integer('open') ?: null;
 
@@ -1949,10 +1993,10 @@ class StaffReportController extends Controller
             'view' => $view,
             'reports' => $reports,
             'missing' => $view === 'missing' ? $this->missingReports($writers, $from ?? today()->subDays(7), $to ?? $yesterday, $userId, $branchId) : null,
-            'followUps' => $view === 'followups' ? $this->followUpSummary($staffIds, $from ?? today()->startOfMonth(), $to ?? today(), $userId, $branchId) : null,
+            'followUps' => $followUps,
             'stats' => $stats,
             'filters' => [
-                'type' => $request->input('type'),
+                'type' => $type,
                 'review' => $review,
                 'user_id' => $userId,
                 'branch_id' => $branchId,
@@ -1961,6 +2005,9 @@ class StaffReportController extends Controller
             ],
             'canReview' => (bool) Auth::user()?->can(AdminOnlyApprovals::ABILITY),
             'types' => Ui::options(StaffReport::TYPE_LABELS),
+            'typeCounts' => $typeCounts,
+            // Ngày hôm nay theo múi giờ ứng dụng: khoảng ngày chọn nhanh (7 ngày qua, tháng này…) tính từ đây, không theo đồng hồ máy người xem.
+            'today' => today()->toDateString(),
             'users' => User::whereIn('id', $scoped()->select('user_id')->distinct())->orderBy('name')->get(['id', 'name'])
                 ->map(fn (User $u) => ['value' => $u->id, 'label' => $u->name])->all(),
             'branches' => Branch::where('is_active', true)->when($staffIds !== null, fn ($q) => $q->whereIn('id', Auth::user()->branchIds()))

@@ -123,7 +123,8 @@ export function shortenCodesIn(text) {
 
 /** Chữ cái đầu cho avatar ("Nguyễn Anh Tuấn" → "NA"). */
 export function initials(name) {
-    const words = String(name ?? '').trim().split(/\s+/u).filter(Boolean);
+    // Bỏ ký hiệu không phải chữ / số (vd. tiền tố "# " của dữ liệu mẫu) để avatar không hiện "#H".
+    const words = String(name ?? '').trim().split(/\s+/u).map((w) => w.replace(/^[^\p{L}\p{N}]+/u, '')).filter(Boolean);
     return (words.length ? words : ['?']).slice(0, 2).map((w) => Array.from(w)[0]).join('').toLocaleUpperCase('vi');
 }
 

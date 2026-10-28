@@ -47,7 +47,9 @@ class StudentProfileController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('parent_phone', 'like', "%{$search}%")
+                    ->orWhere('parent2_phone', 'like', "%{$search}%");
             });
         }
 
@@ -59,19 +61,24 @@ class StudentProfileController extends Controller
             $query->inClasses((int) $classId);
         }
 
-        // Chip trạng thái (mockup): chọn nhiều trạng thái (statuses[]); giữ tương thích ?status= một trạng thái.
+        // Thâm niên: học từ 1 / 3 / 5 năm trở lên (tri ân học viên lâu năm).
+        $tenure = (int) $request->input('tenure');
+        if (in_array($tenure, Student::TENURE_FILTERS, true)) {
+            $query->studiedAtLeastYears($tenure);
+        }
+
+        // Số học viên mỗi trạng thái (tab trạng thái), theo các bộ lọc còn lại.
+        $statusCounts = (clone $query)->reorder()->toBase()
+            ->select('students.status')->selectRaw('COUNT(*) as aggregate')->groupBy('students.status')
+            ->pluck('aggregate', 'status')->map(fn ($n) => (int) $n);
+
+        // Tab trạng thái: ?status= một trạng thái; giữ tương thích statuses[] (chọn nhiều) của link cũ.
         $statuses = collect((array) $request->input('statuses', []))
             ->push($request->input('status'))
             ->filter(fn ($s) => is_string($s) && array_key_exists($s, Student::STATUSES))
             ->unique()->values()->all();
         if ($statuses !== []) {
             $query->whereIn('status', $statuses);
-        }
-
-        // Thâm niên: học từ 1 / 3 / 5 năm trở lên (tri ân học viên lâu năm).
-        $tenure = (int) $request->input('tenure');
-        if (in_array($tenure, Student::TENURE_FILTERS, true)) {
-            $query->studiedAtLeastYears($tenure);
         }
 
         // Sắp xếp: mặc định hồ sơ mới nhất; "Học lâu nhất trước" theo ngày bắt đầu học (chưa vào học xếp cuối).
@@ -82,10 +89,12 @@ class StudentProfileController extends Controller
             $query->latest();
         }
 
-        $students = $query->paginate($request->perPage(20))->withQueryString();
+        // Số lớp đang theo (lớp chính + lớp liên kết) → "+N lớp" trên danh sách.
+        $students = $query
+            ->withCount(['enrollments as active_class_count' => fn (Builder $q) => $q->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)])
+            ->paginate($request->perPage(20))->withQueryString();
         $branches = $this->visibleBranches($user);
         $classes = $this->visibleClasses($user)->orderBy('name')->get(['id', 'name', 'code', 'branch_id', 'status', 'max_capacity']);
-        $totalStudents = Student::visibleTo($user)->count();
 
         // "Liên kết lớp khác" ngay trên danh sách: lớp đang mở trong phạm vi người dùng, kèm sĩ số giữ chỗ.
         $linkableClasses = collect();
@@ -100,9 +109,13 @@ class StudentProfileController extends Controller
                 'code' => $st->code,
                 'name' => $st->name,
                 'dob' => $st->dob?->format('d/m/Y'),
+                'age' => $st->dob ? $st->dob->age.' tuổi' : null,
                 'phone' => $st->phone,
+                // Không có SĐT học viên → SĐT phụ huynh (học viên nhỏ tuổi thường chỉ có số phụ huynh).
+                'parent_phone' => $st->phone ? null : ($st->parent_phone ?: $st->parent2_phone),
                 'email' => $st->email && ! User::isGeneratedStudentEmail($st->email) ? $st->email : null,
                 'current_class' => $st->currentClass ? ['code' => $st->currentClass->code, 'name' => $st->currentClass->name] : null,
+                'extra_classes' => max(0, (int) $st->active_class_count - 1),
                 'status' => $st->status,
                 'status_label' => $st->status_label,
                 'status_color' => $st->status_color,
@@ -114,11 +127,11 @@ class StudentProfileController extends Controller
             ]),
             'branches' => Ui::options($branches, 'name'),
             'classes' => Ui::options($classes, 'name'),
-            'statuses' => $statuses,
-            'statusOptions' => Student::STATUSES,
+            'status' => count($statuses) === 1 ? $statuses[0] : null,
+            'statusTabs' => collect(Student::STATUSES)->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label, 'count' => $statusCounts->get($key, 0)])->values()->all(),
             'tenureOptions' => collect(Student::TENURE_FILTERS)->map(fn (int $y) => ['value' => $y, 'label' => "Từ {$y} năm trở lên"])->all(),
-            'sortOptions' => [['value' => 'tenure', 'label' => 'Học lâu nhất']],
-            'totalStudents' => $totalStudents,
+            'sort' => $sort,
+            'totalStudents' => $statusCounts->sum(),
             'hasFilters' => collect($request->only(['search', 'branch_id', 'class_id', 'status', 'statuses', 'tenure']))->filter()->isNotEmpty(),
             'linkableClasses' => $linkableClasses->map(fn (ClassModel $c) => [
                 'id' => $c->id,
@@ -580,7 +593,7 @@ class StudentProfileController extends Controller
                     'teacher' => $session->teacher?->name ?? $session->classModel?->teacher?->name,
                     'state' => $state,
                     'is_next' => $session->id === $nextSessionId,
-                    'attendance' => $att ? ['label' => $att->status_label, 'tone' => $attendanceTones[$att->status] ?? ''] : null,
+                    'attendance' => $att ? ['label' => $att->status_label, 'tone' => $attendanceTones[$att->status] ?? '', 'note' => $att->note] : null,
                 ];
             })->values()->all();
             $props['classes'] = $data['classes']->map(fn (ClassModel $class) => [
@@ -601,6 +614,8 @@ class StudentProfileController extends Controller
                 'status_label' => $att->status_label,
                 'tone' => $attendanceTones[$att->status] ?? '',
                 'note' => $att->note,
+                // Không gắn buổi nào trong lộ trình (điểm danh cũ / nhập tay) → hiện riêng dưới bảng buổi học.
+                'off_schedule' => $att->class_session_id === null,
             ])->values()->all();
             // "Chuyển lớp": lớp chính hiện tại + ngày vào lớp (ngày chuyển sớm nhất chọn được).
             $props['mainClass'] = $student->currentClass ? [

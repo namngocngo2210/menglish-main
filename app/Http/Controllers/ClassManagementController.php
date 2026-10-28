@@ -18,11 +18,14 @@ use App\Models\StaffReport;
 use App\Models\SyllabusAdjustmentRequest;
 use App\Models\SyllabusAssignment;
 use App\Models\TeacherSessionReport;
+use App\Models\TeachingShift;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
+use App\Services\ClassRescheduleService;
 use App\Services\SessionScheduleService;
 use App\Services\Syllabus\ClassSyllabusTab;
+use App\Services\TeachingShifts\TeachingShiftRules;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\ClassLifecycle;
 use App\Support\DataScope;
@@ -39,7 +42,11 @@ use Inertia\Inertia;
 
 class ClassManagementController extends Controller
 {
-    public function __construct(private readonly SessionScheduleService $schedule) {}
+    public function __construct(
+        private readonly SessionScheduleService $schedule,
+        private readonly ClassRescheduleService $reschedule,
+        private readonly TeachingShiftRules $shiftRules,
+    ) {}
 
     /**
      * "Lịch học thử": các buổi học thử đặt từ hồ sơ khách CRM (crm_trial_bookings), trong phạm vi khách user được xem.
@@ -871,9 +878,10 @@ class ClassManagementController extends Controller
     {
         abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
 
-        $class = ClassModel::with(['branch', 'teacher', 'assistant', 'foreignTeacher', 'course'])->findOrFail($id);
+        $class = ClassModel::with(['branch', 'teacher', 'assistant', 'foreignTeacher', 'course', 'scheduleConfig'])->findOrFail($id);
         abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
         $branches = Branch::where('is_active', true)->get();
+        $slots = $this->reschedule->currentSlots($class);
         $courses = Course::where('is_active', true)->get();
         $levels = CourseLevel::where('is_active', true)->get();
         [$teachers, $assistants] = $this->teachingStaffOptions([$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]);
@@ -891,7 +899,13 @@ class ClassManagementController extends Controller
                 'status' => $class->status,
                 'start_date' => $class->start_date?->toDateString(),
                 'end_date' => $class->end_date?->toDateString(),
-                'schedule_text' => $class->schedule_text,
+                // Lịch học cố định: tối đa 2 ca/tuần (thứ + giờ). Lớp cũ chỉ có mô tả text thì gửi kèm để chọn lại.
+                ...collect([1, 2])->flatMap(fn (int $n) => [
+                    "slot{$n}_day" => $slots[$n - 1]['day'] ?? null,
+                    "slot{$n}_start" => $slots[$n - 1]['start'] ?? null,
+                    "slot{$n}_end" => $slots[$n - 1]['end'] ?? null,
+                ])->all(),
+                'legacy_schedule_text' => $slots ? null : $class->schedule_text,
                 'room' => $class->room,
                 'room_id' => $class->room_id,
                 'teacher_id' => $class->teacher_id,
@@ -915,6 +929,11 @@ class ClassManagementController extends Controller
             'teachers' => Ui::options($teachers, fn (User $t) => "{$t->name} ({$t->email})"),
             'foreignTeachers' => Ui::options($teachers, 'name'),
             'assistants' => $class->assistant_id ? Ui::options($assistants, 'name') : [],
+            // Đổi lịch học = xếp lại buổi học, cùng quyền với màn Lịch & TKB lớp.
+            'canSchedule' => auth()->user()->can('work_task.assign'),
+            'shiftOptions' => $this->shiftRules->options(),
+            'shiftDuration' => TeachingShift::DURATION_MINUTES,
+            'weekdayRule' => $this->shiftRules->weekdayFramesText(),
         ]);
     }
 
@@ -946,7 +965,7 @@ class ClassManagementController extends Controller
             'status' => ['nullable', 'string', 'in:pending_schedule,active,upcoming,completed,cancelled'],
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
-            'schedule_text' => 'nullable|string|max:500',
+            ...ClassRescheduleService::rules(),
         ], self::CAPACITY_MESSAGES);
 
         $branchId = is_numeric($validated['chi_nhanh'])
@@ -959,6 +978,16 @@ class ClassManagementController extends Controller
         abort_unless(DataScope::coversBranch(auth()->user(), 'class', $branchId), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
 
         $this->assertValidTeachingStaff($validated);
+
+        // Lịch học: chỉ xếp lại buổi khi thứ/giờ thực sự đổi (form luôn gửi lại lịch hiện tại).
+        $newSlots = null;
+        if ($request->hasAny(['slot1_day', 'slot2_day'])) {
+            $class->load('scheduleConfig');
+            if (! $this->reschedule->sameSlots($this->reschedule->submitted($validated), $this->reschedule->currentSlots($class))) {
+                abort_unless(auth()->user()->can('work_task.assign'), 403, 'Bạn không có quyền xếp lịch học của lớp.');
+                $newSlots = $this->reschedule->slots($validated);
+            }
+        }
 
         $course = Course::where('name', $validated['chuong_trinh'])->first();
 
@@ -1008,7 +1037,7 @@ class ClassManagementController extends Controller
             'previous_room' => $previousRoom,
         ]);
 
-        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions) {
+        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions, $newSlots) {
             $class->update([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
@@ -1028,7 +1057,6 @@ class ClassManagementController extends Controller
                 'status' => $validated['status'] ?? $class->status,
                 'start_date' => $validated['start_date'] ?? $class->start_date,
                 'end_date' => $validated['end_date'] ?? $class->end_date,
-                'schedule_text' => $validated['schedule_text'] ?? $class->schedule_text,
             ]);
 
             $futureQuery = fn () => ClassSession::whereKey($futureSessions->modelKeys());
@@ -1053,6 +1081,21 @@ class ClassManagementController extends Controller
                 $futureQuery()
                     ->where(fn ($query) => $query->whereNull('room')->orWhere('room', $previousRoom))
                     ->update(['room' => $class->room]);
+            }
+
+            if ($newSlots) {
+                // Xếp lại sau khi đồng bộ GV/phòng: buổi mới lấy nhân sự/phòng mới của lớp.
+                $start = CarbonImmutable::parse($class->start_date ?? now())->startOfDay();
+                $end = CarbonImmutable::parse($class->end_date ?? $start->copy()->addMonths(3))->startOfDay();
+                $plan = $this->reschedule->plan($class, $newSlots, $start, $end);
+                $this->reschedule->apply($class, $newSlots, $plan, $class->room,
+                    $class->scheduleConfig?->academic_year ?? $start->format('Y').' - '.$end->format('Y'));
+                $class->update([
+                    'start_date' => $start,
+                    'end_date' => $end,
+                    // Lớp chờ lịch có TKB thì chuyển sang Đang học (giống màn Lịch & TKB lớp).
+                    'status' => $class->status === 'pending_schedule' ? 'active' : $class->status,
+                ]);
             }
         });
 

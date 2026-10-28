@@ -373,6 +373,13 @@ class DailyReportMetrics
                 'tag' => $tag,
                 'tone' => $tone,
                 'url' => $this->link('classes.show', $s->class_id),
+                // Bảng lớp trong ngày (thiết kế 27/10/2026) ghép các dòng GV / trợ giảng cùng `ref` vào đúng buổi.
+                'ref' => $s->id,
+                'class' => $this->className($s),
+                'time' => $this->sessionTime($s),
+                'room' => $s->room,
+                'teacher' => $s->teacher?->name,
+                'assistant' => $s->assistant?->name,
             ];
         })->values()->all();
     }
@@ -389,19 +396,19 @@ class DailyReportMetrics
             $label = $this->className($s).' · '.$this->sessionTime($s);
             foreach ($sheets->get($s->id, collect()) as $sheet) {
                 if ($sheet->late_minutes > 0) {
-                    $details[] = ['text' => ($sheet->teacher?->name ?? 'GV')." · {$label} · trễ {$sheet->late_minutes} phút", 'tag' => 'Đi muộn', 'tone' => 'warning'];
+                    $details[] = ['text' => ($sheet->teacher?->name ?? 'GV')." · {$label} · trễ {$sheet->late_minutes} phút", 'tag' => 'Đi muộn', 'tone' => 'warning', 'ref' => $s->id, 'who' => $sheet->teacher?->name];
                 }
                 if ($sheet->early_leave_minutes > 0) {
-                    $details[] = ['text' => ($sheet->teacher?->name ?? 'GV')." · {$label} · về sớm {$sheet->early_leave_minutes} phút", 'tag' => 'Về sớm', 'tone' => 'warning'];
+                    $details[] = ['text' => ($sheet->teacher?->name ?? 'GV')." · {$label} · về sớm {$sheet->early_leave_minutes} phút", 'tag' => 'Về sớm', 'tone' => 'warning', 'ref' => $s->id, 'who' => $sheet->teacher?->name];
                 }
             }
             $started = $s->start_time && $this->date->copy()->setTimeFrom($s->start_time)->isPast();
             if ($s->teacher_id && $started && ! $sheets->get($s->id, collect())->contains(fn ($t) => (int) $t->user_id === (int) $s->teacher_id && $t->checkin_time)) {
-                $details[] = ['text' => ($s->teacher?->name ?? 'GV')." · {$label}", 'tag' => 'Chưa check-in', 'tone' => 'warning'];
+                $details[] = ['text' => ($s->teacher?->name ?? 'GV')." · {$label}", 'tag' => 'Chưa check-in', 'tone' => 'warning', 'ref' => $s->id, 'who' => $s->teacher?->name];
             }
             $mainTeacher = $s->classModel?->teacher_id;
             if ($s->teacher_id && $mainTeacher && (int) $mainTeacher !== (int) $s->teacher_id) {
-                $details[] = ['text' => ($s->teacher?->name ?? 'GV')." dạy thay · {$label}", 'tag' => 'Dạy thay'];
+                $details[] = ['text' => ($s->teacher?->name ?? 'GV')." dạy thay · {$label}", 'tag' => 'Dạy thay', 'ref' => $s->id, 'who' => $s->teacher?->name];
             }
         }
 
@@ -423,9 +430,9 @@ class DailyReportMetrics
                 ?? $reports->first(fn ($r) => ! $r->class_session_id && (int) $r->class_id === (int) $s->class_id);
             $label = ($s->assistant?->name ?? 'TA').' · '.$this->className($s).' · '.$this->sessionTime($s);
             if (! $report) {
-                $details[] = ['text' => $label, 'tag' => 'Chưa báo cáo trực lớp', 'tone' => 'warning'];
+                $details[] = ['text' => $label, 'tag' => 'Chưa báo cáo trực lớp', 'tone' => 'warning', 'ref' => $s->id, 'who' => $s->assistant?->name];
             } elseif ($report->status !== ClassReport::STATUS_APPROVED) {
-                $details[] = ['text' => $label, 'tag' => 'Báo cáo '.mb_strtolower($report->status_label), 'tone' => $report->status === ClassReport::STATUS_REJECTED ? 'error' : null];
+                $details[] = ['text' => $label, 'tag' => 'Báo cáo '.mb_strtolower($report->status_label), 'tone' => $report->status === ClassReport::STATUS_REJECTED ? 'error' : null, 'ref' => $s->id, 'who' => $s->assistant?->name];
             }
         }
         StaffAttendance::with('user:id,name')->whereIn('user_id', $assistantIds)->whereDate('work_date', $this->date)
