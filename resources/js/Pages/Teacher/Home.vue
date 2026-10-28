@@ -133,7 +133,7 @@ const chip = 'inline-flex h-9 items-center gap-xs rounded-full border px-sm text
 </script>
 
 <template>
-    <div class="mx-auto max-w-6xl space-y-md pb-24 md:pb-0">
+    <div class="space-y-md pb-24 md:pb-0">
         <!-- Đầu trang: chào + việc tồn dạng chip -->
         <header class="flex flex-wrap items-end justify-between gap-sm">
             <div>
