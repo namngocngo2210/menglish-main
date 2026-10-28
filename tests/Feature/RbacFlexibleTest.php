@@ -373,17 +373,18 @@ class RbacFlexibleTest extends TestCase
     {
         $groups = fn (User $u) => collect(app(SidebarMenu::class)->groupsFor($u->fresh()))->pluck('id')->all();
         // Màn dạy hằng ngày của giáo viên / trợ giảng nằm trong nhóm Lớp học.
-        $routes = fn (User $u) => collect(app(SidebarMenu::class)->groupsFor($u->fresh()))->flatMap(fn (array $g) => collect($g['items'])->pluck('route'))->all();
+        // Tab riêng của cổng dạy chỉ còn "Lớp của tôi" (Bài giảng hôm nay mở từ thẻ ca dạy, chủ dự án 28/10/2026).
+        $tabs = fn (User $u) => collect(app(SidebarMenu::class)->groupsFor($u->fresh()))->flatMap(fn (array $g) => collect($g['items'])->pluck('label'))->all();
 
         $this->assertNotContains('student_portal', $groups($this->admin));
-        $this->assertNotContains('teacher.lesson-today', $routes($this->admin));
-        $this->assertContains('teacher.lesson-today', $routes($this->makeUser('teacher')));
-        $this->assertContains('teacher.lesson-today', $routes($this->makeUser('assistant')));
+        $this->assertNotContains('Lớp của tôi', $tabs($this->admin));
+        $this->assertContains('Lớp của tôi', $tabs($this->makeUser('teacher')));
+        $this->assertContains('Lớp của tôi', $tabs($this->makeUser('assistant')));
 
         $staff = $this->makeUser('academic_staff');
-        $this->assertNotContains('teacher.lesson-today', $routes($staff));
+        $this->assertNotContains('Lớp của tôi', $tabs($staff));
         $this->actingAs($this->admin)->put(route('users.permissions.update', $staff), ['overrides' => ['portal' => ['teacher' => 'allow']]])->assertSessionHasNoErrors();
-        $this->assertContains('teacher.lesson-today', $routes($staff));
+        $this->assertContains('Lớp của tôi', $tabs($staff));
     }
 
     // ── Seed chỉ thêm, không ghi đè cấu hình Admin ────────────────────────────────────────────

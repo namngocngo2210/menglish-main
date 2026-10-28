@@ -200,7 +200,7 @@ class LargeModalFlowsTest extends TestCase
         $this->actingAs($ta)->post(route('tasks.class-reports.store'), ['class_id' => $class->id, 'session_name' => 'Buổi 6', 'hom_nay_hoc_gi' => 'Reading'])
             ->assertRedirect(route('portal.ta-tasks'))->assertSessionHas('success');
 
-        // Cổng TA: nút "Báo cáo" mở form nộp báo cáo trong modal.
+        // Cổng TA: link "Nộp báo cáo trực lớp" (khối Lớp trực hôm nay) mở form nộp báo cáo trong modal.
         $this->actingAs($ta)->get(route('portal.ta-tasks'))->assertOk()
             ->assertSee('href="'.route('tasks.class-reports.create', absolute: false).'" data-modal-size="2xl"', false);
     }

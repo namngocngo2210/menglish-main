@@ -33,11 +33,25 @@ class TeacherClassFlowTest extends TestCase
         $classes = $groups->firstWhere('id', 'classes');
         $this->assertSame('Đào tạo', $classes['section']);
         $this->assertSame(
-            ['Lịch dạy hôm nay', 'Lớp của tôi', 'Bài giảng hôm nay', 'Chấm bài nộp', 'Khách học thử', 'Buổi bổ trợ của tôi'],
+            // Bài giảng, Chấm bài nộp, Khách học thử, Buổi bổ trợ mở từ thẻ ca dạy / Trang lớp (chủ dự án 28/10/2026).
+            ['Lịch dạy hôm nay', 'Lớp của tôi'],
             collect($classes['items'])->pluck('label')->all(),
         );
         $this->assertSame(route('teacher.home'), $classes['url']);
         $this->assertNull($groups->firstWhere('id', 'teacher_portal'));
+    }
+
+    public function test_assistant_portal_menu_keeps_only_the_daily_tabs(): void
+    {
+        // Cổng trợ giảng gọn (chủ dự án 28/10/2026): bỏ Bài giảng hôm nay, Chấm bài nộp, Buổi bổ trợ của tôi.
+        $classes = collect(app(SidebarMenu::class)->groupsFor($this->userWithRole('assistant', 'Trợ giảng')))->firstWhere('id', 'classes');
+
+        $labels = collect($classes['items'])->pluck('label')->all();
+        $this->assertSame('Nhiệm vụ hôm nay', $labels[0]);
+        $this->assertContains('Lớp của tôi', $labels);
+        foreach (['Bài giảng hôm nay', 'Chấm bài nộp', 'Buổi bổ trợ của tôi', 'Khách học thử'] as $removed) {
+            $this->assertNotContains($removed, $labels);
+        }
     }
 
     public function test_class_manager_menu_still_opens_the_full_class_list(): void
@@ -53,7 +67,7 @@ class TeacherClassFlowTest extends TestCase
         $this->actingAs($this->teacher)->get(route('tasks.support-sessions', ['mine' => 1]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->contains(fn ($t) => $t['label'] === 'Buổi bổ trợ của tôi' && $t['active']))
+                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->contains(fn ($t) => $t['label'] === 'Lịch dạy hôm nay' && $t['active']))
                 ->etc());
     }
 
