@@ -10,6 +10,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -118,7 +119,12 @@ class TaTaskSlaTest extends TestCase
         $this->assertSame('overdue', $normal->fresh()->status);
         $this->assertSame([$normal->id], WorkTask::withDeadline()->where('assignee_id', $this->ta->id)->pluck('id')->all());
 
-        // Portal TA không đếm / hiển thị việc hằng ngày là quá hạn.
-        $this->actingAs($this->ta)->get(route('portal.ta-tasks'))->assertOk();
+        // Portal TA không đếm / hiển thị việc hằng ngày là quá hạn; việc thường quá hạn hiện ngay trong danh sách việc tồn.
+        $this->actingAs($this->ta)->get(route('portal.ta-tasks'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('overdueCount', 1)
+                ->where('overdueTasks', fn ($rows) => collect($rows)->pluck('id')->all() === [$normal->id]
+                    && str_ends_with($rows[0]['due_label'], today()->subDays(2)->format('d/m/Y')))
+                ->etc());
     }
 }

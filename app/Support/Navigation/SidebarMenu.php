@@ -246,13 +246,15 @@ final class SidebarMenu
                         ['label' => 'Nhiệm vụ hôm nay', 'route' => 'portal.ta-tasks', 'can' => ['portal.assistant']],
                         ['label' => 'Lịch dạy hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
                         ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show', 'classes.session-report']],
-                        // Trợ giảng chỉ xem bài giảng (nút "Đã dạy" chỉ GV / GVNN của lớp).
-                        ['label' => 'Bài giảng hôm nay', 'route' => 'teacher.lesson-today', 'active' => ['teacher.lesson-today*']],
-                        ['label' => 'Chấm bài nộp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
+                        // Bài giảng hôm nay, Chấm bài nộp, Buổi bổ trợ của tôi: chỉ giáo viên. Cổng trợ giảng gọn còn Nhiệm vụ hôm nay ·
+                        // Lịch dạy hôm nay · Lớp của tôi (chủ dự án 28/10/2026); trợ giảng chấm bài từ Trang lớp, buổi bổ trợ trong ngày
+                        // hiện ở "Lớp trực hôm nay" của Nhiệm vụ hôm nay.
+                        ['label' => 'Bài giảng hôm nay', 'route' => 'teacher.lesson-today', 'active' => ['teacher.lesson-today*'], 'can' => ['portal.teacher']],
+                        ['label' => 'Chấm bài nộp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*'], 'can' => ['portal.teacher']],
                         // Trợ giảng không nhận xét học thử (chủ dự án 26/10/2026).
                         ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*'], 'can' => ['portal.teacher']],
-                        // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
-                        ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1]],
+                        // GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi (trợ giảng mở từ Nhiệm vụ hôm nay).
+                        ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1], 'can' => ['portal.teacher']],
                     ]),
                 ],
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
