@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Cổng Giáo viên — Lịch dạy hôm nay (thiết kế lại 28/10/2026): đầu trang 1 dòng chào + chip việc tồn; mỗi ca dạy là một thẻ
- * với 3 bước Check-in → Điểm danh → Báo cáo buổi; buổi chưa điểm danh (điểm danh bù); lịch tuần; cột phải học sinh cần chú ý.
+ * với các bước Check-in → Điểm danh + Bài giảng → Giao bài tập → Nộp báo cáo (khoá theo thứ tự); buổi chưa điểm danh (điểm danh bù); lịch tuần; cột phải học sinh cần chú ý.
  * Điểm danh / điểm danh bù / giao bài mở ngăn kéo bên phải (cùng ngăn với Trang lớp), không sang trang cũ.
  * Bỏ thẻ lương, chấm công, vi phạm (chủ dự án 28/10/2026). Điện thoại: thanh điều hướng dưới.
  */
@@ -71,50 +71,85 @@ const attendanceUrl = (classId, sessionId) => route('teacher.attendance', { clas
 const openDrawer = (url) => openRemoteModal(url, { size: 'drawer' });
 
 /**
- * 3 bước của ca theo thứ tự làm; bước đầu tiên chưa xong là nút chính. Trợ giảng / buổi phụ đạo không có Báo cáo buổi.
- * Mỗi bước: { key, label, hint, done, action: 'checkin' | 'attendance' | 'report' | null, button, disabled }.
+ * Các bước của ca theo thứ tự (chủ dự án 28/10/2026): 1 Check-in → 2 Điểm danh + 3 Bài giảng (mở cùng lúc sau check-in) →
+ * 4 Giao bài tập (sau khi điểm danh và bấm "Dạy xong") → 5 Nộp báo cáo (sau khi giao bài). Bước chưa tới lượt bị khoá (`locked`)
+ * và ghi rõ cần làm gì trước. Trợ giảng / buổi phụ đạo chỉ có Check-in + Điểm danh.
+ * Mỗi bước: { key, label, hint, done, locked, warn, actions: [{ label, href, method?, data?, drawer?, secondary? }] }.
  */
 function steps(shift) {
     const ck = checkinState(shift);
+    const reportUrl = route('classes.session-report', { id: shift.class_id, session: shift.session_id });
+    const homeworkUrl = route('teacher.homework', { classId: shift.class_id, session: shift.session_id });
+    const notCheckedIn = !shift.checked_in;
     const list = [
         {
             key: 'checkin',
             label: 'Check-in',
             done: shift.checked_in,
-            hint: shift.checked_in ? `Đã check-in ${shift.checkin_time ?? ''}` : ck?.expired ? 'Quá hạn chấm công — liên hệ Học vụ' : `Hạn ${shift.checkin?.deadline ?? ''}`,
-            button: shift.checked_in ? 'Đã check-in' : 'Check-in',
-            disabled: shift.checked_in || !!ck?.expired,
+            locked: false,
+            warn: !!ck?.expired || !!ck?.warning,
+            hint: shift.checked_in
+                ? `Đã check-in ${shift.checkin_time ?? ''}`
+                : ck?.expired ? 'Quá hạn chấm công — liên hệ Học vụ' : `Hạn ${shift.checkin?.deadline ?? ''}${ck ? ` (còn ${countdown(ck.left)})` : ''}`,
+            actions: shift.checked_in || ck?.expired ? [] : [{ label: 'Check-in', href: route('teacher.checkin'), method: 'post', data: { session_ids: [shift.session_id] } }],
         },
         {
             key: 'attendance',
             label: 'Điểm danh',
             done: shift.attendance_done,
-            hint: {
-                done: 'Đã lưu điểm danh',
-                open: `${shift.student_count} HV${shift.trial_count ? ` · +${shift.trial_count} học thử` : ''}`,
-                not_yet: `Mở từ ${shift.attendance_opens_at}`,
-                closed: `Quá ${props.attendanceWindowHours}h — liên hệ Học vụ`,
-            }[shift.attendance_state],
-            button: shift.attendance_done ? 'Xem điểm danh' : 'Điểm danh',
-            disabled: shift.attendance_state === 'not_yet',
+            locked: notCheckedIn || shift.attendance_state === 'not_yet',
+            warn: shift.attendance_state === 'closed',
+            hint: notCheckedIn
+                ? 'Mở sau khi check-in'
+                : {
+                      done: 'Đã lưu điểm danh',
+                      open: `${shift.student_count} HV${shift.trial_count ? ` · +${shift.trial_count} học thử` : ''}`,
+                      not_yet: `Mở từ ${shift.attendance_opens_at}`,
+                      closed: `Quá ${props.attendanceWindowHours}h — liên hệ Học vụ`,
+                  }[shift.attendance_state],
+            actions: [{ label: shift.attendance_done ? 'Sửa' : 'Điểm danh', href: attendanceUrl(shift.class_id, shift.session_id), drawer: true }],
         },
     ];
     if (shift.can_teach && !shift.is_support) {
-        list.push({
-            key: 'report',
-            label: 'Báo cáo buổi',
-            done: shift.report_done,
-            hint: shift.report_done ? 'Đã nộp' : shift.attendance_done ? 'Nhận xét từng học sinh' : 'Cần điểm danh trước',
-            button: shift.report_done ? 'Xem báo cáo' : shift.attendance_done ? 'Báo cáo buổi' : 'Cần điểm danh trước',
-            disabled: !shift.report_done && !shift.attendance_done,
-        });
+        list.push(
+            {
+                key: 'lesson',
+                label: 'Bài giảng',
+                done: shift.lesson_done,
+                locked: notCheckedIn,
+                hint: notCheckedIn ? 'Mở sau khi check-in' : shift.lesson_done ? `Đã dạy xong ${shift.lesson_done_at ?? ''}` : 'Mở bài giảng, dạy xong bấm "Dạy xong"',
+                actions: [
+                    { label: 'Mở bài giảng', href: route('teacher.lesson-today', { class: shift.class_id }), secondary: true },
+                    ...(shift.lesson_done ? [] : [{ label: 'Dạy xong', href: route('teacher.lesson-done', shift.session_id), method: 'post' }]),
+                ],
+            },
+            {
+                key: 'homework',
+                label: 'Giao bài tập',
+                done: shift.homework_done,
+                locked: !shift.attendance_done || !shift.lesson_done,
+                hint: shift.homework_done
+                    ? 'Đã giao bài cho buổi này'
+                    : !shift.attendance_done && !shift.lesson_done ? 'Cần điểm danh và dạy xong bài giảng' : !shift.attendance_done ? 'Cần điểm danh trước' : !shift.lesson_done ? 'Cần dạy xong bài giảng' : 'Giao bài về nhà cho lớp',
+                actions: [{ label: shift.homework_done ? 'Sửa / giao thêm' : 'Giao bài', href: homeworkUrl, drawer: true }],
+            },
+            {
+                key: 'report',
+                label: 'Nộp báo cáo',
+                done: shift.report_done,
+                locked: !shift.homework_done && !shift.report_done,
+                hint: shift.report_done ? 'Đã nộp báo cáo buổi' : shift.homework_done ? 'Nhận xét từng học sinh' : 'Cần giao bài tập trước',
+                actions: [{ label: shift.report_done ? 'Xem báo cáo' : 'Nộp báo cáo', href: reportUrl }],
+            },
+        );
     }
-    const next = list.find((s) => !s.done && !s.disabled);
-    return list.map((s) => ({ ...s, primary: s === next }));
+    // Bước đang làm = các bước mở mà chưa xong; Điểm danh và Bài giảng có thể cùng đang làm.
+    return list.map((s) => ({ ...s, current: !s.done && !s.locked }));
 }
 
-const stepBox = (s) => (s.primary ? 'border-[#ffdbcd] bg-[#fffaf7]' : 'border-outline-variant bg-surface-container-lowest');
-const stepDot = (s) => (s.done ? 'bg-tertiary text-on-tertiary' : s.primary ? 'bg-primary-container text-on-primary' : 'bg-surface-container-high text-on-surface-variant');
+const stepBox = (s) => (s.done ? 'border-[#cfe8c2] bg-[#f6fbf3]' : s.current ? 'border-2 border-primary-container bg-[#fffaf7]' : 'border-dashed border-outline-variant bg-surface-container-low');
+const stepDot = (s) => (s.done ? 'bg-tertiary text-on-tertiary' : s.current ? 'bg-primary-container text-on-primary' : 'bg-surface-container-high text-on-surface-variant');
+const stepsDone = (shift) => steps(shift).filter((s) => s.done).length;
 
 const checkedInCount = computed(() => props.shifts.filter((s) => s.checked_in).length);
 const attendanceCount = computed(() => props.shifts.filter((s) => s.attendance_done).length);
@@ -160,7 +195,7 @@ const chip = 'inline-flex h-9 items-center gap-xs rounded-full border px-sm text
         <div class="grid grid-cols-1 items-start gap-md lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
             <!-- Cột trái: việc của ngày -->
             <div class="min-w-0 space-y-md">
-                <!-- Ca dạy hôm nay: mỗi ca một thẻ, 3 bước làm ngay trên thẻ -->
+                <!-- Ca dạy hôm nay: mỗi ca một thẻ, các bước làm ngay trên thẻ -->
                 <section aria-labelledby="ca-hom-nay" :class="card" data-testid="today-shifts">
                     <div class="flex flex-wrap items-center justify-between gap-xs border-b border-surface-container px-md py-sm md:px-lg">
                         <h2 id="ca-hom-nay" class="text-base font-bold text-on-surface">Ca dạy hôm nay</h2>
@@ -191,60 +226,41 @@ const chip = 'inline-flex h-9 items-center gap-xs rounded-full border px-sm text
                                 </span>
                             </div>
 
-                            <!-- 3 bước của ca -->
-                            <ol class="grid grid-cols-1 gap-xs sm:grid-cols-3">
-                                <li v-for="(step, i) in steps(shift)" :key="step.key" :class="['flex flex-col gap-[2px] rounded-[10px] border px-sm py-[10px]', stepBox(step)]" :data-step="step.key">
-                                    <div class="flex items-center gap-[6px] font-semibold text-on-surface">
-                                        <span :class="['inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold', stepDot(step)]">
+                            <!-- Các bước của ca: bước chưa tới lượt bị khoá -->
+                            <ol class="flex flex-col gap-xs lg:flex-row">
+                                <li
+                                    v-for="(step, i) in steps(shift)"
+                                    :key="step.key"
+                                    :class="['flex min-w-0 flex-1 flex-col gap-[4px] rounded-[10px] border px-sm py-[10px]', stepBox(step)]"
+                                    :data-step="step.key"
+                                    :data-state="step.done ? 'done' : step.locked ? 'locked' : 'current'"
+                                >
+                                    <div :class="['flex items-center gap-[6px] font-bold', step.locked ? 'text-on-surface-variant' : 'text-on-surface']">
+                                        <span :class="['inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold', stepDot(step)]">
                                             <span v-if="step.done" class="material-symbols-outlined text-[14px]" aria-hidden="true">check</span>
+                                            <span v-else-if="step.locked" class="material-symbols-outlined text-[13px]" aria-hidden="true">lock</span>
                                             <template v-else>{{ i + 1 }}</template>
                                         </span>
                                         {{ step.label }}
+                                        <span v-if="step.locked" class="sr-only">(đang khoá)</span>
                                     </div>
-                                    <div :class="['text-xs', step.hint?.includes('Học vụ') ? 'font-semibold text-error' : checkinState(shift)?.warning && step.key === 'checkin' ? 'font-semibold text-error' : 'text-on-surface-variant']">
-                                        {{ step.hint }}<template v-if="step.key === 'checkin' && checkinState(shift) && !checkinState(shift).expired"> (còn {{ countdown(checkinState(shift).left) }})</template>
+                                    <div :class="['min-h-[32px] text-xs', step.warn && !step.done ? 'font-semibold text-error' : step.done ? 'text-tertiary' : 'text-on-surface-variant']">{{ step.hint }}</div>
+                                    <div v-if="step.actions.length" class="mt-auto flex flex-wrap gap-[6px] pt-[2px]">
+                                        <template v-for="act in step.actions" :key="act.label">
+                                            <UiButton v-if="step.locked" size="sm" variant="secondary" disabled>{{ act.label }}</UiButton>
+                                            <UiButton v-else-if="act.drawer" size="sm" :variant="step.current && !act.secondary ? 'primary' : 'secondary'" :href="act.href" modal="drawer">{{ act.label }}</UiButton>
+                                            <UiButton v-else size="sm" :variant="step.current && !act.secondary ? 'primary' : 'secondary'" :href="act.href" :method="act.method" :data="act.data" :preserve-scroll="!!act.method">{{ act.label }}</UiButton>
+                                        </template>
                                     </div>
-                                    <UiButton
-                                        v-if="step.key === 'checkin'"
-                                        size="sm"
-                                        class="mt-[6px]"
-                                        :variant="step.primary ? 'primary' : 'secondary'"
-                                        :href="step.disabled ? null : route('teacher.checkin')"
-                                        :method="step.disabled ? null : 'post'"
-                                        :data="{ session_ids: [shift.session_id] }"
-                                        preserve-scroll
-                                        :disabled="step.disabled"
-                                    >{{ step.button }}</UiButton>
-                                    <UiButton
-                                        v-else-if="step.key === 'attendance'"
-                                        size="sm"
-                                        class="mt-[6px]"
-                                        :variant="step.primary ? 'primary' : 'secondary'"
-                                        :href="step.disabled ? null : attendanceUrl(shift.class_id, shift.session_id)"
-                                        :modal="step.disabled ? false : 'drawer'"
-                                        :disabled="step.disabled"
-                                    >{{ step.button }}</UiButton>
-                                    <UiButton
-                                        v-else
-                                        size="sm"
-                                        class="mt-[6px]"
-                                        :variant="step.primary ? 'primary' : 'secondary'"
-                                        :href="step.disabled ? null : route('classes.session-report', { id: shift.class_id, session: shift.session_id })"
-                                        :disabled="step.disabled"
-                                    >{{ step.button }}</UiButton>
                                 </li>
                             </ol>
 
                             <!-- Lối tắt phụ -->
                             <div class="flex flex-wrap items-center gap-x-md gap-y-[4px] text-[13px]">
-                                <template v-if="!shift.is_support">
-                                    <Link :href="route('teacher.lesson-today', { class: shift.class_id })" class="font-semibold text-primary hover:underline">Bài giảng</Link>
-                                </template>
+                                <span class="text-on-surface-variant">Bước {{ stepsDone(shift) }}/{{ steps(shift).length }} đã xong</span>
                                 <a v-if="shift.syllabus_url" :href="shift.syllabus_url" class="font-semibold text-primary hover:underline">Mở giáo trình</a>
-                                <template v-if="shift.can_teach && !shift.is_support">
-                                    <a :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })" class="font-semibold text-primary hover:underline" @click.prevent="openDrawer(route('teacher.homework', { classId: shift.class_id, session: shift.session_id }))">Giao bài</a>
-                                    <Link :href="route('teacher.scores', shift.class_id)" class="font-semibold text-primary hover:underline">Nhập điểm</Link>
-                                </template>
+                                <Link v-if="shift.can_teach && !shift.is_support" :href="route('teacher.scores', shift.class_id)" class="font-semibold text-primary hover:underline">Nhập điểm</Link>
+                                <Link :href="route('classes.show', shift.class_id)" class="font-semibold text-primary hover:underline">Trang lớp</Link>
                             </div>
                         </div>
                     </article>

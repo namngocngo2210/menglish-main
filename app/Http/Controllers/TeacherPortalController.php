@@ -234,6 +234,7 @@ class TeacherPortalController extends Controller
         });
 
         $canRecordAny = $teacher->can('attendance_student.record_any');
+        $homeworkDone = Homework::whereIn('class_session_id', $sessionIds)->pluck('class_session_id')->flip();
         $reportDone = TeacherSessionReport::whereIn('class_session_id', $sessionIds)->whereNotNull('submitted_at')
             ->pluck('class_session_id')->flip();
         // Buổi đã bắt đầu (30 ngày) mà GV / GVNN chưa nộp báo cáo buổi → chip "Báo cáo buổi chưa nộp" ở đầu trang.
@@ -294,6 +295,9 @@ class TeacherPortalController extends Controller
                 'attendance_state' => $attendanceState($shift['session'], $shift['attendance_done']),
                 'attendance_opens_at' => $shift['session']->startsAt()->subMinutes(ClassSession::ATTENDANCE_EARLY_MINUTES)->format('H:i'),
                 'report_done' => $reportDone->has($shift['session']->id),
+                'lesson_done' => $shift['session']->lesson_done_at !== null,
+                'lesson_done_at' => $shift['session']->lesson_done_at?->format('H:i'),
+                'homework_done' => $homeworkDone->has($shift['session']->id),
                 'student_count' => $shift['student_count'],
                 'trial_count' => $shift['trial_count'],
             ])->values()->all(),
@@ -540,6 +544,30 @@ class TeacherPortalController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Thẻ ca dạy, bước 3 "Bài giảng": GV / GVNN của buổi bấm "Dạy xong" sau khi đã check-in. Mở khoá bước Giao bài tập
+     * (cần thêm điểm danh). Không thay "Đã dạy" của tiến độ chặng — cái đó vẫn ghi khi nộp báo cáo buổi.
+     */
+    public function lessonDone(int $session)
+    {
+        $this->guardTeacher();
+        $user = Auth::user();
+        $classSession = $this->staffSessionsQuery($user->id)->with('classModel')->whereKey($session)->firstOrFail();
+        abort_unless($classSession->classModel && $this->isTeachingStaff($user, $classSession->classModel, $classSession), 403, 'Chỉ GV / GVNN của buổi đánh dấu dạy xong.');
+        if ($classSession->status === 'cancelled') {
+            return back()->withErrors(['session' => 'Buổi học này đã hủy.']);
+        }
+        $checkedIn = TeacherTimesheet::where('user_id', $user->id)->where('class_session_id', $classSession->id)->whereNotNull('checkin_time')->exists();
+        if (! $checkedIn) {
+            return back()->withErrors(['session' => 'Cần check-in ca dạy trước khi đánh dấu dạy xong.']);
+        }
+        if (! $classSession->lesson_done_at) {
+            $classSession->update(['lesson_done_at' => now(), 'lesson_done_by' => $user->id]);
+        }
+
+        return back()->with('success', 'Đã đánh dấu dạy xong bài giảng — giờ giao bài tập cho lớp.');
     }
 
     /**
