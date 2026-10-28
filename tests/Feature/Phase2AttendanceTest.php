@@ -225,10 +225,11 @@ class Phase2AttendanceTest extends TestCase
 
         $this->actingAs($this->teacher)->get(route('teacher.home'))
             ->assertOk()
-            ->assertSee('08:00 - 09:30')
+            ->assertSee('đến 09:30')
             ->assertSee('Lớp Trợ Giảng')
             ->assertSee('18:00-19:30')
-            ->assertSee('Điểm danh bù')
+            // Buổi 02/10 đã quá khung điểm danh của GV → chỉ xem buổi, liên hệ Học vụ.
+            ->assertSee('Buổi đã dạy chưa điểm danh · 1')->assertSee('Xem buổi')
             ->assertSee(route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $today->id], false), false);
 
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['session_ids' => [$today->id]])->assertSessionHasNoErrors();
