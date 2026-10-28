@@ -83,7 +83,10 @@ const hasLinks = computed(() => props.lesson && links.some(linkUrl));
             </div>
         </UiAlert>
 
-        <template v-if="classes.length">
+        <!-- Lớp mở từ thẻ ca dạy nhưng chưa được giao chặng: chưa có bài giảng theo syllabus. -->
+        <UiEmptyState v-if="classes.length && !assignment" icon="menu_book" title="Lớp chưa được giao chặng" description="Học thuật giao chặng cho lớp thì bài giảng của buổi học hôm nay sẽ hiện ở đây." />
+
+        <template v-else-if="classes.length">
             <UiAlert v-if="!session" type="info">Hôm nay lớp không có buổi học — GV chỉ xem bài giảng của buổi học hôm nay.</UiAlert>
             <UiAlert v-else-if="finished && !lesson" type="success">
                 <div class="flex flex-wrap items-center justify-between gap-2">
