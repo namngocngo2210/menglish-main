@@ -35,7 +35,7 @@ const props = defineProps({
     openId: { type: Number, default: null },
 });
 
-const openDetail = (id) => openRemoteModal(route('reports.detail', id), { size: '5xl', history: true });
+const openDetail = (id) => openRemoteModal(route('reports.detail', id), { size: '7xl', history: true });
 const markReviewed = (r, reviewed = true) => router.post(route('reports.review', r.id), { reviewed: reviewed ? 1 : 0 }, { preserveScroll: true });
 onMounted(() => props.openId && openDetail(props.openId));
 
