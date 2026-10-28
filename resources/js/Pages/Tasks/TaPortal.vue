@@ -12,6 +12,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { urlWith } from '@/lib/url';
 import { route } from '@/lib/route';
+import MissedLesson from '@/Components/Tasks/MissedLesson.vue';
 
 defineOptions({ layout: { title: 'Nhiệm vụ hôm nay' } });
 
@@ -30,6 +31,7 @@ const props = defineProps({
     firstOpen: { type: String, default: 'before' },
     groups: { type: Array, default: () => [] },
     sessions: { type: Array, default: () => [] },
+    supportSessions: { type: Array, default: () => [] },
 });
 
 const statusColors = {
@@ -65,6 +67,10 @@ function shiftDay(days) {
     const next = new Date(Date.UTC(y, m - 1, d + days));
     filter('date', next.toISOString().slice(0, 10));
 }
+
+// Buổi bổ trợ được giao: tick hoàn thành kèm nhận xét (như màn Học bù & bổ trợ).
+const completingSupport = ref(null);
+const supportWhen = { today: ['info', 'Hôm nay'], past: ['error', 'Đã qua ngày'], upcoming: ['neutral', 'Sắp tới'] };
 
 // Modal "Cập nhật tiến độ"
 const selected = ref(null);
@@ -159,7 +165,7 @@ function openReport(event) {
                     <div class="min-w-[160px] flex-1">
                         <p class="flex flex-wrap items-center gap-xs">
                             <span class="truncate font-body-medium text-body-medium font-bold text-on-surface">{{ s.class_name }}</span>
-                            <UiBadge v-if="s.support" color="info" pill>Buổi bổ trợ</UiBadge>
+                            <UiBadge v-if="s.support" color="info" pill>Bổ trợ{{ s.support_student ? ' · ' + s.support_student : '' }}</UiBadge>
                             <UiBadge v-else-if="s.makeup" color="warning" pill>Học bù</UiBadge>
                         </p>
                         <p class="truncate font-caption text-caption text-on-surface-variant">{{ s.room || 'Chưa có phòng' }}{{ s.branch ? ' · ' + s.branch : '' }}</p>
@@ -168,6 +174,33 @@ function openReport(event) {
                 </article>
             </div>
             <p v-else class="flex flex-1 items-center px-sm py-xs font-body-small text-body-small italic text-on-surface-variant">Không có buổi học nào trong ngày.</p>
+        </section>
+
+        <!-- Buổi bổ trợ được Học vụ giao (chưa hoàn thành): nội dung + tài liệu buổi học sinh vắng, tick hoàn thành ngay tại đây -->
+        <section v-if="supportSessions.length" class="overflow-hidden rounded-2xl border border-secondary/20 bg-surface-container-lowest" aria-labelledby="bo-tro-title" data-support-sessions>
+            <div class="flex flex-wrap items-center justify-between gap-sm border-b border-secondary/20 bg-secondary-fixed/40 px-md py-sm sm:px-lg">
+                <h2 id="bo-tro-title" class="font-body-medium text-body-medium font-bold text-on-surface">Buổi bổ trợ được giao · {{ supportSessions.length }}</h2>
+                <Link :href="route('tasks.support-sessions', { mine: 1 })" class="font-caption text-caption font-semibold text-primary hover:underline">Xem tất cả</Link>
+            </div>
+            <div class="divide-y divide-surface-container">
+                <article v-for="s in supportSessions" :key="s.id" class="flex flex-col gap-sm px-md py-sm sm:flex-row sm:items-start sm:px-lg" :data-support-id="s.id">
+                    <div class="w-full shrink-0 rounded-lg bg-secondary-fixed px-sm py-xs text-secondary sm:w-[112px] sm:text-center">
+                        <p class="font-code text-body-medium font-bold">{{ s.time }}</p>
+                        <p class="font-caption text-[11px] text-on-surface-variant">{{ s.date }}<template v-if="s.room"> · P. {{ s.room }}</template></p>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="flex flex-wrap items-center gap-xs">
+                            <span class="font-body-medium text-body-medium font-bold text-on-surface">{{ s.student }}</span>
+                            <span class="font-caption text-caption text-on-surface-variant">{{ s.class_name }}</span>
+                            <UiBadge :color="supportWhen[s.when][0]" pill>{{ supportWhen[s.when][1] }}</UiBadge>
+                        </p>
+                        <p v-if="s.reason" class="font-body-small text-body-small text-on-surface-variant">{{ s.reason }}</p>
+                        <p v-if="s.lesson_content" class="mt-1 whitespace-pre-line rounded-lg bg-primary-container/5 p-2 font-caption text-caption text-on-surface-variant"><strong class="text-on-surface">Học vụ dặn:</strong> {{ s.lesson_content }}</p>
+                        <MissedLesson v-if="s.missed" :missed="s.missed" :open="s.when !== 'upcoming'" />
+                    </div>
+                    <UiButton v-if="canComplete" size="sm" variant="success" icon="check" class="shrink-0" @click="completingSupport = s">Đã bổ trợ xong</UiButton>
+                </article>
+            </div>
         </section>
 
         <!-- Việc tồn của các ngày trước: xử lý ngay tại đây -->
@@ -338,6 +371,21 @@ function openReport(event) {
             <template #footer>
                 <UiButton variant="secondary" @click="selected = null">Hủy</UiButton>
                 <UiButton type="submit" form="ta-complete-form" icon="send">Xác nhận</UiButton>
+            </template>
+        </UiModal>
+
+        <!-- Tick hoàn thành buổi bổ trợ: bắt buộc nhận xét. -->
+        <UiModal :show="!!completingSupport" title="Hoàn thành buổi bổ trợ" max-width="lg" @close="completingSupport = null">
+            <UiForm v-if="completingSupport" id="ta-complete-support-form" :action="route('tasks.support-sessions.complete', completingSupport.id)" method="post" class="space-y-md" @success="completingSupport = null">
+                <div class="rounded-xl border border-outline-variant bg-surface-container-low p-3 text-xs">
+                    <div class="font-bold text-on-surface">{{ completingSupport.student }} · {{ completingSupport.class_name }}</div>
+                    <div class="mt-0.5 text-on-surface-variant">{{ completingSupport.date }} · {{ completingSupport.time }}</div>
+                </div>
+                <UiTextarea id="ta_support_completion_note" name="completion_note" label="Nhận xét buổi bổ trợ" required :rows="4" placeholder="Học sinh đã nắm được gì, còn yếu phần nào, cần lưu ý gì cho buổi sau" />
+            </UiForm>
+            <template #footer>
+                <UiButton variant="secondary" @click="completingSupport = null">Hủy</UiButton>
+                <UiButton type="submit" form="ta-complete-support-form" variant="success" icon="task_alt">Hoàn thành</UiButton>
             </template>
         </UiModal>
     </div>
