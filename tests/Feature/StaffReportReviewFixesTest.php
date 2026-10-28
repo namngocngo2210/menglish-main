@@ -202,8 +202,27 @@ class StaffReportReviewFixesTest extends TestCase
         $this->actingAs($manager)->get(route('reports.journal'))
             ->assertInertia(fn (AssertableInertia $page) => $page->has('journals.data', 0));
 
-        $this->actingAs($this->makeUser('admin'))->get(route('reports.all', ['branch_id' => $this->branchB->id]))
+        $this->actingAs($this->makeUser('admin'))->get(route('reports.all', ['branch_id' => $this->branchB->id, 'review' => 'all']))
             ->assertInertia(fn (AssertableInertia $page) => $page->has('reports.data', 2)->where('reports.data.0.user', 'Học vụ BD'));
+    }
+
+    public function test_admin_summary_opens_on_pending_tab_with_counts_per_type(): void
+    {
+        $staff = $this->makeUser('academic_staff', ['name' => 'Học vụ CG']);
+        $admin = $this->makeUser('admin');
+        $pending = $this->dailyReport($staff, '2026-10-14');
+        $this->dailyReport($staff, '2026-10-13')->update(['reviewed_at' => now(), 'reviewed_by' => $admin->id]);
+        StaffReport::create(['user_id' => $staff->id, 'type' => 'journal', 'title' => 'Sự vụ', 'content' => 'Sự vụ', 'report_date' => today(), 'severity' => 'urgent', 'status' => 'open']);
+
+        // Không có tham số: tab "Chờ kiểm tra", không lẫn báo cáo đã kiểm tra hay nhật ký sự vụ.
+        $this->actingAs($admin)->get(route('reports.all'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('filters.review', 'pending')->has('reports.data', 1)
+                ->where('reports.data.0.id', $pending->id)->where('typeCounts', ['daily' => 1])->where('stats.urgent_open', 1)->where('stats.followups_overdue', 0));
+
+        // Tab "Tất cả": cả nhật ký; lọc loại vẫn giữ số đếm của mọi loại trong tab.
+        $this->actingAs($admin)->get(route('reports.all', ['review' => 'all', 'type' => 'journal']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('reports.data', 1)->where('reports.data.0.type', 'journal')
+                ->where('filters.type', 'journal')->where('typeCounts.daily', 2)->where('typeCounts.journal', 1));
     }
 
     public function test_admin_list_shows_writer_notes_late_flag_filters_and_missing_tab(): void
