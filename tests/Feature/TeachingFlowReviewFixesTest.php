@@ -129,10 +129,10 @@ class TeachingFlowReviewFixesTest extends TestCase
     {
         SyllabusLesson::where('curriculum_id', $this->curriculum->id)->where('session_no', 2)->update(['content' => 'Nội dung bí mật buổi 2']);
 
-        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
+        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))
             ->assertOk()->assertDontSee('Nội dung bí mật buổi 2')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('syllabus.lessons.1.data', null)->where('syllabus.lessons.1.title', 'Bài 2')->etc());
-        $this->actingAs($this->staff)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
+        $this->actingAs($this->staff)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('syllabus.lessons.1.data.content', 'Nội dung bí mật buổi 2')->etc());
     }
 

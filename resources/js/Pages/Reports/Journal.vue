@@ -118,7 +118,7 @@ const toggleSerious = (j) => router.post(route('reports.journal.serious', j.id),
 
                     <div v-if="j.kpi_code || j.class" class="mb-xs flex flex-wrap gap-xs">
                         <span v-if="j.kpi_code" class="rounded-md border border-outline-variant bg-surface-variant px-2 py-[2px] font-label text-[10px] text-on-surface-variant">KPI: {{ j.kpi_code }}</span>
-                        <Link v-if="j.class" :href="route('classes.show', { id: j.class.id, tab: 'incidents' })" class="rounded-md border border-outline-variant px-2 py-[2px] font-label text-[10px] text-primary hover:underline">Lớp {{ j.class.code }}</Link>
+                        <Link v-if="j.class" :href="route('classes.show', j.class.id)" class="rounded-md border border-outline-variant px-2 py-[2px] font-label text-[10px] text-primary hover:underline">Lớp {{ j.class.code }}</Link>
                     </div>
                     <p :class="['whitespace-pre-line font-body-base text-body-base text-on-surface', j.serious ? 'font-medium' : '']">{{ j.content || j.title }}</p>
 

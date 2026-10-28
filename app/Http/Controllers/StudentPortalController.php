@@ -471,7 +471,7 @@ class StudentPortalController extends Controller
                 'label' => trim(($no ? 'Buổi '.$no.' · ' : '').$s->date->format('d/m').($s->start_time ? ' · '.$s->start_time->format('H:i') : '')),
                 'class_name' => $s->classModel?->name,
                 'teacher' => $s->teacher?->name,
-                'remark' => $remark === [] ? null : collect(self::normalizeRemark($remark))->only(['monsters', 'grammar', 'attitude', 'result', 'comment'])->all(),
+                'remark' => $remark === [] ? null : collect(self::normalizeRemark($remark))->only(['monsters', 'grammar', 'hw_score', 'attitude', 'result', 'comment'])->all(),
                 'absent' => $absent,
                 'feedback' => $mine ? [
                     'rating' => $mine->rating,
@@ -534,10 +534,15 @@ class StudentPortalController extends Controller
     private static function normalizeRemark(array $remark): array
     {
         if (blank($remark['monsters'] ?? null)) {
-            $remark['monsters'] = collect(['Nhóm' => $remark['monsters_group'] ?? null, 'Thưởng' => $remark['monsters_bonus'] ?? null])
+            // Báo cáo buổi mới: "Điểm thưởng" (bonus); bản cũ: Monsters nhóm / thưởng.
+            $remark['monsters'] = collect(['Nhóm' => $remark['monsters_group'] ?? null, 'Thưởng' => $remark['monsters_bonus'] ?? null, 'Điểm thưởng' => $remark['bonus'] ?? null])
                 ->filter(fn ($v) => filled($v))
                 ->map(fn ($v, $k) => $k.' '.$v)
                 ->implode(' · ') ?: null;
+        }
+        // Cột "Thực hành" GV tự đặt tên (báo cáo buổi mới) hiện ở ô Ngữ pháp / thực hành: "Tên cột: nhận xét".
+        if (blank($remark['grammar'] ?? null) && is_array($remark['practice'] ?? null)) {
+            $remark['grammar'] = collect($remark['practice'])->filter(fn ($v) => filled($v))->map(fn ($v, $k) => $k.': '.$v)->implode(' · ') ?: null;
         }
 
         return $remark;

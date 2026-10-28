@@ -134,21 +134,12 @@ class ClassDataScopeLeaksTest extends TestCase
         $this->assertSame(['CLASS-ALPHA-ONE'], $this->dashboardClassNames($this->teacherA));
     }
 
-    public function test_classes_index_missing_attendance_stat_counts_only_manager_branch(): void
+    public function test_classes_index_branch_filter_lists_only_branches_in_scope(): void
     {
-        ClassSession::create([
-            'class_id' => $this->classA->id, 'branch_id' => $this->branchA->id, 'date' => today()->toDateString(),
-            'start_time' => '00:00', 'end_time' => '00:30', 'teacher_id' => $this->teacherA->id, 'status' => 'scheduled',
-        ]);
-        ClassSession::create([
-            'class_id' => $this->classB->id, 'branch_id' => $this->branchB->id, 'date' => today()->toDateString(),
-            'start_time' => '00:00', 'end_time' => '00:30', 'teacher_id' => $this->teacherB->id, 'status' => 'scheduled',
-        ]);
-
         $this->actingAs($this->managerA)->get(route('classes.index'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.missing_attendance', 1));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branches', fn ($branches) => collect($branches)->pluck('value')->all() === [$this->branchA->id]));
         $this->actingAs($this->admin)->get(route('classes.index'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('stats.missing_attendance', 2));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branches', fn ($branches) => count($branches) === 2));
     }
 
     public function test_staff_without_student_in_scope_does_not_see_other_students_portal_records(): void

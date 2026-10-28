@@ -258,10 +258,13 @@ class Phase2AcceptanceTest extends TestCase
 
         // Điểm danh bù buổi đã qua; Học vụ điểm danh thay GV (user_id = GV của buổi, recorded_by = Học vụ).
         $past = $class->sessions()->whereDate('date', today()->subDays(2))->firstOrFail();
-        $this->actingAs($this->academic)->post(route('teacher.attendance.store', $class->id), [
+        // (mở bằng ngăn điểm danh trên tab Buổi học của Trang lớp → lưu xong quay lại đúng trang lớp)
+        $classUrl = route('classes.show', ['id' => $class->id, 'tab' => 'sessions']);
+        $this->actingAs($this->academic)->from($classUrl)->withHeaders(['X-Remote-Modal' => 'true'])->post(route('teacher.attendance.store', $class->id), [
             'class_session_id' => $past->id,
             'status' => [$s1->id => 'present', $s2->id => 'present', $s3->id => 'present', $s4->id => 'present'],
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasNoErrors()->assertRedirect($classUrl);
+        $this->flushHeaders();
         $proxy = StudentAttendance::where('class_session_id', $past->id)->where('student_id', $s1->id)->firstOrFail();
         $this->assertSame($this->teacher->id, (int) $proxy->user_id);
         $this->assertSame($this->academic->id, (int) $proxy->recorded_by);
@@ -275,7 +278,7 @@ class Phase2AcceptanceTest extends TestCase
         $this->actingAs($this->teacher)->post(route('classes.session-report.store', ['id' => $class->id, 'session' => $today->id]), [
             'content' => 'Unit 1',
             'remarks' => [$s1->id => ['grammar' => 'Tốt', 'attitude' => 'Khá', 'result' => 'Đạt', 'comment' => 'Phát âm rõ.']],
-        ])->assertSessionHasNoErrors()->assertRedirect(route('classes.show', ['id' => $class->id, 'tab' => 'attendance']));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('classes.show', ['id' => $class->id, 'tab' => 'sessions']));
 
         $this->actingAs($this->teacher)->post(route('teacher.scores.store', $class->id), [
             'name' => 'Mini Test Unit 1', 'test_date' => today()->toDateString(), 'max_score' => 20,

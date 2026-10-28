@@ -837,7 +837,7 @@ class StaffReportController extends Controller
     }
 
     /** Sự việc mức "Khẩn" báo ngay Admin và Quản lý cơ sở của người ghi. */
-    private static function notifyUrgent(StaffReport $entry, User $author): void
+    public static function notifyUrgent(StaffReport $entry, User $author): void
     {
         $entry->loadMissing('classModel:id,name');
         AdminNotification::notifyUsers(

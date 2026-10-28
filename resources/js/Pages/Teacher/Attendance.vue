@@ -2,11 +2,14 @@
 /**
  * Điểm danh theo buổi (mockup 03_Cong_Giao_Vien/02_diem_danh_lop_giao_vien): tiêu đề buổi + khung giờ / phòng / sĩ số, cửa sổ điểm danh (15 phút trước → 24h sau giờ học),
  * thống kê nhanh 4 trạng thái, quy tắc nghiệp vụ, danh sách lớp với trạng thái + ghi chú (bắt buộc khi nghỉ).
+ * Mở từ Trang lớp (nút "Điểm danh" trên từng buổi) → ngăn bên phải: chạm 1 lần chọn trạng thái, ô lý do chỉ hiện khi nghỉ,
+ * nút "Tất cả đúng giờ"; lưu xong ngăn đóng, bảng buổi học tải lại.
  */
 import { computed, ref, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import SessionTrialGuests from '@/Components/Teacher/SessionTrialGuests.vue';
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
+import { useRemoteModal } from '@/Components/ui/modalContext';
 import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Điểm danh' } });
@@ -30,6 +33,8 @@ const props = defineProps({
     syllabusUrl: { type: String, default: null },
 });
 
+const modal = useRemoteModal();
+
 const OPTIONS = {
     present: { label: 'Đúng giờ', tone: 'border-outline-variant' },
     late: { label: 'Muộn', tone: 'border-warning/30 bg-warning-container' },
@@ -49,6 +54,11 @@ loadStatuses();
 watch(() => props.session?.id, loadStatuses);
 
 const count = (v) => Object.values(statuses.value).filter((s) => s === v).length;
+const allPresent = () => {
+    for (const st of props.students) statuses.value[st.id] = 'present';
+};
+// Ngăn bên phải: nhãn ngắn + màu chữ khi được chọn.
+const SHORT = { present: ['Đúng giờ', 'text-tertiary'], late: ['Muộn', 'text-warning'], excused: ['Có phép', 'text-secondary'], absent: ['Không phép', 'text-error'] };
 const needsNote = (id) => ['absent', 'excused'].includes(statuses.value[id]);
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -61,7 +71,91 @@ function pickSession(event) {
 </script>
 
 <template>
-    <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
+    <!-- Ngăn bên phải (mở từ Trang lớp) -->
+    <UiForm v-if="modal" :action="route('teacher.attendance.store', props.classroom.id)" method="post" class="flex min-h-0 flex-1 flex-col" #default="{ processing }">
+        <input v-if="session" type="hidden" name="class_session_id" :value="session.id" />
+        <div class="shrink-0 space-y-sm border-b border-surface-container px-lg py-md">
+            <div class="flex items-start justify-between gap-md">
+                <div class="min-w-0">
+                    <p class="font-body-small text-body-small text-on-surface-variant">{{ classroom.name }}</p>
+                    <h2 :id="modal.titleId" class="font-h3 text-h3 text-on-surface">Điểm danh{{ session ? ` · ${session.date}` : '' }}</h2>
+                    <p v-if="session" class="font-body-small text-body-small text-on-surface-variant">{{ session.time }}{{ session.room_label ? ` · ${session.room_label}` : '' }}</p>
+                </div>
+                <button type="button" class="shrink-0 rounded-lg p-xs text-on-surface-variant hover:bg-surface-container-high" aria-label="Đóng" data-modal-close @click="modal.close()">
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                </button>
+            </div>
+            <UiAlert v-if="onBehalf && !windowReason && !blockReason" type="info">Bạn đang điểm danh thay {{ onBehalfName }}{{ session?.is_past ? ' (điểm danh bù)' : '' }}. Hệ thống ghi nhận bạn là người lưu.</UiAlert>
+            <UiAlert v-if="windowReason" type="warning" data-testid="attendance-window-blocked">{{ windowReason }}</UiAlert>
+            <UiAlert v-if="blockReason" type="warning">{{ blockReason }}</UiAlert>
+            <UiAlert v-if="firstError" type="error">{{ firstError }}</UiAlert>
+        </div>
+
+        <template v-if="session && !blockReason && students.length">
+            <div class="flex shrink-0 flex-wrap items-center justify-between gap-sm border-b border-surface-container px-lg py-sm">
+                <span class="font-body-small text-body-small text-on-surface-variant">
+                    <b class="text-on-surface">{{ students.length }}</b> học viên · <span class="font-semibold text-tertiary">{{ count('present') }} đúng giờ</span> ·
+                    <span class="font-semibold text-warning">{{ count('late') }} muộn</span> · <span class="font-semibold text-secondary">{{ count('excused') }} có phép</span> · {{ count('absent') }} không phép
+                </span>
+                <UiButton variant="secondary" size="sm" :disabled="!!windowReason" @click="allPresent">Tất cả đúng giờ</UiButton>
+            </div>
+            <ul class="min-h-0 flex-1 divide-y divide-surface-container overflow-y-auto">
+                <li v-for="student in students" :key="student.id" class="px-lg py-sm" :data-student="student.id">
+                    <div class="flex flex-wrap items-center justify-between gap-sm">
+                        <div class="min-w-0">
+                            <div class="font-semibold text-on-surface">{{ student.name }}</div>
+                            <div class="font-code text-xs text-on-surface-subtle">
+                                {{ student.code }}<template v-if="student.joined_on"> · vào lớp từ {{ student.joined_on }}</template>
+                            </div>
+                        </div>
+                        <input type="hidden" :name="`status[${student.id}]`" :value="statuses[student.id] ?? ''" />
+                        <div role="radiogroup" :aria-label="`Trạng thái ${student.name}`" class="inline-flex gap-0.5 rounded-xl bg-surface-container-low p-[3px]">
+                            <button
+                                v-for="(meta, value) in SHORT"
+                                :key="value"
+                                type="button"
+                                role="radio"
+                                :aria-checked="statuses[student.id] === value ? 'true' : 'false'"
+                                :disabled="!!windowReason"
+                                :class="['h-8 rounded-lg px-sm text-xs font-semibold transition-colors', statuses[student.id] === value ? ['bg-surface-container-lowest shadow-sm', meta[1]] : 'text-on-surface-variant hover:text-on-surface']"
+                                @click="statuses[student.id] = value"
+                            >
+                                {{ meta[0] }}
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="needsNote(student.id)" class="mt-sm">
+                        <input
+                            type="text"
+                            :name="`note[${student.id}]`"
+                            maxlength="500"
+                            :value="student.note"
+                            placeholder="Lý do nghỉ (bắt buộc)"
+                            required
+                            :aria-label="`Lý do nghỉ của ${student.name}`"
+                            :class="['h-10 w-full rounded-lg border px-sm font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/50', errors['note.' + student.id] ? 'border-error' : 'border-outline-variant']"
+                        />
+                        <p v-if="errors['note.' + student.id]" class="mt-xs text-xs text-error">{{ errors['note.' + student.id] }}</p>
+                    </div>
+                    <input v-else type="hidden" :name="`note[${student.id}]`" :value="student.note ?? ''" />
+                </li>
+            </ul>
+        </template>
+        <div v-else class="min-h-0 flex-1">
+            <UiEmptyState v-if="!session" icon="event_busy" title="Không tìm thấy buổi học này." />
+            <UiEmptyState v-else-if="!students.length" icon="group_off" title="Buổi học này chưa có học viên nào trong danh sách lớp." />
+        </div>
+
+        <div class="flex shrink-0 flex-wrap items-center justify-between gap-sm border-t border-surface-container bg-surface-container-low px-lg py-md">
+            <span class="text-xs text-on-surface-variant">Học viên vắng tự vào danh sách bổ trợ.</span>
+            <div class="flex gap-sm">
+                <UiButton variant="secondary" @click="modal.close()">Hủy</UiButton>
+                <UiButton v-if="session && !blockReason && students.length" type="submit" icon="save" :disabled="!!windowReason || processing">Lưu điểm danh</UiButton>
+            </div>
+        </div>
+    </UiForm>
+
+    <div v-else class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
         <!-- Tiêu đề buổi học -->
         <UiPageHeader :title="title" :back="route('teacher.home')" back-label="Về lịch dạy">
             <template v-if="session" #meta>
@@ -208,5 +302,5 @@ function pickSession(event) {
         </template>
     </div>
 
-    <TeacherBottomNav />
+    <TeacherBottomNav v-if="!modal" />
 </template>

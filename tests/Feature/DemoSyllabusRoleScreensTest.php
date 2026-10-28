@@ -31,14 +31,14 @@ class DemoSyllabusRoleScreensTest extends TestCase
         $screens = [
             'academiclead@menglish.edu.vn' => [
                 route('syllabus.curriculums.index'), route('syllabus.assignments'), route('syllabus.adjustment-requests'),
-                route('classes.show', ['id' => $class('DEMO-BD-FAM1'), 'tab' => 'syllabus']), route('classes.show', ['id' => $class('DEMO-CG-FAM0'), 'tab' => 'syllabus']),
+                route('classes.show', ['id' => $class('DEMO-BD-FAM1'), 'tab' => 'academic']), route('classes.show', ['id' => $class('DEMO-CG-FAM0'), 'tab' => 'academic']),
                 route('tasks.index'), route('tasks.show', $overdueTask), route('reports.periodic.academic-weekly'), route('notifications.index'),
                 route('syllabus.big-tests.distribution'),
             ],
             'admin@menglish.edu.vn' => [route('approvals.index'), route('syllabus.adjustment-requests'), route('reports.detail', $weekly), route('notifications.index')],
-            'manager@menglish.edu.vn' => [route('reports.detail', $weekly), route('notifications.index'), route('classes.show', ['id' => $class('DEMO-CG-FAM1'), 'tab' => 'syllabus'])],
+            'manager@menglish.edu.vn' => [route('reports.detail', $weekly), route('notifications.index'), route('classes.show', ['id' => $class('DEMO-CG-FAM1'), 'tab' => 'academic'])],
             'nva@menglish.edu.vn' => [
-                route('syllabus.curriculums.index'), route('classes.show', ['id' => $class('DEMO-CG-FAM0'), 'tab' => 'syllabus']), route('material-orders.index'),
+                route('syllabus.curriculums.index'), route('classes.show', ['id' => $class('DEMO-CG-FAM0'), 'tab' => 'academic']), route('material-orders.index'),
             ],
             'nguyenvanan@menglish.edu.vn' => [
                 route('teacher.lesson-today', ['class' => $class('DEMO-CG-FAM0')]), route('teacher.lesson-today', ['class' => $class('DEMO-CG-FAM1')]),

@@ -484,8 +484,10 @@ class AcademicSystemTest extends TestCase
 
         $responseReject = $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $adjReq2->id), [
             'rejection_reason' => 'Không phù hợp với lộ trình',
+            'from_class' => 1,
         ]);
-        $responseReject->assertRedirect();
+        // Duyệt / từ chối ngay trên tab Học thuật của Trang lớp → quay về đúng tab đó.
+        $responseReject->assertRedirect(route('classes.show', ['id' => $this->classModel->id, 'tab' => 'academic']));
 
         $adjReq2->refresh();
         $this->assertEquals('rejected', $adjReq2->status);

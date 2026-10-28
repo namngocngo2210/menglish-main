@@ -124,7 +124,7 @@ class SyllabusConfirmReadingTest extends TestCase
         // Học thuật thấy bằng chứng đọc ở Giao chặng và tab Syllabus của lớp.
         $this->actingAs($this->lead)->get(route('syllabus.assignments'))
             ->assertOk()->assertSee('Đọc tổng quan 40 giây · mở 1/1 tài liệu chặng')->assertDontSee('Chờ GV xác nhận');
-        $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
+        $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))
             ->assertOk()->assertSee('Đọc tổng quan 40 giây · mở 1/1 tài liệu chặng')->assertDontSee('Chờ GV xác nhận');
     }
 

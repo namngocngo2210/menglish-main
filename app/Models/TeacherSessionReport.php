@@ -13,9 +13,9 @@ use Illuminate\Support\Carbon;
  */
 class TeacherSessionReport extends Model
 {
-    protected $fillable = ['class_id', 'class_session_id', 'teacher_id', 'content', 'class_situation', 'attention', 'proposal', 'submitted_at'];
+    protected $fillable = ['class_id', 'class_session_id', 'teacher_id', 'content', 'class_situation', 'attention', 'proposal', 'practice_columns', 'submitted_at'];
 
-    protected $casts = ['attention' => 'array', 'submitted_at' => 'datetime'];
+    protected $casts = ['attention' => 'array', 'practice_columns' => 'array', 'submitted_at' => 'datetime'];
 
     public function classModel(): BelongsTo
     {

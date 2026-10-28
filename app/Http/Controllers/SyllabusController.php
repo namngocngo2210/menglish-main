@@ -40,6 +40,7 @@ use App\Support\Roles;
 use App\Support\Ui;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -1585,7 +1586,11 @@ class SyllabusController extends Controller
         // Báo người duyệt (Học thuật / Admin) có yêu cầu mới, hạn duyệt 3 ngày.
         app(AdjustmentSlaService::class)->notifyCreated($adjustment->load('classModel', 'teacher'));
 
-        // Giáo viên quay lại màn gửi yêu cầu của mình; người duyệt về màn duyệt.
+        // Gửi từ tab Học thuật của Trang lớp → về lại tab đó; còn lại: GV về màn gửi yêu cầu, người duyệt về màn duyệt.
+        if ($request->boolean('from_class')) {
+            return $this->backToClassAcademic($class->id, 'Đã gửi yêu cầu, Học thuật phản hồi trong '.SyllabusAdjustmentRequest::slaDays().' ngày.');
+        }
+
         return redirect()->route($user->can('syllabus.approve_adjustment') ? 'syllabus.adjustment-requests' : 'syllabus.teacher-adjust')
             ->with('status', 'Đã gửi yêu cầu điều chỉnh tiến độ giáo trình!');
     }
@@ -1650,6 +1655,9 @@ class SyllabusController extends Controller
         });
 
         $this->notifyUser($req->user_id, 'Yêu cầu giãn tiến độ đã được duyệt', "Lớp {$req->classModel?->name}: {$appliedNote}", route('syllabus.adjustment-requests', ['request' => $req->id]));
+        if ($request->boolean('from_class') && $req->classModel) {
+            return $this->backToClassAcademic($req->class_id, "Đã duyệt yêu cầu. {$appliedNote}");
+        }
 
         return redirect()->route('syllabus.adjustment-requests', ['request' => $req->id])
             ->with('status', "Đã phê duyệt yêu cầu điều chỉnh tiến độ cho lớp {$req->classModel?->name}. {$appliedNote}");
@@ -1670,9 +1678,18 @@ class SyllabusController extends Controller
             'rejection_reason' => $validated['rejection_reason'],
         ]);
         $this->notifyUser($req->user_id, 'Yêu cầu giãn tiến độ bị từ chối', "Lớp {$req->classModel?->name} — Lý do: {$validated['rejection_reason']}", route('syllabus.adjustment-requests', ['request' => $req->id]));
+        if ($request->boolean('from_class') && $req->classModel) {
+            return $this->backToClassAcademic($req->class_id, 'Đã từ chối yêu cầu, giáo viên được báo lý do.');
+        }
 
         return redirect()->route('syllabus.adjustment-requests', ['request' => $req->id])
             ->with('status', "Đã từ chối yêu cầu điều chỉnh tiến độ cho lớp {$req->classModel?->name}!");
+    }
+
+    /** Thao tác từ thẻ "Yêu cầu giãn / dời buổi" ở tab Học thuật của Trang lớp → về lại đúng tab đó. */
+    private function backToClassAcademic(int $classId, string $message): RedirectResponse
+    {
+        return redirect()->route('classes.show', ['id' => $classId, 'tab' => 'academic'])->with('status', $message);
     }
 
     private function ensurePending(string $status): void

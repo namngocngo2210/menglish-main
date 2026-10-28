@@ -109,7 +109,7 @@ class ClassSyllabusTest extends TestCase
         $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'Riêng', 'reason' => 'Lý do riêng']);
 
         foreach ([$this->staff, $this->teacher] as $user) {
-            $this->actingAs($user)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
+            $this->actingAs($user)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))
                 ->assertOk()
                 ->assertInertia(fn (AssertableInertia $page) => $page
                     ->where('syllabus.stage_label', 'Chặng 1: Làm quen')
@@ -123,7 +123,7 @@ class ClassSyllabusTest extends TestCase
                     ->etc());
             $this->actingAs($user)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'z', 'reason' => 'z'])->assertForbidden();
         }
-        $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
+        $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('syllabus.can_edit', true)->etc());
     }
 
@@ -131,7 +131,7 @@ class ClassSyllabusTest extends TestCase
     {
         $this->assignment->update(['status' => SyllabusAssignment::STATUS_CLOSED, 'closed_at' => now()]);
 
-        $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'syllabus']))
+        $this->actingAs($this->lead)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('syllabus.stage_label', null)->where('syllabus.lessons', [])->etc());
         $this->actingAs($this->lead)->put(route('classes.syllabus.override', [$this->class->id, $this->lesson3->id]), ['title' => 'Bài 3', 'content' => 'x', 'reason' => 'y'])

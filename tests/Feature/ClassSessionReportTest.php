@@ -91,10 +91,10 @@ class ClassSessionReportTest extends TestCase
     {
         $session = $this->makeSession(0);
 
-        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('attendanceRows.0.can_submit_report', true)->where('attendanceRows.0.teacher_report', null));
-        $this->actingAs($this->foreign)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('attendanceRows.0.can_submit_report', false));
+        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'sessions']))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.0.can_submit_report', true)->where('sessions.0.teacher_report', null));
+        $this->actingAs($this->foreign)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'sessions']))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.0.can_submit_report', false));
 
         $html = $this->actingAs($this->teacher)->get($this->url($session))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Classes/SessionReport')
@@ -126,7 +126,7 @@ class ClassSessionReportTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('sharedAttention.0.student', 'Lê Chi')->where('sharedAttention.0.source', 'Vắng học')->where('suggestions', []));
 
         $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), $payload)
-            ->assertSessionHasNoErrors()->assertRedirect(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']));
+            ->assertSessionHasNoErrors()->assertRedirect(route('classes.show', ['id' => $this->class->id, 'tab' => 'sessions']));
 
         $report = TeacherSessionReport::sole();
         $this->assertSame([$this->teacher->id, 'Unit 3: animals', 'Lớp sôi nổi'], [(int) $report->teacher_id, $report->content, $report->class_situation]);
@@ -139,11 +139,11 @@ class ClassSessionReportTest extends TestCase
         // Sửa lại: giữ giờ nộp đầu.
         $first = $report->submitted_at->toDateTimeString();
         $this->travel(1)->hours();
-        $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), ['content' => 'Unit 3 + 4'])->assertSessionHasNoErrors();
+        $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), ['content' => 'Unit 3 + 4', 'attention' => $payload['attention']])->assertSessionHasNoErrors();
         $this->assertSame(['Unit 3 + 4', $first], [$report->fresh()->content, $report->fresh()->submitted_at->toDateTimeString()]);
 
-        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('attendanceRows.0.teacher_report', ['late' => false])->where('attendanceStats.reports', 1));
+        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'sessions']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.0.teacher_report', ['late' => false])->where('sessionStats.reported', 1));
 
         // Người khác xem được, chỉ đọc.
         $this->actingAs($this->admin)->get($this->url($session))->assertOk()
@@ -162,18 +162,18 @@ class ClassSessionReportTest extends TestCase
 
         $this->actingAs($this->teacher)->post($url, [
             'content' => 'Unit 3',
-            'remarks' => [$this->student->id => ['grammar' => 'Khá', 'attitude' => 'Tốt', 'result' => 'Đạt', 'comment' => 'Con phát biểu tốt']],
+            'remarks' => [$this->student->id => ['attitude' => 'Tốt', 'result' => 'Đạt', 'comment' => 'Con phát biểu tốt']],
         ])->assertSessionHasNoErrors();
 
         $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', TeacherPortalController::remarkRecordCode($session))->sole();
         $this->assertSame('completed', $record->status);
         $this->assertSame('Con phát biểu tốt', $record->data[$this->student->id]['comment'] ?? $record->data[(string) $this->student->id]['comment']);
 
-        // Màn Nhận xét của Cổng GV đọc đúng nhận xét đã nhập trong báo cáo; mở lại báo cáo cũng thấy.
+        // Màn Nhận xét cũ chuyển về báo cáo buổi; mở lại báo cáo thấy đúng nhận xét đã nhập.
         $this->actingAs($this->teacher)->get(route('teacher.remarks', ['classId' => $this->class->id, 'session' => $session->id]))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('students.0.remark.grammar', 'Khá'));
+            ->assertRedirect($this->url($session));
         $this->actingAs($this->admin)->get($this->url($session))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con phát biểu tốt'));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con phát biểu tốt')->where('remarkStudents.0.remark.attitude', 'Tốt'));
     }
 
     public function test_teacher_and_assistant_share_lesson_content_and_attention_list(): void
@@ -225,8 +225,89 @@ class ClassSessionReportTest extends TestCase
         $this->actingAs($this->teacher)->post($this->url($session, 'classes.session-report.store'), ['content' => 'Unit 2'])->assertSessionHasNoErrors();
 
         $this->assertTrue(TeacherSessionReport::sole()->isLate());
-        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'attendance']))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('attendanceRows.0.teacher_report', ['late' => true]));
+        $this->actingAs($this->teacher)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'sessions']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.0.teacher_report', ['late' => true]));
+    }
+
+    public function test_report_saves_bonus_homework_score_and_named_practice_columns(): void
+    {
+        $session = $this->makeSession(0);
+        $this->attend($session, 'present');
+        $url = $this->url($session, 'classes.session-report.store');
+        $sid = $this->student->id;
+
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 3', 'remarks' => [$sid => ['bonus' => 'abc']]])
+            ->assertSessionHasErrors("remarks.{$sid}.bonus");
+
+        $this->actingAs($this->teacher)->post($url, [
+            'content' => 'Unit 3',
+            'practice_columns' => ['Speaking', '', 'Đọc'],
+            'remarks' => [$sid => ['bonus' => '5', 'hw_score' => '8.5', 'practice' => ['Nói tốt', 'bỏ qua', ''], 'attitude' => 'Tốt']],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(['Speaking', 'Đọc'], TeacherSessionReport::sole()->practice_columns);
+        $remark = TeacherPortalController::sessionRemarks($this->class, $session)->first();
+        $this->assertSame(['5', '8.5', ['Speaking' => 'Nói tốt']], [$remark['bonus'], $remark['hw_score'], $remark['practice']]);
+
+        $this->actingAs($this->admin)->get($this->url($session))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('practiceColumns', ['Speaking', 'Đọc'])
+                ->where('remarkStudents.0.remark.practice', ['Speaking' => 'Nói tốt'])->where('remarkStudents.0.remark.bonus', '5'));
+
+        // Buổi sau chưa có báo cáo: cột thực hành lấy theo báo cáo gần nhất của lớp.
+        $next = $this->makeSession(0);
+        $next->update(['start_time' => '09:45', 'end_time' => '11:00']);
+        $this->actingAs($this->teacher)->get($this->url($next))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('practiceColumns', ['Speaking', 'Đọc']));
+    }
+
+    public function test_previous_session_homework_shows_per_student_status(): void
+    {
+        $previous = $this->makeSession(2);
+        $session = $this->makeSession(0);
+        $homework = \App\Models\Homework::create(['class_id' => $this->class->id, 'class_session_id' => $previous->id, 'user_id' => $this->teacher->id,
+            'title' => 'BTVN', 'items' => ['workbook' => 'Trang 10', 'video' => 'Quay giới thiệu'], 'due_at' => today()->subDay()->setTime(20, 0)]);
+        \App\Models\HomeworkSubmission::create(['homework_id' => $homework->id, 'student_id' => $this->student->id, 'basket' => 'paper',
+            'status' => 'submitted', 'submitted_at' => today()->subDays(2)->setTime(19, 0)]);
+
+        $this->actingAs($this->teacher)->get($this->url($session))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('homeworkColumns', fn ($cols) => collect($cols)->pluck('key')->all() === ['workbook', 'video'])
+                ->where('remarkStudents.0.homework', ['workbook' => 'done', 'video' => 'missing'])
+                ->where('checklist.2.link.url', route('teacher.homework', ['classId' => $this->class->id, 'session' => $session->id])));
+
+        // Ngăn "Giao bài" (mở từ báo cáo, header remote modal): form gọn cho đúng buổi, hạn nộp = giờ vào buổi kế tiếp.
+        $next = ClassSession::create(['class_id' => $this->class->id, 'branch_id' => $this->branch->id, 'date' => today()->addDays(2)->toDateString(),
+            'start_time' => '08:00', 'end_time' => '09:30', 'type' => ClassSession::TYPE_REGULAR, 'status' => 'scheduled', 'teacher_id' => $this->teacher->id]);
+        $this->actingAs($this->teacher)->withHeaders(['X-Remote-Modal' => 'true'])
+            ->get(route('teacher.homework', ['classId' => $this->class->id, 'session' => $session->id]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Classes/HomeworkDrawer')
+                ->where('session.id', $session->id)->where('dueDefault', $next->date->format('Y-m-d').'T08:00'));
+        $this->flushHeaders();
+    }
+
+    public function test_incidents_in_report_are_logged_to_class_journal(): void
+    {
+        $session = $this->makeSession(0);
+        $this->attend($session, 'present');
+        $url = $this->url($session, 'classes.session-report.store');
+
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 3', 'incidents' => [
+            ['title' => 'HS ngã ở hành lang', 'content' => 'Đã báo phụ huynh', 'severity' => 'urgent'],
+            ['title' => '', 'content' => ''],
+        ]])->assertSessionHasNoErrors();
+
+        $entry = \App\Models\StaffReport::sole();
+        $this->assertSame(['journal', $this->class->id, 'urgent', 'open', $session->id], [$entry->type, (int) $entry->class_id, $entry->severity, $entry->status, $entry->data['class_session_id']]);
+        $this->actingAs($this->admin)->get($this->url($session))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('incidents.0.title', 'HS ngã ở hành lang'));
+        $this->actingAs($this->admin)->get(route('classes.show', $this->class->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('openIncidents', 1));
+
+        // Sửa báo cáo: cập nhật đúng mục cũ; bỏ dòng → xóa mục.
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 3', 'incidents' => [['id' => $entry->id, 'title' => 'HS ngã nhẹ', 'severity' => 'normal']]])->assertSessionHasNoErrors();
+        $this->assertSame(['HS ngã nhẹ', 'normal'], [$entry->fresh()->title, $entry->fresh()->severity]);
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 3'])->assertSessionHasNoErrors();
+        $this->assertSame(0, \App\Models\StaffReport::count());
     }
 
     public function test_session_must_belong_to_a_visible_class(): void

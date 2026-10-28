@@ -300,9 +300,9 @@ class Round2LeftoversTest extends TestCase
         $this->assertSame(7, $class->fresh()->seatsLeft());
 
         $this->actingAs($this->admin)->get(route('classes.edit', $class->id))->assertOk()->assertSee('Ngưỡng khai giảng')->assertSee('name="min_students"', false);
-        $this->actingAs($this->admin)->get(route('classes.index'))->assertOk()->assertSee('Còn 7 chỗ')->assertSee('Thiếu 2/3 để KG');
+        $this->actingAs($this->admin)->get(route('classes.index'))->assertOk()->assertSee('Thiếu 2/3 để khai giảng');
         $this->actingAs($this->admin)->get(route('classes.show', $class->id))->assertOk()
-            ->assertSee('Còn 7 chỗ')->assertSee('Ngưỡng khai giảng 3')->assertSee('Cần thêm 2 học viên để khai giảng');
+            ->assertSee('Còn 7 chỗ')->assertSee('Ngưỡng khai giảng: 3')->assertSee('Cần thêm 2 học viên để khai giảng');
     }
 
     // ── 6. Hủy HĐ sau khi kỳ lương đã duyệt → thu hồi hoa hồng ──────────

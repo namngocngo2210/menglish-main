@@ -8,7 +8,8 @@
  *           <UiButton variant="danger" type="submit" form="delete-form">Xóa</UiButton>
  *       </template>
  *   </UiModal>
- * Props: show, title, maxWidth (sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|full — từ 2xl: toàn màn trên điện thoại; 7xl cho bảng nhiều cột), bare (slot tự dựng khung),
+ * Props: show, title, maxWidth (sm|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|full — từ 2xl: toàn màn trên điện thoại; 7xl cho bảng nhiều cột;
+ *        drawer: ngăn bên phải cao hết màn, rộng 600px — điểm danh, giao bài), bare (slot tự dựng khung),
  *        dismissUrl (URL đặt lại lên thanh địa chỉ khi đóng, không tải trang — modal chi tiết mở sẵn theo ?selected_id=…)
  * Hành vi: giữ focus trong modal, đóng thì trả focus về chỗ cũ, khoá cuộn trang nền; mở chồng modal: Esc chỉ đóng modal trên cùng.
  *   Form bên trong đã sửa mà bấm nền / Esc / X → hỏi "Bỏ các thay đổi chưa lưu?" (đóng bằng code / sau khi lưu thì không hỏi).
@@ -33,7 +34,7 @@ const emit = defineEmits(['close', 'closed']);
 
 const widths = {
     sm: 'sm:max-w-sm', md: 'sm:max-w-md', lg: 'sm:max-w-lg', xl: 'sm:max-w-xl',
-    '2xl': 'sm:max-w-2xl', '3xl': 'sm:max-w-3xl', '4xl': 'sm:max-w-4xl', '5xl': 'sm:max-w-5xl', '6xl': 'sm:max-w-6xl', '7xl': 'sm:max-w-7xl', full: 'sm:max-w-none',
+    '2xl': 'sm:max-w-2xl', '3xl': 'sm:max-w-3xl', '4xl': 'sm:max-w-4xl', '5xl': 'sm:max-w-5xl', '6xl': 'sm:max-w-6xl', '7xl': 'sm:max-w-7xl', full: 'sm:max-w-none', drawer: 'sm:max-w-[600px]',
 };
 const uid = useId();
 const titleId = `modal-${uid.replace(/[^A-Za-z0-9_-]/g, '')}-title`;
@@ -44,6 +45,7 @@ let previousFocus = null;
 
 const size = computed(() => (widths[props.maxWidth] ? props.maxWidth : 'lg'));
 const large = computed(() => !['sm', 'md', 'lg', 'xl'].includes(size.value));
+const drawer = computed(() => size.value === 'drawer');
 
 async function requestClose(force = false) {
     if (!props.show || confirming || !props.closeable) return;
@@ -109,25 +111,29 @@ defineExpose({ requestClose, markClean: () => (dirty.value = false) });
 </script>
 
 <template>
-    <div v-show="show" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-md sm:py-lg" :class="large ? 'p-0' : 'px-md py-lg'" role="dialog" aria-modal="true" :aria-labelledby="labelledby ?? titleId" data-modal>
+    <div
+        v-show="show"
+        class="fixed inset-0 z-50 flex"
+        :class="drawer ? 'items-stretch justify-end p-0' : ['items-end justify-center sm:items-center sm:px-md sm:py-lg', large ? 'p-0' : 'px-md py-lg']"
+        role="dialog" aria-modal="true" :aria-labelledby="labelledby ?? titleId" data-modal>
         <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0" leave-active-class="transition-opacity duration-150" leave-to-class="opacity-0">
             <div v-show="show" class="fixed inset-0 bg-on-surface/40 backdrop-blur-xs" @click="requestClose()"></div>
         </Transition>
         <Transition
             enter-active-class="ease-out duration-200"
-            enter-from-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            enter-to-class="opacity-100 translate-y-0 sm:scale-100"
+            :enter-from-class="drawer ? 'translate-x-full' : 'opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95'"
+            :enter-to-class="drawer ? 'translate-x-0' : 'opacity-100 translate-y-0 sm:scale-100'"
             leave-active-class="ease-in duration-150"
-            leave-from-class="opacity-100 sm:scale-100"
-            leave-to-class="opacity-0 sm:scale-95"
+            :leave-from-class="drawer ? 'translate-x-0' : 'opacity-100 sm:scale-100'"
+            :leave-to-class="drawer ? 'translate-x-full' : 'opacity-0 sm:scale-95'"
             @after-leave="emit('closed')"
         >
             <div
                 v-show="show"
                 ref="panel"
                 tabindex="-1"
-                :class="[widths[size], large ? 'h-full rounded-none' : 'rounded-xl', large && size !== 'full' ? 'sm:h-auto' : '']"
-                class="relative flex max-h-full w-full flex-col overflow-hidden bg-surface-container-lowest shadow-level-3 transition-all focus:outline-none sm:rounded-xl"
+                :class="[widths[size], drawer ? 'h-full rounded-none sm:rounded-none' : large ? 'h-full rounded-none sm:rounded-xl' : 'rounded-xl sm:rounded-xl', large && !drawer && size !== 'full' ? 'sm:h-auto' : '']"
+                class="relative flex max-h-full w-full flex-col overflow-hidden bg-surface-container-lowest shadow-level-3 transition-all focus:outline-none"
                 @input="dirty = true"
                 @change="dirty = true"
             >

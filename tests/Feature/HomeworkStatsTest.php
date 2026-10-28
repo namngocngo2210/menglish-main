@@ -105,19 +105,6 @@ class HomeworkStatsTest extends TestCase
         $this->assertSame(['submitted' => 0, 'assigned' => 0, 'rate' => null], $stats['class']['total']);
     }
 
-    public function test_class_tab_shows_stats_for_staff(): void
-    {
-        $hw = $this->homework(['workbook' => 'Trang 4']);
-        $this->submit($hw, $this->a, 'paper');
-
-        $this->actingAs($this->staff)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'homework']))
-            ->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('homework.class.total.rate', 50)
-                ->where('homework.students.0.name', 'An')
-                ->etc());
-    }
-
     private function homework(array $items, array $attributes = []): Homework
     {
         return Homework::create($attributes + ['class_id' => $this->class->id, 'user_id' => $this->teacher->id, 'title' => 'Bài tập', 'items' => $items]);
