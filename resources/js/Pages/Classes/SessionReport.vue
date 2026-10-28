@@ -128,7 +128,7 @@ const attLabel = { present: 'Có mặt', late: 'Đi muộn', absent: 'Vắng', e
 </script>
 
 <template>
-    <UiForm :action="route('classes.session-report.store', { id: classInfo.id, session: sessionInfo.id })" method="post" class="mx-auto max-w-6xl space-y-md pb-28" #default="{ processing }">
+    <UiForm :action="route('classes.session-report.store', { id: classInfo.id, session: sessionInfo.id })" method="post" class="space-y-md pb-28" #default="{ processing }">
         <!-- Đầu trang -->
         <header class="space-y-1">
             <nav aria-label="Đường dẫn" class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant">
