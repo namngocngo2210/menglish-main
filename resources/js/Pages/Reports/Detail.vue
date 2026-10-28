@@ -54,7 +54,7 @@ const extraLegacy = computed(() =>
 );
 // Kiểm tra liên tục (rà soát 16/10/2026 B11): "Đã kiểm tra" xong mở luôn báo cáo kế tiếp đang chờ; "Yêu cầu bổ sung" kèm nhận xét.
 const asking = ref(false);
-const openNext = () => props.nextId && openRemoteModal(route('reports.detail', props.nextId), { size: '5xl', history: true });
+const openNext = () => props.nextId && openRemoteModal(route('reports.detail', props.nextId), { size: '7xl', history: true });
 const onReviewed = () => openNext();
 // Task theo khối: Admin thêm được ngay trong khối, người xem khác chỉ thấy khi khối có task.
 const taskProps = (section, title) => ({
@@ -64,7 +64,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
 </script>
 
 <template>
-    <UiModalFrame :title="report.title" :submit-label="false" cancel="Đóng" :back="route('reports.all')" size="5xl" page-width="max-w-6xl">
+    <UiModalFrame :title="report.title" :submit-label="false" cancel="Đóng" :back="route('reports.all')" size="7xl" page-width="max-w-7xl">
         <div class="space-y-lg" :data-report-detail="view">
             <div class="flex flex-wrap items-center gap-sm">
                 <UiBadge color="primary" pill :dot="false">{{ report.type_label }}<template v-if="report.for"> · {{ report.for }}</template></UiBadge>
@@ -161,7 +161,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
 
             <!-- Báo cáo tuần Học vụ: bảng KPI + chỉ số quy mô + ghi chú -->
             <template v-else-if="view === 'weekly_kpi'">
-                <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_340px]">
+                <div class="grid grid-cols-1 gap-lg lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
                     <section class="min-w-0 rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
                         <h3 class="border-b border-surface-variant px-md py-sm font-semibold text-on-surface">Số lần phát sinh theo mục KPI</h3>
                         <WeeklyKpiTable :groups="auto.groups" />
@@ -169,10 +169,14 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
                             <DetailSectionTasks v-bind="taskProps('kpi', 'Task follow-up · Mục KPI')" />
                         </div>
                     </section>
-                    <section class="min-w-0 space-y-sm">
-                        <h3 class="font-semibold text-on-surface">Thông tin theo dõi</h3>
-                        <DailyMetric v-for="item in auto.metrics.items" :key="item.key" :item="item" full />
-                        <DetailSectionTasks v-bind="taskProps('metrics', 'Task follow-up')" />
+                    <section class="min-w-0 rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
+                        <h3 class="border-b border-surface-variant px-md py-sm font-semibold text-on-surface">Thông tin theo dõi</h3>
+                        <div class="divide-y divide-surface-variant">
+                            <DailyMetric v-for="item in auto.metrics.items" :key="item.key" :item="item" full compact />
+                        </div>
+                        <div v-if="canAddTasks || sectionTasks.metrics?.length" class="px-md pb-md">
+                            <DetailSectionTasks v-bind="taskProps('metrics', 'Task follow-up')" />
+                        </div>
                     </section>
                 </div>
                 <section :class="sectionClass">
@@ -196,7 +200,7 @@ const cellClass = (row, name) => (paired(row) ? (field(name).type === 'text' ? '
             <!-- Báo cáo tuần Học vụ nhập tay (bản cũ): số đã nhập ở mọi mục KPI và chỉ số quy mô -->
             <template v-else-if="view === 'weekly_legacy'">
                 <UiAlert type="info">Báo cáo nộp trước khi chuyển sang số liệu tự động: các số dưới đây do người viết nhập tay.</UiAlert>
-                <div class="grid grid-cols-1 gap-lg lg:grid-cols-[1fr_340px]">
+                <div class="grid grid-cols-1 gap-lg lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
                     <section class="min-w-0 rounded-xl border border-surface-variant bg-surface-container-lowest shadow-sm">
                         <h3 class="border-b border-surface-variant px-md py-sm font-semibold text-on-surface">Số lần phát sinh theo mục KPI</h3>
                         <UiDataTable>
