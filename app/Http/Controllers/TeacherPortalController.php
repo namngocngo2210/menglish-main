@@ -17,6 +17,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\SyllabusAssignment;
+use App\Models\TeacherSessionReport;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Services\Syllabus\ClassSyllabus;
@@ -231,30 +232,40 @@ class TeacherPortalController extends Controller
             ];
         });
 
-        // Ca sắp / đang diễn ra chưa điểm danh → banner "Ca dạy lúc HH:MM sắp bắt đầu!" (mockup App shell).
-        $nextShift = $shifts->first(function (array $shift) {
-            $end = Carbon::parse($shift['session']->date->format('Y-m-d').' '.($shift['session']->end_time?->format('H:i') ?? '23:59'));
-
-            return ! $shift['attendance_done'] && now()->lte($end);
-        });
-
-        $widgets = $this->homeWidgets($teacher);
+        $canRecordAny = $teacher->can('attendance_student.record_any');
+        $reportDone = TeacherSessionReport::whereIn('class_session_id', $sessionIds)->whereNotNull('submitted_at')
+            ->pluck('class_session_id')->flip();
+        // Buổi đã bắt đầu (30 ngày) mà GV / GVNN chưa nộp báo cáo buổi → chip "Báo cáo buổi chưa nộp" ở đầu trang.
+        $reportsPending = $this->staffSessionsQuery($teacher->id)->with('classModel')
+            ->whereDate('date', '>=', now()->subDays(self::MAKEUP_LOOKBACK_DAYS)->toDateString())
+            ->whereDate('date', '<=', $today)
+            ->where('status', '!=', 'cancelled')
+            ->where(fn (Builder $q) => $q->whereNull('type')->orWhere('type', '!=', ClassSession::TYPE_SUPPORT))
+            ->whereNotIn('id', TeacherSessionReport::whereNotNull('submitted_at')->whereNotNull('class_session_id')->select('class_session_id'))
+            ->orderBy('date')->orderBy('start_time')
+            ->get()
+            ->filter(fn (ClassSession $s) => $s->classModel && now()->gte($s->startsAt()) && $this->isTeachingStaff($teacher, $s->classModel, $s))
+            ->values();
+        $firstReport = $reportsPending->first();
+        $attendanceState = fn (ClassSession $s, bool $done) => match (true) {
+            $done => 'done',
+            $canRecordAny || $s->withinTeacherAttendanceWindow() => 'open',
+            $s->beforeTeacherAttendanceWindow() => 'not_yet',
+            default => 'closed',
+        };
+        $endsAt = fn (ClassSession $s) => Carbon::parse($s->date->format('Y-m-d').' '.($s->end_time?->format('H:i') ?? '23:59'));
+        $weekdayShort = [1 => 'T2', 2 => 'T3', 3 => 'T4', 4 => 'T5', 5 => 'T6', 6 => 'T7', 7 => 'CN'];
         $todayDate = Carbon::parse($today);
         $weekdayLong = [1 => 'Thứ Hai', 2 => 'Thứ Ba', 3 => 'Thứ Tư', 4 => 'Thứ Năm', 5 => 'Thứ Sáu', 6 => 'Thứ Bảy', 7 => 'Chủ Nhật'];
-        $hoursLabel = rtrim(rtrim(number_format($widgets['hours'], 1, ',', '.'), '0'), ',');
-        $latestViolation = $widgets['violations']->first();
-        $ns = $nextShift['session'] ?? null;
 
         return Inertia::render('Teacher/Home', [
             'teacherName' => $teacher->name,
             'todayLabel' => $weekdayLong[$todayDate->isoWeekday()].', '.$todayDate->format('d/m'),
             'stats' => $stats,
-            'nextShift' => $ns ? [
-                'class_id' => $ns->class_id,
-                'session_id' => $ns->id,
-                'start_time' => $ns->start_time?->format('H:i'),
-                'upcoming' => now()->lt($ns->date->copy()->setTimeFromTimeString($ns->start_time?->format('H:i') ?? '00:00')),
-            ] : null,
+            'todo' => [
+                'reports_pending' => $reportsPending->count(),
+                'report_url' => $firstReport ? route('classes.session-report', ['id' => $firstReport->class_id, 'session' => $firstReport->id]) : null,
+            ],
             'shifts' => $shifts->map(fn (array $shift) => [
                 'session_id' => $shift['session']->id,
                 'class_id' => $shift['class']?->id,
@@ -265,10 +276,13 @@ class TeacherPortalController extends Controller
                 'room_label' => $shift['session']->roomLabel(),
                 'type_label' => self::sessionTypeLabel($shift['session']->type),
                 'is_support' => $shift['session']->type === ClassSession::TYPE_SUPPORT,
-                // Trợ giảng của ca: chỉ điểm danh (ẩn Nhận xét / Bài giảng / Giao bài / Nhập điểm).
+                // Trợ giảng của ca: chỉ điểm danh (ẩn Báo cáo buổi / Bài giảng / Giao bài / Nhập điểm).
                 'can_teach' => $shift['can_teach'],
                 'support_student' => $shift['session']->type === ClassSession::TYPE_SUPPORT ? $shift['session']->supportSession?->student?->name : null,
-                'scheduled_time' => $shift['scheduled_time'],
+                'start_time' => $shift['session']->start_time?->format('H:i'),
+                'end_time' => $shift['session']->end_time?->format('H:i'),
+                'starts_in' => (int) now()->diffInSeconds($shift['session']->startsAt(), false),
+                'ends_in' => (int) now()->diffInSeconds($endsAt($shift['session']), false),
                 'shift_name' => $shift['session']->shiftLabel(),
                 'checked_in' => $shift['checked_in'],
                 'checkin_time' => $shift['checkin_time'],
@@ -276,24 +290,33 @@ class TeacherPortalController extends Controller
                 'is_today' => $shift['session']->date->isToday(),
                 'date_label' => $shift['session']->date->format('d/m'),
                 'attendance_done' => $shift['attendance_done'],
+                'attendance_state' => $attendanceState($shift['session'], $shift['attendance_done']),
+                'attendance_opens_at' => $shift['session']->startsAt()->subMinutes(ClassSession::ATTENDANCE_EARLY_MINUTES)->format('H:i'),
+                'report_done' => $reportDone->has($shift['session']->id),
                 'student_count' => $shift['student_count'],
                 'trial_count' => $shift['trial_count'],
             ])->values()->all(),
+            // Buổi đã qua chưa điểm danh: trong khung N giờ GV tự điểm danh bù; quá khung thì liên hệ Học vụ.
             'pendingSessions' => $pendingSessions->map(fn (ClassSession $s) => [
                 'id' => $s->id,
                 'class_id' => $s->class_id,
                 'class_name' => $s->classModel?->name,
-                'date' => $s->date->format('d/m/Y'),
-                'time' => $s->start_time?->format('H:i').'-'.$s->end_time?->format('H:i'),
+                'dow' => $weekdayShort[$s->date->isoWeekday()],
+                'day' => $s->date->format('d/m'),
+                'time' => $s->start_time?->format('H:i').'–'.$s->end_time?->format('H:i'),
                 'type_label' => self::sessionTypeLabel($s->type),
+                'open' => $canRecordAny || $s->withinTeacherAttendanceWindow(),
+                'hours_left' => max(0, (int) ceil(now()->diffInMinutes($s->startsAt()->addHours(ClassSession::attendanceWindowHours()), false) / 60)),
             ])->values()->all(),
+            'attendanceWindowHours' => ClassSession::attendanceWindowHours(),
             'week' => [
                 'label' => $weekStart->format('d/m').' – '.$weekStart->copy()->addDays(6)->format('d/m/Y'),
                 'prev' => $weekStart->copy()->subWeek()->toDateString(),
                 'next' => $weekStart->copy()->addWeek()->toDateString(),
+                'is_current' => $weekStart->isSameDay(now()->startOfWeek(Carbon::MONDAY)),
             ],
             'weekDays' => $weekDays->map(fn (array $day) => [
-                'label' => ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][$day['date']->isoWeekday()].' · '.$day['date']->format('d/m'),
+                'label' => $weekdayShort[$day['date']->isoWeekday()].' '.$day['date']->format('d/m'),
                 'is_today' => $day['date']->isToday(),
                 'sessions' => $day['sessions']->map(fn (ClassSession $s) => [
                     'id' => $s->id,
@@ -304,33 +327,18 @@ class TeacherPortalController extends Controller
                     'type_label' => self::sessionTypeLabel($s->type),
                     'cancelled' => $s->status === 'cancelled',
                     'done' => $attendanceDone->has($s->id),
+                    'is_today' => $s->date->isToday(),
                     'can_take' => $s->status !== 'cancelled' && ! $s->date->isFuture(),
                     'checkin_overdue' => $s->status !== 'cancelled' && now()->gt($s->checkinDeadline()) && ! $weekCheckedIn->has($s->id),
                 ])->values()->all(),
             ])->values()->all(),
-            'widgets' => [
-                'attention' => $widgets['attention']->map(fn (MiniTestScore $score) => [
-                    'id' => $score->id,
-                    'student_name' => $score->student?->name,
-                    'class_name' => $score->classModel?->name,
-                    'name' => $score->name,
-                    'score' => self::trimNumber($score->score).'/'.self::trimNumber($score->max_score),
-                ])->values()->all(),
-                'estimate' => $widgets['estimate'],
-                'hours_label' => $hoursLabel,
-                'month' => now()->month,
-                'today_dm' => now()->format('d/m'),
-                'period' => now()->format('m/Y'),
-                'month_end_dm' => now()->endOfMonth()->format('d/m'),
-                'timesheets_total' => $widgets['timesheets_total'],
-                'timesheets_pending' => $widgets['timesheets_pending'],
-                'violations_count' => $widgets['violations']->count(),
-                'latest_violation' => $latestViolation ? [
-                    'violation_type' => $latestViolation->violation_type,
-                    'date' => $latestViolation->violation_date?->format('d/m'),
-                    'status_label' => $latestViolation->status_label,
-                ] : null,
-            ],
+            'attention' => $this->attentionScores($teacher)->map(fn (MiniTestScore $score) => [
+                'id' => $score->id,
+                'student_name' => $score->student?->name,
+                'class_name' => $score->classModel?->name,
+                'name' => $score->name,
+                'score' => self::trimNumber($score->score).'/'.self::trimNumber($score->max_score),
+            ])->values()->all(),
         ]);
     }
 
@@ -367,18 +375,13 @@ class TeacherPortalController extends Controller
         return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     }
 
-    /**
-     * Các thẻ tổng quan của trang chủ GV (mockup App shell Cổng Giáo viên), đều từ dữ liệu thật:
-     * học sinh cần chú ý (mini test dưới 7/10, 30 ngày), lương tạm tính theo giờ dạy trong tháng,
-     * chấm công tháng này, vi phạm trong tháng.
-     */
-    private function homeWidgets(User $teacher): array
+    /** Học sinh cần chú ý ở trang chủ GV: Mini Test dưới 7/10 trong 30 ngày, các lớp mình dạy / trợ giảng / GVNN. */
+    private function attentionScores(User $teacher): Collection
     {
-        $monthStart = now()->startOfMonth();
         $classIds = ClassModel::query()->where(fn ($q) => $q->where('teacher_id', $teacher->id)
             ->orWhere('foreign_teacher_id', $teacher->id)->orWhere('assistant_id', $teacher->id))->pluck('id');
 
-        $attention = MiniTestScore::with(['student:id,name', 'classModel:id,name'])
+        return MiniTestScore::with(['student:id,name', 'classModel:id,name'])
             ->whereIn('class_id', $classIds)
             ->whereDate('test_date', '>=', now()->subDays(30)->toDateString())
             ->where('max_score', '>', 0)
@@ -386,32 +389,6 @@ class TeacherPortalController extends Controller
             ->latest('test_date')
             ->limit(5)
             ->get();
-
-        $timesheets = TeacherTimesheet::where('user_id', $teacher->id)
-            ->whereBetween('teaching_date', [$monthStart->toDateString(), now()->toDateString()])
-            ->where('status', '!=', 'rejected')
-            ->get(['id', 'teaching_date', 'hours', 'status']);
-        $estimate = null;
-        foreach ($timesheets as $ts) {
-            $rate = \App\Models\TeacherHourlyRate::rateFor($teacher->id, $ts->teaching_date);
-            if ($rate !== null) {
-                $estimate = ($estimate ?? 0) + $rate * (float) $ts->hours;
-            }
-        }
-
-        $violations = \App\Models\Penalty::where('user_id', $teacher->id)
-            ->whereDate('violation_date', '>=', $monthStart->toDateString())
-            ->latest('violation_date')
-            ->get(['id', 'code', 'violation_type', 'violation_date', 'status', 'notes']);
-
-        return [
-            'attention' => $attention,
-            'estimate' => $estimate,
-            'hours' => (float) $timesheets->sum('hours'),
-            'timesheets_total' => $timesheets->count(),
-            'timesheets_pending' => $timesheets->where('status', 'pending_review')->count(),
-            'violations' => $violations,
-        ];
     }
 
     /**

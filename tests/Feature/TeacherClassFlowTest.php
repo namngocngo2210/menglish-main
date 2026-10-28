@@ -33,7 +33,8 @@ class TeacherClassFlowTest extends TestCase
         $classes = $groups->firstWhere('id', 'classes');
         $this->assertSame('Đào tạo', $classes['section']);
         $this->assertSame(
-            ['Lịch dạy hôm nay', 'Lớp của tôi', 'Bài giảng hôm nay', 'Chấm bài nộp', 'Khách học thử', 'Buổi bổ trợ của tôi'],
+            // Bài giảng, Chấm bài nộp, Khách học thử, Buổi bổ trợ mở từ thẻ ca dạy / Trang lớp (chủ dự án 28/10/2026).
+            ['Lịch dạy hôm nay', 'Lớp của tôi'],
             collect($classes['items'])->pluck('label')->all(),
         );
         $this->assertSame(route('teacher.home'), $classes['url']);
@@ -53,7 +54,7 @@ class TeacherClassFlowTest extends TestCase
         $this->actingAs($this->teacher)->get(route('tasks.support-sessions', ['mine' => 1]))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->contains(fn ($t) => $t['label'] === 'Buổi bổ trợ của tôi' && $t['active']))
+                ->where('shell.workspace.tabs', fn ($tabs) => collect($tabs)->contains(fn ($t) => $t['label'] === 'Lịch dạy hôm nay' && $t['active']))
                 ->etc());
     }
 

@@ -244,15 +244,10 @@ final class SidebarMenu
                         // Trợ giảng: việc trong ngày của mình (chia ca Trước / Trong / Sau giờ học). Giáo viên xem việc của mình ở
                         // Danh sách đầu việc → "Của tôi" (chủ dự án 26/10/2026).
                         ['label' => 'Nhiệm vụ hôm nay', 'route' => 'portal.ta-tasks', 'can' => ['portal.assistant']],
-                        ['label' => 'Lịch dạy hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*'], 'can' => ['attendance_student.record']],
-                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show', 'classes.session-report']],
-                        // Trợ giảng chỉ xem bài giảng (nút "Đã dạy" chỉ GV / GVNN của lớp).
-                        ['label' => 'Bài giảng hôm nay', 'route' => 'teacher.lesson-today', 'active' => ['teacher.lesson-today*']],
-                        ['label' => 'Chấm bài nộp', 'route' => 'portal.teacher.submissions', 'active' => ['portal.teacher.submissions*']],
-                        // Trợ giảng không nhận xét học thử (chủ dự án 26/10/2026).
-                        ['label' => 'Khách học thử', 'route' => 'teacher.trial-guests', 'active' => ['teacher.trial-guests*'], 'can' => ['portal.teacher']],
-                        // Trợ giảng / GV được giao buổi bổ trợ: tick hoàn thành và nhận xét buổi.
-                        ['label' => 'Buổi bổ trợ của tôi', 'route' => 'tasks.support-sessions', 'query' => ['mine' => 1]],
+                        // Chỉ 2 tab (chủ dự án 28/10/2026): Bài giảng, Chấm bài nộp, Khách học thử, Buổi bổ trợ mở từ thẻ ca dạy /
+                        // Trang lớp nên không còn tab riêng; màn đó vẫn sáng tab tương ứng.
+                        ['label' => 'Lịch dạy hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*', 'teacher.trial-guests*', 'tasks.support-sessions'], 'can' => ['attendance_student.record']],
+                        ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show', 'classes.session-report', 'teacher.lesson-today*', 'portal.teacher.submissions*']],
                     ]),
                 ],
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
