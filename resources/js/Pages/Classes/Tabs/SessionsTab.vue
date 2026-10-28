@@ -127,7 +127,7 @@ const cellBtn = 'inline-flex h-9 items-center rounded-lg px-sm font-body-small t
                 </div>
             </div>
             <div class="ml-auto flex flex-wrap gap-xs">
-                <UiButton v-if="can('homework.grade') && !canManage" variant="secondary" icon="grading" :href="route('teacher.submissions', { classId: klass.id })">Chấm bài nộp</UiButton>
+                <UiButton v-if="can('homework.grade') && !canManage" variant="secondary" icon="grading" :href="route('portal.teacher.submissions', { classId: klass.id })">Chấm bài nộp</UiButton>
                 <UiButton v-if="canAssignForeign" variant="secondary" icon="translate" @click="assignForeign()">Gán GVNN</UiButton>
                 <UiButton v-if="canManage && can('work_task.view')" :variant="klass.status === 'pending_schedule' ? 'primary' : 'secondary'" icon="edit_calendar" :href="route('tasks.schedule-config', { class_id: klass.id })">{{
                     klass.has_schedule_config ? 'Sửa lịch' : 'Cấu hình lịch'

@@ -117,6 +117,17 @@ class ClassFlowRedesignTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('classes.data', fn ($rows) => collect($rows)->pluck('my_role', 'name')->all() === ['Lớp Dạy Chính' => 'GV chính', 'Lớp Trợ Giảng' => 'Trợ giảng']));
     }
 
+    public function test_teacher_sees_sessions_tab_with_grading_button(): void
+    {
+        // GV (chấm bài, không quản lý lớp): tab Buổi học có nút Chấm bài nộp trỏ đúng route của cổng GV.
+        $teacher = $this->makeUser('teacher');
+        $class = $this->makeClass(['teacher_id' => $teacher->id]);
+        ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => today()->subDay(), 'start_time' => '18:00', 'end_time' => '19:30', 'status' => 'scheduled', 'teacher_id' => $teacher->id]);
+
+        $this->actingAs($teacher)->get(route('classes.show', ['id' => $class->id, 'tab' => 'sessions']))->assertOk()
+            ->assertSee('Chấm bài nộp')->assertSee(route('portal.teacher.submissions', ['classId' => $class->id], false), false);
+    }
+
     public function test_old_class_tabs_redirect_to_merged_tabs(): void
     {
         $class = $this->makeClass();
