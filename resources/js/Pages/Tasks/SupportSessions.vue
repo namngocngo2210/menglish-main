@@ -10,6 +10,7 @@
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import MissedLesson from '@/Components/Tasks/MissedLesson.vue';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Học bù & bổ trợ' } });
 
