@@ -38,9 +38,9 @@ class TeacherLessonController extends Controller
         $assignment = $class ? SyllabusAssignment::with(['stage', 'curriculum:id,title'])->open()->where('class_id', $class->id)->first() : null;
         $timeline = $assignment ? $this->syllabus->timeline($assignment) : null;
         $today = $class ? $this->todaySession($class) : null;
-        $taughtRow = $today ? $timeline['rows']->firstWhere('taught_session_id', $today->id) : null;
+        $taughtRow = $today && $timeline ? $timeline['rows']->firstWhere('taught_session_id', $today->id) : null;
         $todayMarked = $today && ClassLessonProgress::where('class_session_id', $today->id)->where('syllabus_assignment_id', $assignment?->id)->exists();
-        $row = $today ? ($taughtRow ?? ($todayMarked ? null : $timeline['current'])) : null;
+        $row = $today && $timeline ? ($taughtRow ?? ($todayMarked ? null : $timeline['current'])) : null;
         // Chặng chưa XÁC NHẬN thì chưa được bấm "Đã dạy" (docs/luong-giao-vien.md); người xác nhận được thấy nút ngay tại đây.
         $confirmed = $assignment?->isConfirmed() ?? false;
         $canMark = $assignment && $confirmed && $this->canMark($user, $class, $assignment, $today);
@@ -102,10 +102,12 @@ class TeacherLessonController extends Controller
     private function classesOf(User $user, ?int $requested = null)
     {
         return ClassModel::visibleTo($user)
-            ->whereIn('id', SyllabusAssignment::open()->whereNotNull('class_id')->select('class_id'))
-            ->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id)
-                ->orWhereHas('sessions', fn ($s) => $s->whereDate('date', today())
-                    ->where(fn ($w) => $w->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id)))
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q->whereIn('id', SyllabusAssignment::open()->whereNotNull('class_id')->select('class_id'))
+                    ->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id)
+                        ->orWhereHas('sessions', fn ($s) => $s->whereDate('date', today())
+                            ->where(fn ($w) => $w->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)->orWhere('assistant_id', $user->id)))))
+                // Lớp mở thẳng từ thẻ ca dạy / Trang lớp: hiện cả khi lớp chưa được giao chặng (màn báo "chưa giao chặng" thay vì lỗi 404).
                 ->when($requested, fn ($q) => $q->orWhere('id', $requested)))
             ->orderBy('name')
             ->get();

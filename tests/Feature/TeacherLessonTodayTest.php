@@ -159,6 +159,17 @@ class TeacherLessonTodayTest extends TestCase
         $this->actingAs($other)->get(route('teacher.lesson-today', ['class' => $this->class->id]))->assertNotFound();
     }
 
+    /** Nút "Bài giảng" trên thẻ ca dạy (Lịch dạy hôm nay): lớp chưa được giao chặng → báo chưa giao chặng, không lỗi 404 / 500. */
+    public function test_class_without_open_stage_shows_empty_state_instead_of_error(): void
+    {
+        $this->assignment->delete();
+
+        $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('classId', $this->class->id)->where('assignment', null)->where('lesson', null)->etc())
+            ->assertSee('Lớp chưa được giao chặng');
+    }
+
     /** Thẻ "Chặng đang dạy" liệt kê mọi lớp xem được: GV dạy thay buổi trước bấm "Bài giảng" phải mở được (không lỗi), chỉ không bấm Đã dạy. */
     public function test_substitute_of_past_session_can_open_lesson_from_teaching_stage_card(): void
     {
