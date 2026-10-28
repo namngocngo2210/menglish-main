@@ -149,7 +149,27 @@ class SyllabusDocument extends Model
 
     public function isVisibleTo(User $user): bool
     {
-        return self::query()->whereKey($this->id)->visibleTo($user)->exists();
+        return self::query()->whereKey($this->id)->visibleTo($user)->exists() || $this->grantedBySupport($user);
+    }
+
+    /**
+     * Người được giao buổi bổ trợ (thường là trợ giảng) xem được tài liệu của buổi học sinh vắng, kể cả khi buổi đó thuộc
+     * chặng đã đóng / lớp mình không phụ trách — vẫn theo cờ "dành cho giáo viên / trợ giảng" của tài liệu.
+     */
+    public function grantedBySupport(User $user): bool
+    {
+        if (! $this->syllabus_lesson_id) {
+            return false;
+        }
+
+        return $this->matchesAudience($user) && in_array((int) $this->syllabus_lesson_id, SupportSession::missedLessonIdsFor($user), true);
+    }
+
+    /** Tài liệu dành cho đối tượng của $user (cờ "dành cho giáo viên" / "dành cho trợ giảng"). */
+    public function matchesAudience(User $user): bool
+    {
+        return ($this->visible_to_teachers && $user->can('portal.teacher'))
+            || ($this->visible_to_assistants && $user->can('portal.assistant'));
     }
 
     public function canDownload(User $user): bool

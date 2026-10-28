@@ -39,7 +39,7 @@ final class Overview
     public const TODO_LIMIT = 8;
 
     /** Số buổi điểm danh bù giáo viên còn làm được (khớp cổng giáo viên). */
-    private const MAKEUP_LOOKBACK_DAYS = 7;
+    private const MAKEUP_LOOKBACK_DAYS = 30;
 
     private const TONE_ORDER = ['overdue' => 0, 'today' => 1, 'soon' => 2, 'info' => 3];
 

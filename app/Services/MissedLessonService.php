@@ -20,7 +20,7 @@ class MissedLessonService
 
     /**
      * @param  Collection<int, ClassReportStudentSupport>  $items
-     * @return array<int, array{session_id: int, label: string, content: ?string}> id dòng bổ trợ => buổi vắng
+     * @return array<int, array{session_id: int, lesson_id: ?int, label: string, content: ?string}> id dòng bổ trợ => buổi vắng
      */
     public function forSupports(Collection $items): array
     {
@@ -47,7 +47,7 @@ class MissedLessonService
 
     /**
      * @param  Collection<int, ClassSession>  $sessions
-     * @return array<int, array{session_id: int, label: string, content: ?string}>
+     * @return array<int, array{session_id: int, lesson_id: ?int, label: string, content: ?string}>
      */
     public function forSessions(Collection $sessions): array
     {
@@ -79,6 +79,7 @@ class MissedLessonService
 
             $result[$session->id] = [
                 'session_id' => (int) $session->id,
+                'lesson_id' => $lesson['lesson_id'] ?? null,
                 'label' => trim(($lesson ? 'Buổi '.$lesson['no'].' · ' : '').$session->date->format('d/m/Y')
                     .($session->start_time ? ' '.$session->start_time->format('H:i') : '')),
                 'content' => $content !== '' ? $content : null,

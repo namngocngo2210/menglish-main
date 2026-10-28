@@ -46,8 +46,10 @@ class SupportListService
     public function syncAttendance(StudentAttendance $attendance): void
     {
         $session = $attendance->classSession;
-        // Vắng buổi phụ đạo không tạo thêm dòng bổ trợ (bổ trợ cho chính buổi bổ trợ); Học vụ xếp lại buổi phụ đạo đó.
-        if (! in_array($attendance->status, self::ABSENT_STATUSES, true) || $session?->type === ClassSession::TYPE_SUPPORT) {
+        // Vắng buổi phụ đạo không tạo thêm dòng bổ trợ: buổi bổ trợ bị hủy, dòng gốc quay lại danh sách chờ (SupportSessionService).
+        // Điểm danh Học vụ trả lại để sửa (review_status = rejected) chưa đáng tin → chưa tạo dòng, GV sửa lại thì tạo.
+        if (! in_array($attendance->status, self::ABSENT_STATUSES, true) || $session?->type === ClassSession::TYPE_SUPPORT
+            || $attendance->review_status === 'rejected') {
             $this->forget(self::SOURCE_ATTENDANCE, $attendance->id);
 
             return;
@@ -153,7 +155,7 @@ class SupportListService
 
         ClassReportStudentSupport::where('source', self::SOURCE_TEACHER_REPORT)->where('source_id', $report->id)
             ->whereNotIn('student_id', $keep ?: [0])
-            ->whereDoesntHave('supportSession')
+            ->whereDoesntHave('supportSessions')
             ->delete();
     }
 
@@ -166,7 +168,7 @@ class SupportListService
 
         ClassReportStudentSupport::where('source', $source)
             ->where('source_id', $sourceId)
-            ->whereDoesntHave('supportSession')
+            ->whereDoesntHave('supportSessions')
             ->delete();
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\MissedLessonService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,11 +28,14 @@ class SupportSession extends Model
         'lesson_content',
         'completion_note',
         'completed_at',
+        'cancel_reason',
+        'cancelled_at',
     ];
 
     protected $casts = [
         'session_date' => 'date',
         'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     public function classModel(): BelongsTo
@@ -79,5 +83,20 @@ class SupportSession extends Model
     public function missedSession(): BelongsTo
     {
         return $this->belongsTo(ClassSession::class, 'missed_class_session_id');
+    }
+
+    /**
+     * Buổi giáo trình (syllabus_lessons.id) của các buổi học sinh vắng mà $user được giao bổ trợ (buổi chưa hủy) — mở quyền
+     * xem tài liệu buổi đó cho người bổ trợ (SyllabusDocument::grantedBySupport).
+     *
+     * @return array<int, int>
+     */
+    public static function missedLessonIdsFor(User $user): array
+    {
+        $sessions = ClassSession::whereIn('id', self::where('teacher_id', $user->id)->where('status', '!=', 'cancelled')
+            ->whereNotNull('missed_class_session_id')->select('missed_class_session_id'))->get();
+
+        return collect(app(MissedLessonService::class)->forSessions($sessions))
+            ->pluck('lesson_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
     }
 }

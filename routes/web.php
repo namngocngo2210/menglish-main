@@ -823,6 +823,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/support-sessions', [WorkTaskController::class, 'supportSessions'])->name('support-sessions');
         Route::post('/support-sessions', [WorkTaskController::class, 'storeSupportSession'])->middleware('can:work_task.assign')->name('support-sessions.store');
         Route::post('/support-sessions/{id}/complete', [WorkTaskController::class, 'completeSupportSession'])->name('support-sessions.complete');
+        Route::post('/support-sessions/{id}/cancel', [WorkTaskController::class, 'cancelSupportSession'])->middleware('can:work_task.assign')->name('support-sessions.cancel');
         Route::post('/hr-demand', [WorkTaskController::class, 'saveHrDemand'])->middleware('can:work_task.assign')->name('hr-demand.save');
         Route::get('/kpi-dashboard', [WorkTaskController::class, 'kpiDashboard'])->name('kpi-dashboard');
         // Chi tiết công việc: modal xem nhanh từ danh sách (htmx, đẩy URL) hoặc trang đầy đủ khi mở thẳng link.

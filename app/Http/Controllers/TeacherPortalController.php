@@ -20,6 +20,7 @@ use App\Models\SyllabusAssignment;
 use App\Models\TeacherSessionReport;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Services\SupportSessionService;
 use App\Services\Syllabus\ClassSyllabus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -718,6 +719,16 @@ class TeacherPortalController extends Controller
         $missingNotes = collect($validated['status'])
             ->filter(fn ($status, $studentId) => in_array($status, ['absent', 'excused'], true) && blank($validated['note'][$studentId] ?? null))
             ->keys();
+        // Buổi phụ đạo: có mặt / đi muộn = bổ trợ xong → ghi chú là nhận xét buổi bổ trợ, bắt buộc như nút "Đã bổ trợ xong".
+        $missingRemarks = $session->type === ClassSession::TYPE_SUPPORT
+            ? collect($validated['status'])->filter(fn ($status, $studentId) => in_array($status, ['present', 'late'], true) && blank($validated['note'][$studentId] ?? null))->keys()
+            : collect();
+        if ($missingRemarks->isNotEmpty()) {
+            return back()->withInput()->withErrors(array_merge(
+                ['note' => 'Nhập nhận xét buổi bổ trợ (ô ghi chú) trước khi lưu điểm danh.'],
+                $missingRemarks->mapWithKeys(fn ($id) => ["note.{$id}" => 'Cần nhận xét buổi bổ trợ'])->all(),
+            ));
+        }
         if ($missingNotes->isNotEmpty()) {
             return back()->withInput()->withErrors(array_merge(
                 ['note' => 'Vui lòng điền rõ lý do cho '.$missingNotes->count().' học sinh được đánh dấu "Nghỉ".'],
@@ -769,6 +780,9 @@ class TeacherPortalController extends Controller
 
             return $count;
         });
+
+        // Buổi phụ đạo: điểm danh là cách đóng buổi bổ trợ (hoàn thành / học sinh vắng → hủy để xếp lại).
+        app(SupportSessionService::class)->syncFromAttendance($session->refresh(), $user);
 
         $when = $session->date->isToday() ? 'hôm nay' : 'ngày '.$session->date->format('d/m/Y').' (điểm danh bù)';
         $message = "Đã lưu điểm danh {$count} học viên lớp {$class->name} buổi {$when}.";

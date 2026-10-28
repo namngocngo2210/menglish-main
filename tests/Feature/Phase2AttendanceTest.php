@@ -369,7 +369,8 @@ class Phase2AttendanceTest extends TestCase
                 ->where('sessions.data.0.id', $support->id)
                 ->where('sessions.data.0.can_complete', true)
                 ->where('sessions.data.0.lesson_content', 'Dạy lại Unit 3: Animals, chữa Workbook trang 14')
-                ->where('sessions.data.0.missed_label', fn ($label) => str_contains($label, '06/10/2026')));
+                ->where('sessions.data.0.missed.label', fn ($label) => str_contains($label, '06/10/2026'))
+                ->where('sessions.data.0.missed.content', fn ($content) => str_contains($content, 'BTVN: Workbook trang 14')));
 
         // Tick hoàn thành bắt buộc kèm nhận xét buổi.
         $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id))->assertSessionHasErrors('completion_note');
@@ -638,6 +639,129 @@ class Phase2AttendanceTest extends TestCase
         Carbon::setTestNow('2026-10-09 10:00:00');
         $store([$this->student->id => 'late', $other->id => 'late'])->assertSessionHasNoErrors();
         $this->assertSame('pending_review', $row->fresh()->review_status);
+    }
+
+    // ── Điểm danh ↔ buổi bổ trợ (chủ dự án 28/10/2026) ───────────────────
+
+    /** Học sinh vắng buổi 06/10 → Học vụ xếp buổi bổ trợ hôm nay 08:00–09:00 cho trợ giảng. */
+    private function scheduleSupportForAbsence(User $assistant): SupportSession
+    {
+        $session = $this->makeSession('2026-10-06');
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$this->student->id => 'absent'], 'note' => [$this->student->id => 'Ốm'],
+        ])->assertSessionHasNoErrors();
+        $item = ClassReportStudentSupport::where('source', SupportListService::SOURCE_ATTENDANCE)->sole();
+        $this->actingAs($this->academicStaff)->post(route('tasks.support-sessions.store'), [
+            'class_report_student_support_id' => $item->id, 'class_id' => $this->classModel->id, 'student_id' => $this->student->id,
+            'teacher_id' => $assistant->id, 'session_date' => '2026-10-07', 'start_time' => '08:00', 'end_time' => '09:00',
+        ])->assertSessionHasNoErrors();
+
+        return SupportSession::where('class_report_student_support_id', $item->id)->latest('id')->firstOrFail();
+    }
+
+    public function test_attendance_on_support_session_completes_it_with_required_remark(): void
+    {
+        $assistant = $this->makeUser('assistant');
+        $support = $this->scheduleSupportForAbsence($assistant);
+        $store = fn (array $payload) => $this->actingAs($assistant)->post(route('teacher.attendance.store', $this->classModel->id),
+            ['class_session_id' => $support->class_session_id] + $payload);
+
+        // Có mặt ở buổi phụ đạo = bổ trợ xong → bắt buộc nhận xét như nút "Đã bổ trợ xong".
+        $store(['status' => [$this->student->id => 'present']])->assertSessionHasErrors("note.{$this->student->id}");
+        $this->assertSame('scheduled', $support->fresh()->status);
+
+        $store(['status' => [$this->student->id => 'present'], 'note' => [$this->student->id => 'Đã nắm Unit 3']])->assertSessionHasNoErrors();
+        $support->refresh();
+        $this->assertSame('completed', $support->status);
+        $this->assertSame('Đã nắm Unit 3', $support->completion_note);
+        $this->assertDatabaseHas('teacher_timesheets', ['user_id' => $assistant->id, 'class_session_id' => $support->class_session_id, 'type' => '1on1', 'status' => 'pending_review']);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academicStaff->id, 'type' => 'support_session_done']);
+    }
+
+    public function test_completing_support_session_by_button_records_attendance(): void
+    {
+        $assistant = $this->makeUser('assistant');
+        $support = $this->scheduleSupportForAbsence($assistant);
+
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id), ['completion_note' => 'Làm được bài tập'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('student_attendances', ['class_session_id' => $support->class_session_id, 'student_id' => $this->student->id, 'status' => 'present']);
+        // Có điểm danh của buổi → không còn bị nhắc "chưa điểm danh".
+        $this->assertTrue(ClassSession::find($support->class_session_id)->attendances()->exists());
+    }
+
+    public function test_student_absent_from_support_session_goes_back_to_pending_list(): void
+    {
+        $assistant = $this->makeUser('assistant');
+        $support = $this->scheduleSupportForAbsence($assistant);
+
+        $this->actingAs($assistant)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $support->class_session_id, 'status' => [$this->student->id => 'absent'], 'note' => [$this->student->id => 'Bận việc gia đình'],
+        ])->assertSessionHasNoErrors();
+
+        $support->refresh();
+        $this->assertSame('cancelled', $support->status);
+        $this->assertStringContainsString('Bận việc gia đình', $support->cancel_reason);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->academicStaff->id, 'type' => 'support_session_absent']);
+        // Vắng buổi phụ đạo không tạo dòng bổ trợ mới; dòng gốc quay lại danh sách chờ với nhãn "Cần xếp lại".
+        $this->assertSame(1, ClassReportStudentSupport::count());
+        $this->actingAs($this->academicStaff)->get(route('tasks.support-sessions'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('stats.reschedule', 1)
+                ->where('pendingSupports.data.0.id', $support->class_report_student_support_id)
+                ->where('pendingSupports.data.0.last_cancelled.reason', $support->cancel_reason));
+
+        // Xếp lại được cho cùng dòng.
+        $this->actingAs($this->academicStaff)->post(route('tasks.support-sessions.store'), [
+            'class_report_student_support_id' => $support->class_report_student_support_id, 'class_id' => $this->classModel->id,
+            'student_id' => $this->student->id, 'teacher_id' => $assistant->id, 'session_date' => '2026-10-09', 'start_time' => '08:00', 'end_time' => '09:00',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(2, SupportSession::count());
+        $this->assertSame(0, ClassReportStudentSupport::whereDoesntHave('supportSession')->count());
+    }
+
+    public function test_academic_staff_can_cancel_a_scheduled_support_session(): void
+    {
+        $assistant = $this->makeUser('assistant');
+        $support = $this->scheduleSupportForAbsence($assistant);
+
+        $this->actingAs($this->academicStaff)->post(route('tasks.support-sessions.cancel', $support->id))->assertSessionHasErrors('cancel_reason');
+        $this->actingAs($this->academicStaff)->post(route('tasks.support-sessions.cancel', $support->id), ['cancel_reason' => 'PH xin đổi lịch'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('cancelled', $support->fresh()->status);
+        $this->assertSame('cancelled', ClassSession::find($support->class_session_id)->status);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $assistant->id, 'type' => 'support_session_cancelled']);
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.cancel', $support->id), ['cancel_reason' => 'x'])->assertForbidden();
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id), ['completion_note' => 'x'])->assertStatus(422);
+    }
+
+    public function test_rejected_absence_does_not_create_support_row(): void
+    {
+        $session = $this->makeSession('2026-10-06');
+        $this->actingAs($this->teacher)->post(route('teacher.attendance.store', $this->classModel->id), [
+            'class_session_id' => $session->id, 'status' => [$this->student->id => 'absent'], 'note' => [$this->student->id => 'Ốm'],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, ClassReportStudentSupport::count());
+
+        StudentAttendance::where('class_session_id', $session->id)->sole()->update(['review_status' => 'rejected', 'review_note' => 'Sai học sinh']);
+
+        $this->assertSame(0, ClassReportStudentSupport::count());
+    }
+
+    public function test_support_screen_filters_by_status_teacher_and_student(): void
+    {
+        $assistant = $this->makeUser('assistant');
+        $support = $this->scheduleSupportForAbsence($assistant);
+        $get = fn (array $query) => $this->actingAs($this->academicStaff)->get(route('tasks.support-sessions', ['tab' => 'sessions'] + $query))->assertOk();
+
+        $get(['status' => 'scheduled', 'teacher_id' => $assistant->id, 'search' => 'Chính'])
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('tab', 'sessions')->where('sessions.data.0.id', $support->id)->where('sessions.data.0.can_cancel', true));
+        $get(['status' => 'completed'])->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.total', 0));
+        $get(['search' => 'Không ai tên này'])->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.total', 0));
+        $get(['from' => '2026-10-08'])->assertInertia(fn (AssertableInertia $page) => $page->where('sessions.total', 0));
     }
 
     private function makeUser(string $role): User
