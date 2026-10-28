@@ -20,6 +20,7 @@ use App\Models\WorkTask;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\DailyReportDue;
 use App\Support\Dashboard\MyWorkBoard;
+use App\Support\Dashboard\Overview;
 use App\Support\Dashboard\TeachingQuality;
 use App\Support\DataScope;
 use App\Support\Money;
@@ -84,6 +85,8 @@ class DashboardController extends Controller
                 'tasksLabel' => ProfileController::isAssistantOnly($user) ? 'Nhiệm vụ hôm nay' : 'Việc của tôi',
             ],
             'roleDashboard' => $roleDashboard,
+            // Bố cục mới (thiết kế 28/10/2026): lời chào, "Cần bạn xử lý" gộp, khối riêng theo vai trò.
+            'overview' => (new Overview($user, $canOpen))->build($roleDashboard),
             'dailyReport' => $this->dailyReport($user),
             'teaching' => $this->teaching($user, $request->input('month'), $canOpen),
         ]);
