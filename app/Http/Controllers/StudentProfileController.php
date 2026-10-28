@@ -20,6 +20,7 @@ use App\Services\FirstMonthCareService;
 use App\Services\SessionLessonService;
 use App\Services\StudentDeferralService;
 use App\Services\Students\ClassStartActivation;
+use App\Services\Students\StudentLearningProfile;
 use App\Services\Tuition\SessionLedger;
 use App\Support\DataScope;
 use App\Support\Practice\SchoolGrade;
@@ -636,6 +637,11 @@ class StudentProfileController extends Controller
                 ];
             })->values()->all();
             $props['care'] = $data['care'] ? $this->careProps($data['care']) : null;
+
+            // Tab "Kết quả học tập" + "Feedback"; feedback phụ huynh chỉ cho người xem được Feedback buổi học (GV không thấy).
+            $learning = app(StudentLearningProfile::class);
+            $props['results'] = $learning->results($student);
+            $props['feedback'] = $learning->feedback($student, $data['sessions'], $user->can('class_quality.view'));
         }
 
         if ($flags['canViewTuition']) {

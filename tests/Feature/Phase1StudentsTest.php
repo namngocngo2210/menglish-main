@@ -2,11 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\TeacherPortalController;
+use App\Models\AcademicRecord;
+use App\Models\BigTest;
+use App\Models\BigTestResult;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
+use App\Models\ClassSessionFeedback;
 use App\Models\Course;
+use App\Models\MiniTestScore;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
@@ -16,6 +22,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -243,6 +250,46 @@ class Phase1StudentsTest extends TestCase
             ->assertSee('Ốm có báo')->assertDontSee('Ghi chú của bạn cùng lớp')
             ->assertSee('Buổi học &amp; điểm danh', false)
             ->assertSee('0%'); // 0/1 buổi có mặt
+    }
+
+    public function test_show_has_results_and_feedback_tabs_with_parent_feedback_only_for_class_quality_viewers(): void
+    {
+        $student = $this->student('HV-KQ', $this->hn, $this->classHn);
+        $session = ClassSession::create([
+            'class_id' => $this->classHn->id, 'branch_id' => $this->hn->id, 'date' => now()->subDays(3)->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $this->teacher->id, 'status' => 'completed',
+        ]);
+        $test = BigTest::create([
+            'code' => 'BT-KQ', 'title' => 'Big Test giữa khóa KQ', 'class_id' => $this->classHn->id, 'test_type' => 'midterm',
+            'scheduled_at' => now()->subWeek(), 'room' => 'Lab', 'passcode' => 'KQ1', 'is_distributed' => true, 'status' => 'distributed',
+        ]);
+        BigTestResult::create(['big_test_id' => $test->id, 'student_id' => $student->id, 'listening_score' => 6.5, 'reading_score' => 7,
+            'writing_score' => 6, 'speaking_score' => 6.5, 'overall_score' => 6.5, 'progress_note' => 'Tiến bộ phần Reading', 'status' => 'sent']);
+        MiniTestScore::create(['class_id' => $this->classHn->id, 'student_id' => $student->id, 'user_id' => $this->teacher->id,
+            'name' => 'Mini test Unit 3', 'score' => 8, 'max_score' => 10, 'test_date' => now()->subDays(4)]);
+        AcademicRecord::create(['module' => 'teacher_remarks', 'screen_key' => 'teacher_remarks', 'record_code' => TeacherPortalController::remarkRecordCode($session),
+            'title' => 'Nhận xét', 'status' => 'completed', 'data' => [(string) $student->id => ['attitude' => 'Hăng hái phát biểu', 'comment' => 'Con nắm bài tốt']]]);
+        ClassSessionFeedback::create(['class_session_id' => $session->id, 'class_id' => $this->classHn->id, 'source' => ClassSessionFeedback::SOURCE_PARENT,
+            'student_id' => $student->id, 'rating' => 2, 'content' => 'Phụ huynh muốn thêm bài tập']);
+        AcademicRecord::create(['module' => 'student_portal', 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback', 'record_code' => 'FB-KQ',
+            'title' => 'Feedback chặng', 'status' => 'submitted', 'data' => ['student_id' => (string) $student->id, 'stage_name' => 'Chặng 1',
+                'muc_do_hai_long' => 4, 'categories' => ['Giáo viên'], 'noi_dung_feedback' => 'Cô dạy dễ hiểu']]);
+
+        // Học vụ không có quyền Feedback buổi học: thấy kết quả + nhận xét GV, không thấy feedback phụ huynh.
+        Role::findByName('academic_staff')->revokePermissionTo('class_quality.view');
+        $this->actingAs($this->user('academic_staff', $this->hn))->get(route('students.show', $student->id))
+            ->assertOk()
+            ->assertSee('Kết quả học tập')->assertSee('Big Test giữa khóa KQ')->assertSee('Tiến bộ phần Reading')->assertSee('Mini test Unit 3')
+            ->assertSee('Hăng hái phát biểu')->assertSee('Con nắm bài tốt')
+            ->assertDontSee('Phụ huynh muốn thêm bài tập')->assertDontSee('Cô dạy dễ hiểu')
+            ->assertInertia(fn ($page) => $page->where('feedback.parent', null)->has('results.big_tests', 1)->has('feedback.remarks', 1));
+
+        $viewer = $this->user('academic_staff', $this->hn);
+        $viewer->givePermissionTo('class_quality.view');
+        $this->actingAs($viewer)->get(route('students.show', $student->id))
+            ->assertOk()
+            ->assertSee('Phụ huynh muốn thêm bài tập')->assertSee('Cô dạy dễ hiểu')
+            ->assertInertia(fn ($page) => $page->where('feedback.parent.average', fn ($v) => (float) $v === 2.0)->where('feedback.parent.low', 1)->has('feedback.parent.stages', 1));
     }
 
     public function test_show_empty_states_without_class_or_attendance(): void

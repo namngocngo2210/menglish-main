@@ -531,7 +531,7 @@ class StudentPortalController extends Controller
     }
 
     /** Nhận xét theo buổi lưu Monsters (Nhóm) / (Thưởng) riêng; bản cũ chỉ có "monsters". */
-    private static function normalizeRemark(array $remark): array
+    public static function normalizeRemark(array $remark): array
     {
         if (blank($remark['monsters'] ?? null)) {
             // Báo cáo buổi mới: "Điểm thưởng" (bonus); bản cũ: Monsters nhóm / thưởng.
