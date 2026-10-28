@@ -807,6 +807,7 @@ class WorkTaskController extends Controller
         $tasks = collect();
         $sessions = collect();
         $overdueCount = 0;
+        $overdueTasks = collect();
         if ($taUser) {
             $tasks = WorkTask::with(['classModel:id,name,code,teacher_id', 'branch:id,name', 'creator:id,name', 'classReport'])
                 ->where('assignee_id', $taUser->id)
@@ -815,10 +816,13 @@ class WorkTaskController extends Controller
                 ->orderBy('id')
                 ->get();
             // Nhiệm vụ hằng ngày (CV-05) không có hạn nên không tính "quá hạn" / "trễ N giờ".
-            $overdueCount = WorkTask::withDeadline()->where('assignee_id', $taUser->id)
+            // Việc tồn của các ngày trước: hiện thẳng trên portal (tối đa 5 việc cũ nhất) để báo xong ngay, thay banner đếm số.
+            $overdueQuery = WorkTask::withDeadline()->where('assignee_id', $taUser->id)
                 ->whereDate('due_date', '<', $date->toDateString())
-                ->whereNotIn('status', ['completed', 'pending_confirmation'])
-                ->count();
+                ->whereNotIn('status', ['completed', 'pending_confirmation', 'canceled']);
+            $overdueCount = (clone $overdueQuery)->count();
+            $overdueTasks = $overdueQuery->with(['classModel:id,name,code', 'creator:id,name', 'classReport'])
+                ->orderBy('due_date')->orderBy('due_time')->limit(5)->get();
             // Trợ giảng không cố định theo lớp: buổi trong ngày = buổi được gán (dữ liệu cũ) + buổi của các lớp có việc giao hôm nay.
             $taskClassIds = $tasks->pluck('class_id')->filter()->unique()->values()->all();
             $sessions = ClassSession::with(['classModel:id,name,code', 'branch:id,name'])
@@ -880,6 +884,10 @@ class WorkTaskController extends Controller
             'canPickTa' => $canPickTa,
             'assistants' => Ui::options($assistants, 'name'),
             'overdueCount' => $overdueCount,
+            'overdueTasks' => $overdueTasks->map(fn (WorkTask $task) => [
+                ...$card($task),
+                'due_label' => ($task->due_time ? substr($task->due_time, 0, 5).' ' : '').$task->due_date?->format('d/m/Y'),
+            ])->values()->all(),
             'canComplete' => (bool) $canComplete,
             'hasTasks' => $tasks->isNotEmpty(),
             'firstOpen' => $groups->first(fn ($g) => $g['tasks']->isNotEmpty())['key'] ?? 'before',

@@ -1,12 +1,13 @@
 <script setup>
 /**
- * Portal trợ giảng — "Nhiệm vụ hôm nay" (mockup TA checklist 3 mục, 14/10/2026): thẻ tiêu đề kèm tiến độ trong ngày,
- * 3 ca cố định 01 Trước / 02 Trong / 03 Sau giờ học, mỗi việc một dòng (chip lớp trực / công việc chung, giờ, người giao)
- * và nút bên phải. Quy tắc hoàn thành + bảng màu trạng thái nằm sau nút "i". Có thanh điều hướng dưới trên điện thoại.
+ * Portal trợ giảng — "Nhiệm vụ hôm nay" (thiết kế lại 28/10/2026, canvas "Danh sách lớp – thiết kế lại"): full màn,
+ * đầu trang gồm ngày + tiến độ dạng thanh + ‹ Hôm nay ›; "Lớp trực hôm nay" lên đầu (gộp buổi bổ trợ, thay tab Buổi bổ trợ
+ * của tôi); việc tồn ngày trước hiện thành danh sách báo xong được ngay; 3 ca 01 Trước / 02 Trong / 03 Sau giờ học nằm thành
+ * 3 cột trên máy tính, trên điện thoại chọn ca bằng thanh chọn nhanh. Quy tắc hoàn thành + bảng màu trạng thái nằm sau nút "i".
  * Admin / quản lý / học vụ chọn xem trợ giảng bất kỳ trong phạm vi.
  * Hoàn thành: có ảnh → hoàn thành ngay; không ảnh → chờ Admin xác nhận (quyết định ở server).
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { urlWith } from '@/lib/url';
@@ -23,6 +24,7 @@ const props = defineProps({
     canPickTa: { type: Boolean, default: false },
     assistants: { type: Array, default: () => [] },
     overdueCount: { type: Number, default: 0 },
+    overdueTasks: { type: Array, default: () => [] },
     canComplete: { type: Boolean, default: false },
     hasTasks: { type: Boolean, default: false },
     firstOpen: { type: String, default: 'before' },
@@ -44,13 +46,25 @@ const legend = [
     ['completed', 'Hoàn thành'], ['overdue', 'Quá hạn'], ['canceled', 'Đã hủy'],
 ];
 const percent = computed(() => (props.progress.total ? Math.round((props.progress.done / props.progress.total) * 100) : 0));
-const rowTone = (task) => (task.status === 'completed' ? 'bg-tertiary-container/5' : task.status === 'pending_confirmation' ? 'bg-warning-container/30' : task.status === 'overdue' ? 'bg-error-container/10' : '');
-const open = reactive(Object.fromEntries(props.groups.map((g) => [g.key, g.key === props.firstOpen || g.tasks.length > 0])));
+const cardTone = (task) =>
+    task.status === 'completed' ? 'border-tertiary/20 bg-tertiary-container/5'
+        : task.status === 'pending_confirmation' ? 'border-warning/30 bg-warning-container/30'
+            : task.status === 'overdue' ? 'border-error/20 bg-error-container/10'
+                : 'border-outline-variant bg-surface-container-lowest';
+// Điện thoại: một ca một lúc, mở sẵn ca đầu tiên có việc (máy tính hiện cả 3 cột).
+const activeGroup = ref(props.firstOpen);
+const shortTitle = { before: 'Trước', during: 'Trong', after: 'Sau' };
 const isDone = (task) => ['completed', 'canceled'].includes(task.status);
 
 /** Đổi ngày / trợ giảng → tải lại portal theo lựa chọn mới. */
 const filter = (key, value) => router.get(urlWith({ [key]: value }), {}, { preserveScroll: true });
 const todayUrl = () => route('portal.ta-tasks', props.canPickTa && props.taUser ? { ta_id: props.taUser.id } : {});
+/** ‹ / › : lùi / tiến một ngày (tính theo ngày lịch, không lệch múi giờ). */
+function shiftDay(days) {
+    const [y, m, d] = props.date.split('-').map(Number);
+    const next = new Date(Date.UTC(y, m - 1, d + days));
+    filter('date', next.toISOString().slice(0, 10));
+}
 
 // Modal "Cập nhật tiến độ"
 const selected = ref(null);
@@ -67,99 +81,163 @@ function openReport(event) {
 </script>
 
 <template>
-    <div class="mx-auto max-w-4xl space-y-lg pb-24 md:pb-0">
-        <!-- Tiêu đề + tiến độ hôm nay -->
-        <header class="flex flex-col gap-md rounded-2xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-lg">
-            <div class="flex items-start gap-md sm:items-center">
-                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary-container/20 bg-primary-fixed text-primary" aria-hidden="true">
-                    <span class="material-symbols-outlined text-[26px]">task_alt</span>
-                </span>
-                <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-sm">
-                        <Head :title="title" />
-                        <h1 class="font-h2 text-h2 text-on-surface">{{ title }}</h1>
-                        <span class="rounded-full bg-primary-container px-sm py-[2px] font-caption text-caption font-semibold text-white">Trợ giảng</span>
-                        <UiInfo title="Quy tắc hoàn thành nhiệm vụ" width="96" label="Quy tắc hoàn thành nhiệm vụ">
-                            <p><strong class="text-on-surface">Đầu việc không gắn lớp:</strong> đính kèm ảnh minh chứng sẽ <strong class="text-tertiary">hoàn thành ngay</strong>. Không có ảnh thì chuyển sang <strong class="text-warning">chờ xác nhận</strong> (Admin xác nhận ở màn duyệt).</p>
-                            <p><strong class="text-on-surface">Đầu việc trực lớp:</strong> bấm <strong class="text-primary">Nộp báo cáo trực lớp</strong> để gửi thông tin chi tiết của buổi học.</p>
-                            <p class="pt-xs font-semibold uppercase text-on-surface">Mã màu trạng thái</p>
-                            <div class="flex flex-wrap gap-xs">
-                                <UiBadge v-for="[key, label] in legend" :key="key" :color="statusColors[key]" pill :class="key === 'canceled' ? 'line-through' : ''">{{ label }}</UiBadge>
-                            </div>
-                        </UiInfo>
-                    </div>
-                    <p class="mt-xs flex flex-wrap items-center gap-x-sm gap-y-xs font-body-small text-body-small text-on-surface-variant">
-                        <span class="inline-flex items-center gap-xs"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">calendar_today</span>{{ isToday ? 'Hôm nay' : 'Ngày' }}: {{ formatDate(date, 'l, d/m/Y') }}</span>
-                        <template v-if="taUser">
-                            <span class="text-outline-variant" aria-hidden="true">•</span>
-                            <span class="font-medium text-on-surface">{{ taUser.name }}<template v-if="taUser.branch"> ({{ taUser.branch }})</template></span>
-                        </template>
-                        <span v-else>Chưa có trợ giảng nào trong hệ thống.</span>
-                    </p>
+    <div class="space-y-lg pb-24 md:pb-0">
+        <!-- Đầu trang: tiêu đề + ngày / người, bên phải tiến độ và đổi ngày -->
+        <header class="flex flex-col gap-md lg:flex-row lg:items-center lg:justify-between">
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-sm">
+                    <Head :title="title" />
+                    <h1 class="font-h2 text-h2 text-on-surface">{{ title }}</h1>
+                    <span class="rounded-full bg-primary-container px-sm py-[2px] font-caption text-caption font-semibold text-white">Trợ giảng</span>
+                    <UiInfo title="Quy tắc hoàn thành nhiệm vụ" width="96" label="Quy tắc hoàn thành nhiệm vụ">
+                        <p><strong class="text-on-surface">Đầu việc không gắn lớp:</strong> đính kèm ảnh minh chứng sẽ <strong class="text-tertiary">hoàn thành ngay</strong>. Không có ảnh thì chuyển sang <strong class="text-warning">chờ xác nhận</strong> (Admin xác nhận ở màn duyệt).</p>
+                        <p><strong class="text-on-surface">Đầu việc trực lớp:</strong> bấm <strong class="text-primary">Nộp báo cáo trực lớp</strong> để gửi thông tin chi tiết của buổi học.</p>
+                        <p class="pt-xs font-semibold uppercase text-on-surface">Mã màu trạng thái</p>
+                        <div class="flex flex-wrap gap-xs">
+                            <UiBadge v-for="[key, label] in legend" :key="key" :color="statusColors[key]" pill :class="key === 'canceled' ? 'line-through' : ''">{{ label }}</UiBadge>
+                        </div>
+                    </UiInfo>
                 </div>
+                <p class="mt-xs font-body-small text-body-small text-on-surface-variant">
+                    {{ formatDate(date, 'l, d/m/Y') }}
+                    <template v-if="taUser"> · <span class="font-medium text-on-surface">{{ taUser.name }}</span><template v-if="taUser.branch"> · {{ taUser.branch }}</template></template>
+                    <template v-else> · Chưa có trợ giảng nào trong hệ thống.</template>
+                </p>
             </div>
-            <div v-if="taUser" class="flex shrink-0 items-center gap-sm rounded-xl border border-outline-variant bg-surface-container-low px-md py-sm" data-ta-progress>
-                <div class="text-right">
-                    <p class="font-caption text-caption text-on-surface-variant">Tiến độ {{ isToday ? 'hôm nay' : 'trong ngày' }}</p>
-                    <p class="font-body-medium text-body-medium font-bold text-on-surface"><span class="text-primary">{{ progress.done }}</span> / {{ progress.total }} hoàn thành</p>
+
+            <div class="flex flex-wrap items-end gap-sm">
+                <div v-if="taUser" class="flex min-w-[220px] flex-1 flex-col gap-xs rounded-xl border border-outline-variant bg-surface-container-lowest px-md py-sm sm:flex-none" data-ta-progress>
+                    <p class="flex items-center justify-between gap-md font-caption text-caption">
+                        <span class="text-on-surface-variant">Tiến độ {{ isToday ? 'hôm nay' : 'trong ngày' }}</span>
+                        <span class="font-bold text-on-surface"><span class="text-primary">{{ progress.done }}</span> / {{ progress.total }} xong</span>
+                    </p>
+                    <div class="h-1.5 overflow-hidden rounded-full bg-surface-container-highest" role="progressbar" :aria-valuenow="percent" aria-valuemin="0" aria-valuemax="100" :aria-label="`Hoàn thành ${percent}%`">
+                        <div class="h-full rounded-full bg-primary-container" :style="{ width: `${percent}%` }" />
+                    </div>
                 </div>
-                <div class="relative flex h-11 w-11 items-center justify-center">
-                    <svg class="h-11 w-11 -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
-                        <circle cx="18" cy="18" r="15.9155" fill="none" stroke-width="3.5" class="stroke-surface-container-highest" />
-                        <circle cx="18" cy="18" r="15.9155" fill="none" stroke-width="3.5" stroke-linecap="round" class="stroke-primary-container" :stroke-dasharray="`${percent}, 100`" />
-                    </svg>
-                    <span class="absolute text-[11px] font-bold text-on-surface">{{ percent }}%</span>
+                <div v-if="canPickTa" class="min-w-[180px] flex-1 sm:w-56 sm:flex-none">
+                    <UiSelect
+                        id="f_ta_id"
+                        label="Trợ giảng"
+                        aria-label="Chọn trợ giảng"
+                        :model-value="taUser?.id ?? ''"
+                        :options="assistants.length ? assistants : [{ value: '', label: 'Chưa có trợ giảng' }]"
+                        @update:model-value="(v) => filter('ta_id', v)"
+                    />
+                </div>
+                <div class="flex items-center gap-xs rounded-xl bg-surface-container-low p-[3px]">
+                    <button type="button" class="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-lowest" aria-label="Ngày trước" @click="shiftDay(-1)">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_left</span>
+                    </button>
+                    <Link v-if="!isToday" :href="todayUrl()" class="flex h-10 items-center rounded-lg px-sm font-caption text-caption font-semibold text-primary hover:bg-surface-container-lowest">Hôm nay</Link>
+                    <label class="relative flex h-10 items-center rounded-lg bg-surface-container-lowest px-sm font-caption text-caption font-semibold text-primary shadow-sm">
+                        <span class="sr-only">Chọn ngày</span>
+                        <input id="f_date" type="date" :value="date" class="border-0 bg-transparent p-0 font-caption text-caption font-semibold text-primary focus:ring-0" @change="(e) => e.target.value && filter('date', e.target.value)" />
+                    </label>
+                    <button type="button" class="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-lowest" aria-label="Ngày sau" @click="shiftDay(1)">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_right</span>
+                    </button>
                 </div>
             </div>
         </header>
 
-        <!-- Bộ lọc: ngày (+ chọn trợ giảng cho admin / quản lý) -->
-        <div class="flex flex-wrap items-end gap-sm">
-            <div v-if="canPickTa" class="min-w-[180px] flex-1 sm:max-w-xs">
-                <UiSelect
-                    id="f_ta_id"
-                    label="Trợ giảng"
-                    aria-label="Chọn trợ giảng"
-                    :model-value="taUser?.id ?? ''"
-                    :options="assistants.length ? assistants : [{ value: '', label: 'Chưa có trợ giảng' }]"
-                    @update:model-value="(v) => filter('ta_id', v)"
-                />
+        <!-- Lớp trực trong ngày (từ buổi học thật); buổi bổ trợ mở thẳng màn hoàn thành buổi -->
+        <section v-if="taUser" id="lop-hoc" class="flex flex-col gap-sm rounded-2xl border border-outline-variant bg-surface-container-lowest p-sm lg:flex-row lg:items-stretch" aria-labelledby="lop-truc-title">
+            <div class="flex items-center justify-between gap-sm px-sm lg:w-44 lg:flex-col lg:items-start lg:justify-center">
+                <div>
+                    <h2 id="lop-truc-title" class="font-body-medium text-body-medium font-bold text-on-surface">Lớp trực {{ isToday ? 'hôm nay' : 'ngày ' + formatDate(date, 'd/m') }}</h2>
+                    <p class="font-caption text-caption text-on-surface-variant">{{ sessions.length }} buổi · từ lịch học</p>
+                </div>
+                <a v-if="canComplete" :href="route('tasks.class-reports.create')" data-modal-size="2xl" class="shrink-0 font-caption text-caption font-semibold text-primary hover:underline" @click="openReport">Nộp báo cáo trực lớp</a>
             </div>
-            <div class="min-w-[150px] sm:w-48">
-                <UiInput id="f_date" type="date" label="Ngày" aria-label="Chọn ngày" :model-value="date" @change="(e) => filter('date', e.target.value)" />
+            <div v-if="sessions.length" class="grid flex-1 gap-sm md:grid-cols-2">
+                <article v-for="s in sessions" :key="s.id" class="flex flex-wrap items-center gap-sm rounded-xl border border-surface-container-high p-sm" :data-session-id="s.id">
+                    <div :class="['w-[76px] shrink-0 rounded-lg py-xs text-center', s.support ? 'bg-secondary-fixed text-secondary' : 'bg-primary-fixed text-primary']">
+                        <p class="font-code text-body-medium font-bold">{{ s.start }}</p>
+                        <p class="font-caption text-[11px] text-on-surface-variant">đến {{ s.end }}</p>
+                    </div>
+                    <div class="min-w-[160px] flex-1">
+                        <p class="flex flex-wrap items-center gap-xs">
+                            <span class="truncate font-body-medium text-body-medium font-bold text-on-surface">{{ s.class_name }}</span>
+                            <UiBadge v-if="s.support" color="info" pill>Buổi bổ trợ</UiBadge>
+                            <UiBadge v-else-if="s.makeup" color="warning" pill>Học bù</UiBadge>
+                        </p>
+                        <p class="truncate font-caption text-caption text-on-surface-variant">{{ s.room || 'Chưa có phòng' }}{{ s.branch ? ' · ' + s.branch : '' }}</p>
+                    </div>
+                    <UiButton v-if="s.support" size="sm" icon="check_circle" :href="route('tasks.support-sessions', { mine: 1 })">Hoàn thành buổi</UiButton>
+                </article>
             </div>
-            <UiButton v-if="!isToday" size="sm" variant="ghost" icon="today" :href="todayUrl()">Hôm nay</UiButton>
-        </div>
+            <p v-else class="flex flex-1 items-center px-sm py-xs font-body-small text-body-small italic text-on-surface-variant">Không có buổi học nào trong ngày.</p>
+        </section>
 
-        <UiAlert v-if="overdueCount > 0" type="warning">Còn <strong>{{ overdueCount }}</strong> nhiệm vụ của các ngày trước chưa hoàn thành.</UiAlert>
-
-        <!-- 3 ca cố định -->
-        <section id="nhiem-vu" class="space-y-md" aria-label="Nhiệm vụ">
-            <div v-for="group in groups" :key="group.key" class="overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm" :data-task-group="group.key">
-                <button type="button" :aria-expanded="open[group.key] ? 'true' : 'false'" :class="['flex w-full items-center justify-between gap-sm bg-surface-container-low/60 px-md py-sm text-left sm:px-lg', open[group.key] ? 'border-b border-outline-variant' : '']" @click="open[group.key] = !open[group.key]">
-                    <span class="flex items-center gap-sm">
-                        <span :class="['flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-code text-caption font-bold', groupMeta[group.key]?.tone]">{{ groupMeta[group.key]?.no }}</span>
-                        <span>
-                            <span class="flex items-center gap-sm font-h3 text-h3 text-on-surface">
-                                {{ group.title }}
-                                <span class="rounded-full bg-surface-container-high px-sm py-[2px] font-caption text-caption font-semibold text-on-surface-variant">{{ group.tasks.length }} việc</span>
-                            </span>
-                            <span class="block font-caption text-caption text-on-surface-variant">{{ groupMeta[group.key]?.note }}</span>
-                        </span>
-                    </span>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">{{ open[group.key] ? 'expand_less' : 'expand_more' }}</span>
-                </button>
-                <div v-show="open[group.key]" class="divide-y divide-surface-container">
-                    <article
-                        v-for="task in group.tasks"
-                        :key="task.id"
-                        :class="['flex flex-col justify-between gap-sm p-md sm:flex-row sm:items-center sm:px-lg', rowTone(task)]"
-                        :data-task-id="task.id"
+        <!-- Việc tồn của các ngày trước: xử lý ngay tại đây -->
+        <section v-if="overdueCount > 0" class="overflow-hidden rounded-2xl border border-error/20 bg-surface-container-lowest" aria-labelledby="viec-ton-title" data-overdue>
+            <div class="flex flex-wrap items-center justify-between gap-sm border-b border-error/20 bg-error-container/20 px-md py-sm sm:px-lg">
+                <h2 id="viec-ton-title" class="font-body-medium text-body-medium font-bold text-error">Việc của ngày trước chưa xong · {{ overdueCount }}</h2>
+                <span class="font-caption text-caption text-on-surface-variant">Báo xong kèm ảnh để được tính hoàn thành.</span>
+            </div>
+            <div class="divide-y divide-surface-container">
+                <article v-for="task in overdueTasks" :key="task.id" class="flex flex-col gap-sm px-md py-sm sm:flex-row sm:items-center sm:px-lg" :data-task-id="task.id">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ task.title }}</p>
+                        <p class="font-caption text-caption text-on-surface-variant">
+                            {{ task.class_label ? 'Trực lớp: ' + task.class_label : 'Công việc chung' }} · Hạn {{ task.due_label }}<template v-if="task.creator"> · Người giao: {{ task.creator }}</template>
+                        </p>
+                    </div>
+                    <UiBadge :color="statusColors[task.status] ?? 'neutral'" pill>{{ task.status === 'overdue' ? `Quá hạn · trễ ${task.late_hours} giờ` : task.status_label }}</UiBadge>
+                    <UiButton
+                        v-if="task.class_label && canComplete"
+                        size="sm"
+                        variant="secondary"
+                        icon="edit_document"
+                        :href="route('tasks.class-reports.create', { task_id: task.id, class_id: task.class_id })"
+                        modal="2xl"
+                        >Nộp báo cáo trực lớp</UiButton
                     >
-                        <div class="min-w-0 flex-1 space-y-xs">
-                            <div class="flex flex-wrap items-center gap-sm">
+                    <UiButton v-else-if="canComplete" size="sm" variant="secondary" icon="check_circle" @click="openComplete(task)">Báo xong</UiButton>
+                </article>
+                <p v-if="overdueCount > overdueTasks.length" class="px-md py-sm font-caption text-caption text-on-surface-variant sm:px-lg">Còn {{ overdueCount - overdueTasks.length }} việc cũ hơn — lùi ngày bằng nút ‹ để xem.</p>
+            </div>
+        </section>
+
+        <!-- 3 ca cố định: 3 cột trên máy tính; điện thoại chọn ca bằng thanh chọn nhanh -->
+        <section id="nhiem-vu" class="space-y-sm" aria-label="Nhiệm vụ">
+            <div class="grid grid-cols-3 gap-xs rounded-xl bg-surface-container-low p-[3px] lg:hidden" role="tablist" aria-label="Chọn ca">
+                <button
+                    v-for="group in groups"
+                    :key="group.key"
+                    type="button"
+                    role="tab"
+                    :aria-selected="activeGroup === group.key ? 'true' : 'false'"
+                    :class="['h-10 rounded-lg font-caption text-caption font-semibold', activeGroup === group.key ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant']"
+                    @click="activeGroup = group.key"
+                >
+                    {{ shortTitle[group.key] ?? group.title }} · {{ group.tasks.length }}
+                </button>
+            </div>
+
+            <div class="grid items-start gap-md lg:grid-cols-3">
+                <div
+                    v-for="group in groups"
+                    :key="group.key"
+                    :class="['overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-lowest shadow-sm', activeGroup === group.key ? '' : 'hidden lg:block']"
+                    :data-task-group="group.key"
+                >
+                    <div class="flex items-start gap-sm border-b border-outline-variant bg-surface-container-low/60 px-md py-sm">
+                        <span :class="['flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-code text-caption font-bold', groupMeta[group.key]?.tone]">{{ groupMeta[group.key]?.no }}</span>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="flex items-center justify-between gap-sm font-h3 text-h3 text-on-surface">
+                                {{ group.title }}
+                                <span class="shrink-0 font-caption text-caption font-semibold text-on-surface-variant">{{ group.tasks.length }} việc</span>
+                            </h2>
+                            <p class="font-caption text-caption text-on-surface-variant">{{ groupMeta[group.key]?.note }}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-sm p-sm">
+                        <article v-for="task in group.tasks" :key="task.id" :class="['flex flex-col gap-sm rounded-xl border p-sm', cardTone(task)]" :data-task-id="task.id">
+                            <div class="flex items-start justify-between gap-sm">
                                 <h3 :class="['font-body-medium text-body-medium font-semibold', isDone(task) ? 'text-on-surface-variant line-through' : 'text-on-surface']">{{ task.title }}</h3>
-                                <UiBadge :color="statusColors[task.status] ?? 'neutral'" pill>{{ task.status_label }}</UiBadge>
+                                <UiBadge :color="statusColors[task.status] ?? 'neutral'" pill class="shrink-0">{{ task.status_label }}</UiBadge>
                             </div>
                             <div class="flex flex-wrap items-center gap-x-sm gap-y-xs font-caption text-caption text-on-surface-variant">
                                 <span v-if="task.class_label" class="inline-flex items-center gap-xs rounded border border-primary-container/20 bg-primary-fixed px-sm py-[2px] font-semibold text-primary">
@@ -169,8 +247,8 @@ function openReport(event) {
                                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">assignment</span>Công việc chung
                                 </span>
                                 <template v-if="task.status === 'completed'">
-                                    <span v-if="task.has_proof" class="inline-flex items-center gap-xs font-medium text-tertiary"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">image</span>Đã đính kèm ảnh minh chứng</span>
-                                    <span v-if="task.completed_at">Hoàn tất lúc {{ task.completed_at }}</span>
+                                    <span v-if="task.has_proof" class="inline-flex items-center gap-xs font-medium text-tertiary"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">image</span>Có ảnh minh chứng</span>
+                                    <span v-if="task.completed_at">Xong lúc {{ task.completed_at }}</span>
                                 </template>
                                 <span v-else-if="task.status === 'pending_confirmation'" class="font-medium text-warning">Đã gửi xác nhận (không đính ảnh)</span>
                                 <span v-else-if="task.status === 'overdue'" class="inline-flex items-center gap-xs font-semibold text-error"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">warning</span>Trễ {{ task.late_hours }} giờ</span>
@@ -180,79 +258,59 @@ function openReport(event) {
                                 <span v-if="task.creator">Người giao: {{ task.creator }}</span>
                             </div>
                             <p v-if="task.rejection_reason" class="rounded bg-error-container/40 px-sm py-xs font-caption text-caption text-error">Bị trả về: {{ task.rejection_reason }}</p>
-                        </div>
 
-                        <div class="flex shrink-0 flex-col gap-xs sm:items-end">
-                            <UiButton
-                                v-if="task.class_label && ['new', 'in_progress', 'overdue', 'blocked'].includes(task.status) && canComplete"
-                                icon="edit_document"
-                                :href="route('tasks.class-reports.create', { task_id: task.id, class_id: task.class_id })"
-                                modal="2xl"
-                                >Nộp báo cáo trực lớp</UiButton
-                            >
-                            <UiButton v-else-if="canComplete && ['new', 'in_progress'].includes(task.status)" variant="success" icon="check_circle" @click="openComplete(task)">Hoàn thành</UiButton>
-                            <UiButton v-else-if="canComplete && task.status === 'overdue'" variant="secondary" icon="check_circle" @click="openComplete(task)">Báo xong</UiButton>
-                            <span v-else-if="task.status === 'completed'" class="inline-flex items-center gap-xs rounded-lg border border-tertiary/20 bg-tertiary-container/10 px-sm py-xs font-caption text-caption font-medium text-tertiary">
-                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified</span>{{ task.has_proof ? 'Đã xác nhận tự động' : 'Đã xác nhận' }}
-                            </span>
-                            <span v-else-if="task.pending_label" class="inline-flex items-center gap-xs rounded-lg border border-warning/20 bg-warning-container px-sm py-xs font-caption text-caption font-medium text-on-warning-container">
-                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>{{ task.pending_label }}
-                            </span>
-                        </div>
-                    </article>
-                    <p v-if="!group.tasks.length" class="px-md py-md font-body-small text-body-small italic text-on-surface-variant sm:px-lg">Không có nhiệm vụ {{ group.title.toLowerCase() }}.</p>
+                            <div class="flex">
+                                <UiButton
+                                    v-if="task.class_label && ['new', 'in_progress', 'overdue', 'blocked'].includes(task.status) && canComplete"
+                                    icon="edit_document"
+                                    :href="route('tasks.class-reports.create', { task_id: task.id, class_id: task.class_id })"
+                                    modal="2xl"
+                                    >Nộp báo cáo trực lớp</UiButton
+                                >
+                                <UiButton v-else-if="canComplete && ['new', 'in_progress'].includes(task.status)" variant="success" icon="check_circle" @click="openComplete(task)">Hoàn thành</UiButton>
+                                <UiButton v-else-if="canComplete && task.status === 'overdue'" variant="secondary" icon="check_circle" @click="openComplete(task)">Báo xong</UiButton>
+                                <span v-else-if="task.status === 'completed'" class="inline-flex items-center gap-xs font-caption text-caption font-semibold text-tertiary">
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified</span>{{ task.has_proof ? 'Đã xác nhận tự động' : 'Đã xác nhận' }}
+                                </span>
+                                <span v-else-if="task.pending_label" class="inline-flex items-center gap-xs font-caption text-caption font-semibold text-on-warning-container">
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>{{ task.pending_label }}
+                                </span>
+                            </div>
+                        </article>
+                        <p v-if="!group.tasks.length" class="px-xs py-sm font-body-small text-body-small italic text-on-surface-variant">Không có nhiệm vụ {{ group.title.toLowerCase() }}.</p>
+                    </div>
                 </div>
             </div>
 
             <UiEmptyState v-if="taUser && !hasTasks" icon="task_alt" title="Không có nhiệm vụ trong ngày" :description="`${taUser.name} chưa được giao nhiệm vụ nào cho ngày ${formatDate(date)}.`" />
         </section>
 
-        <!-- Lớp trực trong ngày (từ buổi học thật) -->
-        <section id="lop-hoc" class="mt-lg space-y-sm" aria-label="Lớp trực">
-            <h2 class="flex items-center gap-xs font-h3 text-h3 text-on-surface">
-                <span class="material-symbols-outlined text-primary-container" aria-hidden="true">school</span>
-                Lớp trực {{ isToday ? 'hôm nay' : 'ngày ' + formatDate(date, 'd/m') }}
-            </h2>
-            <div v-for="s in sessions" :key="s.id" class="flex items-center justify-between gap-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
-                <div class="min-w-0">
-                    <p class="truncate font-body-medium text-body-medium font-semibold text-on-surface">{{ s.class_name }}</p>
-                    <p class="font-caption text-caption text-on-surface-variant">
-                        <span class="font-code">{{ s.start }} - {{ s.end }}</span>
-                        · {{ s.room || 'Chưa có phòng' }}{{ s.branch ? ' · ' + s.branch : '' }}
-                    </p>
-                </div>
-                <UiBadge v-if="s.makeup" color="warning">Học bù</UiBadge>
-                <Link v-else-if="s.support" :href="route('tasks.support-sessions', { mine: 1 })" class="shrink-0 font-caption text-caption font-semibold text-primary hover:underline">Buổi bổ trợ · Hoàn thành</Link>
-            </div>
-            <p v-if="!sessions.length" class="font-body-small text-body-small italic text-on-surface-variant">Không có buổi học nào trong ngày.</p>
-        </section>
-
-        <!-- Thanh điều hướng dưới (điện thoại) -->
+        <!-- Thanh điều hướng dưới (điện thoại): cùng 3 mục của cổng trợ giảng + Cá nhân -->
         <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-outline-variant bg-surface-container-lowest md:hidden" aria-label="Điều hướng portal trợ giảng">
-            <ul class="mx-auto grid max-w-md grid-cols-4 gap-xs px-sm py-xs">
+            <ul :class="['mx-auto grid max-w-md gap-xs px-sm py-xs', can('attendance_student.record') ? 'grid-cols-4' : 'grid-cols-3']">
                 <li>
                     <a href="#nhiem-vu" class="flex flex-col items-center gap-[2px] rounded-xl bg-primary-container px-xs py-xs text-white" aria-current="page">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">assignment</span>
                         <span class="text-xs font-semibold">Nhiệm vụ</span>
                     </a>
                 </li>
+                <li v-if="can('attendance_student.record')">
+                    <Link :href="route('teacher.home')" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">calendar_month</span>
+                        <span class="text-xs font-semibold">Lịch dạy</span>
+                    </Link>
+                </li>
                 <li>
-                    <a href="#lop-hoc" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                    <Link :href="route('classes.index', { mine: 1 })" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">school</span>
-                        <span class="text-xs font-semibold">Lớp học</span>
-                    </a>
+                        <span class="text-xs font-semibold">Lớp của tôi</span>
+                    </Link>
                 </li>
                 <li>
-                    <a :href="route('tasks.class-reports.create')" data-modal-size="2xl" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant" @click="openReport">
-                        <span class="material-symbols-outlined text-[22px]" aria-hidden="true">bar_chart</span>
-                        <span class="text-xs font-semibold">Báo cáo</span>
-                    </a>
-                </li>
-                <li>
-                    <a :href="route('profile.edit')" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
+                    <Link :href="route('profile.edit')" class="flex flex-col items-center gap-[2px] rounded-xl px-xs py-xs text-on-surface-variant">
                         <span class="material-symbols-outlined text-[22px]" aria-hidden="true">person</span>
                         <span class="text-xs font-semibold">Cá nhân</span>
-                    </a>
+                    </Link>
                 </li>
             </ul>
         </nav>

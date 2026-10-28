@@ -41,6 +41,19 @@ class TeacherClassFlowTest extends TestCase
         $this->assertNull($groups->firstWhere('id', 'teacher_portal'));
     }
 
+    public function test_assistant_portal_menu_keeps_only_the_daily_tabs(): void
+    {
+        // Cổng trợ giảng gọn (chủ dự án 28/10/2026): bỏ Bài giảng hôm nay, Chấm bài nộp, Buổi bổ trợ của tôi.
+        $classes = collect(app(SidebarMenu::class)->groupsFor($this->userWithRole('assistant', 'Trợ giảng')))->firstWhere('id', 'classes');
+
+        $labels = collect($classes['items'])->pluck('label')->all();
+        $this->assertSame('Nhiệm vụ hôm nay', $labels[0]);
+        $this->assertContains('Lớp của tôi', $labels);
+        foreach (['Bài giảng hôm nay', 'Chấm bài nộp', 'Buổi bổ trợ của tôi', 'Khách học thử'] as $removed) {
+            $this->assertNotContains($removed, $labels);
+        }
+    }
+
     public function test_class_manager_menu_still_opens_the_full_class_list(): void
     {
         $classes = collect(app(SidebarMenu::class)->groupsFor($this->manager))->firstWhere('id', 'classes');
