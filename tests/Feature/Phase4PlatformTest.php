@@ -558,14 +558,14 @@ class Phase4PlatformTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Tổng quan toàn hệ thống')
+            ->assertSee('Toàn hệ thống')
             ->assertSee('5.000.000 đ')
             ->assertSee('Việc trễ hạn');
 
         $manager = $this->makeUser('manager', $this->branchB);
         $this->actingAs($manager)->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Tổng quan chi nhánh')
+            ->assertSee($this->branchB->name)
             ->assertSee('2.000.000 đ')
             ->assertDontSee('5.000.000 đ');
 
@@ -574,11 +574,11 @@ class Phase4PlatformTest extends TestCase
         SyllabusAdjustmentRequest::create(['class_id' => $class->id, 'user_id' => $this->admin->id, 'request_type' => 'slow_down', 'reason' => 'Lớp cần giãn tiến độ Unit 4', 'status' => 'pending']);
         $this->actingAs($lead)->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Tổng quan học thuật')
+            ->assertSee('Cần bạn xử lý')
             ->assertSee('Lớp cần giãn tiến độ Unit 4');
 
-        // Vai trò khác giữ lưới lối tắt, không có dashboard số liệu.
+        // Giáo viên chỉ thấy cơ sở của mình, không thấy phạm vi toàn hệ thống.
         $teacher = $this->makeUser('teacher', $this->branchA);
-        $this->actingAs($teacher)->get(route('dashboard'))->assertOk()->assertDontSee('Tổng quan toàn hệ thống');
+        $this->actingAs($teacher)->get(route('dashboard'))->assertOk()->assertDontSee('Toàn hệ thống');
     }
 }

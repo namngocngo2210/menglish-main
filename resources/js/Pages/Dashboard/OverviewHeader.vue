@@ -4,7 +4,7 @@ defineProps({ greeting: { type: Object, required: true } });
 </script>
 
 <template>
-    <header class="flex flex-wrap items-end justify-between gap-md" data-overview-header>
+    <header class="flex flex-wrap items-end justify-between gap-md" data-overview-header data-page-header>
         <div class="min-w-0">
             <p class="font-body-small text-body-small text-on-surface-variant">{{ greeting.date }} · {{ greeting.scope }}</p>
             <h2 class="font-h1 text-h1 font-bold text-on-surface">{{ greeting.title }}</h2>
