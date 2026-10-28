@@ -59,7 +59,11 @@ const allPresent = () => {
 };
 // Ngăn bên phải: nhãn ngắn + màu chữ khi được chọn.
 const SHORT = { present: ['Đúng giờ', 'text-tertiary'], late: ['Muộn', 'text-warning'], excused: ['Có phép', 'text-secondary'], absent: ['Không phép', 'text-error'] };
-const needsNote = (id) => ['absent', 'excused'].includes(statuses.value[id]);
+// Buổi phụ đạo: có mặt / đi muộn = bổ trợ xong → ô ghi chú là nhận xét buổi bổ trợ (bắt buộc, như nút "Đã bổ trợ xong").
+const isSupport = computed(() => props.session?.type === 'support');
+const isAbsent = (id) => ['absent', 'excused'].includes(statuses.value[id]);
+const needsNote = (id) => isAbsent(id) || (isSupport.value && ['present', 'late'].includes(statuses.value[id]));
+const notePlaceholder = (id) => (isAbsent(id) ? 'Lý do nghỉ (bắt buộc)' : 'Nhận xét buổi bổ trợ (bắt buộc)');
 const pad = (n) => String(n).padStart(2, '0');
 
 const title = computed(() => 'Điểm danh — ' + props.classroom.name + (props.session ? ', ' + props.session.date : ''));
@@ -130,9 +134,9 @@ function pickSession(event) {
                             :name="`note[${student.id}]`"
                             maxlength="500"
                             :value="student.note"
-                            placeholder="Lý do nghỉ (bắt buộc)"
+                            :placeholder="notePlaceholder(student.id)"
                             required
-                            :aria-label="`Lý do nghỉ của ${student.name}`"
+                            :aria-label="`${notePlaceholder(student.id)} của ${student.name}`"
                             :class="['h-10 w-full rounded-lg border px-sm font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/50', errors['note.' + student.id] ? 'border-error' : 'border-outline-variant']"
                         />
                         <p v-if="errors['note.' + student.id]" class="mt-xs text-xs text-error">{{ errors['note.' + student.id] }}</p>
@@ -282,13 +286,13 @@ function pickSession(event) {
                                 :name="`note[${student.id}]`"
                                 maxlength="500"
                                 :value="student.note"
-                                :placeholder="needsNote(student.id) ? 'Nhập lý do nghỉ học... *' : 'Ghi chú thêm (tùy chọn)...'"
+                                :placeholder="needsNote(student.id) ? `${notePlaceholder(student.id)}... *` : 'Ghi chú thêm (tùy chọn)...'"
                                 :required="needsNote(student.id)"
                                 :aria-label="`Ghi chú ${student.name}`"
                                 :class="['w-full rounded-lg border px-md py-sm font-body-small text-body-small focus:border-primary-container focus:ring-primary-container/50', errors['note.' + student.id] ? 'border-error' : 'border-outline-variant']"
                             />
                             <p v-if="errors['note.' + student.id]" class="mt-xs font-caption text-caption text-error">{{ errors['note.' + student.id] }}</p>
-                            <p v-else-if="needsNote(student.id)" class="mt-xs font-caption text-caption text-error">* Cần ghi rõ lý do khi đánh dấu nghỉ</p>
+                            <p v-else-if="needsNote(student.id)" class="mt-xs font-caption text-caption text-error">{{ isAbsent(student.id) ? '* Cần ghi rõ lý do khi đánh dấu nghỉ' : '* Nhận xét buổi bổ trợ: học sinh nắm được gì, còn yếu phần nào' }}</p>
                         </div>
                     </div>
                 </div>

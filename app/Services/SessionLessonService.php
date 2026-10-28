@@ -24,8 +24,8 @@ class SessionLessonService
 
     /**
      * @param  Collection<int, ClassSession>  $sessions
-     * @return array<int, array{no: int, unit: ?string, title: ?string, summary: ?string}> session_id => nội dung
-     *                                                                                     (`summary`: bài + từ vựng / ngữ pháp trọng tâm — điền sẵn ô "Hôm nay học gì" của báo cáo trực lớp)
+     * @return array<int, array{lesson_id: ?int, no: int, unit: ?string, title: ?string, summary: ?string}> session_id => nội dung
+     *                                                                                                      (`summary`: bài + từ vựng / ngữ pháp trọng tâm — điền sẵn ô "Hôm nay học gì" của báo cáo trực lớp)
      */
     public function lessonsFor(Collection $sessions): array
     {
@@ -56,6 +56,7 @@ class SessionLessonService
                 ? ($plan['sessions'][$session->id] ?? null)
                 : $lessons->get(($curricula[$session->class_id] ?? 0).'-'.$no);
             $result[$session->id] = [
+                'lesson_id' => $lesson?->id,
                 'no' => $no ?? $lesson?->session_no,
                 'unit' => $lesson?->unit ? 'Unit '.$lesson->unit->unit_number.': '.$lesson->unit->title : null,
                 'title' => $lesson?->title ?: ($lesson?->grammar_focus ?: null),

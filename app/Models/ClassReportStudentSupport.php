@@ -49,9 +49,25 @@ class ClassReportStudentSupport extends Model
         return $this->belongsTo(Student::class, 'student_id');
     }
 
+    /**
+     * Buổi bổ trợ đang xử lý dòng này (chưa hủy). Buổi bị hủy (Học vụ hủy / học sinh vắng buổi bổ trợ) không tính → dòng
+     * quay lại danh sách chờ xếp buổi.
+     */
     public function supportSession()
     {
-        return $this->hasOne(SupportSession::class, 'class_report_student_support_id');
+        return $this->hasOne(SupportSession::class, 'class_report_student_support_id')->ofMany(['id' => 'max'], fn ($q) => $q->where('status', '!=', 'cancelled'));
+    }
+
+    /** Mọi buổi bổ trợ từng xếp cho dòng này (kể cả đã hủy) — có lịch sử thì không tự gỡ dòng. */
+    public function supportSessions()
+    {
+        return $this->hasMany(SupportSession::class, 'class_report_student_support_id');
+    }
+
+    /** Buổi bổ trợ bị hủy gần nhất (để Học vụ biết vì sao cần xếp lại). */
+    public function lastCancelledSession()
+    {
+        return $this->hasOne(SupportSession::class, 'class_report_student_support_id')->ofMany(['id' => 'max'], fn ($q) => $q->where('status', 'cancelled'));
     }
 
     public function getSourceLabelAttribute(): string
