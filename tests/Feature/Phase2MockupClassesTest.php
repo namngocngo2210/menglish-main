@@ -339,7 +339,7 @@ class Phase2MockupClassesTest extends TestCase
 
     // ── 7. Cổng giáo viên ─────────────────────────────────────────────────
 
-    public function test_teacher_home_matches_app_shell_mockup_with_widgets_banner_and_bottom_nav(): void
+    public function test_teacher_home_shows_shift_steps_attention_and_bottom_nav(): void
     {
         $session = $this->makeSession('2026-10-07', '10:00', '11:30');
         $student = $this->student('Học sinh Cần Chú Ý');
@@ -349,17 +349,32 @@ class Phase2MockupClassesTest extends TestCase
         TeacherTimesheet::create(['user_id' => $this->teacher->id, 'class_id' => $this->classModel->id, 'teaching_date' => '2026-10-05',
             'hours' => 1.5, 'status' => 'approved', 'source' => TeacherTimesheet::SOURCE_CHECKIN]);
 
+        $attendanceUrl = route('teacher.attendance', ['classId' => $this->classModel->id, 'session' => $session->id], false);
         $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
-            ->assertSee('Tổng quan hôm nay')
-            ->assertSee('Lịch dạy hôm nay — Thứ Tư, 07/10')->assertSee('Bạn có 1 ca dạy trong ngày hôm nay')
-            ->assertSee('Ca dạy lúc 10:00 sắp bắt đầu!')->assertSee('Điểm danh ngay')
-            ->assertSee('10:00 - 11:30 • Phòng 204, Cầu Giấy')
+            ->assertSee('Thứ Tư, 07/10')->assertSee('hôm nay bạn có 1 ca dạy')
+            // Thẻ ca: 3 bước Check-in → Điểm danh → Báo cáo buổi; điểm danh mở ngăn kéo (URL thật của ngăn điểm danh).
+            ->assertSee('Ca dạy hôm nay')->assertSee('đến 11:30')->assertSee('Phòng 204, Cầu Giấy')
+            ->assertSeeInOrder(['data-step="checkin"', 'data-step="attendance"', 'data-step="report"'], false)
+            ->assertSee('Cần điểm danh trước')
+            ->assertSee($attendanceUrl, false)
             ->assertSee('Học sinh cần chú ý')->assertSee('Học sinh Cần Chú Ý')->assertSee('4.5/10')
-            ->assertSee('Lương tạm tính tháng 10')->assertSee('300.000 đ')
-            ->assertSee('Báo cáo chấm công')->assertSee('Vi phạm &amp; Khoản trừ', false)
-            ->assertSee(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $session->id], false), false)
+            // Bỏ thẻ lương, chấm công, vi phạm khỏi Lịch dạy hôm nay (chủ dự án 28/10/2026).
+            ->assertDontSee('Lương tạm tính')->assertDontSee('300.000')->assertDontSee('Báo cáo chấm công')->assertDontSee('Vi phạm &amp; Khoản trừ', false)
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
-            ->assertDontSee('12.500.000')->assertDontSee('Nguyễn Văn A');
+            ->assertDontSee('Nguyễn Văn A');
+    }
+
+    public function test_teacher_home_counts_session_reports_not_yet_submitted(): void
+    {
+        $past = $this->makeSession('2026-10-05', '08:00', '09:30');
+
+        $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
+            ->assertSee('Báo cáo buổi chưa nộp')
+            ->assertSee(route('classes.session-report', ['id' => $this->classModel->id, 'session' => $past->id], false), false);
+
+        \App\Models\TeacherSessionReport::create(['class_id' => $this->classModel->id, 'class_session_id' => $past->id,
+            'teacher_id' => $this->teacher->id, 'content' => 'Đã dạy Unit 3', 'submitted_at' => now()]);
+        $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()->assertDontSee('Báo cáo buổi chưa nộp');
     }
 
     public function test_teacher_attendance_matches_mockup_and_requires_note_for_absences(): void

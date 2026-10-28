@@ -1,11 +1,15 @@
 <script setup>
 /**
- * Cổng Giáo viên — Tổng quan hôm nay (mockup 03_Cong_Giao_Vien/01_app_shell): lịch dạy hôm nay + check-in nhiều ca, banner ca sắp
- * bắt đầu, thẻ học sinh cần chú ý / lương tạm tính / chấm công / vi phạm, buổi cần điểm danh bù, lịch tuần. Điện thoại: thanh điều hướng dưới.
+ * Cổng Giáo viên — Lịch dạy hôm nay (thiết kế lại 28/10/2026): đầu trang 1 dòng chào + chip việc tồn; mỗi ca dạy là một thẻ
+ * với 3 bước Check-in → Điểm danh → Báo cáo buổi; buổi chưa điểm danh (điểm danh bù); lịch tuần; cột phải học sinh cần chú ý.
+ * Điểm danh / điểm danh bù / giao bài mở ngăn kéo bên phải (cùng ngăn với Trang lớp), không sang trang cũ.
+ * Bỏ thẻ lương, chấm công, vi phạm (chủ dự án 28/10/2026). Điện thoại: thanh điều hướng dưới.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import TeacherBottomNav from '@/Components/Teacher/TeacherBottomNav.vue';
+import { openRemoteModal } from '@/lib/remoteModal';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Lịch dạy hôm nay' } });
 
@@ -13,31 +17,27 @@ const props = defineProps({
     teacherName: { type: String, default: '' },
     todayLabel: { type: String, default: '' },
     stats: { type: Object, required: true },
-    nextShift: { type: Object, default: null },
+    todo: { type: Object, default: () => ({ reports_pending: 0, report_url: null }) },
     shifts: { type: Array, default: () => [] },
     pendingSessions: { type: Array, default: () => [] },
+    attendanceWindowHours: { type: Number, default: 24 },
     week: { type: Object, required: true },
     weekDays: { type: Array, default: () => [] },
-    widgets: { type: Object, required: true },
+    attention: { type: Array, default: () => [] },
 });
 
-const card = 'rounded-xl border border-outline-variant bg-surface-container-lowest p-md shadow-sm md:p-lg';
+const card = 'rounded-xl border border-outline-variant bg-surface-container-lowest';
+const PENDING_PREVIEW = 3;
 const showAllPending = ref(false);
 const WARNING_SECONDS = 15 * 60; // Cảnh báo khi còn dưới 15 phút để chấm công.
 
-// Đếm ngược hạn check-in (giờ bắt đầu + 24h): tính từ số giây server gửi, cập nhật mỗi 30 giây.
+// Đếm ngược (giờ vào lớp, hạn check-in): tính từ số giây server gửi, cập nhật mỗi 30 giây.
 const loadedAt = Date.now();
 const tick = ref(0);
 let timer = null;
 onMounted(() => { timer = setInterval(() => { tick.value = Date.now() - loadedAt; }, 30000); });
 onBeforeUnmount(() => clearInterval(timer));
-
-function checkinState(shift) {
-    if (shift.checked_in || !shift.checkin) return null;
-    const left = shift.checkin.remaining_seconds - Math.floor(tick.value / 1000);
-    if (shift.checkin.expired || left <= 0) return { expired: true, warning: false, left: 0 };
-    return { expired: false, warning: left < WARNING_SECONDS, left };
-}
+const elapsed = () => Math.floor(tick.value / 1000);
 
 function countdown(left) {
     const h = Math.floor(left / 3600);
@@ -45,236 +45,295 @@ function countdown(left) {
     return h > 0 ? `${h} giờ ${m} phút` : `${m} phút`;
 }
 
-const hasUnchecked = computed(() => props.shifts.some((s) => !s.checked_in && !checkinState(s)?.expired));
+function checkinState(shift) {
+    if (shift.checked_in || !shift.checkin) return null;
+    const left = shift.checkin.remaining_seconds - elapsed();
+    if (shift.checkin.expired || left <= 0) return { expired: true, warning: false, left: 0 };
+    return { expired: false, warning: left < WARNING_SECONDS, left };
+}
+
+/** Trạng thái giờ học của ca: sắp bắt đầu / đang diễn ra / đã kết thúc. */
+function timeStatus(shift) {
+    const startsIn = shift.starts_in - elapsed();
+    if (startsIn > 0) return { label: `Bắt đầu sau ${countdown(startsIn)}`, tone: 'warning' };
+    if (shift.ends_in - elapsed() > 0) return { label: 'Đang diễn ra', tone: 'live' };
+    return { label: shift.is_today ? 'Đã kết thúc' : `Ca ngày ${shift.date_label}`, tone: 'muted' };
+}
+
+const pillTone = {
+    warning: 'bg-[#fef3c7] text-[#78350f]',
+    live: 'bg-[#e4f5da] text-[#0e3500]',
+    muted: 'bg-surface-container text-on-surface-variant',
+};
+
+const attendanceUrl = (classId, sessionId) => route('teacher.attendance', { classId, session: sessionId });
+// Điểm danh / giao bài mở ngăn kéo bên phải (cùng ngăn với Trang lớp); link vẫn là URL thật để mở tab mới được.
+const openDrawer = (url) => openRemoteModal(url, { size: 'drawer' });
+
+/**
+ * 3 bước của ca theo thứ tự làm; bước đầu tiên chưa xong là nút chính. Trợ giảng / buổi phụ đạo không có Báo cáo buổi.
+ * Mỗi bước: { key, label, hint, done, action: 'checkin' | 'attendance' | 'report' | null, button, disabled }.
+ */
+function steps(shift) {
+    const ck = checkinState(shift);
+    const list = [
+        {
+            key: 'checkin',
+            label: 'Check-in',
+            done: shift.checked_in,
+            hint: shift.checked_in ? `Đã check-in ${shift.checkin_time ?? ''}` : ck?.expired ? 'Quá hạn chấm công — liên hệ Học vụ' : `Hạn ${shift.checkin?.deadline ?? ''}`,
+            button: shift.checked_in ? 'Đã check-in' : 'Check-in',
+            disabled: shift.checked_in || !!ck?.expired,
+        },
+        {
+            key: 'attendance',
+            label: 'Điểm danh',
+            done: shift.attendance_done,
+            hint: {
+                done: 'Đã lưu điểm danh',
+                open: `${shift.student_count} HV${shift.trial_count ? ` · +${shift.trial_count} học thử` : ''}`,
+                not_yet: `Mở từ ${shift.attendance_opens_at}`,
+                closed: `Quá ${props.attendanceWindowHours}h — liên hệ Học vụ`,
+            }[shift.attendance_state],
+            button: shift.attendance_done ? 'Xem điểm danh' : 'Điểm danh',
+            disabled: shift.attendance_state === 'not_yet',
+        },
+    ];
+    if (shift.can_teach && !shift.is_support) {
+        list.push({
+            key: 'report',
+            label: 'Báo cáo buổi',
+            done: shift.report_done,
+            hint: shift.report_done ? 'Đã nộp' : shift.attendance_done ? 'Nhận xét từng học sinh' : 'Cần điểm danh trước',
+            button: shift.report_done ? 'Xem báo cáo' : shift.attendance_done ? 'Báo cáo buổi' : 'Cần điểm danh trước',
+            disabled: !shift.report_done && !shift.attendance_done,
+        });
+    }
+    const next = list.find((s) => !s.done && !s.disabled);
+    return list.map((s) => ({ ...s, primary: s === next }));
+}
+
+const stepBox = (s) => (s.primary ? 'border-[#ffdbcd] bg-[#fffaf7]' : 'border-outline-variant bg-surface-container-lowest');
+const stepDot = (s) => (s.done ? 'bg-tertiary text-on-tertiary' : s.primary ? 'bg-primary-container text-on-primary' : 'bg-surface-container-high text-on-surface-variant');
+
+const checkedInCount = computed(() => props.shifts.filter((s) => s.checked_in).length);
+const attendanceCount = computed(() => props.shifts.filter((s) => s.attendance_done).length);
+const visiblePending = computed(() => (showAllPending.value ? props.pendingSessions : props.pendingSessions.slice(0, PENDING_PREVIEW)));
+
+/** Trạng thái một buổi trong lịch tuần. */
+function weekState(s) {
+    if (s.cancelled) return { label: 'Đã hủy', cls: 'text-on-surface-variant', border: 'border-outline-variant' };
+    if (s.done) return { label: 'Đã điểm danh', cls: 'text-tertiary', border: 'border-tertiary/30' };
+    if (s.is_today) return { label: 'Hôm nay', cls: 'text-primary', border: 'border-[#ffdbcd]' };
+    if (s.can_take) return { label: 'Chưa điểm danh', cls: 'text-error', border: 'border-error-container' };
+    return { label: 'Sắp tới', cls: 'text-on-surface-variant', border: 'border-outline-variant' };
+}
+
+const chip = 'inline-flex h-9 items-center gap-xs rounded-full border px-sm text-[13px] font-semibold text-on-surface hover:bg-surface-container-low';
 </script>
 
 <template>
-    <div class="mx-auto max-w-6xl space-y-lg pb-24 md:pb-0">
-        <UiPageHeader title="Tổng quan hôm nay">
-            <template #meta>
-                Xin chào <span class="font-semibold text-on-surface">{{ teacherName }}</span> · {{ can('portal.teacher') ? 'Giáo viên' : 'Trợ giảng' }}
-                <template v-if="can('portal.teacher')">
-                    · <Link :href="route('teacher.trial-guests')" class="font-semibold text-primary hover:underline">Khách học thử</Link>
-                </template>
-            </template>
-            <template #actions>
-                <UiAvatar :name="teacherName" />
-            </template>
-        </UiPageHeader>
-
-        <!-- ─── Lịch dạy hôm nay ─── -->
-        <section :class="card">
-            <div class="mb-md flex flex-col justify-between gap-md md:flex-row md:items-center">
-                <div>
-                    <h2 class="font-h3 text-h3 text-on-surface">Lịch dạy hôm nay — {{ todayLabel }}</h2>
-                    <p class="font-body-base text-body-base text-on-surface-variant">
-                        <template v-if="stats.total > 0">Bạn có {{ stats.total }} ca dạy trong ngày hôm nay · đã check-in {{ stats.checked_in }} · đã điểm danh {{ stats.attendance_done }}.</template>
-                        <template v-else>Hôm nay bạn không có buổi dạy nào trên lịch.</template>
-                    </p>
-                </div>
-                <div v-if="nextShift" class="flex items-center gap-md rounded-lg border border-primary-container/20 bg-primary-container/10 p-md" data-testid="next-shift-banner">
-                    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">warning</span>
-                    <div class="flex-1">
-                        <p class="font-body-medium text-body-medium text-on-primary-container">Ca dạy lúc {{ nextShift.start_time }} {{ nextShift.upcoming ? 'sắp bắt đầu!' : 'đang diễn ra!' }}</p>
-                        <p class="font-caption text-caption text-on-primary-container/80">Vui lòng hoàn thành thủ tục điểm danh tại lớp học.</p>
-                    </div>
-                    <UiButton size="sm" :href="route('teacher.attendance', { classId: nextShift.class_id, session: nextShift.session_id })">Điểm danh ngay</UiButton>
-                </div>
+    <div class="mx-auto max-w-6xl space-y-md pb-24 md:pb-0">
+        <!-- Đầu trang: chào + việc tồn dạng chip -->
+        <header class="flex flex-wrap items-end justify-between gap-sm">
+            <div>
+                <h1 class="text-2xl font-bold leading-8 text-on-surface">{{ todayLabel }}</h1>
+                <p class="font-body-small text-body-small text-on-surface-variant">
+                    Chào <span class="font-semibold text-on-surface">{{ teacherName }}</span> ·
+                    <template v-if="stats.total > 0">hôm nay bạn có {{ stats.total }} ca dạy</template>
+                    <template v-else>hôm nay bạn không có ca dạy nào</template>
+                </p>
             </div>
+            <nav aria-label="Việc cần làm" class="flex flex-wrap gap-xs" data-testid="teacher-todo">
+                <a v-if="pendingSessions.length" href="#diem-danh-bu" :class="[chip, 'border-error-container bg-[#fff8f7]']">
+                    Chưa điểm danh <b class="rounded-full bg-error-container px-[7px] text-xs leading-5 text-on-error-container">{{ pendingSessions.length }}</b>
+                </a>
+                <Link v-if="todo.reports_pending && todo.report_url" :href="todo.report_url" :class="[chip, 'border-error-container bg-[#fff8f7]']">
+                    Báo cáo buổi chưa nộp <b class="rounded-full bg-error-container px-[7px] text-xs leading-5 text-on-error-container">{{ todo.reports_pending }}</b>
+                </Link>
+                <Link v-if="can('homework.grade')" :href="route('portal.teacher.submissions')" :class="[chip, 'border-outline-variant bg-surface-container-lowest']">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">grading</span>Chấm bài nộp
+                </Link>
+            </nav>
+        </header>
 
-            <UiForm v-if="shifts.length" :action="route('teacher.checkin')" method="post" class="space-y-md">
-                <div class="grid grid-cols-1 gap-md md:grid-cols-2">
-                    <div v-for="shift in shifts" :key="shift.session_id" :class="['rounded-lg border bg-surface-container-low p-md', shift.checked_in ? 'border-tertiary/40' : 'border-outline-variant']">
-                        <div class="flex items-start gap-md">
-                            <input
-                                v-if="!shift.checked_in && !checkinState(shift)?.expired"
-                                type="checkbox"
-                                name="session_ids[]"
-                                :value="shift.session_id"
-                                :aria-label="`Chọn ca ${shift.class_name ?? ''} để check-in`"
-                                class="mt-sm h-5 w-5 rounded border-outline-variant text-primary-container focus:ring-primary-container/40"
-                            />
-                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-container/10 text-primary-container">
-                                <span class="material-symbols-outlined" aria-hidden="true">{{ shift.checked_in ? 'check_circle' : 'schedule' }}</span>
-                            </span>
-                            <div class="min-w-0 flex-1">
-                                <p class="flex flex-wrap items-center gap-xs font-body-medium text-body-medium font-semibold text-on-surface">
-                                    {{ shift.class_name }}
-                                    <UiBadge v-if="shift.type_label" color="info">{{ shift.type_label }}</UiBadge>
-                                    <UiBadge v-if="!shift.is_today" color="warning">Ca ngày {{ shift.date_label }}</UiBadge>
-                                </p>
-                                <p class="font-body-small text-body-small text-on-surface-variant">
-                                    <template v-if="shift.shift_name">{{ shift.shift_name }} · </template>{{ shift.scheduled_time }} • {{ shift.room_label ?? 'Chưa có phòng' }}, {{ shift.branch_name ?? 'Chưa gán chi nhánh' }}
-                                </p>
-                                <p class="font-caption text-caption text-on-surface-variant">
-                                    {{ shift.class_code }} · {{ shift.student_count }} HV
-                                    <template v-if="shift.trial_count"> · <span class="font-semibold text-secondary">+{{ shift.trial_count }} khách học thử</span></template>
-                                    <template v-if="shift.support_student"> · {{ shift.support_student }}</template>
-                                    <template v-if="shift.checked_in"> · <span class="font-semibold text-tertiary">Đã check-in {{ shift.checkin_time }}</span></template>
-                                </p>
-                                <!-- Hạn check-in = giờ bắt đầu + 24h; còn dưới 15 phút → cảnh báo; quá hạn → liên hệ Học vụ. -->
-                                <p v-if="checkinState(shift)?.expired" class="mt-xs font-caption text-caption font-semibold text-error" data-testid="checkin-expired">
-                                    Quá hạn chấm công — liên hệ Học vụ
-                                </p>
-                                <p v-else-if="checkinState(shift)" :class="['mt-xs font-caption text-caption', checkinState(shift).warning ? 'font-semibold text-error' : 'text-on-surface-variant']" data-testid="checkin-deadline">
-                                    <template v-if="checkinState(shift).warning">Còn dưới 15 phút để chấm công · </template>
-                                    Hạn chấm công {{ shift.checkin.deadline }} (còn {{ countdown(checkinState(shift).left) }})
-                                </p>
-                            </div>
+        <div class="grid grid-cols-1 items-start gap-md lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
+            <!-- Cột trái: việc của ngày -->
+            <div class="min-w-0 space-y-md">
+                <!-- Ca dạy hôm nay: mỗi ca một thẻ, 3 bước làm ngay trên thẻ -->
+                <section aria-labelledby="ca-hom-nay" :class="card" data-testid="today-shifts">
+                    <div class="flex flex-wrap items-center justify-between gap-xs border-b border-surface-container px-md py-sm md:px-lg">
+                        <h2 id="ca-hom-nay" class="text-base font-bold text-on-surface">Ca dạy hôm nay</h2>
+                        <span v-if="shifts.length" class="text-[13px] text-on-surface-variant">Check-in {{ checkedInCount }}/{{ shifts.length }} · Điểm danh {{ attendanceCount }}/{{ shifts.length }}</span>
+                    </div>
+
+                    <article v-for="shift in shifts" :key="shift.session_id" class="flex flex-col gap-md border-t border-surface-container px-md py-md first-of-type:border-t-0 sm:flex-row md:px-lg" :data-shift="shift.session_id">
+                        <!-- Khối giờ -->
+                        <div class="flex shrink-0 items-center gap-sm self-start rounded-[10px] bg-[#fff3eb] px-sm py-xs text-center sm:w-[92px] sm:flex-col sm:gap-0 sm:py-sm">
+                            <div class="text-xl font-bold text-primary">{{ shift.start_time }}</div>
+                            <div class="text-xs text-on-surface-variant">đến {{ shift.end_time }}</div>
+                            <div v-if="shift.shift_name" class="text-[11px] font-semibold text-primary sm:mt-[6px]">{{ shift.shift_name }}</div>
                         </div>
-                        <div class="mt-md flex flex-wrap gap-xs border-t border-outline-variant/60 pt-sm">
-                            <UiButton size="sm" :variant="shift.attendance_done ? 'ghost' : 'secondary'" icon="fact_check" :href="route('teacher.attendance', { classId: shift.class_id, session: shift.session_id })">{{ shift.attendance_done ? 'Đã điểm danh' : 'Điểm danh' }}</UiButton>
-                            <UiButton v-if="shift.syllabus_url" size="sm" variant="secondary" icon="menu_book" :href="shift.syllabus_url">Mở giáo trình</UiButton>
-                            <template v-if="!shift.is_support">
-                                <!-- Nhận xét từng học sinh nhập trong Báo cáo buổi học (bỏ màn Nhận xét riêng, chủ dự án 27/10/2026). -->
-                                <UiButton v-if="shift.can_teach" size="sm" variant="secondary" icon="rate_review" :href="route('classes.session-report', { id: shift.class_id, session: shift.session_id })">Báo cáo buổi</UiButton>
-                                <UiButton size="sm" variant="secondary" icon="co_present" :href="route('teacher.lesson-today', { class: shift.class_id })">Bài giảng</UiButton>
-                                <!-- Trợ giảng của ca chỉ điểm danh (chủ dự án 26/10/2026). -->
-                                <template v-if="shift.can_teach">
-                                    <UiButton size="sm" variant="secondary" icon="assignment" :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })">Giao bài</UiButton>
-                                    <UiButton size="sm" variant="secondary" icon="grading" :href="route('teacher.scores', shift.class_id)">Nhập điểm</UiButton>
+
+                        <div class="flex min-w-0 flex-1 flex-col gap-sm">
+                            <div class="flex flex-wrap items-start justify-between gap-xs">
+                                <div class="min-w-0">
+                                    <Link :href="route('classes.show', shift.class_id)" class="text-base font-bold text-on-surface hover:underline">{{ shift.class_name }}</Link>
+                                    <UiBadge v-if="shift.type_label" color="info" class="ml-xs">{{ shift.type_label }}</UiBadge>
+                                    <p class="mt-[2px] font-body-small text-body-small text-on-surface-variant">
+                                        {{ shift.room_label ?? 'Chưa có phòng' }}, {{ shift.branch_name ?? 'Chưa gán chi nhánh' }} · {{ shift.student_count }} HV
+                                        <template v-if="shift.support_student"> · {{ shift.support_student }}</template>
+                                        <template v-if="shift.trial_count && can('portal.teacher')"> · <Link :href="route('teacher.trial-guests')" class="font-semibold text-primary hover:underline">+{{ shift.trial_count }} khách học thử</Link></template>
+                                    </p>
+                                </div>
+                                <span :class="['inline-flex items-center gap-[6px] whitespace-nowrap rounded-full px-[10px] py-[3px] text-xs font-semibold', pillTone[timeStatus(shift).tone]]">
+                                    <span class="h-[6px] w-[6px] rounded-full bg-current" aria-hidden="true"></span>{{ timeStatus(shift).label }}
+                                </span>
+                            </div>
+
+                            <!-- 3 bước của ca -->
+                            <ol class="grid grid-cols-1 gap-xs sm:grid-cols-3">
+                                <li v-for="(step, i) in steps(shift)" :key="step.key" :class="['flex flex-col gap-[2px] rounded-[10px] border px-sm py-[10px]', stepBox(step)]" :data-step="step.key">
+                                    <div class="flex items-center gap-[6px] font-semibold text-on-surface">
+                                        <span :class="['inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold', stepDot(step)]">
+                                            <span v-if="step.done" class="material-symbols-outlined text-[14px]" aria-hidden="true">check</span>
+                                            <template v-else>{{ i + 1 }}</template>
+                                        </span>
+                                        {{ step.label }}
+                                    </div>
+                                    <div :class="['text-xs', step.hint?.includes('Học vụ') ? 'font-semibold text-error' : checkinState(shift)?.warning && step.key === 'checkin' ? 'font-semibold text-error' : 'text-on-surface-variant']">
+                                        {{ step.hint }}<template v-if="step.key === 'checkin' && checkinState(shift) && !checkinState(shift).expired"> (còn {{ countdown(checkinState(shift).left) }})</template>
+                                    </div>
+                                    <UiButton
+                                        v-if="step.key === 'checkin'"
+                                        size="sm"
+                                        class="mt-[6px]"
+                                        :variant="step.primary ? 'primary' : 'secondary'"
+                                        :href="step.disabled ? null : route('teacher.checkin')"
+                                        :method="step.disabled ? null : 'post'"
+                                        :data="{ session_ids: [shift.session_id] }"
+                                        preserve-scroll
+                                        :disabled="step.disabled"
+                                    >{{ step.button }}</UiButton>
+                                    <UiButton
+                                        v-else-if="step.key === 'attendance'"
+                                        size="sm"
+                                        class="mt-[6px]"
+                                        :variant="step.primary ? 'primary' : 'secondary'"
+                                        :href="step.disabled ? null : attendanceUrl(shift.class_id, shift.session_id)"
+                                        :modal="step.disabled ? false : 'drawer'"
+                                        :disabled="step.disabled"
+                                    >{{ step.button }}</UiButton>
+                                    <UiButton
+                                        v-else
+                                        size="sm"
+                                        class="mt-[6px]"
+                                        :variant="step.primary ? 'primary' : 'secondary'"
+                                        :href="step.disabled ? null : route('classes.session-report', { id: shift.class_id, session: shift.session_id })"
+                                        :disabled="step.disabled"
+                                    >{{ step.button }}</UiButton>
+                                </li>
+                            </ol>
+
+                            <!-- Lối tắt phụ -->
+                            <div class="flex flex-wrap items-center gap-x-md gap-y-[4px] text-[13px]">
+                                <template v-if="!shift.is_support">
+                                    <Link :href="route('teacher.lesson-today', { class: shift.class_id })" class="font-semibold text-primary hover:underline">Bài giảng</Link>
                                 </template>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-                <div v-if="hasUnchecked" class="flex justify-end">
-                    <UiButton type="submit" icon="how_to_reg" class="w-full md:w-auto">Check-in các ca đã chọn</UiButton>
-                </div>
-            </UiForm>
-            <UiEmptyState v-else compact icon="event_busy" title="Không có ca dạy hôm nay" description="Lịch dạy được sinh từ TKB của các lớp bạn phụ trách." />
-        </section>
-
-        <!-- Thứ tự: việc cần làm (hôm nay, điểm danh bù) lên trước; lương/vi phạm để cuối. -->
-        <!-- ─── Buổi đã qua chưa điểm danh ─── -->
-        <section v-if="pendingSessions.length" class="overflow-hidden rounded-xl border border-error/30 bg-surface-container-lowest shadow-sm" data-testid="pending-attendance">
-            <div class="flex items-center gap-sm border-b border-error/20 bg-error-container/30 px-md py-sm">
-                <span class="material-symbols-outlined text-error" aria-hidden="true">pending_actions</span>
-                <h2 class="font-body-semibold text-body-semibold text-on-error-container">Buổi đã dạy chưa điểm danh (điểm danh bù) · {{ pendingSessions.length }}</h2>
-            </div>
-            <ul class="divide-y divide-surface-container">
-                <li v-for="(s, index) in pendingSessions" v-show="index < 3 || showAllPending" :key="s.id" class="flex flex-col justify-between gap-sm px-md py-sm font-body-small text-body-small sm:flex-row sm:items-center">
-                    <div>
-                        <span class="font-semibold text-on-surface">{{ s.class_name }}</span>
-                        <span class="text-on-surface-variant"> · {{ s.date }} · {{ s.time }}</span>
-                        <UiBadge v-if="s.type_label" color="info">{{ s.type_label }}</UiBadge>
-                    </div>
-                    <UiButton size="sm" variant="secondary" icon="fact_check" :href="route('teacher.attendance', { classId: s.class_id, session: s.id })">Điểm danh bù</UiButton>
-                </li>
-            </ul>
-            <button v-if="pendingSessions.length > 3 && !showAllPending" type="button" class="w-full border-t border-surface-container px-md py-sm text-left font-body-small text-body-small font-semibold text-primary hover:underline" @click="showAllPending = true">
-                Xem tất cả {{ pendingSessions.length }} buổi
-            </button>
-        </section>
-
-        <!-- ─── Lịch dạy tuần ─── -->
-        <section class="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm">
-            <div class="flex flex-col justify-between gap-sm border-b border-surface-container px-md py-sm sm:flex-row sm:items-center">
-                <h2 class="flex items-center gap-xs font-body-semibold text-body-semibold text-on-surface">
-                    <span class="material-symbols-outlined text-primary-container" aria-hidden="true">calendar_view_week</span>
-                    Lịch dạy tuần {{ week.label }}
-                </h2>
-                <div class="flex items-center gap-xs">
-                    <UiButton size="sm" variant="secondary" icon="chevron_left" :href="route('teacher.home', { week: week.prev })">Tuần trước</UiButton>
-                    <UiButton size="sm" variant="ghost" :href="route('teacher.home')">Tuần này</UiButton>
-                    <UiButton size="sm" variant="secondary" :href="route('teacher.home', { week: week.next })">Tuần sau <span class="material-symbols-outlined text-[16px]" aria-hidden="true">chevron_right</span></UiButton>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 divide-y divide-surface-container md:grid-cols-7 md:divide-x md:divide-y-0">
-                <div v-for="day in weekDays" :key="day.label" :class="['min-h-[90px] p-sm', day.is_today ? 'bg-primary-container/5' : '']">
-                    <div :class="['font-label-caps text-label-caps uppercase', day.is_today ? 'text-primary' : 'text-on-surface-variant']">{{ day.label }}</div>
-                    <div class="mt-sm space-y-xs">
-                        <div
-                            v-for="s in day.sessions"
-                            :key="s.id"
-                            :class="['rounded-lg border px-sm py-xs text-xs', s.cancelled ? 'border-outline-variant bg-surface-container-low text-on-surface-variant line-through' : s.done ? 'border-tertiary/30 bg-tertiary-fixed/20' : 'border-outline-variant']"
-                        >
-                            <div class="font-semibold text-on-surface">{{ s.time }}</div>
-                            <div class="truncate">{{ s.class_name }}</div>
-                            <div class="text-on-surface-variant">
-                                {{ s.room }}
-                                <template v-if="s.type_label"> · {{ s.type_label }}</template>
-                                <template v-if="s.cancelled"> · Đã hủy</template>
+                                <a v-if="shift.syllabus_url" :href="shift.syllabus_url" class="font-semibold text-primary hover:underline">Mở giáo trình</a>
+                                <template v-if="shift.can_teach && !shift.is_support">
+                                    <a :href="route('teacher.homework', { classId: shift.class_id, session: shift.session_id })" class="font-semibold text-primary hover:underline" @click.prevent="openDrawer(route('teacher.homework', { classId: shift.class_id, session: shift.session_id }))">Giao bài</a>
+                                    <Link :href="route('teacher.scores', shift.class_id)" class="font-semibold text-primary hover:underline">Nhập điểm</Link>
+                                </template>
                             </div>
-                            <div v-if="s.checkin_overdue" class="font-semibold text-error">Quá hạn chấm công — liên hệ Học vụ</div>
-                            <Link v-if="s.can_take" :href="route('teacher.attendance', { classId: s.class_id, session: s.id })" :class="['mt-xs inline-block font-semibold hover:underline', s.done ? 'text-tertiary' : 'text-primary']">
-                                {{ s.done ? 'Đã điểm danh' : 'Điểm danh' }}
+                        </div>
+                    </article>
+
+                    <UiEmptyState v-if="!shifts.length" compact icon="event_busy" title="Không có ca dạy hôm nay" description="Lịch dạy được sinh từ TKB của các lớp bạn phụ trách." />
+                </section>
+
+                <!-- Buổi đã dạy chưa điểm danh: trong khung tự điểm danh bù, quá khung liên hệ Học vụ -->
+                <section v-if="pendingSessions.length" id="diem-danh-bu" aria-labelledby="diem-danh-bu-title" class="scroll-mt-md overflow-hidden rounded-xl border border-error-container bg-surface-container-lowest" data-testid="pending-attendance">
+                    <div class="flex flex-wrap items-center justify-between gap-xs border-b border-error-container bg-[#fff8f7] px-md py-sm md:px-lg">
+                        <h2 id="diem-danh-bu-title" class="text-base font-bold text-on-error-container">Buổi đã dạy chưa điểm danh · {{ pendingSessions.length }}</h2>
+                        <span class="text-[13px] text-on-surface-variant">Trong {{ attendanceWindowHours }}h bạn tự điểm danh bù; quá hạn thì báo Học vụ.</span>
+                    </div>
+                    <ul class="divide-y divide-[#f3e4e1]">
+                        <li v-for="s in visiblePending" :key="s.id" class="flex items-center gap-sm px-md py-[10px] md:px-lg">
+                            <div class="w-12 shrink-0">
+                                <div class="text-[11px] font-semibold text-on-surface-variant">{{ s.dow }}</div>
+                                <div class="font-bold text-on-surface">{{ s.day }}</div>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="truncate font-semibold text-on-surface">{{ s.class_name }}</div>
+                                <div class="text-xs text-on-surface-variant">{{ s.time }}<template v-if="s.type_label"> · {{ s.type_label }}</template></div>
+                            </div>
+                            <span :class="['hidden whitespace-nowrap rounded-full px-[10px] py-[2px] text-xs font-semibold sm:inline-block', s.open ? 'bg-[#fef3c7] text-[#78350f]' : 'bg-error-container text-on-error-container']">
+                                {{ s.open ? `Còn ${s.hours_left} giờ` : `Quá ${attendanceWindowHours}h` }}
+                            </span>
+                            <UiButton size="sm" :variant="s.open ? 'primary' : 'secondary'" :href="attendanceUrl(s.class_id, s.id)" modal="drawer">
+                                {{ s.open ? 'Điểm danh bù' : 'Xem buổi' }}
+                            </UiButton>
+                        </li>
+                    </ul>
+                    <button v-if="pendingSessions.length > PENDING_PREVIEW && !showAllPending" type="button" class="w-full border-t border-[#f3e4e1] px-md py-[10px] text-left text-[13px] font-semibold text-primary hover:underline md:px-lg" @click="showAllPending = true">
+                        Xem tất cả {{ pendingSessions.length }} buổi
+                    </button>
+                </section>
+
+                <!-- Lịch dạy tuần -->
+                <section aria-labelledby="lich-tuan" :class="[card, 'overflow-hidden']">
+                    <div class="flex flex-wrap items-center justify-between gap-xs border-b border-surface-container px-md py-sm md:px-lg">
+                        <h2 id="lich-tuan" class="text-base font-bold text-on-surface">Lịch dạy tuần {{ week.label }}</h2>
+                        <div class="inline-flex gap-[2px] rounded-[10px] bg-[#f1f3ff] p-[3px]">
+                            <Link :href="route('teacher.home', { week: week.prev })" preserve-scroll aria-label="Tuần trước" class="inline-flex h-8 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-lowest">
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_left</span>
+                            </Link>
+                            <Link :href="route('teacher.home')" preserve-scroll :class="['inline-flex h-8 items-center rounded-lg px-sm text-[13px] font-semibold', week.is_current ? 'bg-surface-container-lowest text-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-lowest']">Tuần này</Link>
+                            <Link :href="route('teacher.home', { week: week.next })" preserve-scroll aria-label="Tuần sau" class="inline-flex h-8 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-lowest">
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_right</span>
                             </Link>
                         </div>
-                        <div v-if="!day.sessions.length" class="text-xs text-outline-variant">—</div>
                     </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ─── Thẻ tổng quan ─── -->
-        <div class="grid grid-cols-1 gap-lg md:grid-cols-2">
-            <div :class="[card, 'flex flex-col']" data-testid="widget-attention">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Học sinh cần chú ý</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">priority_high</span>
-                </div>
-                <div class="flex-1 space-y-sm">
-                    <div v-for="score in widgets.attention" :key="score.id" class="rounded border border-error-container/60 bg-error-container/20 p-sm">
-                        <p class="font-body-medium text-body-medium text-on-surface">{{ score.student_name }}</p>
-                        <p class="font-caption text-caption text-on-surface-variant">
-                            {{ score.class_name }} • {{ score.name }} • Điểm: <span class="font-bold text-error">{{ score.score }}</span>
-                        </p>
+                    <div class="grid grid-cols-1 divide-y divide-surface-container md:grid-cols-7 md:divide-x md:divide-y-0">
+                        <div v-for="day in weekDays" :key="day.label" :class="['min-h-[60px] px-xs py-[10px] md:min-h-[120px]', day.is_today ? 'bg-[#fffaf7]' : '']">
+                            <div :class="['text-xs font-bold', day.is_today ? 'text-primary' : 'text-on-surface-variant']">{{ day.label }}</div>
+                            <component
+                                :is="s.can_take ? 'a' : 'div'"
+                                v-for="s in day.sessions"
+                                :key="s.id"
+                                :href="s.can_take ? attendanceUrl(s.class_id, s.id) : undefined"
+                                :class="['mt-[6px] block rounded-lg border bg-surface-container-lowest px-xs py-[6px] text-xs', weekState(s).border, s.can_take ? 'hover:bg-surface-container-low' : '', s.cancelled ? 'line-through' : '']"
+                                @click="s.can_take && ($event.preventDefault(), openDrawer(attendanceUrl(s.class_id, s.id)))"
+                            >
+                                <span class="block font-bold text-on-surface">{{ s.time }}</span>
+                                <span class="block truncate text-on-surface-variant">{{ s.class_name }}</span>
+                                <span v-if="s.type_label" class="block text-on-surface-variant">{{ s.type_label }}</span>
+                                <span :class="['mt-[2px] block font-semibold', weekState(s).cls]">{{ weekState(s).label }}</span>
+                                <span v-if="s.checkin_overdue" class="block font-semibold text-error">Quá hạn chấm công</span>
+                            </component>
+                        </div>
                     </div>
-                    <p v-if="!widgets.attention.length" class="font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
-                    <p class="font-caption text-caption italic text-on-surface-variant">* Danh sách học sinh có kết quả Mini Test dưới mục tiêu (dưới 7/10).</p>
-                </div>
+                </section>
             </div>
 
-            <div :class="[card, 'flex flex-col']" data-testid="widget-salary">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Lương tạm tính tháng {{ widgets.month }}</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">payments</span>
-                </div>
-                <div class="flex flex-1 flex-col justify-center">
-                    <template v-if="widgets.estimate !== null">
-                        <p class="text-[28px] font-bold leading-9 text-primary">{{ formatMoney(widgets.estimate) }}</p>
-                        <p class="font-caption text-caption text-on-surface-variant">Tính đến ngày {{ widgets.today_dm }} · {{ widgets.hours_label }} giờ dạy × đơn giá (chưa gồm phụ cấp, KPI, khấu trừ)</p>
-                    </template>
-                    <template v-else>
-                        <p class="text-[28px] font-bold leading-9 text-primary">{{ widgets.hours_label }} giờ</p>
-                        <p class="font-caption text-caption text-on-surface-variant">Giờ dạy đã chấm công tính đến ngày {{ widgets.today_dm }} — chưa có đơn giá riêng để tạm tính lương.</p>
-                    </template>
-                </div>
-                <UiButton variant="secondary" class="mt-md w-full" :href="route('portal.my-salary')">Chi tiết</UiButton>
-            </div>
-
-            <div :class="[card, 'flex flex-col']" data-testid="widget-timesheet">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Báo cáo chấm công</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">assignment_turned_in</span>
-                </div>
-                <p class="flex-1 font-body-base text-body-base text-on-surface-variant">
-                    Kỳ lương {{ widgets.period }}: {{ widgets.timesheets_total }} ca đã chấm công, {{ widgets.timesheets_pending }} ca chờ Học vụ duyệt.
-                    Vui lòng kiểm tra giờ dạy trước 23:59 ngày {{ widgets.month_end_dm }}.
-                </p>
-                <UiButton class="mt-md w-full" :href="route('teacher.general-report')">Xem bảng công</UiButton>
-            </div>
-
-            <div :class="[card, 'flex flex-col']" data-testid="widget-violations">
-                <div class="mb-md flex items-center justify-between">
-                    <h3 class="font-h3 text-h3 text-on-surface">Vi phạm &amp; Khoản trừ</h3>
-                    <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">gavel</span>
-                </div>
-                <div class="flex flex-1 items-center gap-md">
-                    <div :class="['flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4', widgets.violations_count ? 'border-error text-error' : 'border-tertiary text-tertiary']">
-                        <span class="font-bold">{{ widgets.violations_count }}</span>
-                    </div>
-                    <div>
-                        <p v-if="!widgets.violations_count" class="font-body-medium text-body-medium text-on-surface">Không có vi phạm trong tháng</p>
-                        <template v-else>
-                            <p class="font-body-medium text-body-medium text-on-surface">{{ widgets.violations_count }} lỗi vi phạm trong tháng</p>
-                            <p class="font-caption text-caption text-on-surface-variant">{{ widgets.latest_violation.violation_type }} — {{ widgets.latest_violation.date }} · {{ widgets.latest_violation.status_label }}</p>
-                        </template>
-                    </div>
-                </div>
-                <UiButton variant="secondary" class="mt-md w-full" :href="route('penalties.index')">Xem biên bản</UiButton>
-            </div>
+            <!-- Cột phải: học sinh cần chú ý -->
+            <aside class="min-w-0">
+                <section aria-labelledby="chu-y" :class="[card, 'px-md py-md md:px-lg']" data-testid="widget-attention">
+                    <h2 id="chu-y" class="text-base font-bold text-on-surface">Học sinh cần chú ý</h2>
+                    <p class="mb-[6px] mt-[2px] text-xs text-on-surface-variant">Mini Test dưới 7/10 trong 30 ngày</p>
+                    <ul>
+                        <li v-for="score in attention" :key="score.id" class="flex justify-between gap-sm border-t border-surface-container py-[9px]">
+                            <span class="min-w-0">
+                                <span class="block font-semibold text-on-surface">{{ score.student_name }}</span>
+                                <span class="block text-xs text-on-surface-variant">{{ score.class_name }} · {{ score.name }}</span>
+                            </span>
+                            <b class="whitespace-nowrap text-error">{{ score.score }}</b>
+                        </li>
+                    </ul>
+                    <p v-if="!attention.length" class="border-t border-surface-container pt-sm font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
+                </section>
+            </aside>
         </div>
     </div>
 

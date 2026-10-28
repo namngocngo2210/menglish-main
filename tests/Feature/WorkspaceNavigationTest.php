@@ -48,7 +48,8 @@ class WorkspaceNavigationTest extends TestCase
         'system-config.debt-reminders', 'tuition.config', 'system-config.bank-accounts', 'system-config.ticket-emails',
         'roles.index', 'permissions.index', 'activity-logs.index', 'reports.all', 'system-config.hosting',
         'reports.my', 'portal.my-salary',
-        'teacher.home', 'portal.teacher.submissions', 'teacher.trial-guests', 'portal.ta-tasks',
+        // Chấm bài nộp, Khách học thử mở từ Lịch dạy hôm nay / Trang lớp, không còn tab riêng (chủ dự án 28/10/2026).
+        'teacher.home', 'portal.ta-tasks',
         'portal.student.home', 'portal.student.homework', 'portal.student.pronunciation', 'portal.student.notifications',
         // portal.app-shell (lưới nút trùng menu "Học tập") bỏ khỏi menu 27/10/2026: mở từ avatar trên đầu trang học viên.
         'portal.student.survey', 'portal.student.feedback',
