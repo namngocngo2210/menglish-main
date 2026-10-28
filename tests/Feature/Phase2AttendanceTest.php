@@ -738,6 +738,26 @@ class Phase2AttendanceTest extends TestCase
         $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id), ['completion_note' => 'x'])->assertStatus(422);
     }
 
+    public function test_assigned_support_session_shows_on_assistant_task_portal(): void
+    {
+        $assistant = $this->makeUser('assistant');
+        $support = $this->scheduleSupportForAbsence($assistant);
+
+        $this->actingAs($assistant)->get(route('portal.ta-tasks'))
+            ->assertOk()
+            ->assertSee('Buổi bổ trợ được giao')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('supportSessions.0.id', $support->id)
+                ->where('supportSessions.0.student', $this->student->name)
+                ->where('supportSessions.0.when', 'today')
+                ->where('supportSessions.0.missed.label', fn ($label) => str_contains($label, '06/10/2026')));
+
+        // Hoàn thành rồi thì không còn trong danh sách nhiệm vụ.
+        $this->actingAs($assistant)->post(route('tasks.support-sessions.complete', $support->id), ['completion_note' => 'Đã nắm bài'])->assertSessionHasNoErrors();
+        $this->actingAs($assistant)->get(route('portal.ta-tasks'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('supportSessions', []));
+    }
+
     public function test_rejected_absence_does_not_create_support_row(): void
     {
         $session = $this->makeSession('2026-10-06');

@@ -826,13 +826,24 @@ class WorkTaskController extends Controller
                 ->orderBy('due_date')->orderBy('due_time')->limit(5)->get();
             // Trợ giảng không cố định theo lớp: buổi trong ngày = buổi được gán (dữ liệu cũ) + buổi của các lớp có việc giao hôm nay.
             $taskClassIds = $tasks->pluck('class_id')->filter()->unique()->values()->all();
-            $sessions = ClassSession::with(['classModel:id,name,code', 'branch:id,name'])
+            $sessions = ClassSession::with(['classModel:id,name,code', 'branch:id,name', 'supportSession.student:id,name'])
                 ->where(fn ($q) => $q->forStaff($taUser->id)->orWhereIn('class_id', $taskClassIds))
                 ->whereDate('date', $date->toDateString())
                 ->where('status', '!=', 'cancelled')
                 ->orderBy('start_time')
                 ->get();
         }
+
+        // Buổi bổ trợ được giao cho trợ giảng (chưa hoàn thành, mọi ngày): hiện như nhiệm vụ, kèm nội dung + tài liệu buổi vắng.
+        $supports = $taUser
+            ? SupportSession::with(['student:id,name', 'classModel:id,name,code'])
+                ->where('teacher_id', $taUser->id)->where('status', 'scheduled')
+                ->orderBy('session_date')->orderBy('start_time')->limit(20)->get()
+            : collect();
+        $supportMissed = $supports->isNotEmpty()
+            ? app(MissedLessonService::class)->forSessions(ClassSession::whereIn('id', $supports->pluck('missed_class_session_id')->filter()->unique())->get())
+            : [];
+        $supportDocs = $this->missedLessonDocuments(collect($supportMissed), $viewer);
 
         $beforeTasks = $tasks->where('time_slot_category', 'before');
         $duringTasks = $tasks->where('time_slot_category', 'during');
@@ -893,6 +904,18 @@ class WorkTaskController extends Controller
             'hasTasks' => $tasks->isNotEmpty(),
             'firstOpen' => $groups->first(fn ($g) => $g['tasks']->isNotEmpty())['key'] ?? 'before',
             'groups' => $groups->map(fn ($g) => [...$g, 'tasks' => $g['tasks']->map($card)->values()->all()])->all(),
+            'supportSessions' => $supports->map(fn (SupportSession $s) => [
+                'id' => $s->id,
+                'student' => $s->student?->name,
+                'class_name' => $s->classModel?->name,
+                'reason' => $s->reason,
+                'lesson_content' => $s->lesson_content,
+                'missed' => $supportDocs($supportMissed[$s->missed_class_session_id] ?? null),
+                'date' => $s->session_date->format('d/m/Y'),
+                'time' => substr((string) $s->start_time, 0, 5).' - '.substr((string) $s->end_time, 0, 5),
+                'room' => $s->room,
+                'when' => $s->session_date->isToday() ? 'today' : ($s->session_date->isPast() ? 'past' : 'upcoming'),
+            ])->values()->all(),
             'sessions' => $sessions->map(fn (ClassSession $s) => [
                 'id' => $s->id,
                 'class_name' => $s->classModel?->name,
@@ -902,6 +925,7 @@ class WorkTaskController extends Controller
                 'branch' => $s->branch?->name,
                 'makeup' => $s->type === ClassSession::TYPE_MAKEUP,
                 'support' => $s->type === ClassSession::TYPE_SUPPORT,
+                'support_student' => $s->type === ClassSession::TYPE_SUPPORT ? $s->supportSession?->student?->name : null,
             ])->values()->all(),
         ]);
     }
@@ -2292,26 +2316,7 @@ class WorkTaskController extends Controller
             ClassSession::whereIn('id', collect($sessions->items())->pluck('missed_class_session_id')->filter()->unique())->get()
         );
 
-        // Tài liệu của buổi vắng (Kho syllabus, tài liệu buổi): người xem Kho thấy hết; GV / TA theo cờ đối tượng + lớp mình
-        // dạy hoặc buổi bổ trợ được giao cho mình (SyllabusDocument::grantedBySupport).
-        $lessonIds = collect($pendingLessons)->merge($missedSessions)->pluck('lesson_id')->filter()->unique()->values();
-        $documents = $lessonIds->isEmpty() ? collect()
-            : SyllabusDocument::whereIn('syllabus_lesson_id', $lessonIds)->orderBy('title')->get();
-        if ($documents->isNotEmpty() && ! SyllabusDocument::userSeesAll($user)) {
-            $visibleIds = SyllabusDocument::whereIn('id', $documents->pluck('id'))->visibleTo($user)->pluck('id')->all();
-            $granted = SupportSession::missedLessonIdsFor($user);
-            $documents = $documents->filter(fn (SyllabusDocument $doc) => in_array($doc->id, $visibleIds, true)
-                || ($doc->matchesAudience($user) && in_array((int) $doc->syllabus_lesson_id, $granted, true)));
-        }
-        $documentsByLesson = $documents->groupBy('syllabus_lesson_id');
-        $withDocuments = fn (?array $missed) => $missed ? $missed + [
-            'documents' => ($documentsByLesson->get($missed['lesson_id'] ?? 0) ?? collect())->map(fn (SyllabusDocument $doc) => [
-                'id' => $doc->id,
-                'title' => $doc->title,
-                'icon' => $doc->icon,
-                'url' => route('syllabus.documents.file', $doc->id),
-            ])->values()->all(),
-        ] : null;
+        $withDocuments = $this->missedLessonDocuments(collect($pendingLessons)->merge($missedSessions), $user);
 
         $classes = ClassModel::whereIn('id', $visibleClassIds)
             ->whereNotIn('status', ['completed', 'cancelled'])
@@ -2423,6 +2428,36 @@ class WorkTaskController extends Controller
             ] : null,
             'defaultDate' => now()->addDay()->format('Y-m-d'),
         ]);
+    }
+
+    /**
+     * Gắn tài liệu buổi (Kho syllabus) vào thông tin buổi vắng (MissedLessonService). Người xem Kho thấy hết; GV / TA theo cờ
+     * đối tượng + lớp mình dạy hoặc buổi bổ trợ được giao cho mình (SyllabusDocument::grantedBySupport).
+     *
+     * @param  Collection<int, array>  $missed  các buổi vắng sẽ hiển thị (để tải tài liệu một lần)
+     * @return \Closure(?array): ?array
+     */
+    private function missedLessonDocuments(Collection $missed, User $user): \Closure
+    {
+        $lessonIds = $missed->pluck('lesson_id')->filter()->unique()->values();
+        $documents = $lessonIds->isEmpty() ? collect()
+            : SyllabusDocument::whereIn('syllabus_lesson_id', $lessonIds)->orderBy('title')->get();
+        if ($documents->isNotEmpty() && ! SyllabusDocument::userSeesAll($user)) {
+            $visibleIds = SyllabusDocument::whereIn('id', $documents->pluck('id'))->visibleTo($user)->pluck('id')->all();
+            $granted = SupportSession::missedLessonIdsFor($user);
+            $documents = $documents->filter(fn (SyllabusDocument $doc) => in_array($doc->id, $visibleIds, true)
+                || ($doc->matchesAudience($user) && in_array((int) $doc->syllabus_lesson_id, $granted, true)));
+        }
+        $documentsByLesson = $documents->groupBy('syllabus_lesson_id');
+
+        return fn (?array $item) => $item ? $item + [
+            'documents' => ($documentsByLesson->get($item['lesson_id'] ?? 0) ?? collect())->map(fn (SyllabusDocument $doc) => [
+                'id' => $doc->id,
+                'title' => $doc->title,
+                'icon' => $doc->icon,
+                'url' => route('syllabus.documents.file', $doc->id),
+            ])->values()->all(),
+        ] : null;
     }
 
     public function storeSupportSession(Request $request)
