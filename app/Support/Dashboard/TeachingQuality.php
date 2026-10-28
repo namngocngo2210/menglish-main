@@ -278,7 +278,31 @@ final class TeachingQuality
             'month' => $this->monthKey(),
             'monthLabel' => $this->monthLabel(),
             'rows' => $rows,
+            'attention' => $this->classesNeedingAttention($metrics, $names),
         ];
+    }
+
+    /**
+     * Lớp cần chú ý trong tháng (Tổng quan Học thuật, 28/10/2026): chuyên cần dưới 75%, làm bài về nhà dưới 50% hoặc điểm
+     * mini test trung bình dưới 6,5. Lớp tệ nhất (nhiều tiêu chí trượt, chuyên cần thấp) lên đầu.
+     *
+     * @param  Collection<int, array<string, mixed>>  $metrics
+     * @param  Collection<int, string>  $names  giáo viên id => tên
+     * @return list<array<string, mixed>>
+     */
+    private function classesNeedingAttention(Collection $metrics, Collection $names): array
+    {
+        return $metrics->map(function (array $class) use ($names) {
+            $reasons = array_values(array_filter([
+                $class['attendance'] !== null && $class['attendance'] < 75 ? 'Chuyên cần thấp' : null,
+                $class['homework'] !== null && $class['homework'] < 50 ? 'Ít làm bài về nhà' : null,
+                $class['score'] !== null && $class['score'] < 6.5 ? 'Điểm dưới 6,5' : null,
+            ]));
+
+            return $class + ['teacher' => $names[$class['teacher_id']] ?? null, 'reasons' => $reasons];
+        })->filter(fn (array $class) => $class['reasons'] !== [])
+            ->sortBy([fn ($a, $b) => count($b['reasons']) <=> count($a['reasons']), fn ($a, $b) => ($a['attendance'] ?? 100) <=> ($b['attendance'] ?? 100)])
+            ->take(6)->values()->all();
     }
 
     /**

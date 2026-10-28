@@ -155,8 +155,7 @@ class RoleDashboardTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('roleDashboard.type', 'admin'));
 
         $board = $this->actingAs($this->userWithRole('academic_lead', $this->branch))->get(route('dashboard'))->assertOk()
-            ->assertSee('Tổng quan học thuật')
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('roleDashboard.type', 'academic')->has('roleDashboard.myTasks'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('roleDashboard.type', 'academic')->where('overview.kind', 'academic')->has('roleDashboard.myTasks'))
             ->inertiaProps('roleDashboard');
         // Học thuật: không kèm học thử / gọi lại khách của CRM.
         $kinds = collect($board['agenda']['days'])->flatMap(fn ($day) => collect($day['items'])->pluck('kind'))->unique()->values()->all();

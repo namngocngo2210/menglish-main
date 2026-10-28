@@ -499,9 +499,10 @@ class Phase4PlatformParityTest extends TestCase
             'status' => 'open', 'creator_id' => $ta->id, 'description' => 'x']);
 
         $admin = $this->actingAs($this->admin)->get(route('dashboard'))->assertOk()
-            ->assertSee('Hàng chờ cần xử lý')
+            ->assertSee('Cần bạn xử lý')
             ->assertSee('Báo cáo trực lớp chờ xác nhận')
-            ->assertSee('Phiếu thu chờ duyệt')
+            // Hàng chờ bằng 0 (phiếu thu) không chiếm dòng trong "Cần bạn xử lý".
+            ->assertDontSee('Phiếu thu chờ duyệt')
             ->assertSee('1 ticket chưa có người xử lý');
         $queues = collect($admin->inertiaProps('roleDashboard.queues'))->pluck('value', 'label');
         $this->assertSame(3, $queues['Báo cáo trực lớp chờ xác nhận']);
@@ -513,11 +514,13 @@ class Phase4PlatformParityTest extends TestCase
         $this->assertSame(0, $managerQueues['Ticket đang mở']);
 
         $lead = $this->makeUser('academic_lead', $this->branch);
-        $this->actingAs($lead)->get(route('dashboard'))->assertOk()
-            ->assertSee('Tổng quan học thuật')
-            ->assertSee('Order đề Big Test chờ duyệt')
-            ->assertSee('Đợt Big Test có kết quả chờ duyệt')
-            ->assertSee('Đề xuất sửa giáo trình');
+        // Hàng chờ đang bằng 0 nên không hiện dòng nào; bảng vẫn đếm đủ ba nguồn của Học thuật.
+        $leadQueues = collect($this->actingAs($lead)->get(route('dashboard'))->assertOk()
+            ->assertSee('Cần bạn xử lý')
+            ->inertiaProps('roleDashboard.queues'))->pluck('label');
+        $this->assertTrue($leadQueues->contains('Order đề Big Test chờ duyệt'));
+        $this->assertTrue($leadQueues->contains('Đợt Big Test có kết quả chờ duyệt'));
+        $this->assertTrue($leadQueues->contains(fn ($label) => str_starts_with($label, 'Đề xuất sửa giáo trình')));
     }
 
     public function test_q8_report_form_lists_only_own_classes_and_roster(): void
