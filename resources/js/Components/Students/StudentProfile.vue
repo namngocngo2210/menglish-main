@@ -37,7 +37,23 @@ const props = defineProps({
     mainClass: { type: Object, default: null },
     care: { type: Object, default: null },
     tuition: { type: Object, default: null },
+    results: { type: Object, default: null },
+    feedback: { type: Object, default: null },
 });
+
+// Tab Kết quả học tập / Feedback.
+const bigTestTone = { draft: 'neutral', pending_review: 'warning', approved: 'success', sent: 'success' };
+const hasResults = computed(() => !!props.results && ['big_tests', 'mini_tests', 'homework', 'practice'].some((k) => props.results[k].length));
+const remarkFields = [
+    ['attitude', 'Tinh thần'],
+    ['result', 'Kết quả'],
+    ['hw_score', 'Điểm BTVN'],
+    ['grammar', 'Ngữ pháp / thực hành'],
+    ['monsters', 'Monsters'],
+];
+const stars = (n) => '★'.repeat(n ?? 0) + '☆'.repeat(Math.max(0, 5 - (n ?? 0)));
+const ratingTone = (n) => (n == null ? 'text-on-surface-variant' : n <= 2 ? 'text-error' : n === 3 ? 'text-warning' : 'text-tertiary');
+const scoreText = (v) => (v === null || v === undefined || v === '' ? '—' : v);
 
 const card = 'rounded-xl border border-outline-variant bg-surface-container-lowest shadow-sm';
 const sectionTitle = 'font-body-medium text-body-medium font-semibold text-on-surface';
@@ -65,6 +81,8 @@ const canReceipt = computed(() => props.canViewTuition && can('tuition.create'))
 const tabs = computed(() => [
     { key: 'overview', hash: '', label: 'Tổng quan', icon: 'dashboard' },
     ...(props.canViewAcademic ? [{ key: 'sessions', hash: '#buoi-hoc', label: 'Buổi học & điểm danh', icon: 'event_note', count: props.sessions.length }] : []),
+    ...(props.canViewAcademic && props.results ? [{ key: 'results', hash: '#ket-qua', label: 'Kết quả học tập', icon: 'school' }] : []),
+    ...(props.canViewAcademic && props.feedback ? [{ key: 'feedback', hash: '#feedback', label: 'Feedback', icon: 'forum', count: props.feedback.remarks.length + (props.feedback.parent ? props.feedback.parent.sessions.length + props.feedback.parent.stages.length : 0) || null }] : []),
     ...(props.canViewTuition ? [{ key: 'tuition', hash: '#hoc-phi', label: 'Học phí', icon: 'payments' }] : []),
     { key: 'profile', hash: '#ho-so', label: 'Hồ sơ cá nhân', icon: 'badge' },
 ]);
@@ -517,6 +535,153 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                         </li>
                     </ul>
                 </div>
+            </div>
+
+            <!-- Tab Kết quả học tập: Big Test, mini test, bài tập về nhà đã chấm, đề luyện tập -->
+            <div v-if="canViewAcademic && results" v-show="tab === 'results'" class="space-y-lg p-md lg:p-lg" data-section="results" data-tab="results">
+                <UiEmptyState v-if="!hasResults" icon="school" title="Chưa có kết quả học tập" description="Điểm Big Test, mini test, bài tập về nhà đã chấm và đề luyện tập của học viên sẽ hiện ở đây." />
+                <template v-else>
+                    <section v-if="results.big_tests.length" class="space-y-sm" data-testid="results-big-tests">
+                        <h3 :class="sectionTitle">Big Test</h3>
+                        <UiDataTable min-width="720px">
+                            <table class="font-body-small text-body-small">
+                                <thead>
+                                    <tr>
+                                        <th>Bài test</th>
+                                        <th class="text-center">Nghe</th>
+                                        <th class="text-center">Đọc</th>
+                                        <th class="text-center">Viết</th>
+                                        <th class="text-center">Nói</th>
+                                        <th class="text-center">Tổng</th>
+                                        <th>Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="bt in results.big_tests" :key="bt.id">
+                                        <td>
+                                            <span class="block font-semibold">{{ bt.title }}</span>
+                                            <span class="block text-on-surface-variant">{{ bt.date ?? '—' }}</span>
+                                            <span v-if="bt.note" class="mt-xs block text-on-surface-variant">{{ bt.note }}</span>
+                                        </td>
+                                        <template v-if="bt.is_absent">
+                                            <td colspan="5" class="text-center font-semibold text-error">Vắng thi</td>
+                                        </template>
+                                        <template v-else>
+                                            <td class="text-center font-code">{{ scoreText(bt.listening) }}</td>
+                                            <td class="text-center font-code">{{ scoreText(bt.reading) }}</td>
+                                            <td class="text-center font-code">{{ scoreText(bt.writing) }}</td>
+                                            <td class="text-center font-code">{{ scoreText(bt.speaking) }}</td>
+                                            <td class="text-center font-code font-bold text-primary">{{ scoreText(bt.overall) }}</td>
+                                        </template>
+                                        <td><UiBadge :color="bigTestTone[bt.status] ?? 'neutral'" pill>{{ bt.status_label }}</UiBadge></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </UiDataTable>
+                    </section>
+
+                    <div class="grid grid-cols-1 gap-lg lg:grid-cols-2">
+                        <section v-if="results.mini_tests.length" class="space-y-sm" data-testid="results-mini-tests">
+                            <h3 :class="sectionTitle">Mini test</h3>
+                            <ul class="divide-y divide-surface-container rounded-lg border border-outline-variant font-body-small text-body-small">
+                                <li v-for="m in results.mini_tests" :key="m.id" class="flex items-start justify-between gap-md px-md py-sm">
+                                    <span class="min-w-0">
+                                        <span class="block font-semibold text-on-surface">{{ m.name }}</span>
+                                        <span class="block text-on-surface-variant">{{ [m.date, m.class_name].filter(Boolean).join(' · ') }}</span>
+                                        <span v-if="m.skills" class="block text-on-surface-variant">{{ m.skills }}</span>
+                                        <span v-if="m.note" class="block text-on-surface-variant">{{ m.note }}</span>
+                                    </span>
+                                    <span class="shrink-0 font-code font-bold text-primary">{{ scoreText(m.score) }}<span v-if="m.max_score" class="font-normal text-on-surface-variant">/{{ m.max_score }}</span></span>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section v-if="results.practice.length" class="space-y-sm" data-testid="results-practice">
+                            <h3 :class="sectionTitle">Đề luyện tập</h3>
+                            <ul class="divide-y divide-surface-container rounded-lg border border-outline-variant font-body-small text-body-small">
+                                <li v-for="a in results.practice" :key="a.id" class="flex items-start justify-between gap-md px-md py-sm">
+                                    <span class="min-w-0">
+                                        <span class="block font-semibold text-on-surface">{{ a.title }}</span>
+                                        <span class="block text-on-surface-variant">{{ a.date ?? '—' }}<template v-if="a.total"> · đúng {{ a.correct }}/{{ a.total }} câu</template></span>
+                                    </span>
+                                    <span class="shrink-0 font-code font-bold text-primary">{{ scoreText(a.score) }}</span>
+                                </li>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <section v-if="results.homework.length" class="space-y-sm" data-testid="results-homework">
+                        <h3 :class="sectionTitle">Bài tập về nhà đã chấm <span class="font-normal text-on-surface-variant">· đã nộp {{ results.homework_submitted }} bài</span></h3>
+                        <ul class="divide-y divide-surface-container rounded-lg border border-outline-variant font-body-small text-body-small">
+                            <li v-for="h in results.homework" :key="h.id" class="flex items-start justify-between gap-md px-md py-sm">
+                                <span class="min-w-0">
+                                    <span class="block font-semibold text-on-surface">{{ h.title }}</span>
+                                    <span class="block text-on-surface-variant">{{ [h.basket, h.date].filter(Boolean).join(' · ') }}</span>
+                                    <span v-if="h.feedback" class="mt-xs block text-on-surface">“{{ h.feedback }}”</span>
+                                </span>
+                                <span class="shrink-0 font-code font-bold text-primary">{{ scoreText(h.score) }}</span>
+                            </li>
+                        </ul>
+                    </section>
+                </template>
+            </div>
+
+            <!-- Tab Feedback: nhận xét của GV theo buổi + (người có quyền) feedback phụ huynh gửi từ cổng học viên -->
+            <div v-if="canViewAcademic && feedback" v-show="tab === 'feedback'" class="grid grid-cols-1 gap-lg p-md lg:grid-cols-5 lg:p-lg" data-section="feedback" data-tab="feedback">
+                <section :class="['space-y-sm', feedback.parent ? 'lg:col-span-3' : 'lg:col-span-5']" data-testid="feedback-remarks">
+                    <h3 :class="sectionTitle">Nhận xét của giáo viên</h3>
+                    <ul v-if="feedback.remarks.length" class="space-y-sm">
+                        <li v-for="r in feedback.remarks" :key="r.session_id" class="rounded-lg border border-outline-variant p-md font-body-small text-body-small">
+                            <div class="flex flex-wrap items-baseline justify-between gap-sm">
+                                <span class="font-semibold text-on-surface">{{ r.date }} · {{ r.class_name }}</span>
+                                <span class="text-on-surface-variant">{{ r.teacher ?? '—' }}</span>
+                            </div>
+                            <p v-if="r.comment" class="mt-xs text-on-surface">{{ r.comment }}</p>
+                            <dl class="mt-xs flex flex-wrap gap-x-md gap-y-xs">
+                                <template v-for="[key, label] in remarkFields" :key="key">
+                                    <div v-if="r[key]" class="flex gap-xs">
+                                        <dt class="text-on-surface-variant">{{ label }}:</dt>
+                                        <dd class="font-medium text-on-surface">{{ r[key] }}</dd>
+                                    </div>
+                                </template>
+                            </dl>
+                        </li>
+                    </ul>
+                    <p v-else class="rounded-lg border border-dashed border-outline-variant p-md text-center font-body-small text-body-small text-on-surface-variant">Giáo viên chưa gửi nhận xét buổi học nào cho học viên.</p>
+                </section>
+
+                <section v-if="feedback.parent" class="space-y-sm lg:col-span-2" data-testid="feedback-parent">
+                    <div class="flex flex-wrap items-baseline justify-between gap-sm">
+                        <h3 :class="sectionTitle">Phụ huynh đánh giá</h3>
+                        <span v-if="feedback.parent.average !== null" class="font-body-small text-body-small text-on-surface-variant">
+                            TB <strong :class="ratingTone(Math.round(feedback.parent.average))">{{ feedback.parent.average }}★</strong>
+                            <template v-if="feedback.parent.low"> · <strong class="text-error">{{ feedback.parent.low }}</strong> buổi sao thấp</template>
+                        </span>
+                    </div>
+                    <template v-if="feedback.parent.sessions.length || feedback.parent.stages.length">
+                        <ul class="space-y-sm">
+                            <li v-for="st in feedback.parent.stages" :key="`stage-${st.id}`" class="rounded-lg border border-primary-container/40 bg-primary-fixed/20 p-md font-body-small text-body-small">
+                                <div class="flex flex-wrap items-baseline justify-between gap-sm">
+                                    <span class="font-semibold text-on-surface">Feedback chặng<template v-if="st.stage_name"> · {{ st.stage_name }}</template></span>
+                                    <span v-if="st.rating" :class="['tracking-tight', ratingTone(st.rating)]" :aria-label="`${st.rating} trên 5 sao`">{{ stars(st.rating) }}</span>
+                                </div>
+                                <p class="text-on-surface-variant">{{ [st.class_name, st.date].filter(Boolean).join(' · ') }}</p>
+                                <p v-if="st.categories.length" class="mt-xs text-on-surface-variant">{{ st.categories.join(' · ') }}</p>
+                                <p v-if="st.content" class="mt-xs text-on-surface">“{{ st.content }}”</p>
+                            </li>
+                            <li v-for="f in feedback.parent.sessions" :key="f.id" class="rounded-lg border border-outline-variant p-md font-body-small text-body-small">
+                                <div class="flex flex-wrap items-baseline justify-between gap-sm">
+                                    <span class="font-semibold text-on-surface">Buổi {{ f.date ?? '—' }}</span>
+                                    <span :class="['tracking-tight', ratingTone(f.rating)]" :aria-label="`${f.rating ?? 0} trên 5 sao`">{{ stars(f.rating) }}</span>
+                                </div>
+                                <p class="text-on-surface-variant">{{ [f.class_name, f.teacher].filter(Boolean).join(' · ') }}</p>
+                                <p v-if="f.categories.length" class="mt-xs text-on-surface-variant">{{ f.categories.join(' · ') }}</p>
+                                <p v-if="f.content" class="mt-xs text-on-surface">“{{ f.content }}”</p>
+                            </li>
+                        </ul>
+                    </template>
+                    <p v-else class="rounded-lg border border-dashed border-outline-variant p-md text-center font-body-small text-body-small text-on-surface-variant">Phụ huynh chưa gửi đánh giá nào trên cổng học viên.</p>
+                </section>
             </div>
 
             <!-- Tab Học phí -->
