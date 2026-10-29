@@ -10,6 +10,7 @@ use App\Models\ClassModel;
 use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
 use App\Models\CourseLevel;
+use App\Models\HomeworkSubmission;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\SupportSession;
@@ -96,7 +97,7 @@ class DemoPhase2SeederTest extends TestCase
 
         // Chạy lại không tạo trùng.
         $tables = ['syllabus_curriculums', 'syllabus_stages', 'syllabus_units', 'syllabus_lessons', 'syllabus_assignments', 'student_attendances',
-            'academic_records', 'mini_test_scores', 'homeworks', 'class_report_student_supports', 'support_sessions', 'big_test_orders', 'big_tests',
+            'academic_records', 'mini_test_scores', 'homeworks', 'homework_submissions', 'class_report_student_supports', 'support_sessions', 'big_test_orders', 'big_tests',
             'big_test_results', 'class_sessions', 'holidays', 'work_tasks', 'admin_notifications', 'teacher_timesheets', 'students', 'users'];
         $before = collect($tables)->mapWithKeys(fn (string $table) => [$table => DB::table($table)->count()]);
         $this->seed(DemoPhase2Seeder::class);
@@ -125,5 +126,12 @@ class DemoPhase2SeederTest extends TestCase
                 ->where('student.code', 'HV-DEMO-CG-01')
                 ->where('bigTestResults', fn ($results) => collect($results)->isNotEmpty())
                 ->where('attendanceHistory', fn ($rows) => collect($rows)->isNotEmpty()));
+        // BTVN demo gắn buổi học, bài nộp theo giỏ (không còn bài nộp tự do).
+        $this->actingAs($studentUser)->get(route('portal.student.homework'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Homework')
+                ->where('assignments', fn ($cards) => collect($cards)->isNotEmpty() && collect($cards)->every(fn ($c) => $c['session'] !== null))
+                ->where('basketProgress.total', fn ($total) => $total > 0)
+                ->etc());
+        $this->assertTrue(HomeworkSubmission::where('status', 'reviewed')->exists(), 'GV đã chấm 1 bài nộp theo giỏ.');
     }
 }

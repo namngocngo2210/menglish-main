@@ -388,7 +388,14 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
   không tích hợp API Quizizz (câu 7 "tùy chọn IT").
 - GV xem bài nộp theo bài tập, đánh dấu "Đã xem" (màn **Bài nộp homework** của Cổng GV). File bài nộp lưu riêng tư, chỉ học
   viên / phụ huynh, GV lớp và nhân sự xem được học viên mở được.
-- Cổng học viên: có bài GV giao trong 30 ngày thì hiện mục nộp theo giỏ; chưa có thì giữ 6 hạng mục nộp tự do cũ.
+- Cổng học viên (chủ dự án: nộp bài gắn với BTVN được giao của từng buổi): **chỉ nộp vào giỏ của BTVN GV giao**. Mỗi thẻ hiện
+  tên lớp, **Buổi N** (số thứ tự buổi chính khóa của lớp; kèm Unit / bài syllabus nếu có), ngày học, nội dung theo giỏ, ghi chú
+  GV, link Quizizz, hạn nộp; bài cũ không có `class_session_id` hiện nhãn "Không gắn buổi". Danh sách: bài của các buổi trong
+  30 ngày gần nhất + mọi bài chưa nộp đủ giỏ (bất kể ngày), buổi mới nhất trước; không có bài → "Chưa có bài tập về nhà được
+  giao". Đã gỡ 6 hạng mục nộp tự do và route `portal.student.homework.submit/update/destroy`; bản ghi `AcademicRecord` cũ
+  (`03_hoc_tap_cua_toi_nop_bai_tap`) giữ nguyên, GV vẫn xem ở màn chấm bài nộp cũ.
+- Bộ đếm cổng (trang chủ `submittedHomeworksCount` / `pendingHomeworksCount`, "Tiến độ học tập", "Đã hoàn thành x/y"): số giỏ
+  đã nộp / tổng giỏ của mọi BTVN GV giao cho (các) lớp học viên.
 - **Thống kê**: tab Homework trong trang lớp + màn GV: tỉ lệ nộp theo **giỏ × học sinh** và theo **lớp** (số bài nộp / số
   bài được giao trong khoảng ngày).
 
