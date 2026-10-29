@@ -49,7 +49,8 @@ const role = ref(props.currentRole ?? '');
 const branchOptional = computed(() => props.branchOptionalRoles.includes(role.value));
 
 // Nhân sự làm việc ở nhiều cơ sở: 1 cơ sở chính (chấm công mặc định, lương, báo cáo) + các cơ sở làm việc thêm.
-const primaryBranch = ref(props.user?.branch_id ?? '');
+// Tạo mới mà người thao tác chỉ được chọn đúng 1 cơ sở (Học vụ / Quản lý cơ sở) → chọn sẵn cơ sở đó.
+const primaryBranch = ref(props.user?.branch_id ?? (!props.user && props.branches.length === 1 ? props.branches[0].value : ''));
 const extraBranches = ref((props.user?.extra_branch_ids ?? []).map(Number));
 const extraBranchOptions = computed(() => props.branches.filter((b) => String(b.value) !== String(primaryBranch.value)));
 const extraBranchErrors = computed(() => Object.entries(errors.value)

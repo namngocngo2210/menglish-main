@@ -91,10 +91,17 @@ class UserRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'name.required' => 'Vui lòng nhập họ và tên.',
+            'email.required' => 'Vui lòng nhập email công việc.',
+            'email.email' => 'Email công việc không hợp lệ.',
             'email.unique' => 'Email này đã được sử dụng bởi tài khoản khác.',
-            'branch_id.required' => 'Vui lòng chọn chi nhánh.',
+            'branch_id.required' => 'Vui lòng chọn cơ sở chính.',
+            'branch_id.exists' => 'Cơ sở chính không tồn tại.',
             'extra_branch_ids.*.exists' => 'Cơ sở làm việc thêm không tồn tại.',
             'role.required' => 'Vui lòng chọn vai trò.',
+            'role.exists' => 'Vai trò không tồn tại.',
+            'password.required' => 'Vui lòng nhập mật khẩu khởi tạo.',
+            'password.min' => 'Mật khẩu tối thiểu 8 ký tự.',
             'personal_email.email' => 'Email cá nhân không hợp lệ.',
             'date_of_birth.before' => 'Ngày sinh phải trước hôm nay.',
         ];
