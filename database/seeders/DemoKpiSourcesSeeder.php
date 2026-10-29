@@ -13,6 +13,7 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CrmCustomer;
 use App\Models\CrmCustomerHistory;
+use App\Models\Homework;
 use App\Models\MaterialOrder;
 use App\Models\MerchandiseItem;
 use App\Models\MerchandiseStock;
@@ -35,6 +36,7 @@ use Carbon\Carbon;
 use Closure;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -299,7 +301,8 @@ class DemoKpiSourcesSeeder extends Seeder
                 });
             }
 
-            // Bài tập về nhà mỗi 3 buổi (buổi 2, 5, 8…), hạn 3 ngày; học viên nộp tối hôm sau (Học vụ nộp hộ từ ảnh PH gửi).
+            // Bài tập về nhà mỗi 3 buổi (buổi 2, 5, 8…), hạn 3 ngày; học viên nộp vào giỏ "Bài tập giấy" của BTVN buổi đó
+            // tối hôm sau (Học vụ nộp hộ từ ảnh PH gửi).
             if ($i % 3 === 1) {
                 $this->when($end->copy()->addMinutes(20), function () use ($class, $session) {
                     $this->asUser(User::find($session->teacher_id) ?? $this->academicFor($class, now()), TeacherPortalController::class, 'homeworkStore', [
@@ -308,13 +311,17 @@ class DemoKpiSourcesSeeder extends Seeder
                         'due_date' => $session->date->copy()->addDays(3)->toDateString(),
                     ], ['classId' => $class->id]);
                 });
-                $this->when($session->date->copy()->addDay()->setTime(20, 30), function () use ($class, $students, $level, $date) {
+                $this->when($session->date->copy()->addDay()->setTime(20, 30), function () use ($class, $session, $students, $level, $date) {
+                    $homework = Homework::where('class_id', $class->id)->where('class_session_id', $session->id)->latest('id')->first();
+                    if (! $homework) {
+                        return;
+                    }
                     $submitter = $this->academicFor($class, now());
                     foreach ($students as $student) {
                         if ($this->roll("{$student->id}|{$date}|hw") < self::HOMEWORK[$level]) {
-                            $this->asUser($submitter, StudentPortalController::class, 'submitHomework', [
-                                'student_id' => $student->id, 'homework_type' => 'workbook', 'notes' => 'PH gửi ảnh bài làm qua Zalo.',
-                            ]);
+                            $this->asUser($submitter, StudentPortalController::class, 'submitBasket', [
+                                'student_id' => $student->id, 'note' => 'PH gửi ảnh bài làm qua Zalo.', 'file' => $this->homeworkPhoto(),
+                            ], ['homework' => $homework->id, 'basket' => 'paper']);
                         }
                     }
                 });
@@ -324,6 +331,12 @@ class DemoKpiSourcesSeeder extends Seeder
         // Điểm danh cũ hơn 3 ngày đã được Học vụ rà soát (như DemoPhase2Seeder).
         StudentAttendance::where('class_id', $class->id)->whereDate('session_date', '<', $this->realNow->copy()->subDays(3)->toDateString())
             ->update(['review_status' => 'approved', 'reviewed_by' => $this->academicFor($class, $this->realNow)->id, 'reviewed_at' => $this->realNow]);
+    }
+
+    /** Ảnh bài làm PH gửi (PNG 1×1 hợp lệ — SafeUploadService kiểm tra nội dung file). */
+    private function homeworkPhoto(): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent('bai-lam.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
     }
 
     // ── Báo cáo giảng dạy tháng ────────────────────────────────────────────────
