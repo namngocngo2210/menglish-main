@@ -80,9 +80,10 @@ class DemoPhase3SeederTest extends TestCase
             ->whereIn('salary_role', ['teacher_fulltime', 'academic_staff', 'academic_lead'])->firstOrFail();
         $ratio = (float) data_get($ft->calculation_details, 'workdays.ratio');
         $this->assertGreaterThan(0, $ratio);
-        $this->assertEquals(round(5400000 * $ratio * 0.105), (float) $ft->insurance_deduction);
-        $this->assertEquals(round(5400000 * $ratio * 0.005), (float) $ft->union_deduction);
-        $this->assertEquals(round((float) $ft->base_salary * $ratio), (float) $ft->base_salary_paid);
+        // ratio lưu làm tròn 6 chữ số → cho lệch 1đ.
+        $this->assertEqualsWithDelta(round(5400000 * $ratio * 0.105), (float) $ft->insurance_deduction, 1);
+        $this->assertEqualsWithDelta(round(5400000 * $ratio * 0.005), (float) $ft->union_deduction, 1);
+        $this->assertEqualsWithDelta(round((float) $ft->base_salary * $ratio), (float) $ft->base_salary_paid, 1);
 
         // Chạy lại không tạo trùng.
         $tables = ['teacher_hourly_rates', 'teacher_timesheets', 'penalties', 'kpi_evaluations', 'kpi_evaluation_items', 'commission_items', 'commission_adjustments',
