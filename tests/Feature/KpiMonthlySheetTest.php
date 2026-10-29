@@ -206,6 +206,18 @@ class KpiMonthlySheetTest extends TestCase
             ->assertSessionHasErrors(['month' => 'Duyệt KPI từ ngày cuối tháng 31/10.']);
         $this->actingAs($this->admin)->post($url, ['month' => 10, 'year' => 2026, 'action' => 'reject', 'reject_reason' => 'Điền lại'])->assertSessionHasNoErrors();
 
+        // TK-2026-0006: nút Duyệt khóa trước ngày cuối kỳ phải ghi lý do ngay cạnh nút (thông báo đầu phiếu bị cuộn khuất).
+        $page = route('kpi.evaluate', ['userId' => $this->staff->id, 'period' => '2026-10']);
+        $this->actingAs($this->admin)->get($page, self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('canDecide', true)->where('canClose', false)->where('closeOn', '31/10/2026'));
+        $this->actingAs($this->admin)->get($page)->assertOk()->assertSee('data-kpi-approve-hint', false)->assertSee('Được duyệt từ ngày 31/10/2026 (cuối tháng).');
+
+        $this->travelTo(Carbon::parse('2026-10-31 08:00:00'));
+        $this->actingAs($this->admin)->get($page, self::MODAL)->assertOk()
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('canDecide', true)->where('canClose', true));
+        $this->actingAs($this->admin)->get($page)->assertOk()->assertDontSee('data-kpi-approve-hint', false)->assertDontSee('Được duyệt từ ngày');
+        $this->travelTo(Carbon::parse('2026-10-05 10:00:00'));
+
         $this->staff->givePermissionTo('kpi.confirm', 'kpi.view');
         $this->actingAs($this->staff)->post($url, ['month' => 9, 'year' => 2026, 'action' => 'approve', 'actual' => $this->manualZeros()])->assertForbidden();
     }
