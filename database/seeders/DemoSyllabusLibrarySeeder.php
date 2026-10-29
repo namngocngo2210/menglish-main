@@ -298,7 +298,9 @@ class DemoSyllabusLibrarySeeder extends Seeder
         $assignment = $class ? SyllabusAssignment::open()->where('class_id', $class->id)->first() : null;
         $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->first();
         $admin = User::where('email', 'admin@menglish.edu.vn')->first();
-        if (! $assignment || ! $teacher || ! $admin || Homework::where('class_id', $class->id)->where('title', 'like', 'Bài tập buổi%')->exists()) {
+        // Đã seed (chạy lại): bài theo syllabus có tiêu đề "Bài tập buổi <số buổi>: …". BTVN Phase 2 mang tiêu đề mặc định
+        // "Bài tập buổi dd/mm: …" nên không tính.
+        if (! $assignment || ! $teacher || ! $admin || Homework::where('class_id', $class->id)->pluck('title')->contains(fn ($t) => self::isSyllabusHomework($t))) {
             return;
         }
         $rows = app(ClassSyllabus::class)->timeline($assignment)['rows']->values();
@@ -342,6 +344,12 @@ class DemoSyllabusLibrarySeeder extends Seeder
         if ($paper) {
             $this->asUser($teacher, TeacherHomeworkController::class, 'review', [], ['submission' => $paper->id]);
         }
+    }
+
+    /** Tiêu đề BTVN theo syllabus do seedHomework tạo: "Bài tập buổi <số buổi>: <tên bài>". */
+    public static function isSyllabusHomework(?string $title): bool
+    {
+        return (bool) preg_match('/^Bài tập buổi \d+:/u', (string) $title);
     }
 
     /** Customize syllabus "Giãn" (docs/kho-syllabus.md §8.4): GV CG FAM 0 xin thêm 1 buổi, Admin duyệt → lớp có buổi giãn cho nút "Dạy chưa xong". */
