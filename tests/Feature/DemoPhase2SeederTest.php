@@ -16,6 +16,7 @@ use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusCurriculum;
+use App\Models\SyllabusLesson;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\SupportListService;
@@ -79,6 +80,17 @@ class DemoPhase2SeederTest extends TestCase
             $this->assertTrue(BigTestResult::where('status', $status)->exists(), "Thiếu kết quả {$status}.");
         }
         $this->assertTrue(BigTestOrder::where('status', 'rejected')->whereNotNull('rejection_reason')->exists());
+        // Order đề đi theo nút ORDER theo mốc syllabus: mỗi order gắn chặng + lần giao chặng + buổi có mốc order đề đúng loại.
+        $orders = BigTestOrder::whereIn('class_id', collect($classes)->pluck('id'))->get();
+        $this->assertGreaterThanOrEqual(5, $orders->where('test_type', 'big')->count());
+        foreach ($orders as $order) {
+            $assignment = SyllabusAssignment::findOrFail($order->syllabus_assignment_id);
+            $this->assertSame($order->class_id, $assignment->class_id);
+            $this->assertSame($assignment->stage_id, $order->syllabus_stage_id);
+            $this->assertSame($order->test_type === 'big' ? 'order_big_test' : 'order_mini_test',
+                SyllabusLesson::findOrFail($order->syllabus_lesson_id)->notice_milestone, "Order {$order->code} không gắn mốc order đề.");
+        }
+        $this->assertTrue(AdminNotification::where('type', 'big_test_order')->exists(), 'Order đề báo người duyệt Big Test.');
         // Duyệt order tự tạo đợt thi (BD FAM 0) kèm link phần Speaking; ngày dự kiến Big Test chặng 2 (CG FAM 1) được nhắc.
         $autoTest = BigTest::where('class_id', $classes['DEMO-BD-FAM0']->id)->firstOrFail();
         $this->assertTrue($autoTest->is_distributed);
