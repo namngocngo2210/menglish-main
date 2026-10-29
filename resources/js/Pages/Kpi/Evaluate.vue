@@ -118,6 +118,7 @@ async function onReject(event) {
     }
     decision.value = 'reject';
 }
+const approveHint = computed(() => `Được duyệt từ ngày ${props.closeOn} (cuối ${props.periodMonths > 1 ? 'quý' : 'tháng'}).`);
 const notice = computed(() => {
     if (props.isSelf) return 'Không tự chấm KPI của chính mình.';
     if (props.locked) return 'Kỳ lương tháng này đã duyệt, phiếu đã khóa.';
@@ -258,8 +259,10 @@ const notice = computed(() => {
                 </span>
             </div>
             <template v-if="canDecide">
+                <!-- Lý do nút Duyệt bị khóa đặt ngay cạnh nút: thông báo đầu phiếu bị cuộn khuất khi phiếu dài. -->
+                <span v-if="!canClose" data-kpi-approve-hint class="max-w-[16rem] self-center text-right font-caption text-caption text-on-surface-variant">{{ approveHint }}</span>
                 <UiButton type="submit" variant="danger" icon="close" @click="onReject">{{ rejecting ? 'Xác nhận không duyệt' : 'Không duyệt' }}</UiButton>
-                <UiButton type="submit" icon="check" :disabled="!canClose" @click="onApprove">Duyệt</UiButton>
+                <UiButton type="submit" icon="check" :disabled="!canClose" :title="canClose ? null : approveHint" @click="onApprove">Duyệt</UiButton>
             </template>
         </template>
     </UiModalFrame>
