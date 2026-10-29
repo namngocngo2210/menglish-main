@@ -9,6 +9,7 @@ use App\Http\Controllers\TeacherHomeworkController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\WorkTaskController;
 use App\Models\AcademicRecord;
+use App\Models\AdminNotification;
 use App\Models\BigTest;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
@@ -30,10 +31,12 @@ use App\Models\SyllabusStage;
 use App\Models\SyllabusUnit;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\BigTestSlaService;
 use App\Services\FirstMonthCareService;
 use App\Services\SessionScheduleService;
 use App\Services\SupportListService;
 use App\Services\Syllabus\ConfirmReading;
+use App\Services\Syllabus\SyllabusOrders;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
@@ -42,6 +45,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Dữ liệu demo Phase 2 (vận hành lớp học) dựng trên lớp / học viên của DemoPhase1Seeder:
@@ -166,6 +170,7 @@ class DemoPhase2Seeder extends Seeder
                 $unitNo = 1;
                 $sessionNo = 1;
                 foreach ($stages as $i => [$stageName, $bigTestTitle, $units]) {
+                    $stageLessons = collect($units)->flatten()->values();
                     $stage = $i === 0
                         ? $curriculum->stages()->firstOrFail()
                         : SyllabusStage::create(['curriculum_id' => $curriculum->id, 'position' => $i + 1, 'name' => $stageName]);
@@ -179,6 +184,7 @@ class DemoPhase2Seeder extends Seeder
                                 'unit_id' => $unit->id, 'session_no' => $sessionNo++, 'title' => $lessonTitle,
                                 'objectives' => "HV nắm được: {$lessonTitle}.",
                                 'homework_guide' => 'Làm Workbook trang tương ứng, quay video đọc từ vựng.',
+                                'notice_milestone' => self::orderMilestone($stageLessons, $stageLessons->search($lessonTitle)),
                             ]);
                         }
                     }
@@ -186,6 +192,19 @@ class DemoPhase2Seeder extends Seeder
                 CourseLevel::where('code', $levelCode)->update(['syllabus_curriculum_id' => $curriculum->id]);
             });
         }
+    }
+
+    /**
+     * Mốc order đề của buổi thứ $i trong chặng (cùng quy tắc DemoSyllabusLibrarySeeder::enrichLessons): order đề Big Test 3 buổi
+     * trước buổi cuối chặng, order đề mini test ở buổi ngay trước buổi "Ôn tập". Nút ORDER (SyllabusOrders) chỉ order ở các mốc này.
+     */
+    private static function orderMilestone(Collection $stageLessons, int $i): ?string
+    {
+        return match (true) {
+            $i === $stageLessons->count() - 3 => 'order_big_test',
+            str_starts_with($stageLessons[$i + 1] ?? '', 'Ôn tập') => 'order_mini_test',
+            default => null,
+        };
     }
 
     // ── Theo chi nhánh ──────────────────────────────────────────────────────────
@@ -404,10 +423,7 @@ class DemoPhase2Seeder extends Seeder
             $this->asUser($this->staff['teacher'], SyllabusController::class, 'updateExpectedBigTestDate', [
                 'expected_big_test_date' => today()->addDays(6)->toDateString(),
             ], ['id' => $open->id]);
-            $this->asUser($this->staff['teacher'], TeacherPortalController::class, 'submitOrderTest', [
-                'stage_name' => $open->stage_name, 'test_type' => 'big', 'exam_date' => today()->addDays(6)->toDateString(),
-                'note' => 'Đề cuối chặng 2, cần thêm phần Speaking.',
-            ], ['classId' => $class->id]);
+            $this->orderTestAtMilestone($class, 'big', today()->addDays(6), 'Đề cuối chặng 2, cần thêm phần Speaking.');
         }
     }
 
@@ -445,39 +461,22 @@ class DemoPhase2Seeder extends Seeder
         $examAt = today()->addDays(5)->setTime(8, 0);
         $this->scheduleBigTest($class, $examAt, 'approved', autoCreate: true);
 
-        $this->asUser($this->staff['teacher'], TeacherPortalController::class, 'submitOrderTest', [
-            'stage_name' => 'Mini test Unit 2', 'test_type' => 'mini', 'exam_date' => today()->addDays(2)->toDateString(), 'note' => 'Đề 15 phút.',
-        ], ['classId' => $class->id]);
-        $order = BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->latest('id')->first();
+        $order = $this->orderTestAtMilestone($class, 'mini', today()->addDays(2), 'Đề 15 phút.');
         $this->asUser($this->admin, SyllabusController::class, 'rejectBigTestOrder', [
             'rejection_reason' => 'Dùng đề mini test có sẵn trong kho tài liệu chặng 1.',
         ], ['id' => $order->id]);
     }
 
     /**
-     * GV order đề → Học thuật tạo đợt thi (tự gắn chặng đang mở) → Admin duyệt order kèm link + gắn đợt thi (đợt thi được
-     * phân phối). Đợt thi đã qua: order lưu thẳng (màn order chỉ nhận ngày thi từ hôm nay), ngày tạo lùi về trước.
+     * GV order đề ở mốc Big Test của chặng đang mở → Học thuật tạo đợt thi (tự gắn chặng đang mở) → Admin duyệt order kèm link +
+     * gắn đợt thi (đợt thi được phân phối).
      */
     private function scheduleBigTest(ClassModel $class, Carbon $examAt, string $orderStatus, bool $autoCreate = false): BigTest
     {
         $open = SyllabusAssignment::open()->where('class_id', $class->id)->firstOrFail();
-        $teacher = $this->staff['teacher'];
         $title = ($open->stage?->big_test_title ?: 'Big Test '.$open->stage_name).' · '.trim(str_replace('#', '', $class->name));
 
-        if ($examAt->isFuture()) {
-            $this->asUser($teacher, TeacherPortalController::class, 'submitOrderTest', [
-                'stage_name' => $open->stage_name, 'test_type' => 'big', 'exam_date' => $examAt->toDateString(), 'note' => 'Đề Big Test cuối chặng.',
-            ], ['classId' => $class->id]);
-            $order = BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->latest('id')->firstOrFail();
-        } else {
-            $order = BigTestOrder::create([
-                'code' => 'ORDTEST-'.strtoupper(substr(md5($class->code.$examAt), 0, 6)),
-                'class_id' => $class->id, 'teacher_id' => $teacher->id, 'stage_name' => $open->stage_name, 'test_type' => 'big',
-                'exam_date' => $examAt->toDateString(), 'due_date' => $examAt->copy()->subDays(BigTestOrder::leadDays())->toDateString(),
-                'note' => 'Đề Big Test cuối chặng.', 'status' => 'pending',
-            ]);
-            $order->forceFill(['created_at' => $examAt->copy()->subDays(10), 'updated_at' => $examAt->copy()->subDays(10)])->saveQuietly();
-        }
+        $order = $this->orderTestAtMilestone($class, 'big', $examAt, 'Đề Big Test cuối chặng.');
 
         if ($autoCreate) {
             // Duyệt order không gắn đợt thi có sẵn → hệ thống tự tạo đợt Big Test (chặng đang mở, đã phân phối).
@@ -505,6 +504,57 @@ class DemoPhase2Seeder extends Seeder
         }
 
         return $test->fresh();
+    }
+
+    /**
+     * GV chính order đề ở nút ORDER theo mốc syllabus (như SyllabusOrders::place): order gắn chặng đang mở + buổi có mốc order đề
+     * (order_big_test / order_mini_test), chờ duyệt, chặn order trùng, báo người duyệt Big Test. Ghi thẳng bản ghi như place()
+     * vì mốc demo không "đến hạn" theo lịch lớp lúc seed (ngày thi do kịch bản demo đặt); đợt thi đã qua thì ngày tạo order
+     * lùi về trước ngày thi và không phát thông báo.
+     */
+    private function orderTestAtMilestone(ClassModel $class, string $testType, Carbon $examAt, string $note): BigTestOrder
+    {
+        $teacher = $this->staff['teacher'];
+        $assignment = SyllabusAssignment::with('stage')->open()->where('class_id', $class->id)->firstOrFail();
+        $stage = $assignment->stage?->label ?? $assignment->stage_name;
+        $kind = $testType === 'big' ? 'order_big_test' : 'order_mini_test';
+        $lesson = $assignment->stage?->lessons()->where('notice_milestone', $kind)->first();
+        if (! $lesson) {
+            throw new RuntimeException("DemoPhase2Seeder: {$stage} của lớp {$class->code} không có mốc {$kind}.");
+        }
+        if (BigTestOrder::where('class_id', $class->id)->where('status', 'pending')->where('test_type', $testType)
+            ->when($assignment->stage_id, fn ($q) => $q->where('syllabus_stage_id', $assignment->stage_id), fn ($q) => $q->where('stage_name', $stage))
+            ->exists()) {
+            throw new RuntimeException("DemoPhase2Seeder: đã có order đề cho {$stage} của lớp {$class->code} đang chờ duyệt.");
+        }
+
+        $examDate = $examAt->copy()->startOfDay();
+        $order = BigTestOrder::create([
+            'code' => 'ORDTEST-'.strtoupper(substr(md5($class->code.$testType.$examAt), 0, 6)),
+            'class_id' => $class->id, 'syllabus_stage_id' => $assignment->stage_id, 'teacher_id' => $teacher->id, 'stage_name' => $stage,
+            'test_type' => $testType,
+            'exam_date' => $examDate,
+            'due_date' => $examDate->copy()->subDays(BigTestOrder::leadDays())->max(today()),
+            'note' => $note, 'status' => 'pending',
+            'syllabus_assignment_id' => $assignment->id, 'syllabus_lesson_id' => $lesson->id,
+        ]);
+
+        if ($examAt->isPast()) {
+            $order->forceFill([
+                'due_date' => $examDate->copy()->subDays(BigTestOrder::leadDays()),
+                'created_at' => $examAt->copy()->subDays(10), 'updated_at' => $examAt->copy()->subDays(10),
+            ])->saveQuietly();
+
+            return $order;
+        }
+
+        AdminNotification::notifyUsers(app(BigTestSlaService::class)->approverIdsOrAdmins(), 'big_test_order',
+            'GV yêu cầu đề test: '.$teacher->name,
+            "Giáo viên {$teacher->name} order đề {$order->type_label} cho {$stage} của lớp {$class->name} (mốc buổi {$lesson->session_no}).",
+            route('syllabus.big-tests.distribution', ['order' => $order->id]), ['big_test_order_id' => $order->id], $teacher->id);
+        SyllabusOrders::forget([$assignment->user_id, $class->teacher_id, $class->foreign_teacher_id, $teacher->id]);
+
+        return $order;
     }
 
     /** GV nhập kết quả Big Test (4 kỹ năng, 1 học viên vắng thi, có học viên dưới 7 → bổ trợ). */
