@@ -93,11 +93,11 @@ function switchStudent(event) {
                             <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/10 text-secondary transition-transform group-hover:scale-105">
                                 <span class="material-symbols-outlined text-[22px]">upload_file</span>
                             </div>
-                            <UiBadge :color="submittedHomeworksCount == 6 ? 'success' : 'secondary'" :dot="false">{{ submittedHomeworksCount }}/6 nộp</UiBadge>
+                            <UiBadge v-if="submittedHomeworksCount + pendingHomeworksCount > 0" :color="pendingHomeworksCount === 0 ? 'success' : 'secondary'" :dot="false">{{ submittedHomeworksCount }}/{{ submittedHomeworksCount + pendingHomeworksCount }} nộp</UiBadge>
                         </div>
                         <div>
                             <h4 class="text-xs font-bold text-on-surface transition group-hover:text-secondary">Học tập &amp; Nộp bài</h4>
-                            <p class="mt-0.5 line-clamp-1 text-xs text-on-surface-variant">Video, từ vựng, workbook</p>
+                            <p class="mt-0.5 line-clamp-1 text-xs text-on-surface-variant">BTVN theo từng buổi học</p>
                         </div>
                         <span class="mt-auto flex items-center gap-0.5 text-xs font-bold text-secondary">Mở xem <span class="material-symbols-outlined text-[12px]">chevron_right</span></span>
                     </Link>

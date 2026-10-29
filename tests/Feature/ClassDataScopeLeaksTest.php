@@ -8,6 +8,7 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Course;
+use App\Models\Homework;
 use App\Models\Student;
 use App\Models\TeacherMeetingReport;
 use App\Models\User;
@@ -144,9 +145,12 @@ class ClassDataScopeLeaksTest extends TestCase
 
     public function test_staff_without_student_in_scope_does_not_see_other_students_portal_records(): void
     {
-        $studentB = Student::create(['code' => 'HV-LKB', 'name' => 'Student Bravo', 'phone' => '0911000099', 'branch_id' => $this->branchB->id, 'status' => 'studying']);
+        $studentB = Student::create(['code' => 'HV-LKB', 'name' => 'Student Bravo', 'phone' => '0911000099', 'branch_id' => $this->branchB->id, 'status' => 'studying',
+            'current_class_id' => $this->classB->id]);
+        // BTVN GV giao cho lớp của học viên B (cổng chỉ còn nộp theo BTVN từng buổi).
+        Homework::create(['class_id' => $this->classB->id, 'user_id' => $this->teacherB->id, 'title' => 'Bài tập lớp B',
+            'items' => ['workbook' => 'Trang 1'], 'class_note' => 'LEAK-HOMEWORK-NOTE']);
         foreach ([
-            '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap' => ['homework_type' => 'video', 'notes' => 'LEAK-HOMEWORK-NOTE'],
             '04_Cong_Phu_Huynh_Hoc_Sinh/06_khao_sat' => ['feedback' => 'LEAK-SURVEY-NOTE', 'rating' => 4],
             '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback' => ['noi_dung_feedback' => 'LEAK-FEEDBACK-NOTE'],
         ] as $screen => $data) {

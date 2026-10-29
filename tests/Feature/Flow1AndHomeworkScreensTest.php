@@ -193,9 +193,9 @@ class Flow1AndHomeworkScreensTest extends TestCase
         $response->assertSee('Nhận xét buổi học');
         $response->assertSee('Bảng điểm');
         $response->assertSee('Bài tập về nhà');
-        $response->assertSee('Quay video');
-        $response->assertSee('Viết từ vựng');
-        $response->assertSee('Làm Workbook');
+        // Không còn 6 hạng mục nộp tự do (chỉ nộp vào BTVN GV giao theo buổi).
+        $response->assertDontSee('Làm Workbook bài tập');
+        $response->assertDontSee('Sách Bộ Giáo dục');
     }
 
     /**

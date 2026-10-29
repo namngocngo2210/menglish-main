@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\StudentPortalController;
 use App\Http\Controllers\SyllabusController;
+use App\Http\Controllers\TeacherHomeworkController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\WorkTaskController;
 use App\Models\AcademicRecord;
@@ -17,6 +18,7 @@ use App\Models\ClassSession;
 use App\Models\CourseLevel;
 use App\Models\Holiday;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\MiniTestScore;
 use App\Models\Student;
 use App\Models\StudentAttendance;
@@ -35,6 +37,7 @@ use App\Services\Syllabus\ConfirmReading;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\InvokesControllersAsUser;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -317,9 +320,14 @@ class DemoPhase2Seeder extends Seeder
                     'status' => 'completed', 'user_id' => $teacher->id, 'data' => $remark($k)]
             );
         }
-        // Nhận xét lưu theo buổi: buổi gần nhất đã qua (buổi để trống điểm danh bù) qua màn GV.
+        // Nhận xét lưu theo buổi: buổi gần nhất đã qua (buổi để trống điểm danh bù). Màn nhận xét riêng đã bỏ (nhận xét nhập
+        // trong Báo cáo buổi) nên ghi thẳng bản ghi nhận xét theo buổi, cùng định dạng.
         if ($latest = $past->last()) {
-            $this->asUser($teacher, TeacherPortalController::class, 'remarksStore', ['class_session_id' => $latest->id, 'remarks' => $remark(5)], ['classId' => $class->id]);
+            AcademicRecord::updateOrCreate(
+                ['module' => 'teacher_remarks', 'record_code' => TeacherPortalController::remarkRecordCode($latest)],
+                ['screen_key' => TeacherPortalController::REMARKS_SCREEN_KEY, 'title' => "Nhận xét lớp {$class->id} ngày ".$latest->date->toDateString(),
+                    'status' => 'completed', 'user_id' => $teacher->id, 'data' => $remark(5)]
+            );
         }
 
         // Mini test (thang 10): học viên dưới 7 tự vào danh sách bổ trợ.
@@ -330,23 +338,44 @@ class DemoPhase2Seeder extends Seeder
             ], ['classId' => $class->id]);
         }
 
-        // Bài tập về nhà + bài nộp (HV có tài khoản tự nộp; còn lại Học vụ nộp hộ từ ảnh PH gửi) + GV chấm 1 bài.
-        foreach (['Workbook Unit 1 trang 4–5' => -3, 'Quay video đọc từ vựng Unit 2' => 4] as $title => $dueOffset) {
+        // BTVN theo buổi (docs/kho-syllabus.md §10): GV giao cho 2 buổi đã dạy gần nhất; HV nộp vào giỏ của bài đó
+        // (HV có tài khoản tự nộp; còn lại Học vụ nộp hộ từ ảnh PH gửi) + GV chấm 1 bài.
+        $homeworkSessions = $toMark->take(-2)->values();
+        foreach ($homeworkSessions as $k => $session) {
             $this->asUser($teacher, TeacherPortalController::class, 'homeworkStore', [
-                'title' => $title, 'description' => 'Hoàn thành và nộp trên Cổng học viên.', 'due_date' => today()->addDays($dueOffset)->toDateString(),
+                'class_session_id' => $session->id,
+                'categories' => $k === 0 ? ['workbook', 'quiz'] : ['vocabulary', 'video'],
+                'items' => $k === 0
+                    ? ['workbook' => 'Workbook Unit 1 trang 4–5', 'quiz' => 'Quizizz từ vựng Unit 1']
+                    : ['vocabulary' => 'Chép mỗi từ mới Unit 2 ba lần', 'video' => 'Quay video đọc từ vựng Unit 2'],
+                'quizizz_url' => $k === 0 ? 'https://quizizz.com/join?gc=123456' : null,
+                'class_note' => 'Hoàn thành và nộp trên Cổng học viên.',
+                'due_at' => $session->date->copy()->addDays(2)->setTime(20, 0)->format('Y-m-d H:i'),
             ], ['classId' => $class->id]);
         }
-        foreach ($roster->take(3) as $j => $student) {
-            $submitter = $student->user_id ? User::find($student->user_id) : $this->staff['academic'];
-            $this->asUser($submitter, StudentPortalController::class, 'submitHomework', [
-                'student_id' => $student->id, 'homework_type' => ['workbook', 'video', 'vocabulary'][$j], 'notes' => 'Con đã làm xong bài.',
-            ]);
+        $firstHomework = Homework::where('class_id', $class->id)->where('class_session_id', $homeworkSessions->first()?->id)->first();
+        if ($firstHomework) {
+            foreach ($roster->take(3) as $j => $student) {
+                $submitter = $student->user_id ? User::find($student->user_id) : $this->staff['academic'];
+                $this->asUser($submitter, StudentPortalController::class, 'submitBasket', [
+                    'student_id' => $student->id, 'note' => 'Con đã làm xong bài.', 'file' => $this->demoPhoto(),
+                ], ['homework' => $firstHomework->id, 'basket' => 'paper']);
+                if ($j < 2) {
+                    $this->asUser($submitter, StudentPortalController::class, 'submitBasket', ['student_id' => $student->id],
+                        ['homework' => $firstHomework->id, 'basket' => 'quizizz']);
+                }
+            }
+            $submission = HomeworkSubmission::where('homework_id', $firstHomework->id)->where('student_id', $roster->first()->id)->where('basket', 'paper')->first();
+            if ($submission) {
+                $this->asUser($teacher, TeacherHomeworkController::class, 'review', ['score' => '9/10', 'feedback' => 'Làm bài cẩn thận, chữ đẹp.'], ['submission' => $submission->id]);
+            }
         }
-        $submission = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
-            ->where('data->student_id', (string) $roster->first()->id)->latest('id')->first();
-        if ($submission) {
-            $this->asUser($teacher, StudentPortalController::class, 'markSubmission', ['score' => '9/10', 'feedback' => 'Làm bài cẩn thận, chữ đẹp.'], ['id' => $submission->id]);
-        }
+    }
+
+    /** Ảnh bài làm demo (PNG 1×1 hợp lệ — SafeUploadService kiểm tra nội dung file). */
+    private function demoPhoto(): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent('bai-lam.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
     }
 
     /** CG FAM 1: Big Test chặng 1 đã duyệt và gửi PH (1 HV vắng thi) → chặng 1 đóng, chặng 2 tự mở; order chặng 2 chờ duyệt. */
@@ -621,7 +650,7 @@ class DemoPhase2Seeder extends Seeder
             ['nhận xét buổi học', AcademicRecord::where('module', 'teacher_remarks')->count()],
             ['mini_test_scores', MiniTestScore::whereIn('class_id', $demoClassIds)->count()],
             ['homework / bài nộp', Homework::whereIn('class_id', $demoClassIds)->count().' / '
-                .AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')->count()],
+                .HomeworkSubmission::whereHas('homework', fn ($q) => $q->whereIn('class_id', $demoClassIds))->count()],
             ['danh sách bổ trợ (theo nguồn)', ClassReportStudentSupport::whereIn('class_id', $demoClassIds)->selectRaw('source, count(*) c')->groupBy('source')
                 ->pluck('c', 'source')->map(fn ($c, $s) => (SupportListService::SOURCE_LABELS[$s] ?? $s).": {$c}")->implode(', ')],
             ['support_sessions', SupportSession::whereIn('class_id', $demoClassIds)->count()],

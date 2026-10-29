@@ -1,13 +1,14 @@
 <script setup>
 /**
  * Học tập của tôi — Nộp bài tập (MH #3): bài tập GV giao nộp theo 3 giỏ (giấy = ảnh, video = video, Quizizz = bấm "Đã làm" —
- * docs/kho-syllabus.md §10); chưa có bài GV giao thì 6 hạng mục nộp tự do (nộp / sửa / hủy nộp). Nhận xét buổi học (kèm phụ huynh
- * chấm từng buổi), bảng điểm, lộ trình.
+ * docs/kho-syllabus.md §10). Mỗi thẻ là BTVN của một buổi (lớp, Buổi N / bài syllabus, ngày học, hạn nộp) — không còn nộp tự do.
+ * Nhận xét buổi học (kèm phụ huynh chấm từng buổi), bảng điểm, lộ trình.
  * Nhân sự xem hộ thì quay về danh sách học viên; học viên quay về trang chủ cổng. Trên điện thoại dùng thanh điều hướng đáy.
  */
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { can } from '@/lib/can';
+import { formatDate } from '@/lib/format';
 import { route } from '@/lib/route';
 import PortalBottomNav from './PortalBottomNav.vue';
 import PortalPageHeader from './PortalPageHeader.vue';
@@ -19,25 +20,14 @@ const props = defineProps({
     student: { type: Object, default: null },
     students: { type: Array, default: () => [] },
     unreadCount: { type: Number, default: 0 },
-    submissionsByType: { type: [Object, Array], default: () => ({}) },
-    completedCount: { type: Number, default: 0 },
+    basketProgress: { type: Object, default: () => ({ submitted: 0, total: 0 }) },
     remarks: { type: Array, default: () => [] },
     feedbackCategories: { type: Object, default: () => ({}) },
     miniTests: { type: Array, default: () => [] },
     bigTestResults: { type: Array, default: () => [] },
-    latestHomework: { type: Object, default: null },
-    homeworkUrgent: { type: Boolean, default: false },
     assignments: { type: Array, default: () => [] },
 });
 
-const CATEGORIES = {
-    video: { title: 'Quay video bài học', icon: 'videocam', color: 'text-primary', btnText: 'Tải lên video', isQuiz: false },
-    vocabulary: { title: 'Viết từ vựng & Chụp ảnh', icon: 'edit_document', color: 'text-secondary', btnText: 'Tải lên bài viết', isQuiz: false },
-    workbook: { title: 'Làm Workbook bài tập', icon: 'menu_book', color: 'text-secondary', btnText: 'Tải lên Workbook', isQuiz: false },
-    extra_book: { title: 'Sách bổ trợ', icon: 'library_books', color: 'text-tertiary', btnText: 'Tải lên bài làm', isQuiz: false },
-    bgd_book: { title: 'Sách Bộ Giáo dục', icon: 'import_contacts', color: 'text-accent', btnText: 'Tải lên bài làm', isQuiz: false },
-    quiz: { title: 'Làm Quiz trực tuyến', icon: 'quiz', color: 'text-warning', btnText: 'Nộp kết quả Quiz', isQuiz: true },
-};
 const REMARK_FIELDS = {
     monsters: ['Monsters', 'hotel_class', 'text-warning'],
     grammar: ['Thực hành', 'psychology', 'text-secondary'],
@@ -46,16 +36,8 @@ const REMARK_FIELDS = {
     result: ['Kết quả', 'checklist', 'text-accent'],
 };
 
-// Chỉ tô cam mục chưa nộp đầu tiên khi bài GV giao sắp/đã tới hạn; còn lại là nút phụ.
-const cards = computed(() => {
-    let urgentAssigned = false;
-    return Object.entries(CATEGORIES).map(([key, cat]) => {
-        const sub = props.submissionsByType?.[key] ?? null;
-        const urgent = !sub && props.homeworkUrgent && !urgentAssigned;
-        if (urgent) urgentAssigned = true;
-        return { key, cat, sub, urgent };
-    });
-});
+const progressPercent = computed(() => (props.basketProgress.total ? Math.round((props.basketProgress.submitted / props.basketProgress.total) * 100) : 0));
+const dueLabel = (hw) => (hw.due_at ? formatDate(hw.due_at, 'd/m/Y H:i') : hw.due_date ? formatDate(hw.due_date) : 'Không giới hạn');
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
 const backUrl = computed(() => (can('student.view') ? route('students.index') : route('portal.student.home', params.value)));
 const studentOptions = computed(() => props.students.map((s) => ({ value: s.id, label: `${s.name} (${s.class_name ?? 'Chưa xếp lớp'})` })));
@@ -74,25 +56,6 @@ function checkSize(event) {
     const file = event.target.files?.[0];
     fileError.value = file && file.size > MAX_UPLOAD ? 'Tệp quá lớn (tối đa 100MB) — quay video ngắn hơn hoặc giảm độ phân giải.' : null;
     if (fileError.value) event.target.value = '';
-}
-
-const uploadOpen = ref(false);
-const uploadType = ref('video');
-const uploadTitle = ref('Quay video bài học');
-const editOpen = ref(false);
-const editId = ref(null);
-const editNotes = ref('');
-
-function openUpload(type, title) {
-    uploadType.value = type;
-    uploadTitle.value = title;
-    uploadOpen.value = true;
-}
-
-function openEdit(id, notes) {
-    editId.value = id;
-    editNotes.value = notes ?? '';
-    editOpen.value = true;
 }
 
 function switchStudent(event) {
@@ -152,12 +115,33 @@ function switchStudent(event) {
                         <h2 class="text-base font-bold text-on-surface">Bài tập về nhà</h2>
                     </div>
 
-                    <!-- Bài tập GV giao — nộp đúng giỏ theo loại để thống kê -->
+                    <div v-if="basketProgress.total" class="mt-1 flex items-center justify-between" data-testid="homework-progress">
+                        <p class="text-xs font-bold text-on-surface">Đã hoàn thành: {{ basketProgress.submitted }}/{{ basketProgress.total }} phần bài tập</p>
+                        <div class="h-2 w-1/3 overflow-hidden rounded-full bg-surface-container">
+                            <div class="h-full rounded-full bg-tertiary transition-all duration-300" :style="{ width: progressPercent + '%' }"></div>
+                        </div>
+                    </div>
+
+                    <!-- BTVN GV giao theo từng buổi — nộp đúng giỏ theo loại để thống kê -->
                     <div v-for="hw in assignments" :key="hw.id" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs" data-testid="assigned-homework">
                         <div>
-                            <h3 class="text-sm font-bold text-on-surface">{{ hw.title }}</h3>
-                            <p class="text-xs text-on-surface-variant">{{ hw.class_name }} · Hạn nộp: {{ hw.due_date ? formatDate(hw.due_date) : 'Không giới hạn' }}</p>
+                            <div class="flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant" data-testid="homework-session">
+                                <span class="font-bold text-primary">{{ hw.class_name }}</span>
+                                <template v-if="hw.session">
+                                    <span aria-hidden="true">·</span>
+                                    <span class="font-bold text-on-surface">{{ hw.session.label }}</span>
+                                    <span aria-hidden="true">·</span>
+                                    <span>Ngày học {{ formatDate(hw.session.date) }}</span>
+                                </template>
+                                <UiBadge v-else color="neutral" pill>Không gắn buổi</UiBadge>
+                            </div>
+                            <p v-if="hw.session?.lesson" class="mt-0.5 text-xs text-on-surface-variant">{{ hw.session.lesson }}</p>
+                            <h3 class="mt-1 text-sm font-bold text-on-surface">{{ hw.title }}</h3>
+                            <p class="text-xs text-on-surface-variant">Hạn nộp: {{ dueLabel(hw) }}</p>
                             <p v-if="hw.note" class="mt-1 text-xs italic text-on-surface-variant">{{ hw.note }}</p>
+                            <p v-if="hw.description" class="mt-1 whitespace-pre-line text-xs text-on-surface-variant">{{ hw.description }}</p>
+                            <a v-if="hw.youtube_url" :href="hw.youtube_url" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline">Video hướng dẫn <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span></a>
+                            <p v-if="!hw.baskets.length" class="mt-1 text-xs text-on-surface-subtle">Bài này không cần nộp trên cổng.</p>
                         </div>
                         <div v-for="b in hw.baskets" :key="b.key" class="rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5 text-xs">
                             <div class="flex items-center justify-between gap-2">
@@ -180,69 +164,7 @@ function switchStudent(event) {
                         </div>
                     </div>
 
-                    <!-- Bài tập giáo viên giao gần nhất -->
-                    <UiAlert v-if="!assignments.length && latestHomework" type="error" :title="latestHomework.title">
-                        <p v-if="latestHomework.description" class="text-xs leading-normal">{{ latestHomework.description }}</p>
-                        <p class="mt-1 text-xs">{{ latestHomework.class_name }} · Hạn nộp: {{ latestHomework.due_date ?? 'Không giới hạn' }}</p>
-                    </UiAlert>
-
-                    <div v-if="!assignments.length" class="mt-1 flex items-center justify-between">
-                        <p class="text-xs font-bold text-on-surface">Đã hoàn thành: {{ completedCount }}/6 hạng mục</p>
-                        <div class="h-2 w-1/3 overflow-hidden rounded-full bg-surface-container">
-                            <div class="h-full rounded-full bg-tertiary transition-all duration-300" :style="{ width: Math.round((completedCount / 6) * 100) + '%' }"></div>
-                        </div>
-                    </div>
-
-                    <div v-if="!assignments.length" class="flex flex-col gap-2.5">
-                        <div v-for="{ key, cat, sub, urgent } in cards" :key="key" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <span :class="['material-symbols-outlined text-lg', cat.color]">{{ cat.icon }}</span>
-                                    <h4 class="text-xs font-bold text-on-surface">{{ cat.title }}</h4>
-                                </div>
-                                <UiBadge v-if="sub" color="success" pill :dot="false"><span class="material-symbols-outlined text-[12px]">check_circle</span> Đã nộp</UiBadge>
-                                <UiBadge v-else color="error" pill>Chưa nộp</UiBadge>
-                            </div>
-
-                            <template v-if="sub">
-                                <div class="space-y-1 rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5 text-xs">
-                                    <div class="flex items-center justify-between text-xs text-on-surface-variant">
-                                        <span>Nộp lúc: <strong class="font-mono text-on-surface-variant">{{ sub.submitted_at }}</strong></span>
-                                        <UiBadge v-if="sub.status === 'reviewed'" color="success" :dot="false">{{ filled(sub.score) ? 'Đã chấm: ' + sub.score : 'Giáo viên đã xem' }}</UiBadge>
-                                        <span v-else class="font-medium text-warning">Chờ giáo viên chấm</span>
-                                    </div>
-
-                                    <div v-if="sub.attachment_path" class="pt-1">
-                                        <a :href="sub.attachment_path" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline">
-                                            <span class="material-symbols-outlined text-[14px]">attachment</span>
-                                            <span>{{ sub.attachment_name ?? 'Xem tệp đính kèm' }}</span>
-                                        </a>
-                                    </div>
-
-                                    <p v-if="sub.notes" class="text-xs italic text-on-surface-variant">"{{ sub.notes }}"</p>
-
-                                    <div v-if="sub.feedback" class="mt-1 rounded-lg border border-secondary/30 bg-secondary/10 p-2 text-xs text-secondary">
-                                        <strong>Nhận xét của GV:</strong> {{ sub.feedback }}
-                                    </div>
-                                </div>
-
-                                <!-- Sửa ghi chú / Nộp lại & Hủy nộp -->
-                                <div class="flex items-center gap-2 pt-1">
-                                    <UiButton variant="secondary" size="sm" icon="edit" class="flex-1" @click="openEdit(sub.id, sub.notes)">Sửa / Nộp lại</UiButton>
-                                    <UiForm :action="route('portal.student.homework.destroy', sub.id)" method="delete" confirm="Hủy bài nộp này?" confirm-label="Hủy bài nộp" danger>
-                                        <UiButton type="submit" variant="danger-text" size="sm" icon="delete" title="Hủy nộp" aria-label="Hủy nộp" />
-                                    </UiForm>
-                                </div>
-                            </template>
-                            <div v-else class="flex flex-col gap-1.5 pt-1">
-                                <UiButton :variant="urgent ? 'primary' : 'secondary'" icon="upload" class="w-full" @click="openUpload(key, cat.title)">{{ cat.btnText }}</UiButton>
-                                <a v-if="cat.isQuiz" href="https://quizizz.com" target="_blank" rel="noopener noreferrer" class="mt-0.5 inline-flex items-center justify-center gap-1 text-xs font-bold text-secondary hover:underline">
-                                    <span>Mở link Quiz trực tuyến</span>
-                                    <span class="material-symbols-outlined text-[14px]">open_in_new</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                    <UiEmptyState v-if="!assignments.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="assignment" title="Chưa có bài tập về nhà được giao" description="Bài tập giáo viên giao theo từng buổi học sẽ hiện ở đây để nộp." />
                 </section>
 
                 <!-- 2. NHẬN XÉT BUỔI HỌC -->
@@ -337,37 +259,8 @@ function switchStudent(event) {
             <PortalBottomNav active-tab="learning" :student="student" :unread-count="unreadCount" />
         </div>
 
-        <!-- Nộp bài tập -->
-        <UiModal :show="uploadOpen" title="Nộp bài tập" max-width="md" @close="uploadOpen = false">
-            <p class="mb-4 flex items-center gap-2 text-sm font-bold text-on-surface">
-                <span class="material-symbols-outlined text-primary">cloud_upload</span>
-                <span>{{ 'Nộp bài: ' + uploadTitle }}</span>
-            </p>
-
-            <UiForm id="homework-upload-form" :action="route('portal.student.homework.submit')" method="post" class="space-y-4 text-xs" reset-on-success @success="uploadOpen = false">
-                <input type="hidden" name="student_id" :value="student?.id ?? 1" />
-                <input type="hidden" name="homework_type" :value="uploadType" />
-
-                <UiField label="Chọn tệp tin bài làm (Video / Ảnh / PDF)" name="attachment" for="homework-upload-attachment">
-                    <div class="cursor-pointer rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-6 text-center transition hover:border-primary-container">
-                        <span class="material-symbols-outlined mb-1 block text-[36px] text-on-surface-subtle">attach_file</span>
-                        <span class="block text-xs text-on-surface-variant">Kéo thả hoặc bấm để chọn tệp tải lên</span>
-                        <span class="mt-1 block text-xs text-on-surface-subtle">Hỗ trợ MP4, MOV, PNG, JPG, PDF (tối đa 50MB)</span>
-                        <input id="homework-upload-attachment" type="file" name="attachment" class="mt-3 w-full text-center text-xs" />
-                    </div>
-                </UiField>
-
-                <UiTextarea id="homework-upload-notes" name="notes" label="Ghi chú gửi thầy cô (Tùy chọn)" :rows="3" placeholder="Nhập ghi chú cho bài nộp..." />
-            </UiForm>
-
-            <template #footer>
-                <UiButton variant="secondary" @click="uploadOpen = false">Hủy</UiButton>
-                <UiButton type="submit" form="homework-upload-form" icon="send"><span>Xác nhận nộp bài</span></UiButton>
-            </template>
-        </UiModal>
-
         <!-- Nộp theo giỏ của bài tập GV giao -->
-        <UiModal :show="!!basketOpen" :title="basketOpen ? `${basketOpen.basket.label} — ${basketOpen.hw.title}` : ''" max-width="md" @close="basketOpen = null">
+        <UiModal :show="!!basketOpen" :title="basketOpen ? `${basketOpen.basket.label} — ${basketOpen.hw.session ? `${basketOpen.hw.session.label} (${formatDate(basketOpen.hw.session.date)})` : basketOpen.hw.title}` : ''" max-width="md" @close="basketOpen = null">
             <UiForm v-if="basketOpen" id="homework-basket-form" :key="`${basketOpen.hw.id}-${basketOpen.basket.key}`" :action="route('portal.student.homework.basket', [basketOpen.hw.id, basketOpen.basket.key])" method="post" class="space-y-4 text-xs" @success="basketOpen = null">
                 <input type="hidden" name="student_id" :value="student?.id" />
                 <UiField :label="basketOpen.basket.key === 'video' ? 'Chọn video bài làm' : 'Chụp / chọn ảnh bài làm'" name="file" for="homework-basket-file" :error="fileError">
@@ -378,22 +271,6 @@ function switchStudent(event) {
             <template #footer>
                 <UiButton variant="secondary" @click="basketOpen = null">Hủy</UiButton>
                 <UiButton type="submit" form="homework-basket-form" icon="send">Nộp bài</UiButton>
-            </template>
-        </UiModal>
-
-        <!-- Sửa / nộp lại bài -->
-        <UiModal :show="editOpen" title="Chỉnh sửa / Cập nhật bài nộp" max-width="md" @close="editOpen = false">
-            <UiForm id="homework-edit-form" :action="editId ? route('portal.student.homework.update', editId) : '#'" method="post" class="space-y-4 text-xs" reset-on-success @success="editOpen = false">
-                <UiField label="Cập nhật lại tệp tin bài làm (Nếu muốn thay thế tệp cũ)" name="attachment" for="homework-edit-attachment" hint="Để trống nếu muốn giữ nguyên tệp tin đã tải lên trước đó.">
-                    <input id="homework-edit-attachment" type="file" name="attachment" class="w-full rounded-lg border border-outline-variant bg-surface-container-low p-2 text-xs" />
-                </UiField>
-
-                <UiTextarea id="homework-edit-notes" v-model="editNotes" name="notes" label="Ghi chú gửi thầy cô" :rows="3" />
-            </UiForm>
-
-            <template #footer>
-                <UiButton variant="secondary" @click="editOpen = false">Hủy</UiButton>
-                <UiButton type="submit" form="homework-edit-form" icon="save"><span>Lưu cập nhật</span></UiButton>
             </template>
         </UiModal>
     </div>

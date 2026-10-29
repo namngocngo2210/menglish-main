@@ -15,8 +15,8 @@ class Homework extends Model
     protected $table = 'homeworks';
 
     /**
-     * Hạng mục bài tập (mockup "Giao bài tập về nhà") — khóa trùng với homework_type khi học viên nộp bài
-     * (StudentPortalController::submitHomework): key => [nhãn, icon, gợi ý yêu cầu].
+     * Hạng mục bài tập (mockup "Giao bài tập về nhà") — khóa trùng với homework_type của bài nộp tự do cũ (AcademicRecord, đã gỡ
+     * khỏi cổng); bài nộp mới theo giỏ (basketOf): key => [nhãn, icon, gợi ý yêu cầu].
      */
     public const CATEGORIES = [
         'video' => ['Quay video', 'videocam', 'Nhập chi tiết yêu cầu bài tập (bắt buộc)...'],

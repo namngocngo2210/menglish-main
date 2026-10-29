@@ -26,6 +26,7 @@ use App\Support\TuitionPaymentHistory;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -36,16 +37,11 @@ class StudentPortalController extends Controller
 {
     use ResolvesPortalStudent;
 
-    /** Đuôi file được phép khi nộp bài tập (theo nội dung file). */
-    private const HOMEWORK_EXTENSIONS = [
-        ...SafeUploadService::IMAGES, ...SafeUploadService::DOCUMENTS, ...SafeUploadService::VIDEO, ...SafeUploadService::AUDIO,
-    ];
-
     /** Đuôi file bản ghi phát âm (theo nội dung file): audio + mp4 vì Safari ghi âm ra MP4. */
     private const PRONUNCIATION_EXTENSIONS = [...SafeUploadService::AUDIO, 'mp4'];
 
-    /** Số hạng mục bài tập cố định trên màn "Học tập của tôi" (video, từ vựng, workbook...). */
-    private const HOMEWORK_CATEGORY_COUNT = 6;
+    /** Bài tập GV giao hiện ở cổng: bài của các buổi trong ngần này ngày gần nhất, cộng mọi bài chưa nộp đủ giỏ. */
+    private const HOMEWORK_RECENT_DAYS = 30;
 
     /** Số ngày lịch học sắp tới hiển thị ở trang chủ học viên. */
     private const UPCOMING_DAYS = 14;
@@ -105,21 +101,15 @@ class StudentPortalController extends Controller
 
         // Thống kê thực tế từ DB cho học viên đang chọn
         $submittedHomeworksCount = 0;
+        $homeworkBasketsTotal = 0;
         $unreadNotifsCount = 0;
         $pronunciationCount = 0;
         $surveyCount = 0;
         $hasFeedback = false;
 
         if ($student) {
-            // Chỉ hiển thị thông báo thật (không còn tự tạo thông báo mẫu mỗi lần mở trang).
-            // Số hạng mục bài tập (6 loại) đã nộp — đếm theo loại, không đếm lượt nộp lại.
-            $submittedHomeworksCount = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
-                ->where('data->student_id', (string) $student->id)
-                ->get()
-                ->pluck('data.homework_type')
-                ->filter()
-                ->unique()
-                ->count();
+            // Giỏ bài tập GV giao đã nộp / tổng giỏ được giao (docs/kho-syllabus.md §10) — không đếm lượt nộp lại.
+            [$submittedHomeworksCount, $homeworkBasketsTotal] = self::basketProgress($this->homeworksFor($student->activeClassIds(), $student));
 
             $unreadNotifsCount = PortalNotifications::unreadCount($student);
 
@@ -136,7 +126,7 @@ class StudentPortalController extends Controller
                 ->exists();
         }
 
-        $pendingHomeworksCount = max(0, self::HOMEWORK_CATEGORY_COUNT - $submittedHomeworksCount);
+        $pendingHomeworksCount = max(0, $homeworkBasketsTotal - $submittedHomeworksCount);
 
         return Inertia::render('Portal/AppShell', [
             ...$this->portalProps($students, $student, $student ? [
@@ -190,9 +180,7 @@ class StudentPortalController extends Controller
             $countedAttendances = StudentAttendance::where('student_id', $student->id)->counted();
             $learningProgress['attendance_total'] = (clone $countedAttendances)->count();
             $learningProgress['attendance_present'] = (clone $countedAttendances)->whereIn('status', ['present', 'late'])->count();
-            $learningProgress['homework_total'] = Homework::whereIn('class_id', $classIds)->count();
-            $learningProgress['homework_submitted'] = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
-                ->where('data->student_id', (string) $student->id)->count();
+            [$learningProgress['homework_submitted'], $learningProgress['homework_total']] = self::basketProgress($this->homeworksFor($classIds, $student));
 
             // Lịch học sắp tới: buổi chính khóa / học bù của các lớp + buổi phụ đạo của riêng học viên.
             $upcomingSessions = ClassSession::with(['classModel', 'teacher'])
@@ -336,54 +324,24 @@ class StudentPortalController extends Controller
     {
         [$students, $student] = $this->getActiveStudent($studentId);
 
-        // Lấy tất cả bài nộp thực tế từ DB của học viên này
-        $submissions = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')
-            // Không có học viên trong phạm vi → không trả bản ghi nào (không lộ dữ liệu học viên khác).
-            ->when($student, function ($q) use ($student) {
-                $q->where('data->student_id', (string) $student->id);
-            }, fn ($q) => $q->whereRaw('1 = 0'))
-            ->latest()
-            ->get();
-
-        // Nhóm bài nộp theo loại bài tập để check trạng thái
-        $submissionsByType = [];
-        foreach ($submissions as $sub) {
-            $type = $sub->data['homework_type'] ?? null;
-            if ($type && ! isset($submissionsByType[$type])) {
-                $submissionsByType[$type] = $sub;
-            }
-        }
-
-        $completedCount = count($submissionsByType);
-
         // Buổi học gần đây (nhận xét của GV + phụ huynh chấm buổi), bảng điểm, bài tập mới nhất — dữ liệu thật của (các) lớp học viên.
         $remarks = [];
         $miniTests = collect();
         $bigTestResults = collect();
-        $latestHomework = null;
+        $homeworks = collect();
         if ($student) {
             $classIds = $student->activeClassIds();
             $remarks = $this->recentSessionCards($student, $classIds);
             $miniTests = MiniTestScore::where('student_id', $student->id)->latest('test_date')->limit(10)->get();
             $bigTestResults = BigTestResult::with('bigTest')->where('student_id', $student->id)
                 ->whereIn('status', ['approved', 'sent'])->latest('approved_at')->limit(5)->get();
-            $latestHomework = Homework::with('classModel')->whereIn('class_id', $classIds)
-                ->latest('due_date')->latest('id')->first();
+            $homeworks = $this->homeworksFor($classIds, $student);
         }
 
         return Inertia::render('Portal/Homework', [
             ...$this->portalProps($students, $student),
-            'submissionsByType' => collect($submissionsByType)->map(fn (AcademicRecord $sub) => [
-                'id' => $sub->id,
-                'status' => $sub->status,
-                'submitted_at' => $sub->data['submitted_at'] ?? $sub->created_at->format('d/m/Y H:i'),
-                'score' => $sub->data['score'] ?? null,
-                'attachment_path' => $sub->data['attachment_path'] ?? null,
-                'attachment_name' => $sub->data['attachment_name'] ?? null,
-                'notes' => $sub->data['notes'] ?? null,
-                'feedback' => $sub->data['feedback'] ?? null,
-            ])->all(),
-            'completedCount' => $completedCount,
+            // Bộ đếm "Đã hoàn thành x/y": giỏ đã nộp / tổng giỏ của mọi bài tập GV giao cho (các) lớp học viên.
+            'basketProgress' => array_combine(['submitted', 'total'], self::basketProgress($homeworks)),
             'remarks' => $remarks,
             'feedbackCategories' => ClassSessionFeedback::PARENT_CATEGORIES,
             'miniTests' => $miniTests->map(fn (MiniTestScore $mt) => [
@@ -400,16 +358,8 @@ class StudentPortalController extends Controller
                 'is_absent' => (bool) $bt->is_absent,
                 'overall_score' => $bt->overall_score,
             ])->values()->all(),
-            'latestHomework' => $latestHomework ? [
-                'title' => $latestHomework->title,
-                'description' => $latestHomework->description,
-                'class_name' => $latestHomework->classModel?->name,
-                'due_date' => $latestHomework->due_date?->format('d/m/Y'),
-            ] : null,
-            // Bài tập GV giao theo giỏ (giai đoạn 5 syllabus); có bài thì ẩn 6 hạng mục nộp tự do cũ.
-            'assignments' => $student ? $this->assignedHomework($student) : [],
-            // Chỉ tô cam mục chưa nộp đầu tiên khi bài GV giao sắp/đã tới hạn (≤ 2 ngày).
-            'homeworkUrgent' => (bool) ($latestHomework?->due_date && $latestHomework->due_date->lte(now()->addDays(2)->endOfDay())),
+            // BTVN GV giao theo từng buổi, nộp theo giỏ (docs/kho-syllabus.md §10) — không còn hạng mục nộp tự do.
+            'assignments' => $this->assignedHomework($homeworks),
         ]);
     }
 
@@ -549,61 +499,6 @@ class StudentPortalController extends Controller
     }
 
     /**
-     * CRUD: Nộp bài tập mới (MH #3)
-     */
-    public function submitHomework(Request $request)
-    {
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'homework_type' => 'required|string', // video, vocabulary, workbook, extra_book, bgd_book, quiz
-            'notes' => 'nullable|string',
-            'attachment' => 'nullable|file|max:102400|mimes:'.implode(',', self::HOMEWORK_EXTENSIONS), // Tối đa 100MB
-        ]);
-
-        $student = Student::findOrFail($validated['student_id']);
-        $this->authorizeStudent($student);
-        $studentName = $student->name;
-
-        $attachmentPath = null;
-        $attachmentName = null;
-        if ($request->hasFile('attachment')) {
-            $file = $request->file('attachment');
-            $attachmentName = $file->getClientOriginalName();
-            $attachmentPath = SafeUploadService::store($file, 'homework_submissions', self::HOMEWORK_EXTENSIONS, 'attachment');
-        }
-
-        $typeLabels = [
-            'video' => 'Quay video bài học',
-            'vocabulary' => 'Viết từ vựng & Chụp ảnh',
-            'workbook' => 'Làm Workbook bài tập',
-            'extra_book' => 'Sách bổ trợ',
-            'bgd_book' => 'Sách Bộ Giáo dục',
-            'quiz' => 'Làm Quiz trực tuyến',
-        ];
-
-        AcademicRecord::create([
-            'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap',
-            'module' => 'student_portal',
-            'record_code' => 'SUB-'.strtoupper(Str::random(6)),
-            'title' => 'Bài nộp: '.($typeLabels[$validated['homework_type']] ?? $validated['homework_type']).' - '.$studentName,
-            'status' => 'submitted',
-            'data' => [
-                'student_id' => (string) $validated['student_id'],
-                'student_name' => $studentName,
-                'homework_type' => $validated['homework_type'],
-                'homework_label' => $typeLabels[$validated['homework_type']] ?? $validated['homework_type'],
-                'attachment_path' => $attachmentPath ? '/storage/'.$attachmentPath : null,
-                'attachment_name' => $attachmentName ?? ($validated['homework_type'] === 'video' ? 'video_bai_tap.mp4' : 'bai_lam.jpg'),
-                'notes' => $validated['notes'] ?? 'Con đã hoàn thành bài tập đầy đủ theo hướng dẫn của cô.',
-                'submitted_at' => now()->format('d/m/Y H:i'),
-            ],
-            'user_id' => Auth::id(),
-        ]);
-
-        return back()->with('success', 'Đã nộp bài tập thành công! Giáo viên sẽ nhận được thông báo để kiểm tra và chấm điểm.');
-    }
-
-    /**
      * Nộp bài theo giỏ của bài tập GV giao (docs/kho-syllabus.md §10.2): giấy = ảnh, video = video, Quizizz = tự khai "Đã làm".
      * Nộp lại cùng giỏ thì thay bài cũ (về trạng thái chờ GV xem).
      */
@@ -669,22 +564,78 @@ class StudentPortalController extends Controller
     }
 
     /**
-     * Bài tập GV giao 30 ngày gần nhất của (các) lớp học viên, kèm giỏ và bài đã nộp.
+     * Mọi bài tập GV giao cho các lớp của học viên, kèm lớp, buổi học và bài nộp của học viên (eager load, không N+1).
      *
+     * @param  list<int>  $classIds
+     * @return Collection<int, Homework>
+     */
+    private function homeworksFor(array $classIds, Student $student): Collection
+    {
+        if ($classIds === []) {
+            return collect();
+        }
+
+        return Homework::with(['classModel:id,name', 'classSession:id,class_id,date,start_time,type,status',
+            'submissions' => fn ($q) => $q->where('student_id', $student->id)])
+            ->whereIn('class_id', $classIds)->get();
+    }
+
+    /**
+     * Giỏ đã nộp / tổng giỏ của các bài tập (mỗi giỏ tính 1 lần, nộp lại không cộng thêm).
+     *
+     * @param  Collection<int, Homework>  $homeworks
+     * @return array{0: int, 1: int}
+     */
+    private static function basketProgress(Collection $homeworks): array
+    {
+        $submitted = $total = 0;
+        foreach ($homeworks as $hw) {
+            foreach ($hw->baskets() as $basket) {
+                $total++;
+                $submitted += $hw->submissions->contains('basket', $basket) ? 1 : 0;
+            }
+        }
+
+        return [$submitted, $total];
+    }
+
+    /**
+     * Thẻ BTVN theo buổi (chủ dự án: nộp bài gắn với BTVN được giao của từng buổi): bài của các buổi trong HOMEWORK_RECENT_DAYS
+     * ngày gần nhất + mọi bài chưa nộp đủ giỏ, buổi mới nhất trước. Bài cũ không gắn buổi tính theo ngày giao, nhãn "Không gắn buổi".
+     *
+     * @param  Collection<int, Homework>  $homeworks
      * @return list<array<string, mixed>>
      */
-    private function assignedHomework(Student $student): array
+    private function assignedHomework(Collection $homeworks): array
     {
-        return Homework::with(['classModel:id,name', 'submissions' => fn ($q) => $q->where('student_id', $student->id)])
-            ->whereIn('class_id', $student->activeClassIds())->where('created_at', '>=', now()->subDays(30))
-            ->latest()->get()
-            ->filter(fn (Homework $hw) => $hw->baskets() !== [])
-            ->map(fn (Homework $hw) => [
+        $since = today()->subDays(self::HOMEWORK_RECENT_DAYS);
+        $dateOf = fn (Homework $hw) => $hw->classSession?->date ?? $hw->created_at;
+        $pending = fn (Homework $hw) => collect($hw->baskets())->contains(fn (string $b) => ! $hw->submissions->contains('basket', $b));
+        $homeworks = $homeworks->filter(fn (Homework $hw) => $pending($hw) || $dateOf($hw)->gte($since))
+            ->sortByDesc(fn (Homework $hw) => $dateOf($hw)->format('Y-m-d').'-'.str_pad((string) $hw->id, 10, '0', STR_PAD_LEFT))
+            ->values();
+        $lessons = app(SessionLessonService::class)->lessonsFor($homeworks->pluck('classSession')->filter()->unique('id')->values());
+
+        return $homeworks->map(function (Homework $hw) use ($lessons) {
+            $session = $hw->classSession;
+            $lesson = $session ? ($lessons[$session->id] ?? null) : null;
+
+            return [
                 'id' => $hw->id,
                 'title' => $hw->title,
                 'class_name' => $hw->classModel?->name,
+                'session' => $session ? [
+                    'id' => $session->id,
+                    'label' => ! empty($lesson['no']) ? 'Buổi '.$lesson['no'] : ($session->type === ClassSession::TYPE_MAKEUP ? 'Buổi học bù' : 'Buổi học'),
+                    'lesson' => collect([$lesson['unit'] ?? null, $lesson['title'] ?? null])->filter()->implode(' — ') ?: null,
+                    'date' => $session->date->toDateString(),
+                ] : null,
                 'note' => $hw->class_note,
+                // Bài giao theo form cũ (chỉ tiêu đề + mô tả, không có giỏ): hiện mô tả, không có phần nộp.
+                'description' => $hw->baskets() === [] ? $hw->description : null,
+                'youtube_url' => $hw->youtube_url,
                 'due_date' => $hw->due_date?->toDateString(),
+                'due_at' => $hw->due_at?->toIso8601String(),
                 'baskets' => collect($hw->baskets())->map(function (string $basket) use ($hw) {
                     $sub = $hw->submissions->firstWhere('basket', $basket);
 
@@ -708,52 +659,8 @@ class StudentPortalController extends Controller
                         ] : null,
                     ];
                 })->values()->all(),
-            ])->values()->all();
-    }
-
-    /**
-     * CRUD: Cập nhật ghi chú hoặc file bài nộp (MH #3)
-     */
-    public function updateHomework(Request $request, $id)
-    {
-        $record = AcademicRecord::findOrFail($id);
-        $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap');
-
-        $validated = $request->validate([
-            'notes' => 'nullable|string',
-            'attachment' => 'nullable|file|max:102400|mimes:'.implode(',', self::HOMEWORK_EXTENSIONS),
-        ]);
-
-        $data = $record->data ?? [];
-        if ($request->has('notes')) {
-            $data['notes'] = $validated['notes'];
-        }
-
-        if ($request->hasFile('attachment')) {
-            $file = $request->file('attachment');
-            $path = SafeUploadService::store($file, 'homework_submissions', self::HOMEWORK_EXTENSIONS, 'attachment');
-            $data['attachment_path'] = '/storage/'.$path;
-            $data['attachment_name'] = $file->getClientOriginalName();
-        }
-
-        $data['updated_at_custom'] = now()->format('d/m/Y H:i');
-        $record->data = $data;
-        $record->save();
-
-        return back()->with('success', 'Đã cập nhật bài nộp thành công!');
-    }
-
-    /**
-     * CRUD: Hủy / Xóa bài nộp (MH #3)
-     */
-    public function deleteHomework($id)
-    {
-        $record = AcademicRecord::findOrFail($id);
-        $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap');
-
-        $record->delete();
-
-        return back()->with('success', 'Đã xóa bài nộp thành công! Bạn có thể nộp lại bài mới.');
+            ];
+        })->all();
     }
 
     // ─────────────────────────────────────────────

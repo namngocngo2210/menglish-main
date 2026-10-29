@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\Homework;
 use App\Models\Student;
 use App\Models\SupportTicket;
 use App\Models\TicketMessage;
@@ -148,6 +149,16 @@ class P0SecurityFixesTest extends TestCase
         return [$user, $student];
     }
 
+    /** Giỏ "Bài tập giấy" của BTVN GV giao cho lớp của học viên (cổng chỉ còn nộp theo BTVN từng buổi). */
+    private function paperBasketUrl(Student $student): string
+    {
+        $class = ClassModel::create(['code' => 'UP-01', 'name' => 'Lớp Upload', 'branch_id' => $this->branch->id, 'status' => 'active']);
+        $student->update(['current_class_id' => $class->id]);
+        $homework = Homework::create(['class_id' => $class->id, 'title' => 'Workbook', 'items' => ['workbook' => 'Trang 4']]);
+
+        return route('portal.student.homework.basket', [$homework->id, 'paper']);
+    }
+
     private function gifNamed(string $clientName): UploadedFile
     {
         $path = tempnam(sys_get_temp_dir(), 'up');
@@ -158,28 +169,28 @@ class P0SecurityFixesTest extends TestCase
 
     public function test_homework_upload_rejects_php_file(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         [$user, $student] = $this->studentAccount();
 
         $shell = UploadedFile::fake()->createWithContent('shell.php', '<?php echo "pwned"; ?>');
 
-        $this->actingAs($user)->post(route('portal.student.homework.submit'), [
-            'student_id' => $student->id, 'homework_type' => 'workbook', 'attachment' => $shell,
-        ])->assertSessionHasErrors('attachment');
+        $this->actingAs($user)->post($this->paperBasketUrl($student), [
+            'student_id' => $student->id, 'file' => $shell,
+        ])->assertSessionHasErrors('file');
 
-        $this->assertSame([], Storage::disk('public')->allFiles('homework_submissions'));
+        $this->assertSame([], Storage::disk('local')->allFiles('homework_submissions'));
     }
 
     public function test_homework_upload_uses_content_extension_not_client_name(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         [$user, $student] = $this->studentAccount();
 
-        $this->actingAs($user)->post(route('portal.student.homework.submit'), [
-            'student_id' => $student->id, 'homework_type' => 'workbook', 'attachment' => $this->gifNamed('photo.gif'),
+        $this->actingAs($user)->post($this->paperBasketUrl($student), [
+            'student_id' => $student->id, 'file' => $this->gifNamed('photo.gif'),
         ])->assertSessionHasNoErrors();
 
-        $files = Storage::disk('public')->allFiles('homework_submissions');
+        $files = Storage::disk('local')->allFiles('homework_submissions');
         $this->assertCount(1, $files);
         $this->assertStringEndsWith('.gif', $files[0]);
         $this->assertStringNotContainsString('photo', $files[0]);

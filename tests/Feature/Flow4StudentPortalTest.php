@@ -14,6 +14,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -121,26 +122,23 @@ class Flow4StudentPortalTest extends TestCase
         $response->assertSee('Học tập của tôi');
         $response->assertSee('Nhận xét buổi học');
         $response->assertSee('Bài tập về nhà');
-        $response->assertSee('Quay video bài học');
-        $response->assertSee('Viết từ vựng');
+        $response->assertDontSee('Quay video bài học');
+        $response->assertDontSee('Viết từ vựng &amp; Chụp ảnh', false);
     }
 
     /**
-     * Flow 4 - Step 3: Submit homework
+     * Flow 4 - Step 3: Nộp tự do 6 hạng mục đã gỡ — chỉ nộp vào giỏ của BTVN GV giao theo buổi.
      */
-    public function test_flow_4_step_3_submit_homework_creates_record()
+    public function test_flow_4_step_3_free_homework_submission_routes_are_removed()
     {
-        $response = $this->actingAs($this->user)->post(route('portal.student.homework.submit'), [
-            'student_id' => $this->student->id,
-            'homework_type' => 'video',
-            'notes' => 'Con đã đọc xong bài Unit 4',
-        ]);
+        foreach (['portal.student.homework.submit', 'portal.student.homework.update', 'portal.student.homework.destroy'] as $name) {
+            $this->assertFalse(Route::has($name), "{$name} phải bị gỡ.");
+        }
 
-        $response->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('academic_records', [
-            'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap',
-            'status' => 'submitted',
-        ]);
+        $this->actingAs($this->user)->post('/portal/student-homework/submit', [
+            'student_id' => $this->student->id, 'homework_type' => 'video', 'notes' => 'Nộp tự do',
+        ])->assertStatus(405);
+        $this->assertDatabaseMissing('academic_records', ['screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap']);
     }
 
     /**
@@ -338,36 +336,6 @@ class Flow4StudentPortalTest extends TestCase
             'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/02_trang_chu_phu_huynh_hoc_sinh',
             'status' => 'pending',
         ]);
-    }
-
-    /**
-     * Flow 4 - Step 3: Update and delete homework submission
-     */
-    public function test_flow_4_step_3_update_and_delete_homework()
-    {
-        // 1. Submit homework
-        $this->actingAs($this->user)->post(route('portal.student.homework.submit'), [
-            'student_id' => $this->student->id,
-            'homework_type' => 'vocabulary',
-            'notes' => 'Từ vựng bài 1',
-        ]);
-
-        $record = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap')->first();
-        $this->assertNotNull($record);
-
-        // 2. Update homework
-        $updateResp = $this->actingAs($this->user)->post(route('portal.student.homework.update', ['id' => $record->id]), [
-            'student_id' => $this->student->id,
-            'notes' => 'Đã sửa bổ sung từ vựng bài 1',
-        ]);
-        $updateResp->assertSessionHas('success');
-
-        // 3. Delete homework
-        $delResp = $this->actingAs($this->user)->delete(route('portal.student.homework.destroy', ['id' => $record->id]), [
-            'student_id' => $this->student->id,
-        ]);
-        $delResp->assertSessionHas('success');
-        $this->assertNull(AcademicRecord::find($record->id));
     }
 
     /**
