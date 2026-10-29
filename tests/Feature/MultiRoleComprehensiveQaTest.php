@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\Student;
 use App\Models\StudentTuition;
@@ -460,6 +461,13 @@ class MultiRoleComprehensiveQaTest extends TestCase
     public function test_teacher_screens_verification(): void
     {
         // 1. Màn check-in ca dạy nhiều ca (03_Cong_Giao_Vien/15_check_in_cua_toi)
+        // Menu "Check-in & Điểm danh hôm nay" đã bỏ (6907eaaf8): chữ "Check-in" chỉ còn ở bước 1 của thẻ ca dạy,
+        // nên cần một ca dạy hôm nay để màn này có nội dung check-in.
+        ClassSession::create([
+            'class_id' => $this->testClass->id, 'branch_id' => $this->branch->id, 'date' => today()->toDateString(),
+            'shift_name' => 'Slot 1', 'start_time' => '23:00', 'end_time' => '23:59',
+            'teacher_id' => $this->teacher->id, 'status' => 'scheduled',
+        ]);
         $resCheckin = $this->actingAs($this->teacher)->followingRedirects()->get(route('academic-system.show', [
             'category' => '03_Cong_Giao_Vien',
             'screen' => '15_check_in_cua_toi',
@@ -480,7 +488,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
         // 3. Chấm bài nộp của lớp (/portal/teacher/submissions)
         $resSubmissions = $this->actingAs($this->teacher)->get(route('portal.teacher.submissions.alias'));
         $resSubmissions->assertOk();
-        $resSubmissions->assertSee('Chấm bài');
+        // Tab "Chấm bài nộp" đã bỏ khỏi menu (f2f9be612, chủ dự án 28/10/2026); trang giữ tiêu đề "Bài nộp của lớp".
+        $resSubmissions->assertSee('Bài nộp của lớp');
 
         // 4. Xem lương cá nhân (/portal/my-salary)
         $resSalary = $this->actingAs($this->teacher)->get(route('portal.my-salary'));

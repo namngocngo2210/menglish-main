@@ -21,6 +21,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
@@ -295,18 +296,30 @@ class Phase2OperationsScreensTest extends TestCase
         $this->task($this->assistant, 'Việc ngày mai', '2026-10-08', 'after');
         $this->makeSession($this->classModel, '2026-10-07');
 
+        // 3 ca của ngày chỉ chứa việc đúng ngày; việc tồn ngày trước chưa xong hiện riêng trong khối
+        // "Việc của ngày trước chưa xong" để báo xong ngay (thay banner đếm số từ 806622866); việc ngày sau không hiện.
+        $dayTitles = fn (array $groups) => collect($groups)->flatMap(fn ($g) => collect($g['tasks'])->pluck('title'))->all();
+
         $this->actingAs($this->assistant)->get(route('portal.ta-tasks'))
             ->assertOk()
             ->assertSee('Nhiệm vụ hôm nay')
             ->assertSee('Việc hôm nay')
-            ->assertDontSee('Việc hôm qua')
             ->assertDontSee('Việc ngày mai')
-            ->assertSee('Còn <strong>1</strong> nhiệm vụ', false)
+            ->assertSee('Việc của ngày trước chưa xong · 1')
+            ->assertSee('Việc hôm qua')
             ->assertSee('IELTS Foundation OPS')
-            ->assertSee('Điều hướng portal trợ giảng');
+            ->assertSee('Điều hướng portal trợ giảng')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('groups', fn ($groups) => $dayTitles(collect($groups)->all()) === ['Việc hôm nay'])
+                ->where('overdueCount', 1)
+                ->where('overdueTasks', fn ($rows) => collect($rows)->pluck('title')->all() === ['Việc hôm qua'])
+                ->etc());
 
         $this->actingAs($this->assistant)->get(route('portal.ta-tasks', ['date' => '2026-10-08']))
-            ->assertOk()->assertSee('Việc ngày mai')->assertDontSee('Việc hôm nay');
+            ->assertOk()->assertSee('Việc ngày mai')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('groups', fn ($groups) => $dayTitles(collect($groups)->all()) === ['Việc ngày mai'])
+                ->etc());
     }
 
     public function test_ta_portal_admin_picks_assistant_and_ta_cannot_view_others(): void
