@@ -155,6 +155,8 @@ class SyllabusOrders
                 'GV yêu cầu đề test: '.$user->name,
                 "Giáo viên {$user->name} order đề {$order->type_label} cho {$stage} của lớp {$class->name} (mốc buổi {$lesson->session_no}).",
                 route('syllabus.big-tests.distribution', ['order' => $order->id]), ['big_test_order_id' => $order->id], $user->id);
+            // Học thuật nhận việc chuẩn bị đề ở Danh sách đầu việc (Admin chỉ duyệt & phân phối).
+            app(TestOrderTasks::class)->open($order, $assignment, $user);
 
             return $order->code;
         });

@@ -116,6 +116,14 @@ class SyllabusNotifier
             ['label' => 'NHẬN VIỆC', 'url' => route('tasks.accept', $task->id), 'method' => 'post']);
     }
 
+    /** GV order đề mini test / Big Test → Học thuật nhận việc chuẩn bị đề, nút NHẬN VIỆC. */
+    public function testOrdered(WorkTask $task): void
+    {
+        $this->send([$task->assignee_id], $task->title,
+            'Hạn xử lý: '.($task->due_date?->format('d/m/Y') ?? 'chưa có').'. Bấm NHẬN VIỆC để chuyển vào Công việc cần làm.',
+            ['label' => 'NHẬN VIỆC', 'url' => route('tasks.accept', $task->id), 'method' => 'post']);
+    }
+
     /** Việc quá hạn → người làm + Quản lý chi nhánh, nút XỬ LÝ (Sheet 3 "Việc quá hạn"). */
     public function taskOverdue(WorkTask $task): void
     {
