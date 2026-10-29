@@ -13,10 +13,45 @@
 
 return [
 
-    // ── Full-time: khấu trừ tự động trên LƯƠNG CƠ BẢN ────────────────────────────
+    // ── BHXH / Công đoàn trên MỨC ĐÓNG BHXH (TK-0009, 30/10/2026) ──────────────
+    // BHXH = mức đóng × 10,5%, Công đoàn = mức đóng × 0,5% (đủ tháng: 567.000 / 27.000). Mức đóng không cộng vào thu nhập.
+    // Tháng làm không đủ → × công hưởng lương / công chuẩn. Chỉ áp cho các vai trò lương dưới đây (Full-time, lương cơ bản > 0);
+    // Sale, Quản lý, nhân sự khác, Part-time, Trợ giảng → 0. Mức đóng sửa ở màn "Tham số tính lương".
+    'insurance_salary_base' => 5400000,
     'insurance_rate_percent' => 10.5,   // BHXH (phần người lao động)
     'union_rate_percent' => 0.5,        // Công đoàn
+    'insurance_roles' => ['teacher_fulltime', 'academic_staff', 'academic_lead'],
     // Thuế TNCN: Admin / Kế toán nhập tay trên phiếu lương (không tự tính).
+
+    // ── Full-time: ngày công (TK-0012) ───────────────────────────────────────────
+    // Lương cơ bản / phụ cấp hợp đồng thực trả = mức hợp đồng ÷ công chuẩn × công hưởng lương (tối đa đủ tháng).
+    // - Công chuẩn = số ngày trong tháng − ngày nghỉ cố định trong tuần của nhân sự (nghỉ 1 ngày/tuần hoặc T7 + CN).
+    //   Ngày lễ VẪN tính trong công chuẩn.
+    // - Công hưởng lương = ngày chấm công (đủ vào + ra hoặc đã chấm công bù = 1 công; có vào, quên ra, không bù = 0,5 công)
+    //   + ngày nghỉ phép đã duyệt + ngày lễ rơi vào ngày làm việc (paid_holidays). Hợp đồng bắt đầu giữa tháng: ngày
+    //   trước ngày bắt đầu không được trả.
+    'workday' => [
+        // Nhân sự chưa đặt lịch nghỉ trong tuần (hồ sơ → Hợp đồng & Lương) tính công chuẩn như nghỉ Chủ nhật (1 = T2 … 7 = CN).
+        'default_weekly_days_off' => [7],
+        'missing_checkout_credit' => 0.5,
+        // Chủ dự án chốt 30/10/2026: ngày lễ rơi vào ngày làm việc được trả lương. Đổi tại đây nếu chính sách thay đổi.
+        'paid_holidays' => true,
+    ],
+
+    // ── Full-time: đi muộn / quên chấm công (TK-0013) ────────────────────────────
+    // Đi muộn: cuối tháng cộng dồn tổng phút muộn không có phép ÷ 60 × công giờ; công giờ = công ngày ÷ 7, công ngày =
+    // lương cơ bản ÷ công chuẩn. Không lập biên bản từng lần. GV / TA: đi muộn tính theo check-in ca dạy (không trừ ở đây).
+    // Quên chấm vào / chấm ra: phạt mỗi lần (sửa ở Tham số tính lương), kể cả ngày đã được chấm công bù.
+    'attendance' => [
+        'hours_per_day' => 7,
+        'missing_punch_fine' => 30000,
+    ],
+
+    // ── Trợ giảng (TK-0010, TK-0011) ─────────────────────────────────────────────
+    // Lương TA = số giờ dạy hợp lệ × đơn giá giờ. Bậc đơn giá (đ/giờ) Admin chọn cho từng TA ở màn Đơn giá giáo viên.
+    // Đơn giá TA cũ theo buổi không quy đổi: TA chưa có đơn giá giờ → lương giờ 0đ + cảnh báo cần nhập lại.
+    // TA không có KPI, không phụ cấp, không thưởng tái tục; vẫn bị trừ phạt.
+    'assistant_hourly_tiers' => [30000, 35000, 40000],
 
     // ── Part-time: KPI giữ học sinh ──────────────────────────────────────────────
     // Số HS giữ được × bậc (đ / HS / tháng). Admin chọn bậc bằng tay cho từng GV từng kỳ.
@@ -67,7 +102,7 @@ return [
         ],
     ],
 
-    // ── Thưởng tái tục (GV phụ trách lớp) ────────────────────────────────────────
+    // ── Thưởng tái tục: chỉ Học vụ (academic_staff, TK-0015) ─────────────────────────
     // % × doanh thu lớp trong kỳ, % tra theo SỐ HS NGHỈ (Thôi học) trong kỳ của lớp.
     // BA mới chốt 2 mốc: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc còn lại CHỜ BA: để 0%.
     'renewal_bonus' => [

@@ -31,7 +31,7 @@ const configs = {
         guideIcon: 'functions',
         guideTitle: 'Quy Chế Tính Lương GV Cơ Hữu MEnglish',
         guides: [
-            ['1. Lương cơ bản & khấu trừ', 'BHXH, Công đoàn tự động trên lương cơ bản (tỉ lệ ở Tham số tính lương); thuế TNCN Admin nhập tay. Không trả thêm theo giờ dạy — buổi dạy chỉ để đối soát.'],
+            ['1. Lương cơ bản & khấu trừ', 'Lương cơ bản trả theo ngày công (công hưởng lương / công chuẩn). BHXH, Công đoàn tự động trên mức lương đóng BHXH (Tham số tính lương); thuế TNCN Admin nhập tay. Không trả thêm theo giờ dạy — buổi dạy chỉ để đối soát.'],
             ['2. KPI (nhập tự do)', 'GV Full-time: Admin / Kế toán nhập số tiền KPI trên phiếu lương, giữ khi tính lại.'],
             ['3. Thưởng tái tục', '% theo số HS nghỉ trong lớp phụ trách (giữ đủ → 1%, nghỉ 1 → 0,7%, các mốc khác chờ BA) × doanh thu lớp trong kỳ.'],
         ],
@@ -54,7 +54,7 @@ const configs = {
         guideIcon: 'menu_book',
         guideTitle: 'Cơ Cấu Thu Nhập Khối Học Thuật',
         guides: [
-            ['1. Lương cơ bản & khấu trừ', 'BHXH, Công đoàn tự động trên lương cơ bản; thuế TNCN Admin nhập tay; trừ vi phạm quá hạn nộp.'],
+            ['1. Lương cơ bản & khấu trừ', 'Lương cơ bản trả theo ngày công; đi muộn trừ theo phút × lương phút. BHXH, Công đoàn tự động trên mức lương đóng BHXH; thuế TNCN Admin nhập tay; trừ vi phạm quá hạn nộp.'],
             ['2. KPI (nhập tự do)', 'Học thuật: Admin / Kế toán nhập số tiền KPI trên phiếu lương.'],
             ['Kiêm nhiệm giảng dạy', 'Học thuật bật "Kiêm nhiệm giảng dạy" ở hồ sơ: cộng lương đứng lớp (buổi dạy × % học phí theo buổi) và KPI kiêm nhiệm (HS giữ được × bậc).'],
             ['3. Phụ cấp & thưởng tái tục', 'Phụ cấp / thưởng là các dòng tự do có tên. Thưởng tái tục nếu phụ trách lớp.'],
@@ -149,7 +149,7 @@ const initial = (name) => Array.from(name ?? 'N')[0] ?? '';
                                     </div>
                                 </td>
                                 <td class="text-right font-mono font-semibold">
-                                    {{ formatMoney(r.base_salary + r.teaching_salary) }}
+                                    {{ formatMoney(r.base_salary_earned + r.teaching_salary) }}
                                     <p v-if="r.teaching_concurrent" class="text-xs text-on-surface-subtle">gồm đứng lớp {{ formatMoney(r.teaching_salary) }} · {{ r.teaching_sessions }} buổi</p>
                                     <p v-else-if="r.teaching_sessions > 0" class="text-xs text-on-surface-subtle">{{ r.teaching_sessions }} buổi dạy</p>
                                 </td>

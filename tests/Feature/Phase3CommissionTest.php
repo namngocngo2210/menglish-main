@@ -25,6 +25,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\AttendsWorkdays;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -39,6 +40,7 @@ use Tests\TestCase;
  */
 class Phase3CommissionTest extends TestCase
 {
+    use AttendsWorkdays;
     use FinalizesPayrollKpi;
     use RefreshDatabase;
 
@@ -464,14 +466,15 @@ class Phase3CommissionTest extends TestCase
 
         // Kỳ tháng 9: không có thu mới, bị trừ 200k thu hồi hoa hồng (sale = Full-time theo Q3)
         $this->sales->update(['base_salary' => 5000000]);
+        $this->attendFullMonth($this->sales, 9);
         $this->travelTo(Carbon::parse('2026-09-30 10:00:00'));
         $september = $this->period(9);
         $september->calculatePayrollForPeriod();
         $record = $this->salesRecord($september);
         $this->assertEquals(0, $record->commission_bonus);
         $this->assertEquals(200000, $record->commission_clawback);
-        // 5M − 525k BHXH − 25k Công đoàn − 200k thu hồi (Q3: bỏ phụ cấp cố định 500k)
-        $this->assertEquals(4250000, $record->net_salary);
+        // 5M (đủ công) − 200k thu hồi; Sale không đóng BHXH / Công đoàn (TK-0009)
+        $this->assertEquals(4800000, $record->net_salary);
 
         $this->travelTo(\Carbon\Carbon::parse('2026-10-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
         $september->calculatePayrollForPeriod(); // qua mốc chốt: tính lại lần cuối trước khi duyệt

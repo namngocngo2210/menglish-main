@@ -54,8 +54,8 @@ use RuntimeException;
  *   ngoài lịch bị từ chối, Học vụ
  *   chi nhánh duyệt ca mỗi sáng (ca 2 ngày gần nhất còn chờ đối soát).
  * - Chấm công điện thoại (ảnh + GPS) cho mọi nhân sự từ đầu tháng trước đến hôm nay: tháng trước ghi thẳng (kỳ đã khóa),
- *   tháng này bấm qua StaffAttendanceService theo đúng giờ. Đi muộn tự lập biên bản; biên bản tháng này đi đủ các bước
- *   (giải trình, chốt lỗi, phạt + nộp, phạt quá hạn, còn chờ). Đơn Bổ sung công / Xin đi muộn / Xin nghỉ ở mọi trạng thái.
+ *   tháng này bấm qua StaffAttendanceService theo đúng giờ. Đi muộn chỉ ghi số phút (bảng lương cộng dồn, không lập biên bản —
+ *   TK-0013). Đơn Bổ sung công / Xin đi muộn / Xin nghỉ ở mọi trạng thái.
  * - Bộ tiêu chí KPI mẫu cho GV full-time, Trợ giảng, Sale (vai trò chưa có bộ). Phiếu KPI tháng trước đã duyệt (1 phiếu
  *   không duyệt), phiếu tháng này chờ duyệt, phần lớn đã điền số liệu.
  * - Nguồn số liệu KPI tự đếm (DemoKpiSourcesSeeder): học viên lớp K27 / K28 (điểm danh, mini test, BTVN), báo cáo tháng GV, nghỉ
@@ -123,17 +123,17 @@ class DemoPayrollSeeder extends Seeder
         'ta.linh@menglish.edu.vn' => ['Bán thời gian', 0],
     ];
 
-    /** Đơn giá buổi riêng cho GV / TA chưa có đơn giá: email (hoặc khóa nhân sự mới) => [đơn giá, loại GV]. */
+    /** Đơn giá riêng cho GV / TA chưa có đơn giá: email (hoặc khóa nhân sự mới) => [đơn giá, loại GV]. GV: đ/buổi; TA: bậc đ/giờ (TK-0010). */
     private const RATES = [
         'gv.banthoigian1@menglish.edu.vn' => [230000, 'parttime'],
-        'ta.tram@menglish.edu.vn' => [110000, 'assistant'],
-        'ta.thu@menglish.edu.vn' => [110000, 'assistant'],
-        'ta.hai@menglish.edu.vn' => [120000, 'assistant'],
-        'ta.linh@menglish.edu.vn' => [110000, 'assistant'],
+        'ta.tram@menglish.edu.vn' => [35000, 'assistant'],
+        'ta.thu@menglish.edu.vn' => [30000, 'assistant'],
+        'ta.hai@menglish.edu.vn' => [40000, 'assistant'],
+        'ta.linh@menglish.edu.vn' => [30000, 'assistant'],
         'pt_cg' => [240000, 'parttime'],
         'pt_bd' => [230000, 'parttime'],
-        'ta_bd' => [110000, 'assistant'],
-        'ta_dd' => [110000, 'assistant'],
+        'ta_bd' => [35000, 'assistant'],
+        'ta_dd' => [30000, 'assistant'],
     ];
 
     /**
@@ -350,9 +350,6 @@ class DemoPayrollSeeder extends Seeder
                 $this->planKpi();
                 $this->runEvents();
 
-                $this->processLatePenalties();
-                $this->runEvents();
-
                 $this->closePayroll();
             });
         }
@@ -516,9 +513,9 @@ class DemoPayrollSeeder extends Seeder
                 default => $this->staff['admin'],
             };
             $this->asUser($actor, PayrollController::class, 'storePersonalTeacherRate', [
-                'user_id' => $user->id, 'hourly_rate' => $amount, 'rate_unit' => TeacherHourlyRate::UNIT_SESSION,
+                'user_id' => $user->id, 'hourly_rate' => $amount, 'rate_unit' => $type === 'assistant' ? TeacherHourlyRate::UNIT_HOUR : TeacherHourlyRate::UNIT_SESSION,
                 'teacher_type' => $type, 'effective_from' => $from->toDateString(),
-                'note' => ($isNew ? 'Đơn giá theo hợp đồng nhân sự mới ' : 'Đơn giá buổi theo hợp đồng ').self::MARKER,
+                'note' => ($isNew ? 'Đơn giá theo hợp đồng nhân sự mới ' : ($type === 'assistant' ? 'Bậc đơn giá giờ trợ giảng ' : 'Đơn giá buổi theo hợp đồng ')).self::MARKER,
             ]);
         }
     }
@@ -1020,20 +1017,6 @@ class DemoPayrollSeeder extends Seeder
         $this->attendance->recalculate($row, $user, $branch);
         $row->save();
         $row->forceFill(['updated_at' => $out ?? $in])->saveQuietly();
-
-        // Đi muộn tháng trước: biên bản đã đóng (Quản lý nhắc nhở, không phạt tiền).
-        if ($row->isLate()) {
-            $decider = $this->deciderFor($user);
-            $penalty = Penalty::create([
-                'code' => Penalty::generateCode(), 'user_id' => $user->id,
-                'violation_type' => 'Đi muộn '.$row->late_minutes.' phút (chấm công ngày '.$day->format('d/m/Y').')',
-                'error_category' => 'operations', 'violation_date' => $day->toDateString(), 'amount' => 0, 'status' => 'resolved',
-                'notes' => 'Tự động từ chấm công: giờ vào '.$in->format('H:i').', giờ phải có mặt '.substr((string) $row->expected_start, 0, 5).'.',
-                'decided_by' => $decider->id, 'decided_at' => $day->copy()->addDay()->setTime(10, 0),
-                'decision_note' => 'Nhắc nhở, không phạt tiền (đi muộn lần đầu trong tháng).',
-            ]);
-            $row->penalty()->associate($penalty)->saveQuietly();
-        }
     }
 
     private function deciderFor(User $user): User
@@ -1109,53 +1092,6 @@ class DemoPayrollSeeder extends Seeder
 
         return (string) ob_get_clean();
     }
-
-    // ── Biên bản đi muộn tháng này ─────────────────────────────────────────────
-
-    /** Biên bản đi muộn tự lập trong tháng: giải trình, chốt lỗi, phạt + nộp, phạt chưa nộp (quá hạn trừ lương), còn chờ. */
-    private function processLatePenalties(): void
-    {
-        $penalties = Penalty::query()->where('status', 'pending')->where('notes', 'like', 'Tự động từ chấm công%')
-            ->whereDate('violation_date', '>=', $this->thisMonth->toDateString())->orderBy('violation_date')->orderBy('id')->get();
-        $explanations = [
-            'Tắc đường đoạn Cầu Giấy do mưa lớn, em đã nhắn nhóm cơ sở lúc 7h55.',
-            'Con ốm sốt nên em đưa đi khám sớm, đến muộn, em xin rút kinh nghiệm.',
-            'Xe hỏng giữa đường, em phải gửi xe sửa rồi bắt taxi tới.',
-            'Em ngủ quên do tối trước trực sự kiện khai giảng muộn, em xin lỗi.',
-            'Ứng dụng chấm công báo lỗi GPS, em chấm lại được lúc muộn hơn giờ đến thật.',
-        ];
-        foreach ($penalties as $i => $penalty) {
-            $user = $penalty->user;
-            $base = Carbon::parse($penalty->violation_date)->setTime(12, 0);
-            $decider = $this->deciderFor($user);
-            $step = $i % 5;
-            if ($step !== 3) {
-                $this->event($base->copy()->addHours(8), fn () => $penalty->fresh()->status === 'pending'
-                    ? $this->asUser($user, PenaltyController::class, 'explain', ['explanation' => $explanations[$i % count($explanations)]], ['id' => $penalty->id]) : null);
-            }
-            $decide = function (array $input) use ($penalty, $decider) {
-                if (in_array($penalty->fresh()->status, ['pending', 'explained'], true)) {
-                    $this->asUser($decider, PenaltyController::class, 'confirmPenalty', $input, ['id' => $penalty->id]);
-                }
-            };
-            match ($step) {
-                0 => $this->event($base->copy()->addDay()->setTime(10, 0), fn () => $decide(['decision' => 'error', 'decision_note' => 'Có lý do chính đáng — nhắc nhở, không phạt tiền.'])),
-                2 => $this->event($base->copy()->addDay()->setTime(10, 30), fn () => $decide(['decision' => 'fine', 'amount' => 50000, 'decision_note' => 'Đi muộn lần 2 trong tháng — phạt theo quy chế.'])),
-                4 => $this->event($base->copy()->addDay()->setTime(11, 0), fn () => $decide(['decision' => 'fine', 'amount' => 100000, 'decision_note' => 'Muộn > 30 phút không báo trước.'])),
-                default => null,
-            };
-            if ($step === 2) {
-                $this->event($base->copy()->addDays(2)->setTime(9, 0), function () use ($penalty) {
-                    if ($penalty->fresh()->status === 'fined') {
-                        $actor = $this->deciderFor($penalty->user);
-                        $actor = $actor->can('violation.mark_paid') && $actor->id !== $penalty->user_id ? $actor : $this->staff['admin'];
-                        $this->asUser($actor, PenaltyController::class, 'markPaidPenalty', [], ['id' => $penalty->id]);
-                    }
-                });
-            }
-        }
-    }
-
     // ── KPI ────────────────────────────────────────────────────────────────────
 
     private function planKpi(): void

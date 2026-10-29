@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AttendsWorkdays;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,7 @@ use Tests\TestCase;
  */
 class Phase3PayslipTest extends TestCase
 {
+    use AttendsWorkdays;
     use RefreshDatabase;
 
     private Branch $branch;
@@ -57,6 +59,7 @@ class Phase3PayslipTest extends TestCase
             'code' => 'PR-2026-08', 'title' => 'Bảng lương Tháng 8/2026', 'month' => 8, 'year' => 2026,
             'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'status' => 'draft',
         ]);
+        $this->attendFullMonth($this->teacher, 8); // lương cơ bản theo ngày công (TK-0012)
         $period->calculatePayrollForPeriod();
 
         return $period;
@@ -82,11 +85,13 @@ class Phase3PayslipTest extends TestCase
             // Q3: GV có lương cơ bản → Full-time
             ->assertSee('Full-time')
             ->assertSee('Lương cơ bản')
-            ->assertSee('BHXH (10,5% lương cơ bản)')
-            ->assertSee('Công đoàn (0,5% lương cơ bản)')
+            ->assertSee('BHXH (10,5% mức lương đóng BHXH)')
+            ->assertSee('Công đoàn (0,5% mức lương đóng BHXH)')
+            // Vai trò "teacher" (không phải GV full-time) không đóng BHXH / Công đoàn (TK-0009).
+            ->assertSee('Không áp dụng cho vai trò này')
             ->assertSee('Thuế TNCN')
-            ->assertSee('Phạt vi phạm (quá hạn nộp)')
-            ->assertSee('7.120.000') // 8M − 840k BHXH − 40k Công đoàn
+            ->assertSee('Phạt vi phạm')
+            ->assertSee('8.000.000') // 8M đủ 26/26 công, không BHXH / Công đoàn
             ->assertSee('Lưu điều chỉnh');
 
         // Nhân viên thường không vào được màn phiếu lương quản trị
@@ -112,21 +117,21 @@ class Phase3PayslipTest extends TestCase
         ])->assertRedirect(route('payroll.records.show', $record->id))->assertSessionHasNoErrors();
 
         $record->refresh();
-        // 8M + 700k + 300k − 840k − 40k − 100k
-        $this->assertEquals(8020000, $record->net_salary);
-        $this->assertEquals(8020000, $period->fresh()->total_amount);
+        // 8M + 700k + 300k − 100k
+        $this->assertEquals(8900000, $record->net_salary);
+        $this->assertEquals(8900000, $period->fresh()->total_amount);
 
         $period->calculatePayrollForPeriod();
         $record->refresh();
         $this->assertEquals(1000000, $record->allowance);
         $this->assertEquals(100000, $record->other_deduction);
         $this->assertSame('Thưởng lễ 2/9, trừ tạm ứng', $record->adjustment_notes);
-        $this->assertEquals(8020000, $record->net_salary);
+        $this->assertEquals(8900000, $record->net_salary);
 
         // Bỏ các dòng tự do → về lương theo công thức
         $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), ['lines' => []])->assertSessionHasNoErrors();
         $this->assertEquals(0, $record->fresh()->allowance);
-        $this->assertEquals(7120000, $record->fresh()->net_salary);
+        $this->assertEquals(8000000, $record->fresh()->net_salary);
     }
 
     public function test_adjustment_is_blocked_for_non_editors_and_locked_periods(): void

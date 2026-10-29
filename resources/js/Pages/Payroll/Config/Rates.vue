@@ -21,6 +21,7 @@ const props = defineProps({
     selectedTeacher: { type: Object, default: null },
     selectedType: { type: String, default: null },
     teacherTypes: { type: Array, default: () => [] },
+    assistantTiers: { type: Array, default: () => [] },
     defaultRate: { type: String, required: true },
     today: { type: String, required: true },
     todayDate: { type: String, required: true },
@@ -39,8 +40,9 @@ const detailUrl = (id) => route('payroll.config.teacher-rates', { teacher_id: id
 const detailOpen = ref(!!props.selectedTeacher);
 const rateOpen = ref(false);
 const rankOpen = ref(false);
-const unit = ref(props.selectedType === 'academic' ? 'tuition' : 'session');
+const unit = ref(props.selectedType === 'academic' ? 'tuition' : props.selectedType === 'assistant' ? 'hour' : 'session');
 const type = ref(props.selectedType ?? 'parttime');
+const isAssistant = computed(() => type.value === 'assistant');
 const teacherOptions = computed(() => props.teachers.map((t) => ({ value: String(t.id), label: t.name + (t.employee_code ? ` — ${t.employee_code}` : '') })));
 const unitOptions = [
     { value: 'session', label: 'Theo buổi dạy (VNĐ / buổi)' },
@@ -49,8 +51,10 @@ const unitOptions = [
 ];
 const unitSuffix = { session: 'VNĐ / buổi', hour: 'VNĐ / giờ', tuition: '% học phí' };
 // Chọn loại "Học thuật kiêm giảng dạy" → đơn vị mặc định là % học phí.
+// Trợ giảng → luôn theo giờ, chọn bậc đơn giá (TK-0010).
 watch(type, (value) => {
     if (value === 'academic') unit.value = 'tuition';
+    else if (value === 'assistant') unit.value = 'hour';
     else if (unit.value === 'tuition') unit.value = 'session';
 });
 </script>
@@ -186,8 +190,16 @@ watch(type, (value) => {
                 <div class="grid grid-cols-1 gap-md md:grid-cols-2">
                     <UiSelect v-model="type" name="teacher_type" label="Loại giáo viên" required :options="teacherTypes" />
                     <UiDate name="effective_from" label="Ngày hiệu lực từ" required :value="todayDate" hint="Áp dụng cho các ca dạy từ ngày này tới khi có đơn giá mới hơn." />
-                    <UiSelect v-model="unit" name="rate_unit" label="Đơn vị tính" required :options="unitOptions" />
-                    <UiField label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required :hint="unit === 'tuition' ? '* % × học phí theo buổi của các HS trong lớp, cho mỗi buổi dạy hợp lệ (VD: 40).' : '* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.'">
+                    <template v-if="isAssistant">
+                        <div>
+                            <input type="hidden" name="rate_unit" value="hour" />
+                            <p class="font-body-small text-body-small text-on-surface-variant">Đơn vị tính</p>
+                            <p class="font-body-medium text-body-medium">Theo giờ (VNĐ / giờ)</p>
+                        </div>
+                        <UiSelect name="hourly_rate" label="Bậc đơn giá Trợ giảng" required placeholder="-- Chọn bậc --" :options="assistantTiers" hint="Lương TA = số giờ dạy hợp lệ × bậc đơn giá giờ." />
+                    </template>
+                    <UiSelect v-if="!isAssistant" v-model="unit" name="rate_unit" label="Đơn vị tính" required :options="unitOptions" />
+                    <UiField v-if="!isAssistant" label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required :hint="unit === 'tuition' ? '* % × học phí theo buổi của các HS trong lớp, cho mỗi buổi dạy hợp lệ (VD: 40).' : '* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.'">
                         <div class="flex items-center gap-sm">
                             <input id="f_hourly_rate" :key="unit === 'tuition' ? 'pct' : 'money'" type="number" name="hourly_rate" required :min="unit === 'tuition' ? 0.1 : 1000" :max="unit === 'tuition' ? 100 : null" :step="unit === 'tuition' ? 0.5 : 1000" :placeholder="unit === 'tuition' ? 'VD: 40' : 'Nhập số tiền...'" :class="['w-full rounded-lg border bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50', page.props.errors?.hourly_rate ? 'border-error' : 'border-outline-variant']" />
                             <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant">{{ unitSuffix[unit] }}</span>

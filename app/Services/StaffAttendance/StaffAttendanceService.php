@@ -8,7 +8,6 @@ use App\Models\ClassSession;
 use App\Models\Holiday;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
-use App\Models\Penalty;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
 use App\Models\User;
@@ -35,9 +34,9 @@ use Illuminate\Validation\ValidationException;
  *    Giáo viên / trợ giảng chưa gắn cơ sở chấm được ở mọi cơ sở.
  *  - Giờ phải có mặt: GV / TA / GVNN theo giờ lớp được phân công trong ngày — buổi đầu tiên (Ca 1 18:00 hay lớp lệch
  *    18:10…, khung giờ ca dạy), không theo một giờ chung cố định; không có buổi → không tính muộn;
- *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → tự lập biên bản "chờ giải trình",
- *    0đ (người chốt quyết mức phạt, giống biên bản SLA); đơn xin đi muộn được duyệt → không tính lỗi, biên bản tự hủy.
- *    GV / TA không lập biên bản ở đây: đi muộn đã trừ trên check-in ca dạy (tránh phạt 2 lần).
+ *    nhân sự khác theo giờ làm việc của cơ sở. Muộn quá số phút cho phép của cơ sở → ghi số phút muộn; bảng lương Full-time
+ *    cộng dồn giờ muộn cả tháng × công giờ (không lập biên bản từng ngày, TK-0013); đơn xin đi muộn được duyệt →
+ *    không tính muộn. Quên chấm vào / ra: phạt mỗi lần trên bảng lương (workdays()). GV / TA không bị trừ ở đây: đi muộn đã trừ trên check-in ca dạy (tránh phạt 2 lần).
  *  - Ngày thuộc kỳ lương đã chốt thì không chấm / không sửa được nữa.
  *  - Ngày được chấm (22/10/2026, punchBlockReason): part-time (xếp loại như bảng lương) chỉ ngày có buổi dạy / dạy thay /
  *    học bù chưa hủy; nhân sự khác mọi ngày trừ ngày nghỉ của cơ sở. Áp cả khi bấm chấm công và đơn "Bổ sung công".
@@ -294,74 +293,39 @@ class StaffAttendanceService
     }
 
     /**
-     * Biên bản tự động khi đi muộn: lập mới (chờ giải trình, 0đ), cập nhật số phút khi còn chờ giải trình,
-     * hoặc tự hủy khi không còn muộn (đơn xin đi muộn được duyệt / bổ sung công sửa giờ).
+     * Đi muộn chấm công hằng ngày không còn lập biên bản từng ngày (TK-0013, 30/10/2026): bảng lương Full-time trừ
+     * tổng giờ muộn trong tháng × công giờ (PayrollPeriod::runCalculation). Biên bản tự động cũ của ngày công còn
+     * chờ giải trình / đã giải trình thì tự hủy khi ngày công được tính lại; biên bản đã quyết phạt giữ nguyên nhưng
+     * không trừ lương nữa (Penalty::scopeDeductibleFor) để không phạt 2 lần.
      */
     public function syncLatePenalty(StaffAttendance $attendance): void
     {
         // Biên bản tự động của ngày công, bất kể người đang thao tác (duyệt đơn, sửa giờ) có thấy biên bản đó hay không.
-        $penalty = $attendance->penalty()->withoutViewerScope()->first();
-        $violation = 'Đi muộn '.$attendance->late_minutes.' phút (chấm công ngày '.$attendance->work_date->format('d/m/Y').')';
-
-        // GV / TA: đi muộn đã tính trên check-in ca dạy (trừ tiền ca theo số phút muộn) — chấm công chỉ ghi nhận,
-        // không lập thêm biên bản để không phạt 2 lần cho cùng một lần vào lớp muộn.
-        if ($attendance->isLate() && ! $this->latePenalized($attendance)) {
-            if ($penalty && in_array($penalty->status, ['pending', 'explained'], true)) {
-                $penalty->update(['status' => 'cancelled', 'decided_at' => now(), 'decision_note' => 'Tự hủy: đi muộn của GV / TA tính theo check-in ca dạy.']);
-            }
-
+        $penalty = $attendance->penalty_id ? $attendance->penalty()->withoutViewerScope()->first() : null;
+        if (! $penalty || ! in_array($penalty->status, ['pending', 'explained'], true)) {
             return;
         }
 
-        if ($attendance->isLate()) {
-            if ($penalty && $penalty->status !== 'cancelled') {
-                if ($penalty->status === 'pending') {
-                    $penalty->update(['violation_type' => $violation]);
-                }
-
-                return;
-            }
-            $penalty = Penalty::create([
-                'code' => Penalty::generateCode(),
-                'user_id' => $attendance->user_id,
-                'violation_type' => $violation,
-                'error_category' => 'operations',
-                'violation_date' => $attendance->work_date->toDateString(),
-                'amount' => 0,
-                'reporter_id' => null,
-                'status' => 'pending',
-                'notes' => 'Tự động từ chấm công: giờ vào '.$attendance->check_in_at?->format('H:i').', giờ phải có mặt '.substr((string) $attendance->expected_start, 0, 5).'.',
-            ]);
-            $attendance->penalty()->associate($penalty)->save();
-            AdminNotification::create([
-                'user_id' => $attendance->user_id,
-                'type' => 'penalty_created',
-                'title' => "Biên bản {$penalty->code}: {$violation}",
-                'message' => 'Nếu có lý do, hãy gửi giải trình hoặc đơn "Xin đi muộn / về sớm" cho ngày này.',
-                'data' => ['link' => route('penalties.index', ['search' => $penalty->code])],
-                'is_read' => false,
-            ]);
-
-            return;
-        }
-
-        if ($penalty && in_array($penalty->status, ['pending', 'explained'], true)) {
-            $penalty->update([
-                'status' => 'cancelled',
-                'decided_at' => now(),
-                'decision_note' => $attendance->late_excused
-                    ? 'Tự hủy: đã duyệt đơn xin đi muộn / nghỉ cho ngày này.'
-                    : 'Tự hủy: giờ chấm công đã sửa, không còn đi muộn.',
-            ]);
-        }
+        $penalty->update([
+            'status' => 'cancelled',
+            'decided_at' => now(),
+            'decision_note' => match (true) {
+                ! $attendance->isLate() && $attendance->late_excused => 'Tự hủy: đã duyệt đơn xin đi muộn / nghỉ cho ngày này.',
+                ! $attendance->isLate() => 'Tự hủy: giờ chấm công đã sửa, không còn đi muộn.',
+                default => self::LATE_PENALTY_CANCEL_NOTE,
+            },
+        ]);
     }
 
-    /** Đi muộn của ngày công có lập biên bản không: không với GV / TA (giờ phải có mặt theo buổi dạy). */
-    private function latePenalized(StaffAttendance $attendance): bool
-    {
-        $user = $attendance->user;
+    public const LATE_PENALTY_CANCEL_NOTE = 'Tự hủy: đi muộn chấm công hằng ngày cộng dồn cả tháng và trừ trên bảng lương, không lập biên bản từng ngày.';
 
-        return ! ($user && ($user->can('portal.teacher') || $user->can('portal.assistant')));
+    /**
+     * Đi muộn chấm công hằng ngày có bị trừ lương không: không với GV / TA (giờ phải có mặt theo buổi dạy, đi muộn đã
+     * tính trên check-in ca dạy — tránh phạt 2 lần cho cùng một lần vào lớp muộn).
+     */
+    public function dailyLatePenalized(User $user): bool
+    {
+        return ! ($user->can('portal.teacher') || $user->can('portal.assistant'));
     }
 
     private function hasApproved(int $userId, string $type, CarbonInterface $date): bool
@@ -521,7 +485,7 @@ class StaffAttendanceService
 
     /**
      * Thu hồi đơn xin nghỉ / xin đi muộn đã duyệt (duyệt nhầm, nhân sự vẫn đi làm…): đơn chuyển "Đã thu hồi", ngày công
-     * tính lại (đi muộn không còn được miễn → biên bản tự lập lại). Đơn bổ sung công không thu hồi — sửa giờ công trực tiếp.
+     * tính lại (đi muộn không còn được miễn → lại bị trừ trên bảng lương). Đơn bổ sung công không thu hồi — sửa giờ công trực tiếp.
      *
      * @throws ValidationException
      */
@@ -671,14 +635,125 @@ class StaffAttendanceService
     // ───────────────────────── Tổng hợp cho bảng lương ─────────────────────────
 
     /**
-     * Tổng hợp chấm công của 1 người trong khoảng ngày (phiếu lương, màn chấm công).
+     * Ngày công tính lương Full-time trong kỳ [start, end] (ticket TK-0012 / TK-0013, chủ dự án chốt 30/10/2026):
+     * - Công chuẩn (standard_days): số ngày trong kỳ trừ ngày nghỉ cố định trong tuần (User::isPayrollDayOff — nghỉ 1 ngày/tuần
+     *   hoặc T7 + CN). Ngày lễ VẪN nằm trong công chuẩn.
+     * - Công hưởng lương (paid_days), chỉ tính từ ngày bắt đầu hợp đồng nếu vào giữa kỳ:
+     *   · ngày có chấm vào: đủ vào + ra = 1 công (kể cả đã chấm công bù được duyệt); có vào, quên ra, không bù (ngày đã qua)
+     *     = 0,5 công;
+     *   · ngày nghỉ phép đã duyệt (như summary()['leave_days']);
+     *   · ngày lễ rơi vào ngày làm việc (config payroll.workday.paid_holidays).
+     * - Quên chấm công (missing_punches): mỗi lần quên chấm vào / chấm ra — ngày có vào mà không ra (chưa bù), hoặc đơn
+     *   "Bổ sung công" đã duyệt bù giờ vào / giờ ra (mỗi giờ bù = 1 lần). Phạt mỗi lần trên bảng lương.
+     * - Phút đi muộn (late_minutes): tổng late_minutes của các ngày muộn không có phép (StaffAttendance::isLate).
+     *
+     * @return array<string, mixed>
+     */
+    public function workdays(User $user, CarbonInterface $start, CarbonInterface $end): array
+    {
+        $periodStart = $start->copy()->startOfDay();
+        $to = $end->copy()->startOfDay();
+        $from = $periodStart->copy();
+        $contractStart = $user->contract_start_date?->copy()->startOfDay();
+        if ($contractStart && $contractStart->gt($from)) {
+            $from = $contractStart;
+        }
+
+        $standard = 0;
+        for ($day = $periodStart->copy(); $day->lte($to); $day->addDay()) {
+            if (! $user->isPayrollDayOff($day)) {
+                $standard++;
+            }
+        }
+
+        $result = [
+            'from' => $from->toDateString(), 'to' => $to->toDateString(),
+            'weekly_days_off' => $user->payrollDaysOff(),
+            'standard_days' => $standard, 'paid_days' => 0.0,
+            'worked_days' => 0, 'full_days' => 0, 'half_days' => 0, 'makeup_days' => 0,
+            'leave_days' => 0, 'holiday_days' => 0,
+            'missing_punches' => 0, 'missing_check_in' => 0, 'missing_check_out' => 0,
+            'late_days' => 0, 'late_minutes' => 0,
+        ];
+        if ($from->gt($to)) {
+            return $result;
+        }
+
+        $range = [$from->toDateString(), $to->toDateString()];
+        // Đơn "Bổ sung công" đã duyệt: ngày được chấm công bù + giờ đã bù (mỗi giờ bù = 1 lần quên chấm).
+        $makeups = StaffAttendanceRequest::query()->approved()->where('user_id', $user->id)
+            ->where('type', StaffAttendanceRequest::TYPE_CORRECTION)
+            ->overlapping($range[0], $range[1])
+            ->get(['date_from', 'check_in_time', 'check_out_time'])
+            ->groupBy(fn (StaffAttendanceRequest $r) => $r->date_from->toDateString());
+        foreach ($makeups as $requests) {
+            $result['missing_check_in'] += $requests->contains(fn ($r) => filled($r->check_in_time)) ? 1 : 0;
+            $result['missing_check_out'] += $requests->contains(fn ($r) => filled($r->check_out_time)) ? 1 : 0;
+        }
+
+        $credit = (float) config('payroll.workday.missing_checkout_credit', 0.5);
+        $worked = 0.0;
+        $workedDates = [];
+        $rows = StaffAttendance::query()->where('user_id', $user->id)
+            ->whereDate('work_date', '>=', $range[0])->whereDate('work_date', '<=', $range[1])
+            ->whereNotNull('check_in_at')
+            ->get(['check_in_at', 'check_out_at', 'late_minutes', 'late_excused', 'work_date']);
+        foreach ($rows as $row) {
+            $key = $row->work_date->toDateString();
+            $workedDates[$key] = true;
+            $result['worked_days']++;
+            if ($makeups->has($key)) {
+                $result['makeup_days']++;
+            }
+            // Có vào, quên ra (ngày đã qua, chưa bù) = nửa công + 1 lần quên chấm; hôm nay chưa chấm ra vẫn đang làm → đủ công.
+            if (! $row->check_out_at && $row->work_date->lt(today())) {
+                $result['half_days']++;
+                $result['missing_check_out']++;
+                $worked += $credit;
+            } else {
+                $result['full_days']++;
+                $worked += 1;
+            }
+            if ($row->isLate()) {
+                $result['late_days']++;
+                $result['late_minutes'] += (int) $row->late_minutes;
+            }
+        }
+
+        $result['leave_days'] = $this->summary($user->id, $from, $to, payroll: true)['leave_days'];
+
+        // Ngày lễ rơi vào ngày làm việc (không phải ngày nghỉ cố định, không đi làm) được trả lương.
+        if (config('payroll.workday.paid_holidays', true)) {
+            $holidays = Holiday::query()
+                ->whereDate('start_date', '<=', $range[1])->whereDate('end_date', '>=', $range[0])
+                ->where(fn (Builder $q) => $q->where('is_system_wide', true)
+                    ->when($user->branch_id, fn (Builder $q) => $q->orWhereHas('branches', fn (Builder $b) => $b->where('branches.id', $user->branch_id))))
+                ->get(['start_date', 'end_date'])
+                ->map(fn (Holiday $h) => [Carbon::parse($h->start_date)->toDateString(), Carbon::parse($h->end_date)->toDateString()]);
+            for ($day = $from->copy(); $holidays->isNotEmpty() && $day->lte($to); $day->addDay()) {
+                $key = $day->toDateString();
+                if (! isset($workedDates[$key]) && ! $user->isPayrollDayOff($day)
+                    && $holidays->contains(fn (array $r) => $r[0] <= $key && $r[1] >= $key)) {
+                    $result['holiday_days']++;
+                }
+            }
+        }
+
+        $result['missing_punches'] = $result['missing_check_in'] + $result['missing_check_out'];
+        $result['paid_days'] = round($worked + $result['leave_days'] + $result['holiday_days'], 2);
+
+        return $result;
+    }
+
+    /**
+     * Tổng hợp chấm công của 1 người trong khoảng ngày (phiếu lương, màn chấm công). $payroll: ngày nghỉ cố định theo lịch tính lương (User::payrollDaysOff, có mặc định).
      *
      * @return array{days: int, late_count: int, late_minutes: int, excused_late: int, early_count: int, missing_out: int, leave_days: int}
      */
-    public function summary(int $userId, CarbonInterface $start, CarbonInterface $end): array
+    public function summary(int $userId, CarbonInterface $start, CarbonInterface $end, bool $payroll = false): array
     {
         $rows = StaffAttendance::query()->where('user_id', $userId)
-            ->whereBetween('work_date', [$start->toDateString(), $end->toDateString()])
+            ->whereDate('work_date', '>=', $start->toDateString())->whereDate('work_date', '<=', $end->toDateString())
             ->get(['check_in_at', 'check_out_at', 'late_minutes', 'early_minutes', 'late_excused', 'work_date']);
         $late = $rows->filter(fn (StaffAttendance $a) => $a->isLate());
 
@@ -691,11 +766,11 @@ class StaffAttendanceService
             ->where('type', StaffAttendanceRequest::TYPE_LEAVE)
             ->overlapping($start->toDateString(), $end->toDateString())
             ->get(['date_from', 'date_to'])
-            ->each(function (StaffAttendanceRequest $r) use ($start, $end, $user, $worked, &$leaveDates) {
+            ->each(function (StaffAttendanceRequest $r) use ($start, $end, $user, $worked, $payroll, &$leaveDates) {
                 $to = $r->date_to->min($end->copy()->startOfDay());
                 for ($day = $r->date_from->max($start->copy()->startOfDay())->copy(); $day->lte($to); $day->addDay()) {
                     $key = $day->toDateString();
-                    if (isset($worked[$key]) || $user?->isWeeklyDayOff($day)
+                    if (isset($worked[$key]) || ($payroll ? $user?->isPayrollDayOff($day) : $user?->isWeeklyDayOff($day))
                         || Holiday::query()->coveringBranch($key, $user?->branch_id)->exists()) {
                         continue;
                     }

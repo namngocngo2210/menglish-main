@@ -22,7 +22,7 @@ class UserRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        foreach (['base_salary', 'hourly_rate'] as $field) {
+        foreach (['base_salary', 'monthly_allowance', 'hourly_rate'] as $field) {
             if ($this->exists($field) && $this->input($field) === null) {
                 $this->merge([$field => 0]);
             }
@@ -54,6 +54,8 @@ class UserRequest extends FormRequest
             'role' => ['required', 'string', 'exists:roles,name'],
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
+            // Phụ cấp theo hợp đồng (đ/tháng), trả theo ngày công như lương cơ bản (TK-0012).
+            'monthly_allowance' => ['nullable', 'numeric', 'min:0'],
             'hourly_rate' => ['nullable', 'numeric', 'min:0'],
             'academic_teaching' => ['nullable', 'boolean'],
             'id_card_number' => ['nullable', 'string', 'max:30'],
@@ -77,7 +79,13 @@ class UserRequest extends FormRequest
             'work_start_time' => ['nullable', 'date_format:H:i'],
             'work_end_time' => ['nullable', 'date_format:H:i', 'after:work_start_time'],
             'weekly_days_off_present' => ['nullable', 'boolean'],
-            'weekly_days_off' => ['nullable', 'array', 'max:6'],
+            // Lịch nghỉ tính lương (TK-0012): nghỉ 1 ngày/tuần (chọn ngày) hoặc nghỉ T7 + CN.
+            'weekly_days_off' => ['nullable', 'array', 'max:2', function ($attribute, $value, $fail) {
+                $days = collect((array) $value)->map(fn ($d) => (int) $d)->unique()->sort()->values()->all();
+                if (count($days) > 1 && $days !== [6, 7]) {
+                    $fail('Lịch nghỉ trong tuần chỉ được chọn nghỉ 1 ngày/tuần hoặc nghỉ T7 + CN.');
+                }
+            }],
             'weekly_days_off.*' => ['integer', 'between:1,7'],
             'contract_start_date' => ['nullable', 'date'],
             'contract_end_date' => ['nullable', 'date'],

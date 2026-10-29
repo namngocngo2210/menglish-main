@@ -34,6 +34,7 @@ class User extends Authenticatable
         'branch_id',
         'created_by',
         'base_salary',
+        'monthly_allowance',
         'hourly_rate',
         'academic_teaching',
         'department',
@@ -94,6 +95,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'base_salary' => 'decimal:2',
+            'monthly_allowance' => 'decimal:2',
             'hourly_rate' => 'decimal:2',
             'academic_teaching' => 'boolean',
             'locked_at' => 'datetime',
@@ -111,6 +113,25 @@ class User extends Authenticatable
     public function isWeeklyDayOff(\Carbon\CarbonInterface $date): bool
     {
         return in_array($date->isoWeekday(), array_map('intval', (array) $this->weekly_days_off), true);
+    }
+
+    /**
+     * Ngày nghỉ cố định trong tuần dùng để tính công chuẩn lương (TK-0012): lịch của nhân sự (nghỉ 1 ngày/tuần hoặc
+     * T7 + CN); chưa đặt lịch → mặc định config payroll.workday.default_weekly_days_off (nghỉ Chủ nhật).
+     * Chấm công (isWeeklyDayOff) không dùng mặc định này: người chưa đặt lịch vẫn chấm công được mọi ngày.
+     *
+     * @return list<int>
+     */
+    public function payrollDaysOff(): array
+    {
+        $days = array_values(array_map('intval', (array) $this->weekly_days_off));
+
+        return $days !== [] ? $days : array_values(array_map('intval', (array) config('payroll.workday.default_weekly_days_off', [7])));
+    }
+
+    public function isPayrollDayOff(\Carbon\CarbonInterface $date): bool
+    {
+        return in_array($date->isoWeekday(), $this->payrollDaysOff(), true);
     }
 
     /**

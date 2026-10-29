@@ -23,6 +23,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\AttendsWorkdays;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -35,6 +36,7 @@ use Tests\TestCase;
  */
 class Phase3AcceptanceTest extends TestCase
 {
+    use AttendsWorkdays;
     use FinalizesPayrollKpi;
     use RefreshDatabase;
 
@@ -124,6 +126,12 @@ class Phase3AcceptanceTest extends TestCase
     {
         // ── 0. Cấu hình: đơn giá buổi riêng có phiên bản (Quản lý cơ sở); Kế toán không có quyền ─────────
         $this->at('2026-07-01 09:00');
+        // Full-time đi làm đủ công tháng 8–10 (lương cơ bản theo ngày công, TK-0012).
+        foreach ([$this->academic, $this->sale, $this->fullTime] as $staff) {
+            foreach ([8, 9, 10] as $month) {
+                $this->attendFullMonth($staff, $month);
+            }
+        }
         $this->actingAs($this->accountant)->post(route('payroll.config.teacher-rates.personal.store'), $this->rate(200000, '2026-07-01'))->assertForbidden();
         $this->actingAs($this->manager)->post(route('payroll.config.teacher-rates.personal.store'), $this->rate(200000, '2026-07-01'))->assertSessionHasNoErrors();
         $this->actingAs($this->manager)->post(route('payroll.config.teacher-rates.personal.store'), $this->rate(250000, '2026-09-01'))->assertSessionHasNoErrors();
@@ -271,7 +279,8 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertSame(['parttime', 3], [$pt->employee_type, $pt->teaching_sessions]);   // 2 check-in + 1 chấm tay; workshop bị từ chối
         $this->assertEquals(600000, $pt->teaching_salary);                                    // 3 buổi × 200.000đ (phiên bản tháng 7)
         $this->assertSame([5, 4], [$pt->retention_base_students, $pt->retention_students]);   // 1 HS thôi học
-        $this->assertEquals(100000, $pt->penalty_deduction);                                  // quá hạn 12/08
+        // Biên bản đã quyết phạt có ngày vi phạm trong kỳ → trừ ngay kỳ đó (TK-0014): 100.000 (12/08) + 150.000 (28/08, chốt 31/08).
+        $this->assertEquals(250000, $pt->penalty_deduction);
         $this->assertEquals(0, $pt->insurance_deduction);
         $this->actingAs($this->partTime)->get(route('portal.my-salary'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Payroll/MySalary')->where('record', null)); // chưa duyệt → chưa thấy
         $this->actingAs($this->partTime)->get(route('payroll.records.show', $pt->id))->assertForbidden();
@@ -290,37 +299,39 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->manager)->post(route('payroll.periods.calculate', $august->id))->assertForbidden();
         $this->actingAs($this->accountant)->post(route('payroll.periods.calculate', $august->id))->assertSessionHasNoErrors();
 
-        // Part-time: 600.000 + KPI 4 HS × 20.000 + Gửi xe 100.000 − phạt 100.000; không BHXH / CĐ / TNCN
+        // Part-time: 600.000 + KPI 4 HS × 20.000 + Gửi xe 100.000 − phạt 250.000; không BHXH / CĐ / TNCN
         $pt = $this->record($august, $this->partTime);
         $this->assertEquals(80000, $pt->kpi_bonus);
         $this->assertEquals(0, $pt->tax_deduction);
-        $this->assertEquals(680000, $pt->net_salary);
-        // Full-time: 10.000.000 + KPI 1.000.000 + phụ cấp 500.000 − BHXH 10,5% − CĐ 0,5% − TNCN 250.000 (phạt đã nộp → không trừ)
+        $this->assertEquals(530000, $pt->net_salary);
+        // Full-time (đủ 26/26 công): 10.000.000 + KPI 1.000.000 + phụ cấp 500.000 − BHXH / CĐ trên mức đóng 5.400.000
+        // (567.000 / 27.000) − TNCN 250.000 (phạt đã nộp tiền mặt → không trừ)
         $ft = $this->record($august, $this->fullTime);
         $this->assertSame([2, 0.0], [$ft->teaching_sessions, (float) $ft->teaching_salary]);
-        $this->assertEquals(1050000, $ft->insurance_deduction);
-        $this->assertEquals(50000, $ft->union_deduction);
+        $this->assertEquals(567000, $ft->insurance_deduction);
+        $this->assertEquals(27000, $ft->union_deduction);
         $this->assertEquals(250000, $ft->tax_deduction);
         $this->assertEquals(0, $ft->penalty_deduction);
-        $this->assertEquals(10150000, $ft->net_salary);
-        // Học vụ: 8.000.000 + quỹ 2.000.000 × 96,25% − 840.000 − 40.000
+        $this->assertEquals(10656000, $ft->net_salary);
+        // Học vụ: 8.000.000 + quỹ 2.000.000 × 96,25% − 567.000 − 27.000
         $hv = $this->record($august, $this->academic);
         $this->assertSame('academic_kpi', $hv->kpi_source);
         $this->assertEquals(1925000, $hv->kpi_bonus);
-        $this->assertEquals(9045000, $hv->net_salary);
-        // Sale: 2 khách chốt 03/08 → bậc 3%; chưa đủ 30 ngày → hoãn 2 × 270.000đ
+        $this->assertEquals(9331000, $hv->net_salary);
+        // Sale: 2 khách chốt 03/08 → bậc 3%; chưa đủ 30 ngày → hoãn 2 × 270.000đ; Sale không đóng BHXH / CĐ (TK-0009)
         $sale = $this->record($august, $this->sale);
         $this->assertSame(2, $sale->commission_closed_count);
         $this->assertEquals(3, $sale->commission_percent);
         $this->assertEquals(0, $sale->commission_bonus);
         $this->assertEquals(540000, $sale->commission_deferred);
-        $this->assertEquals(6230000, $sale->net_salary);
-        $this->assertEquals(680000 + 10150000 + 9045000 + 6230000, (float) $august->fresh()->total_amount);
+        $this->assertEquals(0, $sale->insurance_deduction);
+        $this->assertEquals(7000000, $sale->net_salary);
+        $this->assertEquals(530000 + 10656000 + 9331000 + 7000000, (float) $august->fresh()->total_amount);
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $pt->id))->assertOk()
-            ->assertSee('Lương buổi dạy (3 buổi)')->assertSee('4/5 HS giữ được')->assertSee('Gửi xe')->assertSee('680.000');
+            ->assertSee('Lương buổi dạy (3 buổi)')->assertSee('4/5 HS giữ được')->assertSee('Gửi xe')->assertSee('530.000');
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $ft->id))->assertOk()
-            ->assertSee('BHXH (10,5% lương cơ bản)')->assertSee('Công đoàn (0,5% lương cơ bản)')->assertSee('Thuế TNCN')->assertSee('10.150.000');
+            ->assertSee('BHXH (10,5% mức lương đóng BHXH)')->assertSee('Công đoàn (0,5% mức lương đóng BHXH)')->assertSee('Thuế TNCN')->assertSee('10.656.000');
 
         // ── 7. Chỉ Admin duyệt; kỳ đã duyệt khóa toàn bộ dữ liệu ─────────────────────────────────────
         $this->at('2026-09-03 09:00');
@@ -330,7 +341,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $august->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $august->fresh()->status);
         $this->assertSame('deducted', $late->fresh()->status);
-        $this->assertSame('fined', $lateAug->fresh()->status);        // hạn nộp 02/09 → chưa trừ kỳ 8
+        $this->assertSame('deducted', $lateAug->fresh()->status);     // vi phạm 28/08 thuộc kỳ 8 → trừ kỳ 8 (TK-0014)
 
         $this->actingAs($this->academic)->post(route('payroll.timesheets.manual.store'), ['teaching_date' => '2026-08-07', 'notes' => 'Bổ sung sau khi duyệt.'] + $manual)
             ->assertSessionHasErrors('teaching_date');
@@ -347,7 +358,7 @@ class Phase3AcceptanceTest extends TestCase
 
         // Nhân viên xem "Lương của tôi" sau khi duyệt, cùng các dòng phiếu lương
         $this->actingAs($this->partTime)->get(route('portal.my-salary'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('record.id', $pt->id)->where('record.net_salary', fn ($net) => (float) $net === 680000.0))->assertSee('KPI giữ học sinh');
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('record.id', $pt->id)->where('record.net_salary', fn ($net) => (float) $net === 530000.0))->assertSee('KPI giữ học sinh');
         $this->actingAs($this->otherTeacher)->get(route('portal.my-salary'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('record', null));
 
         // ── 8. Tháng 9: đơn giá mới, mốc chăm sóc, kỳ tháng 9 ────────────────────────────────────────
@@ -364,25 +375,25 @@ class Phase3AcceptanceTest extends TestCase
         $september = PayrollPeriod::where('code', 'PR-2026-09')->firstOrFail();
         $pt9 = $this->record($september, $this->partTime);
         $this->assertEquals(250000, $pt9->teaching_salary);                   // phiên bản đơn giá từ 01/09
-        $this->assertEquals(150000, $pt9->penalty_deduction);                 // biên bản 28/08 quá hạn 02/09 → trừ kỳ 9
-        $this->assertEquals(100000, $pt9->net_salary);
+        $this->assertEquals(0, $pt9->penalty_deduction);                      // biên bản 28/08 đã trừ ở kỳ 8, không trừ lại
+        $this->assertEquals(250000, $pt9->net_salary);
         $sale9 = $this->record($september, $this->sale);
         $this->assertEquals(270000, $sale9->commission_bonus);                // khách 1 đủ 30 ngày + 3/3 mốc
         $this->assertEquals(270000, $sale9->commission_deferred);             // khách 2 mới 2/3 mốc
-        $this->assertEquals(6500000, $sale9->net_salary);
+        $this->assertEquals(7270000, $sale9->net_salary);
         $this->assertStringContainsString('2/3 mốc', CommissionItem::where('crm_customer_id', $k2->id)->value('deferred_reason'));
 
-        // Hạn nộp phạt 02/09 đã qua → không nhận nộp trực tiếp nữa (khoản phạt trừ lương kỳ 9);
+        // Biên bản đã trừ lương ở kỳ đã duyệt → không ghi nhận nộp trực tiếp nữa;
         // kỳ chưa tới hạn chốt công / lỗi (02/10) thì chưa duyệt được.
         $this->at('2026-10-01 10:00');
-        $this->actingAs($this->manager)->post(route('penalties.mark-paid', $lateAug->id))->assertSessionHasErrors('penalty');
-        $this->assertSame('fined', $lateAug->fresh()->status);
+        $this->actingAs($this->manager)->post(route('penalties.mark-paid', $lateAug->id))->assertStatus(422);
+        $this->assertSame('deducted', $lateAug->fresh()->status);
         $this->at('2026-10-01 11:00');
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasErrors('period');
         $this->assertSame('reviewing', $september->fresh()->status);
         $this->at('2026-10-03 09:00');
         $this->actingAs($this->accountant)->post(route('payroll.periods.calculate', $september->id))->assertSessionHasNoErrors();
-        $this->assertEquals(100000, $this->record($september, $this->partTime)->net_salary);
+        $this->assertEquals(250000, $this->record($september, $this->partTime)->net_salary);
         $this->at('2026-10-03 09:30');
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
@@ -398,7 +409,7 @@ class Phase3AcceptanceTest extends TestCase
         $sale10 = $this->record($october, $this->sale);
         $this->assertEquals(270000, $sale10->commission_bonus);
         $this->assertEquals(0, $sale10->commission_deferred);
-        $this->assertEquals(6500000, $sale10->net_salary);
+        $this->assertEquals(7270000, $sale10->net_salary);
         $this->assertSame(2, CommissionItem::count());
 
         // Sale xem lương tháng 9 (đã duyệt), tháng 10 (chưa duyệt) thì không

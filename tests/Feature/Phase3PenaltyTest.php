@@ -189,7 +189,11 @@ class Phase3PenaltyTest extends TestCase
         $this->assertSame('Quá hạn nộp — sẽ trừ lương', $penalty->fresh()->status_label);
     }
 
-    public function test_payroll_deducts_only_overdue_unpaid_fines(): void
+    /**
+     * TK-0014: biên bản đã quyết phạt (fined) trước lần tính, ngày vi phạm trong kỳ → gắn và trừ ở chính kỳ đó, không chờ hết
+     * hạn nộp. "paid" = đã nộp tiền mặt trực tiếp → không trừ; chưa quyết phạt → không trừ.
+     */
+    public function test_payroll_deducts_fined_penalties_of_the_period_but_not_paid_or_pending(): void
     {
         // Cố định thời gian trước khi tạo biên bản: updated_at theo giờ thật làm bài test hỏng sau 27/09/2026 10:00.
         $this->travelTo(Carbon::parse('2026-09-25 09:00:00'));
@@ -205,15 +209,14 @@ class Phase3PenaltyTest extends TestCase
         $period->calculatePayrollForPeriod();
 
         $record = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $this->teacher->id)->firstOrFail();
-        $this->assertEquals(100000, $record->penalty_deduction);
+        $this->assertEquals(170000, $record->penalty_deduction);
         $this->assertSame($record->id, $overdue->fresh()->payroll_record_id);
-        $this->assertNull($notDueYet->fresh()->payroll_record_id);
+        $this->assertSame($record->id, $notDueYet->fresh()->payroll_record_id);
         $this->assertNull($paid->fresh()->payroll_record_id);
         $this->assertNull($pending->fresh()->payroll_record_id);
 
-        // Hạn nộp qua đi trước khi duyệt → bắt buộc tính lại, lần tính sau trừ thêm (duyệt chỉ được sau chốt công/lỗi 02/10)
+        // Duyệt chỉ được sau chốt công / lỗi (02/10); tính lại không đổi khoản phạt.
         $this->travelTo(Carbon::parse('2026-10-03 10:00:00'));
-        $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasErrors('period');
         $period->calculatePayrollForPeriod();
         $this->assertEquals(170000, $record->fresh()->penalty_deduction);
 
@@ -224,25 +227,29 @@ class Phase3PenaltyTest extends TestCase
         $this->assertSame('paid', $paid->fresh()->status);
     }
 
-    public function test_overdue_fine_from_previous_month_is_deducted_in_next_period(): void
+    public function test_fine_from_previous_month_belongs_to_its_violation_period_while_that_period_is_open(): void
     {
         $this->teacher->update(['base_salary' => 5000000]);
-        // Vi phạm cuối tháng 8, quyết phạt 1/9, hạn nộp 3/9 → trừ ở kỳ tháng 9
+        // Vi phạm cuối tháng 8, quyết phạt 1/9 → thuộc kỳ tháng 8 (kỳ còn mở), không đẩy sang tháng 9 (TK-0014).
         $penalty = Penalty::create([
             'code' => 'BB-CARRY', 'user_id' => $this->teacher->id, 'violation_type' => 'Nghỉ dạy không phép',
             'error_category' => 'operations', 'violation_date' => '2026-08-31', 'amount' => 200000,
-            'status' => 'fined', 'due_date' => '2026-09-03',
+            'status' => 'fined', 'due_date' => '2026-09-03', 'decided_at' => '2026-09-01 09:00:00',
         ]);
 
         $this->travelTo(Carbon::parse('2026-09-30 10:00:00'));
         $august = $this->period(8);
-        $august->calculatePayrollForPeriod();
-        $this->assertEquals(0, PayrollRecord::where('payroll_period_id', $august->id)->value('penalty_deduction'));
-
         $september = $this->period(9);
+        // Kỳ 9 tính trước khi kỳ 8 được tính lại: kỳ 8 còn mở → biên bản chờ kỳ 8.
         $september->calculatePayrollForPeriod();
-        $this->assertEquals(200000, PayrollRecord::where('payroll_period_id', $september->id)->value('penalty_deduction'));
-        $this->assertNotNull($penalty->fresh()->payroll_record_id);
+        $this->assertEquals(0, PayrollRecord::where('payroll_period_id', $september->id)->value('penalty_deduction'));
+
+        $august->calculatePayrollForPeriod();
+        $augustRecord = PayrollRecord::where('payroll_period_id', $august->id)->firstOrFail();
+        $this->assertEquals(200000, $augustRecord->penalty_deduction);
+        $this->assertSame($augustRecord->id, $penalty->fresh()->payroll_record_id);
+        $september->calculatePayrollForPeriod();
+        $this->assertEquals(0, PayrollRecord::where('payroll_period_id', $september->id)->value('penalty_deduction'));
     }
 
     public function test_status_changes_are_blocked_once_deducted_in_locked_period(): void

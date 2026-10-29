@@ -82,7 +82,7 @@ Có gì trong dữ liệu (L = tháng trước, C = tháng này):
 | Kế toán | `ketoan2@menglish.edu.vn` | Lương → Danh sách bảng lương: kỳ C "Đang soát" → phiếu lương từng người (nhập bậc KPI / TNCN / dòng tự do, "Đồng bộ & Tính lại"); không có nút duyệt |
 | Admin | `admin@menglish.edu.vn` | Duyệt kỳ C; kỳ L đã khóa; Đơn giá GV, Mốc hoa hồng, Tham số tính lương, Danh sách vi phạm |
 | Giáo viên part-time | `nguyenvanan@menglish.edu.vn` | "Lương của tôi": chỉ thấy kỳ L (đã duyệt), kỳ C chưa hiện; biên bản của mình để giải trình |
-| GV full-time / TA | `gv.cohuu2@menglish.edu.vn` · `ta.tuan@menglish.edu.vn` | "Lương của tôi" kỳ L (BHXH 10,5% + Công đoàn 0,5% cho full-time; part-time không trừ) |
+| GV full-time / TA | `gv.cohuu2@menglish.edu.vn` · `ta.tuan@menglish.edu.vn` | "Lương của tôi" kỳ L (GV full-time: BHXH 10,5% + Công đoàn 0,5% trên mức lương đóng BHXH 5,4 triệu × ngày công; TA: số giờ × đơn giá giờ, không BHXH) |
 | Học vụ | `nva@menglish.edu.vn` | Chấm công tay, duyệt chấm công, ghi nhận vi phạm, đánh giá KPI (không tự chấm mình) |
 | Quản lý cơ sở | `manager@menglish.edu.vn` | Chốt lỗi vận hành + quyết phạt, ghi nhận nộp phạt, tick mốc chăm sóc tháng đầu, đơn giá GV |
 | Học thuật | `academiclead@menglish.edu.vn` | Chốt lỗi chuyên môn + quyết phạt |

@@ -39,6 +39,7 @@ class PayrollRecord extends Model
     public const SALARY_ROLE_LABELS = [
         Roles::TEACHER_PARTTIME => 'GV Part-time',
         Roles::TEACHER_FULLTIME => 'GV Full-time',
+        Roles::ASSISTANT => 'Trợ giảng',
         Roles::ACADEMIC_STAFF => 'Học vụ',
         Roles::ACADEMIC_LEAD => 'Học thuật',
         'sales' => 'Tư vấn tuyển sinh',
@@ -63,6 +64,10 @@ class PayrollRecord extends Model
         'employee_type',
         'salary_role',
         'base_salary',
+        'base_salary_paid',
+        'late_deduction',
+        'missing_punch_deduction',
+        'contract_allowance',
         'standard_hours',
         'actual_hours',
         'teaching_sessions',
@@ -106,6 +111,10 @@ class PayrollRecord extends Model
 
     protected $casts = [
         'base_salary' => 'decimal:2',
+        'base_salary_paid' => 'decimal:2',
+        'late_deduction' => 'decimal:2',
+        'missing_punch_deduction' => 'decimal:2',
+        'contract_allowance' => 'decimal:2',
         'standard_hours' => 'decimal:2',
         'actual_hours' => 'decimal:2',
         'teaching_sessions' => 'integer',
@@ -142,6 +151,24 @@ class PayrollRecord extends Model
         'manual_lines' => 'array',
         'calculation_details' => 'array',
     ];
+
+    /**
+     * Không phiếu lương nào được lưu với salary_role NULL (TK-0011): thiếu thì suy từ hồ sơ nhân sự (PayrollFormulaService),
+     * không có hồ sơ thì chặn lưu.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $record) {
+            if (filled($record->salary_role)) {
+                return;
+            }
+            $user = $record->user_id ? User::withTrashed()->find($record->user_id) : null;
+            if (! $user) {
+                throw new \LogicException('Phiếu lương phải có vai trò lương (salary_role).');
+            }
+            $record->salary_role = app(\App\Services\PayrollFormulaService::class)->profile($user)['salary_role'];
+        });
+    }
 
     public function period(): BelongsTo
     {
@@ -229,24 +256,46 @@ class PayrollRecord extends Model
         return $lines->when($kind !== null, fn ($c) => $c->where('kind', $kind))->values()->all();
     }
 
+    /** Phiếu Trợ giảng (nhóm riêng trên bảng lương, không KPI giữ HS / thưởng tái tục). */
+    public function isAssistant(): bool
+    {
+        return $this->salary_role === Roles::ASSISTANT;
+    }
+
+    /**
+     * Lương cơ bản được trả trong kỳ: Full-time trả theo ngày công (base_salary_paid = lương cơ bản × công hưởng lương /
+     * công chuẩn, chủ dự án chốt 30/10/2026). Phiếu tính trước thay đổi này (base_salary_paid NULL) giữ lương cơ bản đủ.
+     */
+    public function getBaseSalaryEarnedAttribute(): float
+    {
+        return $this->base_salary_paid !== null ? (float) $this->base_salary_paid : (float) $this->base_salary;
+    }
+
+    /** Phiếu có tính lương cơ bản theo ngày công (calculation_details.workdays). */
+    public function hasWorkdays(): bool
+    {
+        return $this->base_salary_paid !== null && is_array(data_get($this->calculation_details, 'workdays'));
+    }
+
     /**
      * Tổng thu nhập (gross): mọi khoản cộng của bản ghi lương.
      */
     public function getGrossIncomeAttribute(): float
     {
-        return (float) $this->base_salary + (float) $this->teaching_salary + (float) $this->kpi_bonus + (float) $this->teaching_kpi_bonus
-            + (float) $this->renew_bonus + (float) $this->commission_bonus + (float) $this->allowance
+        return $this->base_salary_earned + (float) $this->contract_allowance + (float) $this->teaching_salary + (float) $this->kpi_bonus
+            + (float) $this->teaching_kpi_bonus + (float) $this->renew_bonus + (float) $this->commission_bonus + (float) $this->allowance
             + (float) $this->other_bonus + (float) $this->foreign_session_pay;
     }
 
     /**
-     * Tổng khấu trừ: BHXH + Công đoàn + thuế TNCN + phạt + (giảm trừ GVNN — dữ liệu cũ) + thu hồi hoa hồng + khấu trừ khác.
+     * Tổng khấu trừ: BHXH + Công đoàn + thuế TNCN + phạt + đi muộn + quên chấm công (chấm công hằng ngày)
+     * + (giảm trừ GVNN — dữ liệu cũ) + thu hồi hoa hồng + khấu trừ khác.
      */
     public function getTotalDeductionsAttribute(): float
     {
         return (float) $this->insurance_deduction + (float) $this->union_deduction + (float) $this->tax_deduction
-            + (float) $this->penalty_deduction + (float) $this->foreign_teacher_deduction
-            + (float) $this->commission_clawback + (float) $this->other_deduction;
+            + (float) $this->penalty_deduction + (float) $this->late_deduction + (float) $this->missing_punch_deduction
+            + (float) $this->foreign_teacher_deduction + (float) $this->commission_clawback + (float) $this->other_deduction;
     }
 
     /**
@@ -263,18 +312,36 @@ class PayrollRecord extends Model
         $money = fn ($value) => Money::format((float) $value);
         $lines = [];
 
-        if ($this->isPartTime()) {
+        if ($this->isPartTime() && $this->isAssistant()) {
+            // Trợ giảng (TK-0010): số giờ dạy hợp lệ × đơn giá giờ.
+            $rates = collect((array) data_get($this->calculation_details, 'assistant.rates', []))->map(fn ($r) => $money($r).'/giờ')->implode(', ');
+            $missing = (int) data_get($this->calculation_details, 'assistant.missing_rate_sessions', 0);
+            $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương giờ dạy ('.self::number($this->actual_hours).' giờ, '.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
+                'hint' => trim('Số giờ dạy hợp lệ × đơn giá giờ của TA'.($rates !== '' ? ' ('.$rates.')' : '')
+                    .($missing > 0 ? ' · '.$missing.' buổi chưa có đơn giá giờ – cần nhập lại' : ''))];
+        } elseif ($this->isPartTime()) {
             $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương buổi dạy ('.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
                 'hint' => 'Số buổi chấm công hợp lệ × đơn giá buổi riêng của GV hiệu lực tại ngày dạy'];
-            $lines[] = ['key' => 'kpi_bonus', 'label' => 'KPI giữ học sinh', 'amount' => (float) $this->kpi_bonus,
-                'hint' => $this->retention_tier !== null
-                    ? (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được × '.$money($this->retention_tier).'/HS'
-                    : (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được — chưa chọn bậc KPI'];
+            // Trợ giảng: không KPI giữ HS (chủ dự án chốt 30/10/2026).
+            if ($this->kpi_source === self::KPI_RETENTION) {
+                $lines[] = ['key' => 'kpi_bonus', 'label' => 'KPI giữ học sinh', 'amount' => (float) $this->kpi_bonus,
+                    'hint' => $this->retention_tier !== null
+                        ? (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được × '.$money($this->retention_tier).'/HS'
+                        : (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được — chưa chọn bậc KPI'];
+            }
             $lines[] = ['key' => 'foreign_session_pay', 'label' => 'Buổi có GVNN (chờ BA chốt)', 'amount' => (float) $this->foreign_session_pay,
                 'hint' => 'Kế toán nhập tay'.((int) $this->foreign_teacher_sessions_count > 0 ? ' · '.(int) $this->foreign_teacher_sessions_count.' buổi có GVNN cùng lớp trong kỳ' : '')];
         } else {
-            $lines[] = ['key' => 'base_salary', 'label' => 'Lương cơ bản', 'amount' => (float) $this->base_salary, 'hint' => null];
-            if ($this->kpi_source === self::KPI_SELF) {
+            $lines[] = ['key' => 'base_salary', 'label' => 'Lương cơ bản', 'amount' => $this->base_salary_earned, 'hint' => $this->workdayHint()];
+            if ((float) $this->contract_allowance != 0.0 || (float) data_get($this->calculation_details, 'workdays.allowance_full', 0) > 0) {
+                $lines[] = ['key' => 'contract_allowance', 'label' => 'Phụ cấp theo hợp đồng', 'amount' => (float) $this->contract_allowance,
+                    'hint' => Money::format((float) data_get($this->calculation_details, 'workdays.allowance_full', 0), '').'đ ÷ '
+                        .(int) data_get($this->calculation_details, 'workdays.standard_days', 0).' công chuẩn × '
+                        .self::number(data_get($this->calculation_details, 'workdays.paid_days', 0)).' công'];
+            }
+            if ($this->kpi_source === null) {
+                // Trợ giảng Full-time: không có KPI.
+            } elseif ($this->kpi_source === self::KPI_SELF) {
                 if ($this->kpi_score !== null) {
                     $lines[] = ['key' => 'kpi_bonus', 'label' => 'KPI', 'amount' => (float) $this->kpi_bonus,
                         'hint' => self::percent($this->kpi_score).'% KPI của bản thân (chỉ để xem, Admin không có tiền KPI)'];
@@ -311,7 +378,8 @@ class PayrollRecord extends Model
             $lines[] = $this->commissionLine();
         }
 
-        foreach ($this->manualLines('earning') as $i => $line) {
+        // Trợ giảng không có phụ cấp / khoản cộng tự do (TK-0011): không hiện, không tính.
+        foreach ($this->isAssistant() ? [] : $this->manualLines('earning') as $i => $line) {
             $lines[] = ['key' => 'manual_earning_'.$i, 'label' => $line['label'], 'amount' => $line['amount'], 'hint' => 'Khoản cộng tự do'];
         }
         if ((float) $this->other_bonus != 0.0) {
@@ -346,14 +414,39 @@ class PayrollRecord extends Model
             return $this->legacyDeductionLines();
         }
 
-        $base = Money::format($this->base_salary, '');
         $lines = [];
         if ($this->isFullTime()) {
-            $lines[] = ['key' => 'insurance_deduction', 'label' => 'BHXH ('.$this->rateLabel('insurance').'% lương cơ bản)', 'amount' => (float) $this->insurance_deduction, 'hint' => 'Trên lương cơ bản '.$base.'đ'];
-            $lines[] = ['key' => 'union_deduction', 'label' => 'Công đoàn ('.$this->rateLabel('union').'% lương cơ bản)', 'amount' => (float) $this->union_deduction, 'hint' => null];
+            $insuranceBase = $this->insuranceSalaryBase();
+            if ($insuranceBase !== null) {
+                // TK-0009: mức đóng × tỉ lệ × công hưởng lương / công chuẩn; chỉ GV full-time, Học vụ, Học thuật.
+                $insured = (bool) data_get($this->calculation_details, 'rates.insured', true);
+                $hint = $insured
+                    ? 'Mức lương đóng BHXH '.Money::format($insuranceBase, '').'đ'.($this->hasWorkdays()
+                        ? ' × '.self::number(data_get($this->calculation_details, 'workdays.paid_days', 0)).'/'.(int) data_get($this->calculation_details, 'workdays.standard_days', 0).' công'
+                        : '')
+                    : 'Không áp dụng cho vai trò này (chỉ GV full-time, Học vụ, Học thuật)';
+                $lines[] = ['key' => 'insurance_deduction', 'label' => 'BHXH ('.$this->rateLabel('insurance').'% mức lương đóng BHXH)', 'amount' => (float) $this->insurance_deduction, 'hint' => $hint];
+                $lines[] = ['key' => 'union_deduction', 'label' => 'Công đoàn ('.$this->rateLabel('union').'% mức lương đóng BHXH)', 'amount' => (float) $this->union_deduction, 'hint' => $hint];
+            } else {
+                // Phiếu tính trước 30/10/2026: BHXH / Công đoàn trên lương cơ bản.
+                $lines[] = ['key' => 'insurance_deduction', 'label' => 'BHXH ('.$this->rateLabel('insurance').'% lương cơ bản)', 'amount' => (float) $this->insurance_deduction, 'hint' => 'Trên lương cơ bản '.Money::format($this->base_salary, '').'đ'];
+                $lines[] = ['key' => 'union_deduction', 'label' => 'Công đoàn ('.$this->rateLabel('union').'% lương cơ bản)', 'amount' => (float) $this->union_deduction, 'hint' => null];
+            }
             $lines[] = ['key' => 'tax_deduction', 'label' => 'Thuế TNCN', 'amount' => (float) $this->tax_deduction, 'hint' => 'Admin / Kế toán nhập tay'];
         }
-        $lines[] = ['key' => 'penalty_deduction', 'label' => 'Phạt vi phạm (quá hạn nộp)', 'amount' => (float) $this->penalty_deduction, 'hint' => null];
+        if ((float) $this->late_deduction != 0.0 || (int) data_get($this->calculation_details, 'daily_late.minutes', 0) > 0) {
+            $lines[] = ['key' => 'late_deduction', 'label' => $this->lateLabel(), 'amount' => (float) $this->late_deduction,
+                'hint' => (int) data_get($this->calculation_details, 'daily_late.days', 0).' ngày muộn không có phép · công giờ = lương cơ bản ÷ công chuẩn ÷ 7 = '
+                    .Money::format((float) data_get($this->calculation_details, 'daily_late.hourly_wage', 0), '').'đ/giờ'];
+        }
+        if ((float) $this->missing_punch_deduction != 0.0) {
+            $count = (int) data_get($this->calculation_details, 'missing_punch.count', 0);
+            $lines[] = ['key' => 'missing_punch_deduction', 'label' => 'Quên chấm công ('.$count.' lần)', 'amount' => (float) $this->missing_punch_deduction,
+                'hint' => (int) data_get($this->calculation_details, 'missing_punch.check_in', 0).' lần quên chấm vào, '
+                    .(int) data_get($this->calculation_details, 'missing_punch.check_out', 0).' lần quên chấm ra × '
+                    .Money::format((float) data_get($this->calculation_details, 'missing_punch.fine', 0), '').'đ/lần'];
+        }
+        $lines[] = ['key' => 'penalty_deduction', 'label' => 'Phạt vi phạm', 'amount' => (float) $this->penalty_deduction, 'hint' => null];
         if ((float) $this->commission_clawback != 0.0) {
             $lines[] = ['key' => 'commission_clawback', 'label' => 'Thu hồi hoa hồng (hoàn phí / hủy hóa đơn)', 'amount' => (float) $this->commission_clawback, 'hint' => null];
         }
@@ -365,6 +458,62 @@ class PayrollRecord extends Model
         }
 
         return $lines;
+    }
+
+    /** Mức lương đóng BHXH lưu lúc tính (null = phiếu tính trước 30/10/2026, BHXH trên lương cơ bản). */
+    public function insuranceSalaryBase(): ?float
+    {
+        $base = data_get($this->calculation_details, 'rates.insurance_base');
+
+        return $base !== null ? (float) $base : null;
+    }
+
+    /** "Đi muộn: 2 giờ 0 phút" (TK-0013). */
+    public function lateLabel(): string
+    {
+        return 'Đi muộn: '.self::durationLabel((int) data_get($this->calculation_details, 'daily_late.minutes', 0));
+    }
+
+    /** 125 → "2 giờ 5 phút". */
+    public static function durationLabel(int $minutes): string
+    {
+        return intdiv($minutes, 60).' giờ '.($minutes % 60).' phút';
+    }
+
+    /** Trợ giảng Part-time có buổi dạy chưa có đơn giá giờ (đơn giá cũ theo buổi không quy đổi) → cần nhập lại đơn giá. */
+    public function assistantRateMissing(): bool
+    {
+        return (int) data_get($this->calculation_details, 'assistant.missing_rate_sessions', 0) > 0;
+    }
+
+    /** "15.000.000đ × 25/26 công (24 ngày đủ công, 1 ngày chấm công bù, …)". */
+    public function workdayHint(): ?string
+    {
+        if (! $this->hasWorkdays()) {
+            return null;
+        }
+        $w = (array) data_get($this->calculation_details, 'workdays');
+        $parts = [(int) ($w['full_days'] ?? 0).' ngày đủ công'];
+        if ((int) ($w['makeup_days'] ?? 0) > 0) {
+            $parts[] = 'gồm '.(int) $w['makeup_days'].' ngày chấm công bù';
+        }
+        if ((int) ($w['half_days'] ?? 0) > 0) {
+            $parts[] = (int) $w['half_days'].' ngày quên chấm ra (0,5 công)';
+        }
+        if ((int) ($w['leave_days'] ?? 0) > 0) {
+            $parts[] = (int) $w['leave_days'].' ngày nghỉ phép';
+        }
+        if ((int) ($w['holiday_days'] ?? 0) > 0) {
+            $parts[] = (int) $w['holiday_days'].' ngày lễ';
+        }
+
+        return Money::format((float) $this->base_salary, '').'đ ÷ '.(int) ($w['standard_days'] ?? 0).' công chuẩn × '.self::number($w['paid_days'] ?? 0).' công ('.implode(', ', $parts).')';
+    }
+
+    /** 22.5 → "22,5"; 26 → "26". */
+    public static function number(float|int|string $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, ',', '.'), '0'), ',');
     }
 
     private function rateLabel(string $which): string
@@ -422,7 +571,12 @@ class PayrollRecord extends Model
             return;
         }
 
-        $this->allowance = round(collect($this->manualLines('earning'))->sum('amount'), 2);
+        // Trợ giảng không có phụ cấp / khoản cộng (TK-0011): khoản cộng tự do và buổi có GVNN không được tính.
+        $this->allowance = $this->isAssistant() ? 0 : round(collect($this->manualLines('earning'))->sum('amount'), 2);
+        if ($this->isAssistant()) {
+            $this->foreign_session_pay = 0;
+            $this->kpi_manual_amount = null;
+        }
         $this->other_deduction = round(collect($this->manualLines('deduction'))->sum('amount'), 2);
 
         if ($this->kpi_source === self::KPI_RETENTION) {

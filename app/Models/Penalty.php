@@ -467,26 +467,34 @@ class Penalty extends Model
     }
 
     /**
-     * Biên bản phải trừ vào kỳ lương [start, end] tại thời điểm tính:
-     * - đã quyết phạt, chưa nộp, hạn nộp đã qua (trước hôm nay) và nằm trong/ trước kỳ;
-     * - biên bản cũ chưa có hạn nộp: giữ luật cũ (ngày vi phạm trong kỳ).
+     * Biên bản phải trừ vào kỳ lương [start, end] tại thời điểm tính (TK-0014, 30/10/2026):
+     * - đã quyết phạt (fined) trước lần tính, chưa nộp trực tiếp, ngày vi phạm trong kỳ → gắn và trừ ở CHÍNH kỳ đó
+     *   (không chờ hết hạn nộp, không đẩy sang kỳ sau);
+     * - ngày vi phạm thuộc kỳ trước mà kỳ đó đã khóa (đã duyệt / đã trả) hoặc chưa có kỳ lương → trừ ở kỳ đang mở được tính
+     *   (vd. vi phạm 30/09, chốt 01/10, T9 đã trả → trừ ở T10). Kỳ trước còn mở thì biên bản thuộc kỳ đó, chờ tính lại kỳ đó.
+     * "paid" = nhân sự đã nộp tiền mặt trực tiếp (markPaidPenalty) → không trừ lương nữa; "deducted" = đã trừ ở kỳ đã duyệt.
      * Biên bản đã gắn vào bản ghi lương của kỳ khác thì không trừ lại.
      */
     public function scopeDeductibleFor(Builder $query, PayrollPeriod $period): Builder
     {
+        $start = $period->start_date->toDateString();
         $end = $period->end_date->toDateString();
-        $today = today()->toDateString();
 
         return $query->whereIn('status', self::payableStatuses())
-            ->where(function ($q) use ($period, $end, $today) {
-                $q->where(fn ($due) => $due->whereNotNull('due_date')
-                    ->whereDate('due_date', '<=', $end)
-                    ->whereDate('due_date', '<', $today))
-                    ->orWhere(fn ($legacy) => $legacy->whereNull('due_date')
-                        ->whereBetween('violation_date', [$period->start_date, $period->end_date]));
+            ->where(function ($q) use ($period, $start, $end) {
+                $q->where(fn ($in) => $in->whereDate('violation_date', '>=', $start)->whereDate('violation_date', '<=', $end))
+                    ->orWhere(fn ($carried) => $carried->whereDate('violation_date', '<', $start)
+                        ->whereNotExists(fn ($open) => $open->selectRaw('1')->from('payroll_periods as own_period')
+                            ->where('own_period.id', '!=', $period->id)
+                            ->whereNotIn('own_period.status', PayrollPeriod::LOCKED_STATUSES)
+                            ->whereColumn('own_period.start_date', '<=', 'penalties.violation_date')
+                            ->whereColumn('own_period.end_date', '>=', 'penalties.violation_date')));
             })
             ->where(fn ($q) => $q->whereNull('payroll_record_id')
-                ->orWhereIn('payroll_record_id', $period->records()->select('id')));
+                ->orWhereIn('payroll_record_id', $period->records()->select('id')))
+            // Biên bản tự động đi muộn của chấm công hằng ngày: đi muộn đã trừ theo phút trên phiếu lương (late_deduction)
+            // → không trừ thêm qua biên bản (tránh phạt 2 lần, 30/10/2026).
+            ->whereNotIn('id', StaffAttendance::query()->whereNotNull('penalty_id')->select('penalty_id'));
     }
 
     /**

@@ -185,7 +185,8 @@ class PayrollController extends Controller
             $period->hasChangesSinceCalculation() => [$user->can('payroll.calculate') ? 'Bước tiếp: bạn bấm Đồng bộ & Tính lại (dữ liệu đã đổi)' : 'Chờ Kế toán Đồng bộ & Tính lại', 'warning'],
             default => [$user->can('payroll.approve') ? 'Bước tiếp: bạn chốt bảng lương' : 'Chờ Admin chốt bảng lương', 'warning'],
         };
-        $all = $period->records;
+        // Đang xem một nhóm (VD tab GV Part-time / Trợ giảng): thẻ tổng tính riêng cho nhóm đó.
+        $all = $type ? $period->records->where('salary_role', $type)->values() : $period->records;
 
         return Inertia::render('Payroll/Show', [
             'period' => [
@@ -195,7 +196,7 @@ class PayrollController extends Controller
                 'calendar' => $period->calendar(),
             ],
             'stats' => [
-                'total_amount' => (float) (DataScope::isAll($user, 'payroll') ? $period->total_amount : $all->sum('net_salary')),
+                'total_amount' => (float) (DataScope::isAll($user, 'payroll') && ! $type ? $period->total_amount : $all->sum('net_salary')),
                 'records' => $all->count(),
                 'parttime_sessions' => (int) $all->where('employee_type', 'parttime')->sum('teaching_sessions'),
                 'hours' => (string) $all->sum('actual_hours'),
@@ -206,6 +207,9 @@ class PayrollController extends Controller
                 'count' => $kpiPending->count(),
                 'names' => $kpiPending->take(8)->map(fn ($r) => $r->user?->name)->filter()->implode(', '),
             ],
+            // Trợ giảng chưa có đơn giá giờ (TK-0010): lương giờ dạy 0đ → cần nhập lại đơn giá ở Đơn giá giáo viên.
+            'assistantRateMissing' => $period->records->filter(fn (PayrollRecord $r) => $r->assistantRateMissing())
+                ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
             'records' => $records->through(fn (PayrollRecord $r) => $this->recordRow($r)),
             'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
             'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
@@ -256,10 +260,13 @@ class PayrollController extends Controller
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
         $department = $request->query('department');
-        $departments = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
+        $departments = PayrollFormulaService::DEPARTMENT_LABELS;
+        // Lọc theo vai trò lương (tab GV Part-time / Trợ giảng của bảng lương kỳ).
+        $type = in_array($request->query('type'), array_keys(PayrollRecord::SALARY_ROLE_LABELS), true) ? $request->query('type') : null;
 
         $records = $this->scopeRecords($period->records()->with('user'))
             ->when(is_string($department) && $department !== '', fn ($q) => $q->where('department', $department))
+            ->when($type, fn ($q) => $q->where('salary_role', $type))
             ->orderBy('department')->orderBy('id')
             ->get();
 
@@ -276,6 +283,11 @@ class PayrollController extends Controller
             $r->employee_type_label,
             $r->salary_role_label,
             (float) $r->base_salary,
+            $r->hasWorkdays() ? (int) data_get($r->calculation_details, 'workdays.standard_days', 0) : '',
+            $r->hasWorkdays() ? (float) data_get($r->calculation_details, 'workdays.paid_days', 0) : '',
+            $r->hasWorkdays() ? (int) data_get($r->calculation_details, 'workdays.half_days', 0) : '',
+            $r->base_salary_earned,
+            (float) $r->contract_allowance,
             (int) $r->teaching_sessions,
             (float) $r->actual_hours,
             (float) $r->teaching_salary,
@@ -297,9 +309,14 @@ class PayrollController extends Controller
             $lineText($r, 'earning'),
             (float) $r->allowance + (float) $r->other_bonus,
             (float) $r->gross_income,
+            $r->insuranceSalaryBase() ?? '',
             (float) $r->insurance_deduction,
             (float) $r->union_deduction,
             (float) $r->tax_deduction,
+            (int) data_get($r->calculation_details, 'daily_late.minutes', 0),
+            (float) $r->late_deduction,
+            (int) data_get($r->calculation_details, 'missing_punch.count', 0),
+            (float) $r->missing_punch_deduction,
             (float) $r->penalty_deduction,
             (float) $r->commission_clawback,
             $lineText($r, 'deduction'),
@@ -310,13 +327,14 @@ class PayrollController extends Controller
         ])->all();
 
         return \App\Exports\ArrayExport::download(
-            'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : ''),
+            'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : '').($type ? '-'.$type : ''),
             [
-                'Nhân sự', 'Mã NV', 'Email', 'Khối', 'Loại', 'Vai trò lương', 'Lương cơ bản', 'Số buổi', 'Số giờ', 'Lương buổi dạy',
+                'Nhân sự', 'Mã NV', 'Email', 'Khối', 'Loại', 'Vai trò lương', 'Lương cơ bản (hợp đồng)', 'Công chuẩn', 'Công hưởng lương', 'Ngày quên chấm ra (0,5 công)',
+                'Lương cơ bản theo công', 'Phụ cấp hợp đồng theo công', 'Số buổi', 'Số giờ', 'Lương buổi / giờ dạy',
                 'Nguồn KPI', 'Trạng thái KPI', 'HS giữ được / đầu kỳ', 'Bậc KPI giữ HS (đ/HS)', 'Điểm KPI Học vụ (%)', 'KPI', 'KPI kiêm nhiệm giảng dạy',
                 'Số buổi có GVNN', 'Buổi có GVNN (chờ BA)', 'Số HS chốt (hoa hồng)', '% hoa hồng', 'Căn cứ thực thu', 'Hoa hồng', 'Hoa hồng hoãn',
                 'Thưởng tái tục', 'Chi tiết cộng tự do', 'Phụ cấp / cộng khác', 'Tổng thu nhập',
-                'BHXH', 'Công đoàn', 'Thuế TNCN', 'Phạt', 'Thu hồi hoa hồng', 'Chi tiết trừ tự do', 'Khấu trừ khác', 'Tổng khấu trừ', 'Thực lĩnh', 'Ghi chú',
+                'Mức lương đóng BHXH', 'BHXH', 'Công đoàn', 'Thuế TNCN', 'Đi muộn (phút)', 'Trừ đi muộn', 'Quên chấm công (lần)', 'Trừ quên chấm công', 'Phạt', 'Thu hồi hoa hồng', 'Chi tiết trừ tự do', 'Khấu trừ khác', 'Tổng khấu trừ', 'Thực lĩnh', 'Ghi chú',
             ],
             $rows,
             $request->query('format', 'xlsx')
@@ -518,7 +536,7 @@ class PayrollController extends Controller
 
         $canEdit = ! $period->isLocked() && $request->user()->can('payroll.edit');
         $lines = $record->manualLines();
-        if ($canEdit && $record->isPartTime() && empty($lines)) {
+        if ($canEdit && $record->isPartTime() && ! $record->isAssistant() && empty($lines)) {
             // Gợi ý các khoản phụ cấp của mockup GV Part-time (khoản 0đ không được lưu).
             $lines = [
                 ['kind' => 'earning', 'label' => 'Hỗ trợ thỏa thuận', 'amount' => ''],
@@ -549,6 +567,17 @@ class PayrollController extends Controller
                 'kpi_fund' => (float) data_get($record->calculation_details, 'kpi.fund', $settings['academic_kpi_fund']),
                 'rate_insurance' => (float) data_get($record->calculation_details, 'rates.insurance', $settings['insurance_rate_percent']),
                 'rate_union' => (float) data_get($record->calculation_details, 'rates.union', $settings['union_rate_percent']),
+                // Mức lương đóng BHXH lưu lúc tính (null = phiếu cũ, BHXH trên lương cơ bản).
+                'insurance_base' => $record->insuranceSalaryBase(),
+                'is_assistant' => $record->isAssistant(),
+                'base_salary_earned' => $record->base_salary_earned,
+                'late_deduction' => (float) $record->late_deduction,
+                'late_label' => $record->lateLabel(),
+                'insured' => (bool) data_get($record->calculation_details, 'rates.insured', true),
+                'contract_allowance' => (float) $record->contract_allowance,
+                'missing_punch_deduction' => (float) $record->missing_punch_deduction,
+                // Trợ giảng chưa có đơn giá giờ (đơn giá cũ theo buổi không quy đổi) → cảnh báo nhập lại.
+                'assistant_rate_missing' => $record->assistantRateMissing(),
                 'notes' => $record->notes,
                 'manual_lines' => $record->manualLines(),
                 'earning_lines' => $record->earningLines(),
@@ -559,6 +588,7 @@ class PayrollController extends Controller
             'canEdit' => $canEdit,
             'lines' => array_values($lines),
             'settings' => [
+                'insurance_salary_base' => (float) $settings['insurance_salary_base'],
                 'insurance_rate_percent' => (float) $settings['insurance_rate_percent'],
                 'union_rate_percent' => (float) $settings['union_rate_percent'],
                 'retention_tiers' => array_values(array_map('floatval', $settings['retention_tiers'])),
@@ -578,7 +608,8 @@ class PayrollController extends Controller
                 'kpi_sheet' => $this->teachingKpiSheet($record, $period),
             ] : null,
             'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($record) {
-                $pay = $ts->sessionPay($record->user);
+                // Trợ giảng: số giờ × đơn giá giờ (TK-0010), cùng cách tính với bảng lương.
+                $pay = $record->isAssistant() && $record->isPartTime() ? $ts->assistantPayOutcome() : $ts->sessionPay($record->user);
 
                 return [
                     'id' => $ts->id,
@@ -613,8 +644,12 @@ class PayrollController extends Controller
             // Khoản trừ GV đi muộn / về sớm (calculation_details.late) để Kế toán thấy vì sao tiền công ca bị giảm.
             'lateLines' => array_values((array) data_get($record->calculation_details, 'late.lines', [])),
             'lateInfo' => ['threshold' => (int) data_get($record->calculation_details, 'late.threshold', 15), 'per_minute' => (float) data_get($record->calculation_details, 'late.per_minute', 5000), 'total' => (float) data_get($record->calculation_details, 'late.total_deduction', 0)],
-            // Chấm công hằng ngày (điện thoại) trong kỳ — căn cứ đối soát, không tự trừ tiền (phạt đi muộn qua biên bản).
+            // Chấm công hằng ngày (điện thoại) trong kỳ — căn cứ đối soát.
             'dailyAttendance' => data_get($record->calculation_details, 'attendance'),
+            // Ngày công tính lương cơ bản Full-time (công chuẩn / công hưởng lương) và đi muộn trừ theo phút.
+            'workdays' => $record->hasWorkdays() ? data_get($record->calculation_details, 'workdays') : null,
+            'dailyLate' => data_get($record->calculation_details, 'daily_late'),
+            'missingPunch' => data_get($record->calculation_details, 'missing_punch'),
             'commissionTiers' => $commissionTiers->map(fn (CommissionTier $tier) => [
                 'id' => $tier->id,
                 'name' => $tier->tier_name,
@@ -668,6 +703,8 @@ class PayrollController extends Controller
     {
         return match (true) {
             ! $record->usesQ3Formula() => ['key' => 'legacy', 'title' => 'Chi tiết bảng lương', 'type' => 'Phiếu trước Q3'],
+            $record->isAssistant() && $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương Trợ giảng', 'type' => 'Trợ giảng (Part-time)'],
+            $record->isAssistant() => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương Trợ giảng', 'type' => 'Trợ giảng (Full-time)'],
             $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương GV Part-time', 'type' => 'Giáo viên (Part-time)'],
             $record->salary_role === Roles::ACADEMIC_STAFF => ['key' => 'academic_staff', 'title' => 'Chi tiết bảng lương Học vụ', 'type' => 'Học vụ (Full-time)'],
             $record->salary_role === Roles::ACADEMIC_LEAD => ['key' => 'academic_lead', 'title' => 'Chi tiết bảng lương Học thuật', 'type' => 'Học thuật (Full-time)'],
@@ -784,7 +821,8 @@ class PayrollController extends Controller
                 'net_salary' => (float) $records->sum('net_salary'),
                 'renew_bonus' => (float) $records->sum('renew_bonus'),
                 'kpi_bonus' => (float) $records->sum('kpi_bonus'),
-                'base_salary' => (float) $records->sum('base_salary'),
+                // Lương cơ bản thực trả theo ngày công.
+                'base_salary' => (float) $records->sum(fn (PayrollRecord $r) => $r->base_salary_earned),
                 'teaching_salary' => (float) $records->sum('teaching_salary'),
                 'teaching_kpi_bonus' => (float) $records->sum('teaching_kpi_bonus'),
                 'allowance' => (float) $records->sum('allowance'),
@@ -1552,6 +1590,9 @@ class PayrollController extends Controller
 
         return Inertia::render('Payroll/Config/Settings', [
             'settings' => [
+                'insurance_salary_base' => (int) $settings['insurance_salary_base'],
+                'missing_punch_fine' => (int) $settings['missing_punch_fine'],
+                'assistant_hourly_tiers' => collect($settings['assistant_hourly_tiers'])->map(fn ($t) => Money::format($t, ''))->implode(' / '),
                 'insurance_rate_percent' => $fmt($settings['insurance_rate_percent']),
                 'union_rate_percent' => $fmt($settings['union_rate_percent']),
                 'academic_kpi_fund' => (int) $settings['academic_kpi_fund'],
@@ -1568,12 +1609,16 @@ class PayrollController extends Controller
     }
 
     /**
-     * Tham số công thức lương Q3: tỉ lệ BHXH / Công đoàn (trên lương cơ bản Full-time), quỹ KPI Học vụ,
+     * Tham số công thức lương Q3: mức lương đóng BHXH và tỉ lệ BHXH / Công đoàn (Full-time), quỹ KPI Học vụ,
      * bảng % thưởng tái tục theo số HS nghỉ (các mốc chưa được BA chốt đánh dấu "chờ BA").
      */
     public function storeSettings(Request $request)
     {
         $validated = $request->validate([
+            // Mức lương đóng BHXH (đ): BHXH / Công đoàn của Full-time tính trên mức này. Bỏ trống = giữ mức đang dùng.
+            'insurance_salary_base' => ['nullable', 'numeric', 'min:0', 'max:1000000000'],
+            // Phạt mỗi lần quên chấm vào / chấm ra (TK-0013). Bỏ trống = giữ mức đang dùng.
+            'missing_punch_fine' => ['nullable', 'numeric', 'min:0', 'max:10000000'],
             'insurance_rate_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'union_rate_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'academic_kpi_fund' => ['required', 'numeric', 'min:0'],
@@ -1594,8 +1639,14 @@ class PayrollController extends Controller
             'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
         ]);
 
-        SystemSetting::set('payroll_insurance_rate_percent', $validated['insurance_rate_percent'], 'BHXH trừ trên lương cơ bản Full-time (%)');
-        SystemSetting::set('payroll_union_rate_percent', $validated['union_rate_percent'], 'Công đoàn trừ trên lương cơ bản Full-time (%)');
+        if (filled($validated['insurance_salary_base'] ?? null)) {
+            SystemSetting::set('payroll_insurance_salary_base', $validated['insurance_salary_base'], 'Mức lương đóng BHXH của Full-time (đ)');
+        }
+        if (filled($validated['missing_punch_fine'] ?? null)) {
+            SystemSetting::set('payroll_missing_punch_fine', $validated['missing_punch_fine'], 'Phạt mỗi lần quên chấm vào / chấm ra (đ)');
+        }
+        SystemSetting::set('payroll_insurance_rate_percent', $validated['insurance_rate_percent'], 'BHXH trừ trên mức lương đóng BHXH Full-time (%)');
+        SystemSetting::set('payroll_union_rate_percent', $validated['union_rate_percent'], 'Công đoàn trừ trên mức lương đóng BHXH Full-time (%)');
         SystemSetting::set('payroll_academic_kpi_fund', $validated['academic_kpi_fund'], 'Quỹ KPI Học vụ mỗi tháng (đ)');
         if (array_key_exists('renewal', $validated)) {
             $table = collect($validated['renewal'] ?? [])
@@ -1736,6 +1787,9 @@ class PayrollController extends Controller
             ] : null,
             'selectedType' => $selectedType,
             'teacherTypes' => Ui::options(TeacherHourlyRate::TEACHER_TYPES),
+            // Bậc đơn giá giờ Trợ giảng (TK-0010): TA chỉ chọn một trong các bậc, đơn vị luôn là giờ.
+            'assistantTiers' => collect(PayrollPeriod::payrollSettings()['assistant_hourly_tiers'])
+                ->map(fn ($t) => ['value' => (string) (int) $t, 'label' => Money::format($t, '').' đ/giờ'])->values()->all(),
             'defaultRate' => Money::format(TeacherTimesheet::DEFAULT_HOURLY_RATE),
             'today' => now()->format('d/m/Y'),
             'todayDate' => now()->toDateString(),
@@ -1781,7 +1835,21 @@ class PayrollController extends Controller
         ]);
 
         $validated['rate_unit'] ??= TeacherHourlyRate::UNIT_HOUR;
-        $validated['teacher_type'] ??= TeacherHourlyRate::defaultTeacherType(User::findOrFail($validated['user_id']));
+        $rateUser = User::findOrFail($validated['user_id']);
+        $validated['teacher_type'] ??= TeacherHourlyRate::defaultTeacherType($rateUser);
+        // Trợ giảng (TK-0010): luôn tính theo GIỜ, mức đơn giá là một trong các bậc ở Tham số tính lương. Nhân sự lên bảng
+        // lương là Trợ giảng thì đơn giá luôn theo luật TA, dù chọn loại giáo viên nào.
+        if (app(PayrollFormulaService::class)->profile($rateUser)['salary_role'] === Roles::ASSISTANT) {
+            $validated['teacher_type'] = 'assistant';
+        }
+        if ($validated['teacher_type'] === 'assistant') {
+            $tiers = PayrollPeriod::payrollSettings()['assistant_hourly_tiers'];
+            if (! in_array((float) $validated['hourly_rate'], $tiers, true)) {
+                throw ValidationException::withMessages(['hourly_rate' => 'Đơn giá Trợ giảng phải là một trong các bậc '
+                    .collect($tiers)->map(fn ($t) => Money::format($t, ''))->implode(' / ').' đ/giờ.']);
+            }
+            $validated['rate_unit'] = TeacherHourlyRate::UNIT_HOUR;
+        }
         $rate = TeacherHourlyRate::create($validated + ['created_by' => $request->user()->id]);
 
         activity('teacher_rate')->causedBy($request->user())->performedOn($rate)
@@ -2141,6 +2209,9 @@ class PayrollController extends Controller
                 : ($record->kpi_score !== null ? rtrim(rtrim(number_format((float) $record->kpi_score, 2), '0'), '.').'%' : '-'),
             'foreign_session_pay' => (int) $record->foreign_teacher_sessions_count.' buổi',
             'commission_bonus' => (int) $record->commission_closed_count.' HS chốt',
+            'base_salary' => $record->hasWorkdays()
+                ? PayrollRecord::number(data_get($record->calculation_details, 'workdays.paid_days', 0)).'/'.(int) data_get($record->calculation_details, 'workdays.standard_days', 0).' công'
+                : '-',
             default => '-',
         };
 
@@ -2221,6 +2292,10 @@ class PayrollController extends Controller
             'retention_students' => (int) $r->retention_students,
             'retention_tier' => $r->retention_tier !== null ? (float) $r->retention_tier : null,
             'base_salary' => (float) $r->base_salary,
+            // Lương cơ bản thực trả theo ngày công (phiếu cũ: = lương cơ bản).
+            'base_salary_earned' => $r->base_salary_earned,
+            'is_assistant' => $r->isAssistant(),
+            'late_deduction' => (float) $r->late_deduction,
             'teaching_salary' => (float) $r->teaching_salary,
             'teaching_sessions' => (int) $r->teaching_sessions,
             'teaching_concurrent' => (bool) $r->teaching_concurrent,
@@ -2235,7 +2310,8 @@ class PayrollController extends Controller
             'insurance_deduction' => (float) $r->insurance_deduction,
             'union_deduction' => (float) $r->union_deduction,
             'tax_deduction' => (float) $r->tax_deduction,
-            'other_deductions' => (float) $r->penalty_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
+            'assistant_rate_missing' => $r->assistantRateMissing(),
+            'other_deductions' => (float) $r->penalty_deduction + (float) $r->late_deduction + (float) $r->missing_punch_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
             'net_salary' => (float) $r->net_salary,
         ];
     }

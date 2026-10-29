@@ -16,6 +16,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AttendsWorkdays;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,7 @@ use Tests\TestCase;
  */
 class AcademicLeadTeachingPayrollTest extends TestCase
 {
+    use AttendsWorkdays;
     use RefreshDatabase;
 
     private Branch $branch;
@@ -93,6 +95,8 @@ class AcademicLeadTeachingPayrollTest extends TestCase
             'code' => 'PR-2026-09', 'title' => 'Bảng lương Tháng 9/2026', 'month' => 9, 'year' => 2026,
             'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'draft',
         ]);
+        // Lương cơ bản trả theo ngày công (TK-0012): Học thuật đi làm đủ tháng.
+        $this->attendFullMonth($this->lead, 9);
         $period->calculatePayrollForPeriod();
 
         return PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $this->lead->id)->firstOrFail();
@@ -124,8 +128,9 @@ class AcademicLeadTeachingPayrollTest extends TestCase
         $this->assertSame(1, $record->calculation_details['teaching_share']['skipped']);
 
         // BHXH / Công đoàn chỉ trên lương cơ bản; lương đứng lớp cộng vào thực lĩnh.
-        $this->assertEquals(round(15000000 * 0.105), (float) $record->insurance_deduction);
-        $this->assertEquals(15000000 + 493333 - round(15000000 * 0.105) - round(15000000 * 0.005), (float) $record->net_salary);
+        // BHXH / Công đoàn trên mức lương đóng BHXH 5.400.000 (TK-0009), đủ công.
+        $this->assertEquals(567000, (float) $record->insurance_deduction);
+        $this->assertEquals(15000000 + 493333 - 567000 - 27000, (float) $record->net_salary);
 
         $keys = collect($record->earningLines())->pluck('key')->all();
         $this->assertContains('teaching_salary', $keys);

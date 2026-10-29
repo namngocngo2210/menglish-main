@@ -27,6 +27,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+use Tests\Concerns\AttendsWorkdays;
 use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
@@ -37,6 +38,7 @@ use Tests\TestCase;
  */
 class Phase3FormulaTest extends TestCase
 {
+    use AttendsWorkdays;
     use FinalizesPayrollKpi;
     use RefreshDatabase;
 
@@ -332,6 +334,7 @@ class Phase3FormulaTest extends TestCase
         $class = $this->classFor(null, 'FT-01');
         $this->timesheet($teacher, $class, '2026-09-03', 2);   // buổi dạy chỉ để đối soát
         Penalty::create(['code' => 'BB-CT-2', 'user_id' => $teacher->id, 'violation_type' => 'Quên điểm danh', 'violation_date' => '2026-09-10', 'amount' => 200000, 'status' => 'fined']);
+        $this->attendFullMonth($teacher, 9); // đủ 26/26 công
 
         $this->travelTo(Carbon::parse('2026-10-02 09:00:00'));
         $period = $this->calculate($this->period(9));
@@ -340,10 +343,10 @@ class Phase3FormulaTest extends TestCase
         $this->assertSame('fulltime', $record->employee_type);
         $this->assertSame('fulltime', $record->department);
         $this->assertEquals(0, $record->teaching_salary);
-        $this->assertEquals(1050000, $record->insurance_deduction);  // 10,5% × 10.000.000
-        $this->assertEquals(50000, $record->union_deduction);        // 0,5% × 10.000.000
+        $this->assertEquals(567000, $record->insurance_deduction);   // 10,5% × mức đóng 5.400.000 (TK-0009)
+        $this->assertEquals(27000, $record->union_deduction);        // 0,5% × 5.400.000
         $this->assertEquals(0, $record->allowance);                  // bỏ phụ cấp cố định 500k
-        $this->assertEquals(8700000, $record->net_salary);           // 10M − 1,05M − 50k − 200k
+        $this->assertEquals(9206000, $record->net_salary);           // 10M − 567k − 27k − 200k
 
         $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), [
             'kpi_manual_amount' => 1500000,
@@ -355,8 +358,8 @@ class Phase3FormulaTest extends TestCase
         $record->refresh();
         $this->assertEquals(1500000, $record->kpi_bonus);
         $this->assertNull($record->retention_tier);
-        // 10.000.000 + 1.500.000 + 500.000 − 1.050.000 − 50.000 − 250.000 − 200.000
-        $this->assertEquals(10450000, $record->net_salary);
+        // 10.000.000 + 1.500.000 + 500.000 − 567.000 − 27.000 − 250.000 − 200.000
+        $this->assertEquals(10956000, $record->net_salary);
 
         // Tỉ lệ cấu hình được: Công đoàn 1% → tính lại
         $this->actingAs($this->admin)->post(route('payroll.config.settings.store'), [
@@ -364,18 +367,18 @@ class Phase3FormulaTest extends TestCase
         ])->assertSessionHasNoErrors();
         $period = $this->calculate($period);
         $record = $this->record($period, $teacher);
-        $this->assertEquals(100000, $record->union_deduction);
+        $this->assertEquals(54000, $record->union_deduction);        // 1% × 5.400.000
         $this->assertEquals(1500000, $record->kpi_bonus);            // KPI tay giữ nguyên
         $this->assertEquals(250000, $record->tax_deduction);         // TNCN tay giữ nguyên
-        $this->assertEquals(10400000, $record->net_salary);
+        $this->assertEquals(10929000, $record->net_salary);
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
             ->assertOk()
-            ->assertSee('BHXH (10,5% lương cơ bản)')
-            ->assertSee('Công đoàn (1% lương cơ bản)')
+            ->assertSee('BHXH (10,5% mức lương đóng BHXH)')
+            ->assertSee('Công đoàn (1% mức lương đóng BHXH)')
             ->assertSee('Thuế TNCN')
             ->assertSee('Phụ cấp trách nhiệm')
-            ->assertSee('10.400.000');
+            ->assertSee('10.929.000');
         $this->actingAs($this->admin)->get(route('payroll.periods.fulltime', $period->id))
             ->assertOk()->assertSee('GV Full-time Minh')->assertSee('Công đoàn');
     }
@@ -404,14 +407,15 @@ class Phase3FormulaTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertEquals(91.25, (float) KpiEvaluation::where('user_id', $staff->id)->value('total_score')); // 100 − 3,75 − 5
 
+        $this->attendFullMonth($staff, 9);
         $period = $this->calculate($this->period(9));
         $record = $this->record($period, $staff);
         $this->assertSame('academic_kpi', $record->kpi_source);
         $this->assertSame('operations', $record->department);
         $this->assertEquals(91.25, $record->kpi_score);
         $this->assertEquals(1825000, $record->kpi_bonus);            // 2.000.000 × 91,25%
-        // 8.000.000 + 1.825.000 − 840.000 BHXH − 40.000 Công đoàn
-        $this->assertEquals(8945000, $record->net_salary);
+        // 8.000.000 + 1.825.000 − 567.000 BHXH − 27.000 Công đoàn (mức đóng 5.400.000)
+        $this->assertEquals(9231000, $record->net_salary);
 
         // KPI Học vụ không nhập tay được
         $this->actingAs($this->admin)->post(route('payroll.records.adjust', $record->id), ['kpi_manual_amount' => 5000000])->assertSessionHasNoErrors();
@@ -601,7 +605,9 @@ class Phase3FormulaTest extends TestCase
 
     public function test_renewal_bonus_uses_quit_count_table_times_class_revenue(): void
     {
-        $teacher = $this->userWithRole('teacher_fulltime', ['name' => 'GV Chủ Nhiệm', 'base_salary' => 9000000]);
+        // Thưởng tái tục chỉ cho Học vụ (TK-0015); lớp phụ trách = lớp có teacher_id là nhân sự đó.
+        $teacher = $this->userWithRole('academic_staff', ['name' => 'Học vụ Chủ Nhiệm', 'base_salary' => 9000000]);
+        $this->attendFullMonth($teacher, 9);
         $classA = $this->classFor($teacher, 'TT-A'); // giữ đủ → 1%
         $classB = $this->classFor($teacher, 'TT-B'); // nghỉ 1 → 0,7%
         $classC = $this->classFor($teacher, 'TT-C'); // nghỉ 2 → chờ BA (0%)
@@ -620,6 +626,12 @@ class Phase3FormulaTest extends TestCase
         $this->approvedReceipt($this->tuition($b[1], $classB), 10000000, '2026-09-09 10:00:00');
         $this->approvedReceipt($this->tuition($c[2], $classC), 5000000, '2026-09-10 10:00:00');
         $this->approvedReceipt($this->tuition($a[2], $classA), 7000000, '2026-10-02 10:00:00'); // kỳ sau
+        // GV full-time phụ trách lớp giữ đủ HS, có doanh thu → không có thưởng tái tục (TK-0015).
+        $gvFt = $this->userWithRole('teacher_fulltime', ['name' => 'GV Full-time Lớp D', 'base_salary' => 9000000]);
+        $this->attendFullMonth($gvFt, 9);
+        $classD = $this->classFor($gvFt, 'TT-D');
+        $d = $this->enrolledStudent($classD);
+        $this->approvedReceipt($this->tuition($d, $classD), 10000000, '2026-09-11 10:00:00');
 
         $this->travelTo(Carbon::parse('2026-10-05 09:00:00'));
         $period = $this->calculate($this->period(9));
@@ -632,8 +644,10 @@ class Phase3FormulaTest extends TestCase
         $this->assertSame(1, $rows[$classB->id]['quits']);
         $this->assertSame(2, $rows[$classC->id]['quits']);
         $this->assertTrue($rows[$classC->id]['pending']);
-        // 9.000.000 + 270.000 − 945.000 − 45.000
-        $this->assertEquals(8280000, $record->net_salary);
+        // 9.000.000 + 270.000 − 567.000 − 27.000 (KPI Học vụ chưa chấm → 0)
+        $this->assertEquals(8676000, $record->net_salary);
+        $this->assertEquals(0, $this->record($period, $gvFt)->renew_bonus);
+        $this->assertNull(data_get($this->record($period, $gvFt)->calculation_details, 'renewal'));
 
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
             ->assertOk()->assertSee('Thưởng tái tục theo lớp')->assertSee('chờ BA')->assertSee('270.000');

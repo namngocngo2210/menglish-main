@@ -228,6 +228,25 @@ class TeacherTimesheet extends Model
         return $result;
     }
 
+    /**
+     * Tiền công ca của Trợ giảng (TK-0010): số giờ hợp lệ × đơn giá GIỜ riêng của TA hiệu lực tại ngày dạy (ca có đơn giá
+     * nhập tay thì theo đơn giá đó), rồi áp quy tắc đi muộn / về sớm như GV. Đơn giá TA cũ theo buổi không quy đổi và không
+     * rơi về đơn giá hồ sơ / mặc định: chưa có đơn giá giờ → 0đ, missing_rate = true (phiếu lương cảnh báo cần nhập lại).
+     *
+     * @return array{amount: float, base_amount: float, counted: bool, late_minutes: int, late_rule: string|null, late_deduction: float, unit: string, rate: float, missing_rate: bool}
+     */
+    public function assistantPayOutcome(?array $settings = null): array
+    {
+        $rate = (float) $this->hourly_rate;
+        if ($rate <= 0) {
+            $personal = TeacherHourlyRate::effectiveFor((int) $this->user_id, $this->teaching_date ?? now());
+            $rate = $personal && $personal->rate_unit === TeacherHourlyRate::UNIT_HOUR ? (float) $personal->hourly_rate : 0.0;
+        }
+        $base = ['amount' => round((float) $this->hours * $rate, 2), 'unit' => TeacherHourlyRate::UNIT_HOUR, 'rate' => $rate, 'missing_rate' => $rate <= 0];
+
+        return array_merge($base, $this->applyLateRules($base['amount'], $settings));
+    }
+
     /** Tiền công cơ bản (chưa áp quy tắc đi muộn / về sớm). */
     private function basePay(?User $user = null): array
     {
