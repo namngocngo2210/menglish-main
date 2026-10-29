@@ -2,6 +2,8 @@
 /**
  * Thêm / Sửa nhân sự: mở từ danh sách / trang chi tiết → modal 3xl, 3 tab Tài khoản / Hồ sơ / Hợp đồng & Lương trong 1 form;
  * mở thẳng URL → trang đầy đủ (cùng form). Có file hợp đồng → gửi multipart (POST + _method=put khi sửa).
+ * novalidate: không chặn bằng bong bóng "required" của trình duyệt (dễ bỏ sót, có thể hiện tiếng Anh) — server trả lỗi
+ * tiếng Việt cho từng ô, UserFields tự chuyển sang tab có lỗi.
  */
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -39,7 +41,7 @@ const fields = computed(() => ({
 </script>
 
 <template>
-    <UiModalFrame v-if="asModal" :title="title" :description="user ? `${user.name} · ${user.email}` : 'Tài khoản mới phải đổi mật khẩu ở lần đăng nhập đầu tiên.'" :action="action" method="post" :submit-label="submitLabel" submit-icon="save" :form-options="{ id: 'modal-user-form' }">
+    <UiModalFrame v-if="asModal" :title="title" :description="user ? `${user.name} · ${user.email}` : 'Tài khoản mới phải đổi mật khẩu ở lần đăng nhập đầu tiên.'" :action="action" method="post" :submit-label="submitLabel" submit-icon="save" :form-options="{ id: 'modal-user-form', novalidate: true }">
         <input v-if="user" type="hidden" name="_method" value="put" />
         <UserFields v-bind="fields" id-prefix="modal-user-" />
     </UiModalFrame>
@@ -54,7 +56,7 @@ const fields = computed(() => ({
         </UiPageHeader>
 
         <div class="max-w-3xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
-            <UiForm id="user-form" :action="action" method="post" class="space-y-md">
+            <UiForm id="user-form" :action="action" method="post" novalidate class="space-y-md">
                 <input v-if="user" type="hidden" name="_method" value="put" />
                 <UserFields v-bind="fields" />
                 <div class="flex items-center justify-end gap-sm border-t border-surface-container pt-md">
