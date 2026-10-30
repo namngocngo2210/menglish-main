@@ -94,6 +94,7 @@ func setup(t *testing.T) *env {
 	svc := NewService(pool, cat, log)
 	cat.Classes = svc
 	svc.now = func() time.Time { return fixedNow }
+	cat.Now = svc.now
 	auth := iam.NewHandler(iamSvc, log)
 
 	r := chi.NewRouter()

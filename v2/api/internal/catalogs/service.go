@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -28,10 +29,12 @@ type Service struct {
 	Classes ClassHooks
 	// Mail: bộ gửi email cho nút "Gửi thử" của màn Email nhận Ticket; nil = chưa có bộ gửi.
 	Mail MailTester
+	// Now: đồng hồ của phân hệ (mặc định time.Now; test cố định ngày để dữ liệu mẫu không trôi theo ngày chạy).
+	Now func() time.Time
 }
 
 func NewService(pool *pgxpool.Pool, box *secretbox.Box, log *slog.Logger) *Service {
-	return &Service{pool: pool, q: catalogsdb.New(pool), box: box, log: log}
+	return &Service{pool: pool, q: catalogsdb.New(pool), box: box, log: log, Now: time.Now}
 }
 
 // Page là một trang danh sách.

@@ -92,7 +92,7 @@ func (s *Service) ListShifts(ctx context.Context, actor *iam.Access) (ShiftList,
 	out := ShiftList{DayTypes: DayTypes, Shifts: shifts, WeekdayRule: joinVi(weekday, "ca theo danh mục"),
 		Duration: ShiftMinutes, OffScheduleClasses: []OffScheduleClass{}}
 	if s.Classes != nil {
-		from := dateOnly(time.Now())
+		from := dateOnly(s.Now())
 		sessions, err := s.Classes.RegularSessions(ctx, actor, from, from.AddDate(0, 0, offScheduleDays))
 		if err != nil {
 			return out, err
