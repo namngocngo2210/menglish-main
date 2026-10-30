@@ -2330,10 +2330,9 @@ class TuitionController extends Controller
                 return $cancellation;
             }
 
-            // Hoa hồng của phiếu đã chi trong kỳ lương đã duyệt → thu hồi ở kỳ kế tiếp (kỳ chưa duyệt tự tính lại).
-            $clawback = app(SalesCommissionService::class)
-                ->recordCancellationClawback($receipt, Auth::user(), (string) $cancellation->invoice_number);
-            $cancellation->setAttribute('commission_clawback', $clawback);
+            // Không thu hồi hoa hồng đã trả; khoản chưa trả của phiếu bị hủy không được chi.
+            app(SalesCommissionService::class)
+                ->voidForCancelledReceipt($receipt, (string) $cancellation->invoice_number);
 
             // Giữ nguyên invoice_number (không tái sử dụng số HĐ), chỉ vô hiệu phiếu.
             $receipt->update([
@@ -2352,9 +2351,6 @@ class TuitionController extends Controller
         $message = $result->getAttribute('unapproved_paper')
             ? "Đã duyệt hủy hóa đơn giấy {$result->invoice_number}. Phiếu thu lập mới sẽ nhận số hóa đơn kế tiếp của chi nhánh."
             : "Đã duyệt hủy hóa đơn {$result->invoice_number} và hoàn tác công nợ học viên!";
-        if ($clawback = $result->getAttribute('commission_clawback')) {
-            $message .= ' Kỳ lương chứa phiếu đã duyệt: thu hồi '.Money::format(abs((float) $clawback->amount)).' hoa hồng của '.($clawback->user?->name ?? 'sale').' ở lần tính lương kế tiếp.';
-        }
 
         return redirect()->back()->with('status', $message);
     }
@@ -2419,15 +2415,6 @@ class TuitionController extends Controller
         // Loại hồ sơ người xem được duyệt (TuitionRefundRequest::approvePermission).
         $approvableTypes = collect(TuitionRefundRequest::TYPES)->keys()
             ->filter(fn (string $type) => Auth::user()?->can(TuitionRefundRequest::approvePermission($type)))->values()->all();
-        // Gợi ý thu hồi hoa hồng cho hồ sơ hoàn phí đang chờ duyệt (học < 1 tháng → có).
-        $commissionService = app(SalesCommissionService::class);
-        $clawbackHints = $refundRequests->where('status', 'pending')->where('type', 'refund')
-            ->mapWithKeys(fn (TuitionRefundRequest $refund) => [$refund->id => [
-                'suggest' => $commissionService->suggestClawback($refund),
-                'amount' => $commissionService->suggestedClawbackAmount($refund),
-                'owner' => ($ownerId = $commissionService->ownerOfStudent((int) $refund->student_id)) ? User::find($ownerId)?->name : null,
-                'start' => $commissionService->studyStartDate((int) $refund->student_id),
-            ]]);
         $students = TuitionBranchScope::students(Student::with(['currentClass.course', 'tuition.classModel.course', 'branch']), $scope)->orderBy('name')->get();
 
         // Số liệu thật cho bảng tính hoàn phí / chuyển nhượng / bảo lưu (không còn số ghi cứng).
@@ -2479,12 +2466,6 @@ class TuitionController extends Controller
             'typeOptions' => TuitionRefundRequest::TYPES,
             'approvableTypes' => $approvableTypes,
             'canRejectAny' => $canRejectAny,
-            'clawbackHints' => $clawbackHints->map(fn (array $hint) => [
-                'suggest' => (bool) $hint['suggest'],
-                'amount' => (int) $hint['amount'],
-                'owner' => $hint['owner'],
-                'start' => $hint['start']?->format('d/m/Y'),
-            ])->all(),
             'studentFinance' => $studentFinance->all(),
             'adminFeePercent' => $adminFeePercent,
             'targets' => $students->map(fn (Student $st) => [
@@ -2622,12 +2603,6 @@ class TuitionController extends Controller
 
     public function approveRefundRequest(Request $request, $id)
     {
-        // Phase 3 (A6): người duyệt hoàn phí chọn có thu hồi hoa hồng của sale hay không.
-        $clawbackInput = $request->validate([
-            'clawback_commission' => ['nullable', 'boolean'],
-            'clawback_amount' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
         $pending = TuitionRefundRequest::with('student.currentClass')->findOrFail($id);
         abort_unless(TuitionBranchScope::allowsStudent($pending->student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
 
@@ -2649,7 +2624,7 @@ class TuitionController extends Controller
             $proofPath = SafeUploadService::store($request->file('proof_image'), 'tuition/refund-proofs', self::REFUND_PROOF_EXTENSIONS, 'proof_image', TuitionRefundRequest::PROOF_DISK);
         }
 
-        $result = DB::transaction(function () use ($id, $clawbackInput, $proofPath) {
+        $result = DB::transaction(function () use ($id, $proofPath) {
             $refund = TuitionRefundRequest::query()->lockForUpdate()->findOrFail($id);
             $refund->load(['student', 'targetStudent']);
 
@@ -2699,13 +2674,8 @@ class TuitionController extends Controller
             }
 
             $refund->update(['status' => 'approved', 'approver_id' => Auth::id(), 'proof_path' => $proofPath ?? $refund->proof_path]);
-            // Chuyển nhượng phí không bao giờ thu hồi; hoàn phí theo lựa chọn (mặc định: gợi ý theo thời gian đã học).
-            app(SalesCommissionService::class)->recordRefundDecision(
-                $refund,
-                array_key_exists('clawback_commission', $clawbackInput) && $clawbackInput['clawback_commission'] !== null ? (bool) $clawbackInput['clawback_commission'] : null,
-                isset($clawbackInput['clawback_amount']) ? (float) $clawbackInput['clawback_amount'] : null,
-                Auth::user(),
-            );
+            // Hoàn phí chỉ hủy hoa hồng chưa trả; dữ liệu thu hồi cũ gửi lên được bỏ qua.
+            app(SalesCommissionService::class)->recordRefundApproval($refund);
 
             $isTransfer = $refund->type === 'transfer';
             $amountLabel = Money::format($amount);

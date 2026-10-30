@@ -81,9 +81,9 @@ const configs = {
         guideTitle: 'Cách tính hoa hồng khối vận hành',
         guides: [
             // Theo SalesCommissionService / cấu hình mốc hoa hồng; không ghi cứng tỷ lệ ở đây.
-            ['1. Hoa hồng tuyển mới', '% theo bậc số HS chốt trong kỳ (mặc định 3% / 4% / 5%) × tiền thực thu của khách mới. Chỉ trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.', true],
+            ['1. Hoa hồng tuyển mới', '% theo thứ tự chốt trong tháng (mặc định 3% / 4% / 5%) × học phí thực thu của khách mới, không gồm sách / Thu khác. Ngày chốt là ngày đóng học phí thành công đầu tiên; bảng % áp dụng tại ngày chốt. Chỉ trả khi đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc; chưa đủ thì hoãn sang kỳ sau.', true],
             ['2. KPI Học vụ (tự động)', 'Quỹ KPI × điểm KPI 6 nhóm / 15 mục của đánh giá tháng đã chốt. Nhân viên không tự chấm. Vận hành khác: KPI nhập tay.'],
-            ['3. Thu hồi hoa hồng', 'Khi hoàn phí có chọn thu hồi, khoản thu hồi được trừ ở lần tính lương kế tiếp.'],
+            ['3. Hoàn phí / hủy hóa đơn', 'Không thu hồi hoa hồng đã trả khi hoàn phí hoặc hủy hóa đơn. Khoản chưa trả (đang hoãn) của học viên hoàn phí hoặc phiếu bị hủy hóa đơn không được chi.'],
         ],
         cardClass: 'from-on-info-container to-inverse-surface',
         accentClass: 'text-info-container',

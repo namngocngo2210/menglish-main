@@ -524,6 +524,7 @@ class PayrollPeriod extends Model
             // Mốc hiện tại (% của HS chốt gần nhất trong kỳ); từng khoản mang % theo thứ tự chốt của học viên.
             $currentPercent = $closedCount > 0 ? $commissionService->milestoneFor($closedCount, $end)['percent'] : null;
 
+            // Tiếp tục quyết toán điều chỉnh lịch sử / thủ công; hoàn phí và hủy hóa đơn không tạo khoản mới.
             $adjustments = CommissionAdjustment::where('user_id', $user->id)
                 ->whereNull('settled_at')
                 ->whereNull('payroll_record_id')
