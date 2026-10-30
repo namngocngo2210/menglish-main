@@ -8,6 +8,7 @@ import { computed, reactive, ref, watch } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { urlWith } from '@/lib/url';
 import { can } from '@/lib/can';
+import PenaltyDeferModal from '@/Components/Payroll/PenaltyDeferModal.vue';
 
 defineOptions({ layout: { title: 'Danh sách vi phạm' } });
 
@@ -76,6 +77,7 @@ watch(violationType, (value) => {
     const known = violationSuggestions.value.find((v) => v.value === value);
     if (known) category.value = known.category;
 });
+const deferPenalty = ref(null);
 const decidable = (pen) => ['pending', 'explained', 'confirmed'].includes(pen.status);
 const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirmed', 'resolved'].includes(pen.status);
 </script>
@@ -140,6 +142,7 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                         <td>
                             <p class="font-semibold text-on-surface">{{ pen.user_name }}</p>
                             <p class="font-caption text-caption text-on-surface-variant">ID: {{ pen.employee_code || '—' }} · <span class="font-code">{{ pen.code }}</span></p>
+                            <p v-if="pen.deduct_from_date" class="mt-xs font-caption text-caption text-on-surface-variant">Trừ từ kỳ bắt đầu {{ formatDate(pen.deduct_from_date) }} (chuyển bởi {{ pen.deferred_by || 'Người dùng đã xóa' }} ngày {{ formatDate(pen.deferred_at) }}: {{ pen.defer_reason }})</p>
                         </td>
                         <td class="font-code text-code">
                             {{ pen.violation_date }}
@@ -177,6 +180,7 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                                 <UiForm v-if="can('violation.mark_paid') && pen.status === 'fined' && !pen.overdue" :action="route('penalties.mark-paid', pen.id)" method="post">
                                     <UiButton type="submit" size="sm" variant="secondary" icon="payments">Đánh dấu đã nộp</UiButton>
                                 </UiForm>
+                                <UiButton v-if="can('payroll.edit') && pen.status === 'fined'" size="sm" variant="secondary" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
                                 <UiButton v-if="can('violation.mark_resolved') && pen.step === 'paid'" size="sm" variant="secondary" icon="build" @click="open = `remedy-${pen.id}`">Ghi nhận khắc phục</UiButton>
                                 <!-- Mỗi dòng chỉ giữ nút của bước tiếp theo; Đóng - không phạt / Hủy vi phạm nằm trong "⋯" (xem chi tiết) -->
                                 <UiButton size="sm" variant="ghost" icon="more_horiz" title="Xem chi tiết & thao tác khác" :aria-label="`Xem chi tiết & thao tác khác ${pen.code}`" @click="open = `view-${pen.id}`" />
@@ -302,4 +306,5 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
             </template>
         </UiModal>
     </div>
+    <PenaltyDeferModal :penalty="deferPenalty" @close="deferPenalty = null" />
 </template>

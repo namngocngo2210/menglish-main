@@ -12,6 +12,7 @@ import PeriodTabs from './PeriodTabs.vue';
 import LifecycleActions from './LifecycleActions.vue';
 import PeriodLifecycle from './PeriodLifecycle.vue';
 import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
+import PenaltyDeferModal from '@/Components/Payroll/PenaltyDeferModal.vue';
 
 defineOptions({ layout: { title: 'Bảng lương' } });
 
@@ -42,6 +43,7 @@ const kpiIcons = { done: 'check', pending: 'close', na: 'remove', self: 'insight
 const kpiOptions = [{ value: 'pending', label: 'Chưa chốt KPI' }, { value: 'done', label: 'Đã chốt KPI' }];
 const pad = (n) => String(n).padStart(2, '0');
 const foreignOpen = ref(null);
+const deferPenalty = ref(null);
 
 function changePeriod(event) {
     router.visit(route('payroll.periods.show', event.target.value));
@@ -128,9 +130,18 @@ function filter(event) {
                 <li v-for="staff in negativeNet" :key="staff.id">
                     <Link :href="route('payroll.records.show', staff.id)" class="font-semibold underline">{{ staff.name }}</Link>
                     – thiếu {{ formatMoney(staff.shortfall) }}.
+                    <ul v-if="staff.penalties.length" class="mt-xs space-y-xs">
+                        <li v-for="pen in staff.penalties" :key="pen.id" class="flex flex-wrap items-center gap-sm">
+                            <span>{{ pen.code }} · {{ formatMoney(pen.amount) }} · vi phạm {{ formatDate(pen.violation_date) }}</span>
+                            <UiButton v-if="can('payroll.edit') && period.status === 'draft'" variant="secondary" size="sm" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
+                        </li>
+                    </ul>
                 </li>
             </ul>
-            <p class="mt-xs">Thực lĩnh tạm tính giữ ở 0 đ. Điều chỉnh khoản nhập tay hoặc chuyển phạt sang kỳ sau, Đồng bộ &amp; Tính lại rồi chốt lại.</p>
+            <p class="mt-xs">Thực lĩnh tạm tính giữ ở 0 đ.</p>
+            <p v-if="period.status === 'published' || period.status === 'paid'" class="mt-xs">Kỳ đã gửi GV xem / đã trả nên phiếu lương đã khóa. Liên hệ Kế toán để đối soát phần thiếu.</p>
+            <p v-else-if="can('payroll.edit')" class="mt-xs">Chuyển phạt sang kỳ sau (nút cạnh biên bản trên bảng lương / phiếu lương / màn Biên bản), hoặc thêm khoản cộng / giảm khoản trừ nhập tay trên phiếu (không áp dụng khoản cộng cho Trợ giảng). Kỳ đã chốt cần người có quyền chốt bấm Mở lại trước khi xử lý. Đồng bộ &amp; Tính lại rồi chốt lại.</p>
+            <p v-else class="mt-xs">Chờ Kế toán chuyển phạt sang kỳ sau hoặc điều chỉnh phiếu, Đồng bộ &amp; Tính lại rồi chốt lại.</p>
         </UiAlert>
 
         <UiAlert v-if="missingStaff?.count" type="info" dismissible :title="`${missingStaff.count} nhân sự chưa có phiếu lương kỳ này`" data-missing-staff>
@@ -280,4 +291,5 @@ function filter(event) {
             <template #footer><UiPagination :paginator="records" unit="nhân sự" /></template>
         </UiDataTable>
     </div>
+    <PenaltyDeferModal :penalty="deferPenalty" @close="deferPenalty = null" />
 </template>

@@ -70,7 +70,8 @@ class PayrollPeriodLifecycle
             if ($negativeNet->isNotEmpty()) {
                 return 'Chưa thể chốt bảng lương: '.$negativeNet->count().' nhân sự có thực lĩnh âm (khấu trừ lớn hơn thu nhập) — '
                     .$negativeNet->map(fn (PayrollRecord $record) => ($record->user?->name ?? 'Chưa cập nhật').' – thiếu '.Money::format($record->netShortfall()))->implode('; ')
-                    .'. Điều chỉnh khoản nhập tay hoặc chuyển phạt sang kỳ sau, Đồng bộ & Tính lại rồi chốt lại.';
+                    .'. Kế toán có quyền điều chỉnh lương: Chuyển phạt sang kỳ sau (nút cạnh biên bản trên bảng lương / phiếu lương / màn Biên bản), '
+                    .'hoặc thêm khoản cộng / giảm khoản trừ nhập tay trên phiếu (không áp dụng khoản cộng cho Trợ giảng). Đồng bộ & Tính lại rồi chốt lại.';
             }
             $pending = $records->filter(fn (PayrollRecord $record) => $record->kpi_state[0] === 'pending');
             if ($pending->isNotEmpty()) {

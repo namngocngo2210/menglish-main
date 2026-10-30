@@ -180,6 +180,12 @@ class PayrollController extends Controller
         );
 
         $kpiPending = $period->records->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === 'pending')->values();
+        $negativeRecords = $period->records->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0);
+        // Chỉ trả biên bản của các phiếu người xem được thấy; quyền xử lý vẫn kiểm tra ở route.
+        $negativePenalties = Penalty::withoutViewerScope()->whereIn('payroll_record_id', $negativeRecords->modelKeys())
+            ->where('status', 'fined')->get(['id', 'code', 'amount', 'violation_date', 'payroll_record_id'])->groupBy('payroll_record_id');
+        // Bước tiếp của kỳ phải xét mọi phiếu, kể cả phiếu ngoài phạm vi người xem hoặc bộ lọc hiện tại.
+        $negativeCount = $period->records()->get()->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0)->count();
         $allPeriods = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['id', 'code', 'title', 'month', 'year']);
 
         // Bước tiếp theo của kỳ và ai đang giữ: chỉ Admin có quyền chốt / đánh dấu đã trả nên Kế toán, Quản lý cần biết kỳ đang chờ ai.
@@ -191,6 +197,9 @@ class PayrollController extends Controller
             $period->status === PayrollPeriod::STATUS_CLOSED => [$user->can('payroll.approve') ? 'Bước tiếp: bạn bấm Gửi GV xem' : 'Chờ Admin gửi GV xem', 'info'],
             $kpiPending->isNotEmpty() => ['Còn '.$kpiPending->count().' nhân sự chưa chốt KPI', 'error'],
             $period->hasChangesSinceCalculation() => [$user->can('payroll.calculate') ? 'Bước tiếp: bạn bấm Đồng bộ & Tính lại (dữ liệu đã đổi)' : 'Chờ Kế toán Đồng bộ & Tính lại', 'warning'],
+            $period->status === PayrollPeriod::STATUS_DRAFT && $negativeCount > 0 => [$user->can('payroll.edit')
+                ? 'Còn '.$negativeCount.' nhân sự thực lĩnh âm — chuyển phạt sang kỳ sau hoặc điều chỉnh phiếu trước khi chốt'
+                : 'Chờ Kế toán xử lý '.$negativeCount.' nhân sự thực lĩnh âm', 'error'],
             default => [$user->can('payroll.approve') ? 'Bước tiếp: bạn chốt bảng lương' : 'Chờ Admin chốt bảng lương', 'warning'],
         };
         // Đang xem một nhóm (VD tab GV Part-time / Trợ giảng): thẻ tổng tính riêng cho nhóm đó.
@@ -218,13 +227,19 @@ class PayrollController extends Controller
             // Trợ giảng chưa có đơn giá giờ (TK-0010): lương giờ dạy 0đ → cần nhập lại đơn giá ở Đơn giá giáo viên.
             'assistantRateMissing' => $period->records->filter(fn (PayrollRecord $r) => $r->assistantRateMissing())
                 ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
-            'negativeNet' => $period->records->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0)
+            'negativeNet' => $negativeRecords
                 ->sortBy(fn (PayrollRecord $r) => $r->user?->name)
                 ->map(fn (PayrollRecord $r) => [
                     'id' => $r->id,
                     'name' => $r->user?->name ?? 'Chưa cập nhật',
                     'shortfall' => $r->netShortfall(),
                     'raw_net' => $r->rawNetSalary(),
+                    'penalties' => $negativePenalties->get($r->id, collect())->map(fn (Penalty $pen) => [
+                        'id' => $pen->id,
+                        'code' => $pen->code,
+                        'amount' => (float) $pen->amount,
+                        'violation_date' => $pen->violation_date?->toDateString(),
+                    ])->values()->all(),
                 ])->values()->all(),
             'records' => $records->through(fn (PayrollRecord $r) => $this->recordRow($r)),
             'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
@@ -629,6 +644,7 @@ class PayrollController extends Controller
                 'violation_date' => $pen->violation_date?->toDateString(),
                 'due_date' => $pen->due_date?->toDateString(),
                 'amount' => (float) $pen->amount,
+                'can_defer' => $pen->status === 'fined' && $period->status === PayrollPeriod::STATUS_DRAFT && $request->user()->can('payroll.edit'),
             ])->values(),
             'clawbacks' => $clawbacks->map(fn (CommissionAdjustment $adj) => ['id' => $adj->id, 'reason' => $adj->reason, 'amount' => (float) $adj->amount])->values(),
             'paidCommission' => $paidCommission->map(fn (CommissionItem $item) => $this->commissionItemRow($item))->values(),

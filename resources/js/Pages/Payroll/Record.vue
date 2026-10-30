@@ -15,8 +15,11 @@ import { money, trimNumber } from './format';
 import PayslipLines from './PayslipLines.vue';
 import LifecycleActions from './LifecycleActions.vue';
 import PeriodLifecycle from './PeriodLifecycle.vue';
+import PenaltyDeferModal from '@/Components/Payroll/PenaltyDeferModal.vue';
 
 defineOptions({ layout: { title: 'Phiếu lương' } });
+
+const deferPenalty = ref(null);
 
 const props = defineProps({
     record: { type: Object, required: true },
@@ -359,17 +362,20 @@ function sessionNote(ts) {
                             <tr v-for="pen in penalties" :key="'p' + pen.id" class="border-t border-surface-container">
                                 <td class="py-xs">{{ pen.violation_type }} <span class="block font-caption text-caption text-on-surface-variant">Biên bản {{ pen.code }} · ngày {{ formatDate(pen.violation_date) }} · quá hạn nộp {{ pen.due_date ? formatDate(pen.due_date) : '—' }}</span></td>
                                 <td class="py-xs text-right font-mono text-error">-{{ money(pen.amount) }}</td>
-                                <td class="py-xs"><span class="inline-flex items-center gap-xs text-tertiary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">check</span>Đã xác nhận</span></td>
+                                <td class="py-xs">
+                                    <span class="inline-flex items-center gap-xs text-tertiary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">check</span>Đã xác nhận</span>
+                                    <UiButton v-if="pen.can_defer && can('payroll.edit') && period.status === 'draft'" variant="ghost" size="sm" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
+                                </td>
                             </tr>
                             <tr v-for="adj in clawbacks" :key="'c' + adj.id" class="border-t border-surface-container">
                                 <td class="py-xs">{{ adj.reason }} <span class="block font-caption text-caption text-on-surface-variant">Thu hồi hoa hồng</span></td>
                                 <td class="py-xs text-right font-mono text-error">{{ money(adj.amount) }}</td>
                                 <td class="py-xs">Tự động</td>
                             </tr>
-                            <tr v-if="!penalties.length && !clawbacks.length"><td colspan="3" class="py-sm text-on-surface-variant">Không có biên bản phạt quá hạn hay thu hồi hoa hồng trong kỳ.</td></tr>
+                            <tr v-if="!penalties.length && !clawbacks.length"><td colspan="3" class="py-sm text-on-surface-variant">Không có biên bản phạt hay thu hồi hoa hồng trong kỳ.</td></tr>
                         </tbody>
                     </table>
-                    <p class="font-caption text-caption text-on-surface-variant">Phạt từ biên bản vi phạm đã chốt, quá hạn nộp phạt chưa nộp → trừ lương (xử lý ở màn Danh sách vi phạm). Khoản trừ khác (tạm ứng…) nhập bên dưới.</p>
+                    <p class="font-caption text-caption text-on-surface-variant">Biên bản đã quyết phạt, chưa nộp trực tiếp → trừ lương theo ngày trừ hiệu lực (ngày vi phạm hoặc ngày đã chuyển kỳ). Khoản trừ khác (tạm ứng…) nhập bên dưới.</p>
                     <PayslipLines kind="deduction" :lines="editLines" :saved="record.manual_lines" :can-edit="canEdit" add-label="Thêm khoản trừ" placeholder="VD: Tạm ứng, Vi phạm nội quy" />
                 </section>
 
@@ -531,4 +537,5 @@ function sessionNote(ts) {
             </aside>
         </div>
     </component>
+    <PenaltyDeferModal :penalty="deferPenalty" @close="deferPenalty = null" />
 </template>
