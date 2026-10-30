@@ -51,16 +51,16 @@ use RuntimeException;
  *   (lý do + giờ vào/ra), thử chấm lại lần 2 bị từ chối (không tạo bản ghi); 1 ca chấm tay không có buổi trên lịch bị
  *   từ chối khi duyệt; Học vụ duyệt các ca hằng ngày.
  * - Kỷ luật đủ các bước: chờ giải trình → đã giải trình → xác nhận lỗi / quyết phạt kèm số tiền → nộp trực tiếp; 1 biên
- *   bản quá hạn nộp → trừ vào kỳ tháng trước (đã trừ khi duyệt), 1 biên bản quá hạn trừ ở kỳ tháng này; 1 biên bản hủy.
+ *   bản quá hạn nộp → trừ vào kỳ tháng trước (đã trừ khi gửi GV xem), 1 biên bản quá hạn trừ ở kỳ tháng này; 1 biên bản hủy.
  * - KPI Học vụ (6 nhóm / 15 mục) cho 2 Học vụ × 2 tháng, do Quản lý chi nhánh chấm.
  * - Hoa hồng: bậc mặc định 3/4/5% theo số HS chốt; 4 khách mới do Sale chốt qua Chốt & Xếp lớp: 1 khách chốt từ tháng
  *   trước nữa, đủ 3/3 mốc chăm sóc → trả trong kỳ tháng trước; 3 khách chốt đầu tháng trước → hoãn (chưa đủ 30 ngày),
  *   tháng này 2 khách đủ 3/3 mốc → trả, 1 khách 2/3 mốc → tiếp tục hoãn. Khách đã trả hoa hồng hoàn phí → Admin chọn thu
  *   hồi → trừ vào kỳ tháng này của Sale.
  * - Bảng % thưởng tái tục (BA chốt 0 nghỉ → 1%, 1 nghỉ → 0,7%; các mốc khác chờ BA).
- * - Kỳ tháng trước: Kế toán tính → nhập bậc KPI giữ HS / KPI tự do / thuế TNCN / phụ cấp → tính lại → Admin duyệt (khóa).
- *   Kỳ tháng này: Kế toán tính + nhập tay + tính lại, để ở "Đang soát". Hệ thống đã có dữ liệu ghi ở thời điểm thật (sau
- *   mốc duyệt giả lập, vd. production đang chạy thử) thì kỳ tháng trước được tính lại và duyệt ở thời điểm thật, sau cùng.
+ * - Kỳ tháng trước: Kế toán tính → nhập bậc KPI giữ HS / KPI tự do / thuế TNCN / phụ cấp → tính lại → Admin chốt và gửi GV xem (khóa).
+ *   Kỳ tháng này: Kế toán tính + nhập tay + tính lại, để ở "Đang tính". Hệ thống đã có dữ liệu ghi ở thời điểm thật (sau
+ *   mốc gửi GV xem giả lập, vd. production đang chạy thử) thì kỳ tháng trước được tính lại, chốt và gửi GV xem ở thời điểm thật, sau cùng.
  *
  * Chạy cùng điều kiện với DemoPhase1Seeder / DemoPhase2Seeder (DatabaseSeeder). Idempotent: đánh dấu bằng ghi chú
  * "[demo-p3]" trên đơn giá GV — đã có thì bỏ qua toàn bộ luồng (chỉ in số liệu). Toàn bộ chạy trong 1 transaction.
@@ -269,17 +269,17 @@ class DemoPhase3Seeder extends Seeder
         $this->event($L->copy()->endOfMonth()->setTime(17, 0), fn () => $this->evaluateAcademicKpi($L, 0));
         $this->event($this->realNow->copy()->subHours(3), fn () => $this->evaluateAcademicKpi($C, 1));
 
-        // Kỳ lương tháng trước: Kế toán tính ngày 1, nhập tay, tính lại; Admin duyệt ngày 3 (sau chốt công / lỗi cuối tháng + 2 ngày).
+        // Kỳ lương tháng trước: Kế toán tính ngày 1, nhập tay, tính lại; Admin chốt và gửi GV xem ngày 3 (sau chốt công / lỗi cuối tháng + 2 ngày).
         $this->event($C->copy()->setTime(8, 0), fn () => $this->calculateLastMonth());
-        // Sau chốt công / lỗi (ngày 3): tính lại lần cuối cho khớp phạt / chấm công phát sinh ngày 1–2 rồi mới duyệt.
+        // Sau chốt công / lỗi (ngày 3): tính lại lần cuối cho khớp phạt / chấm công phát sinh ngày 1–2 rồi mới chốt và gửi GV xem.
         $this->event($C->copy()->addDays(2)->setTime(8, 30), fn () => $this->calculateLastMonth());
         $this->event($C->copy()->addDays(2)->setTime(9, 0), function () {
             $period = $this->periodFor($this->lastMonth);
-            // Đang ở ngày 1–2 của tháng (chưa qua chốt công / lỗi) thì kỳ tháng trước chưa duyệt được — để mở.
+            // Đang ở ngày 1–2 của tháng (chưa qua chốt công / lỗi) thì kỳ tháng trước chưa chốt được — để mở.
             if (! $period->canApproveAt()) {
                 return;
             }
-            // Dữ liệu sẵn có trên hệ thống mang thời điểm ghi thật (sau mốc này) làm kỳ "đổi sau lần tính": để duyệt sau cùng.
+            // Dữ liệu sẵn có trên hệ thống mang thời điểm ghi thật (sau mốc này) làm kỳ "đổi sau lần tính": để chốt và gửi GV xem sau cùng.
             if ($period->hasChangesSinceCalculation()) {
                 $this->approveLastMonthAtRealNow = true;
 
@@ -296,7 +296,7 @@ class DemoPhase3Seeder extends Seeder
         });
         $this->event($C->copy()->addDays(9)->setTime(9, 30), fn () => $this->refundWithClawback('K4'));
 
-        // Kỳ lương tháng này: Kế toán tính + nhập tay + tính lại (để "Đang soát", chưa duyệt). Luôn là sự kiện cuối.
+        // Kỳ lương tháng này: Kế toán tính + nhập tay + tính lại (để "Đang tính", chưa chốt). Luôn là sự kiện cuối.
         $this->event($this->realNow, fn () => $this->calculatePeriod($this->thisMonth));
     }
 
@@ -704,15 +704,16 @@ class DemoPhase3Seeder extends Seeder
     }
 
     /**
-     * Admin duyệt kỳ tháng trước. Nhân sự sẵn có trên hệ thống (ngoài demo) chưa chốt KPI… thì không duyệt được: để kỳ ở
-     * "Đang soát" và cảnh báo, không chốt hộ dữ liệu không phải của demo.
+     * Admin chốt và gửi GV xem kỳ tháng trước. Nhân sự sẵn có trên hệ thống (ngoài demo) chưa chốt KPI… thì không chốt được: để kỳ ở
+     * "Đang tính" và cảnh báo, không chốt hộ dữ liệu không phải của demo.
      */
     private function approveLastMonth(PayrollPeriod $period): void
     {
         try {
             $this->asUser($this->staff['admin'], PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+            $this->asUser($this->staff['admin'], PayrollController::class, 'publishPeriod', [], ['id' => $period->id]);
         } catch (RuntimeException $e) {
-            $this->command?->warn("{$e->getMessage()} → kỳ {$period->code} để ở \"Đang soát\".");
+            $this->command?->warn("{$e->getMessage()} → kỳ {$period->code} để ở \"Đang tính\".");
         }
     }
 

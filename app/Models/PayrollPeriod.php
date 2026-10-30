@@ -23,8 +23,32 @@ class PayrollPeriod extends Model
 {
     use HasFactory;
 
-    /** Kỳ ở các trạng thái này bị khoá hoàn toàn (không tính lại, không ghi thêm dữ liệu). */
-    public const LOCKED_STATUSES = ['approved', 'paid'];
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_CLOSED = 'closed';
+
+    public const STATUS_PUBLISHED = 'published';
+
+    public const STATUS_PAID = 'paid';
+
+    public const STATUS_LABELS = [
+        self::STATUS_DRAFT => 'Đang tính',
+        self::STATUS_CLOSED => 'Đã chốt',
+        self::STATUS_PUBLISHED => 'Đã gửi GV xem',
+        self::STATUS_PAID => 'Đã trả',
+    ];
+
+    /** Đóng băng phiếu lương; dữ liệu nguồn chỉ khóa sau khi gửi GV xem. */
+    public const FROZEN_STATUSES = [self::STATUS_CLOSED, self::STATUS_PUBLISHED, self::STATUS_PAID];
+
+    public const LOCKED_STATUSES = [self::STATUS_PUBLISHED, self::STATUS_PAID];
+
+    public const TRANSITIONS = [
+        self::STATUS_DRAFT => [self::STATUS_CLOSED],
+        self::STATUS_CLOSED => [self::STATUS_DRAFT, self::STATUS_PUBLISHED],
+        self::STATUS_PUBLISHED => [self::STATUS_PAID],
+        self::STATUS_PAID => [],
+    ];
 
     protected $table = 'payroll_periods';
 
@@ -58,6 +82,33 @@ class PayrollPeriod extends Model
         return $this->hasMany(PayrollRecord::class, 'payroll_period_id');
     }
 
+    public function transitions(): HasMany
+    {
+        return $this->hasMany(PayrollPeriodTransition::class);
+    }
+
+    public function lastTransitionAt(string $toStatus): ?Carbon
+    {
+        return $this->transitions()->where('to_status', $toStatus)->latest('created_at')->latest('id')->first()?->created_at;
+    }
+
+    public function canTransitionTo(string $toStatus): bool
+    {
+        return in_array($toStatus, self::TRANSITIONS[$this->status] ?? [], true);
+    }
+
+    public function isFrozen(): bool
+    {
+        return in_array($this->status, self::FROZEN_STATUSES, true);
+    }
+
+    public function recalculationLockedMessage(): string
+    {
+        return $this->status === self::STATUS_CLOSED
+            ? 'Kỳ lương đã chốt — bấm Mở lại để tính lại.'
+            : 'Không thể tính lại kỳ lương đã gửi GV xem hoặc đã trả.';
+    }
+
     public function isLocked(): bool
     {
         return in_array($this->status, self::LOCKED_STATUSES, true);
@@ -70,7 +121,7 @@ class PayrollPeriod extends Model
     }
 
     /**
-     * Ngày này có thuộc một kỳ lương đã duyệt/đã chi trả không. Dữ liệu chấm công
+     * Ngày này có thuộc một kỳ lương đã gửi GV xem/đã trả không. Dữ liệu chấm công
      * hay phạt ghi vào ngày đó sẽ không bao giờ được trả/trừ (kỳ sau chỉ quét
      * dữ liệu trong khoảng ngày của chính nó) nên phải bị từ chối.
      */
@@ -161,7 +212,7 @@ class PayrollPeriod extends Model
 
     public static function lockedMessage(CarbonInterface|string $date): string
     {
-        return 'Ngày '.Carbon::parse($date)->format('d/m/Y').' thuộc kỳ lương đã duyệt/đã chi trả — không thể ghi nhận hoặc thay đổi dữ liệu lương cho ngày này.';
+        return 'Ngày '.Carbon::parse($date)->format('d/m/Y').' thuộc kỳ lương đã gửi GV xem/đã trả — không thể ghi nhận hoặc thay đổi dữ liệu lương cho ngày này.';
     }
 
     /**
@@ -303,8 +354,8 @@ class PayrollPeriod extends Model
     {
         return match ($this->status) {
             'draft' => 'bg-warning/10 text-warning border-warning/30',
-            'reviewing' => 'bg-secondary/10 text-secondary border-secondary/30',
-            'approved' => 'bg-tertiary/10 text-tertiary border-tertiary/30',
+            self::STATUS_CLOSED => 'bg-secondary/10 text-secondary border-secondary/30',
+            self::STATUS_PUBLISHED => 'bg-tertiary/10 text-tertiary border-tertiary/30',
             'paid' => 'bg-accent-container text-accent border-accent/30',
             default => 'bg-surface-container-low text-on-surface-variant border-surface-container-highest',
         };
@@ -312,13 +363,7 @@ class PayrollPeriod extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match ($this->status) {
-            'draft' => 'Đang tính',
-            'reviewing' => 'Đang soát',
-            'approved' => 'Đã duyệt',
-            'paid' => 'Đã trả',
-            default => $this->status,
-        };
+        return self::STATUS_LABELS[$this->status] ?? $this->status;
     }
 
     /**
@@ -368,10 +413,10 @@ class PayrollPeriod extends Model
         // transaction đảm bảo bản ghi lương, liên kết phạt và tổng kỳ nhất quán.
         Cache::lock("payroll:period:{$this->id}", 120)->block(10, fn () => DataScopeGuard::bypass(function () {
             DB::transaction(function () {
-                // Khóa dòng kỳ lương và kiểm lại trong transaction: tính lại không được chạy chồng lên Duyệt / Chi trả
-                // (Duyệt cũng khóa dòng này) — nếu không, khoản phạt / hoa hồng bị gắn lại vào kỳ vừa duyệt.
+                // Khóa dòng kỳ lương và kiểm lại trong transaction: tính lại không được chạy chồng lên Chốt / Gửi GV xem / Chi trả
+                // (các chuyển tiếp cũng khóa dòng này) — nếu không, khoản phạt / hoa hồng bị gắn lại vào kỳ vừa duyệt.
                 $locked = static::query()->whereKey($this->id)->lockForUpdate()->first();
-                abort_if(! $locked || $locked->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
+                abort_if(! $locked || $locked->isFrozen(), 422, $locked?->recalculationLockedMessage() ?? 'Kỳ lương không còn tồn tại.');
                 $this->runCalculation();
             });
         }));
@@ -665,7 +710,7 @@ class PayrollPeriod extends Model
         // Nhân sự không còn đủ điều kiện ở lần tính này không được giữ bản ghi cũ.
         $this->records()->whereNotIn('user_id', $producedUserIds)->delete();
 
-        $this->status = 'reviewing';
+        $this->status = self::STATUS_DRAFT;
         $this->calculated_at = now();
         $this->refreshTotals();
     }

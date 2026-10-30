@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
-/** Dữ liệu demo Phase 3: đủ trạng thái chấm công / phạt / hoa hồng / KPI, kỳ tháng trước đã duyệt + tháng này đang soát, chạy lại không nhân bản. */
+/** Dữ liệu demo Phase 3: đủ trạng thái chấm công / phạt / hoa hồng / KPI, kỳ tháng trước đã duyệt + tháng này đang tính, chạy lại không nhân bản. */
 class DemoPhase3SeederTest extends TestCase
 {
     use RefreshDatabase;
@@ -35,8 +35,8 @@ class DemoPhase3SeederTest extends TestCase
 
         $last = PayrollPeriod::where('year', now()->subMonthNoOverflow()->year)->where('month', now()->subMonthNoOverflow()->month)->firstOrFail();
         $current = PayrollPeriod::where('year', now()->year)->where('month', now()->month)->firstOrFail();
-        $this->assertSame('approved', $last->status);
-        $this->assertSame('reviewing', $current->status);
+        $this->assertSame(PayrollPeriod::STATUS_PUBLISHED, $last->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $current->status);
         $this->assertNotNull($current->calculated_at);
         $this->assertTrue($last->records()->where('status', 'confirmed')->exists());
 
@@ -94,7 +94,7 @@ class DemoPhase3SeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->assertSame($before->all(), collect($tables)->mapWithKeys(fn (string $table) => [$table => DB::table($table)->count()])->all());
         $this->assertEquals($totals, PayrollPeriod::orderBy('id')->pluck('total_amount', 'code')->all());
-        $this->assertSame('approved', $last->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_PUBLISHED, $last->fresh()->status);
 
         // Màn hình Phase 3 mở được bằng tài khoản demo; nhân viên chỉ thấy kỳ đã duyệt.
         $accountant = User::where('email', 'ketoan2@menglish.edu.vn')->firstOrFail();
@@ -134,7 +134,7 @@ class DemoPhase3SeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $last = PayrollPeriod::where('year', now()->subMonthNoOverflow()->year)->where('month', now()->subMonthNoOverflow()->month)->firstOrFail();
-        $this->assertSame('reviewing', $last->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $last->status);
         $this->assertFalse($last->hasChangesSinceCalculation());
         $this->assertTrue($last->records()->where('user_id', $staff->id)->exists());
         $this->assertTrue(TeacherHourlyRate::where('note', 'like', '%'.DemoPhase3Seeder::MARKER.'%')->exists());

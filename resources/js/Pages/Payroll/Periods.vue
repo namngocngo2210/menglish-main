@@ -20,8 +20,8 @@ const page = usePage();
 const monthError = computed(() => page.props.errors?.month ?? null);
 const creating = ref(false);
 
-const statusColors = { draft: 'info', reviewing: 'warning', approved: 'success', paid: 'secondary' };
-const statusTexts = { draft: 'Đang tính', reviewing: 'Đang soát', approved: 'Đã chốt', paid: 'Đã trả' };
+const statusColors = { draft: 'info', closed: 'warning', published: 'success', paid: 'secondary' };
+const statusTexts = { draft: 'Đang tính', closed: 'Đã chốt', published: 'Đã gửi GV xem', paid: 'Đã trả' };
 const statusOptions = Object.entries(statusTexts).map(([value, label]) => ({ value, label }));
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${String(i + 1).padStart(2, '0')}` }));
 

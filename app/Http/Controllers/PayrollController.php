@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
 use App\Jobs\CalculatePayrollPeriod;
-use App\Models\AdminNotification;
 use App\Models\BackgroundTask;
 use App\Models\ClassModel;
 use App\Models\CommissionAdjustment;
@@ -21,6 +20,7 @@ use App\Models\TimesheetSyncLog;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\Kpi\KpiSheetService;
+use App\Services\Payroll\PayrollPeriodLifecycle;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Services\TeachingShifts\ScheduleConfirmation;
@@ -57,7 +57,7 @@ class PayrollController extends Controller
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w->where('code', 'like', "%{$search}%")
                 ->orWhere('title', 'like', "%{$search}%")
                 ->orWhereHas('records.user', fn ($u) => $u->where('name', 'like', "%{$search}%"))))
-            ->when(in_array($status, ['draft', 'reviewing', 'approved', 'paid'], true), fn ($q) => $q->where('status', $status))
+            ->when(in_array($status, array_keys(PayrollPeriod::STATUS_LABELS), true), fn ($q) => $q->where('status', $status))
             ->latest()
             ->paginate(12)
             ->withQueryString();
@@ -106,7 +106,7 @@ class PayrollController extends Controller
             'year' => $validated['year'],
             'start_date' => "{$validated['year']}-{$validated['month']}-01",
             'end_date' => date('Y-m-t', strtotime("{$validated['year']}-{$validated['month']}-01")),
-            'status' => 'draft',
+            'status' => PayrollPeriod::STATUS_DRAFT,
             'total_staff' => 0,
             'total_hours' => 0,
             'total_amount' => 0,
@@ -129,6 +129,12 @@ class PayrollController extends Controller
     private function scopeRecords($query, ?User $viewer = null)
     {
         $viewer ??= Auth::user();
+
+        if (! DataScope::isAll($viewer, 'payroll')) {
+            // Phiếu của chính người xem chỉ công khai từ lúc gửi GV xem, kể cả phạm vi chi nhánh.
+            $query->where(fn ($q) => $q->where('user_id', '!=', $viewer->id)
+                ->orWhereHas('period', fn ($p) => $p->whereIn('status', PayrollPeriod::LOCKED_STATUSES)));
+        }
 
         return DataScope::apply(
             $query, $viewer, 'payroll',
@@ -179,8 +185,10 @@ class PayrollController extends Controller
         // Bước tiếp theo của kỳ và ai đang giữ: chỉ Admin có quyền chốt / đánh dấu đã trả nên Kế toán, Quản lý cần biết kỳ đang chờ ai.
         $user = $request->user();
         [$nextStep, $nextColor] = match (true) {
-            $period->status === 'paid' => ['Hoàn tất: đã trả lương', 'neutral'],
-            $period->status === 'approved' => [$user->can('payroll.mark_paid') ? 'Bước tiếp: bạn đánh dấu đã trả' : 'Chờ Admin đánh dấu đã trả', 'info'],
+            $period->status === PayrollPeriod::STATUS_PAID => ['Hoàn tất: đã trả lương', 'neutral'],
+            $period->status === PayrollPeriod::STATUS_PUBLISHED => [$user->can('payroll.mark_paid') ? 'Bước tiếp: bạn đánh dấu đã trả' : 'Chờ Admin đánh dấu đã trả', 'info'],
+            $period->status === PayrollPeriod::STATUS_CLOSED && $period->hasChangesSinceCalculation() => [$user->can('payroll.approve') ? 'Bước tiếp: Mở lại để tính lại, Đồng bộ & Tính lại, rồi chốt lại (dữ liệu đã đổi)' : 'Chờ Admin mở lại và tính lại bảng lương', 'warning'],
+            $period->status === PayrollPeriod::STATUS_CLOSED => [$user->can('payroll.approve') ? 'Bước tiếp: bạn bấm Gửi GV xem' : 'Chờ Admin gửi GV xem', 'info'],
             $kpiPending->isNotEmpty() => ['Còn '.$kpiPending->count().' nhân sự chưa chốt KPI', 'error'],
             $period->hasChangesSinceCalculation() => [$user->can('payroll.calculate') ? 'Bước tiếp: bạn bấm Đồng bộ & Tính lại (dữ liệu đã đổi)' : 'Chờ Kế toán Đồng bộ & Tính lại', 'warning'],
             default => [$user->can('payroll.approve') ? 'Bước tiếp: bạn chốt bảng lương' : 'Chờ Admin chốt bảng lương', 'warning'],
@@ -214,7 +222,7 @@ class PayrollController extends Controller
             'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
             'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
             'filtered' => $search !== '' || $type || $kpi,
-            'missingStaff' => DataScope::isAll($user, 'payroll') && ! $period->isLocked() ? $this->staffWithoutPayslip($period) : null,
+            'missingStaff' => DataScope::isAll($user, 'payroll') && ! $period->isFrozen() ? $this->staffWithoutPayslip($period) : null,
             // Lần tính lương gần nhất của kỳ (chạy nền): người có quyền tính lương thấy trạng thái, trang tự tải lại khi đang tính.
             'backgroundTasks' => $user->can('payroll.calculate')
                 ? BackgroundTask::recentFor(BackgroundTask::PAYROLL_CALCULATE, limit: 1, where: fn ($q) => $q->where('payload->period_id', $period->id))
@@ -343,93 +351,34 @@ class PayrollController extends Controller
 
     public function approvePeriod($id)
     {
-        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        abort_if($period->isLocked(), 422, 'Kỳ lương đã khóa.');
-
-        // Chủ dự án chốt: chốt công và chốt lỗi vào cuối tháng + 2 ngày → chưa tới mốc đó thì chưa được chốt bảng lương.
-        if (! $period->canApproveAt()) {
-            $message = 'Chưa thể chốt bảng lương: chốt công và chốt lỗi vào hết ngày '.$period->attendanceCloseAt()->format('d/m')
-                .' (cuối tháng + '.PayrollPeriod::closeAfterDays().' ngày) — vui lòng chốt từ ngày '.$period->attendanceCloseAt()->addDay()->format('d/m').'.';
-
-            return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
-        }
-
-        if ($period->hasChangesSinceCalculation()) {
-            $message = 'Chấm công hoặc biên bản phạt của kỳ đã thay đổi sau lần tính gần nhất — vui lòng bấm "Đồng bộ & Tính lại" trước khi duyệt.';
-
-            return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
-        }
-
-        // BA chốt: còn nhân sự chưa chốt KPI thì không được chốt bảng lương (mockup "Chưa thể chốt bảng lương").
-        $kpiPending = $period->records()->with('user')->get()
-            ->filter(fn (PayrollRecord $record) => $record->kpi_state[0] === 'pending');
-        if ($kpiPending->isNotEmpty()) {
-            $message = 'Chưa thể chốt bảng lương: còn '.$kpiPending->count().' nhân sự chưa chốt KPI ('
-                .$kpiPending->take(5)->map(fn ($r) => $r->user?->name)->filter()->implode(', ')
-                .($kpiPending->count() > 5 ? '…' : '').'). Chốt KPI rồi bấm "Đồng bộ & Tính lại".';
-
-            return redirect()->back()->withErrors(['period' => $message])->with('error', $message);
-        }
-
-        // Khóa dòng kỳ lương và kiểm tra lại trạng thái TRONG transaction: bấm đúp / 2 Admin cùng duyệt thì chỉ một lần
-        // chạy, lần sau nhận 422 thay vì đóng dấu lại và gửi trùng thông báo. Thông báo ghi cùng transaction (1 câu INSERT).
-        DB::transaction(function () use ($period) {
-            $locked = PayrollPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
-            abort_if($locked->isLocked(), 422, 'Kỳ lương đã khóa.');
-
-            $locked->update(['status' => 'approved']);
-            $locked->records()->update(['status' => 'confirmed']);
-
-            // Chỉ đóng dấu "deducted" các biên bản thực sự đã trừ vào bản ghi lương của kỳ này
-            Penalty::withoutViewerScope()->whereIn('payroll_record_id', $locked->records()->select('id'))
-                ->whereIn('status', Penalty::payableStatuses())
-                ->update(['status' => 'deducted']);
-
-            // Thu hồi hoa hồng đã trừ trong kỳ → tất toán, không trừ lại ở kỳ sau
-            CommissionAdjustment::whereIn('payroll_record_id', $locked->records()->select('id'))
-                ->whereNull('settled_at')
-                ->update(['settled_at' => now()]);
-
-            // Khoản hoa hồng đạt gate kép được trả trong kỳ → đã trả (khoản còn hoãn chờ kỳ sau)
-            CommissionItem::whereIn('payroll_record_id', $locked->records()->select('id'))
-                ->whereNull('settled_at')
-                ->update(['settled_at' => now(), 'status' => CommissionItem::STATUS_PAID]);
-
-            // "Chốt bảng lương để khóa dữ liệu và gửi thông báo cho giáo viên" (mockup phiếu lương): báo trong app cho từng người.
-            $now = now();
-            $notifications = $locked->records()->whereHas('user')->get(['user_id', 'net_salary'])
-                ->map(fn (PayrollRecord $record) => [
-                    'user_id' => $record->user_id,
-                    'type' => 'payroll_approved',
-                    'title' => "Phiếu lương {$locked->title} đã được duyệt",
-                    'message' => 'Thực nhận '.Money::format((float) $record->net_salary).' — xem chi tiết tại "Lương của tôi".',
-                    'data' => json_encode(['payroll_period_id' => $locked->id, 'link' => route('portal.my-salary', ['period_id' => $locked->id])], JSON_UNESCAPED_UNICODE),
-                    'is_read' => false,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ])->all();
-            AdminNotification::insert($notifications);
-        });
-
-        return redirect()->back()->with('status', "Đã phê duyệt bảng lương {$period->title}!");
+        return $this->transitionPeriod($id, PayrollPeriod::STATUS_CLOSED, 'Đã chốt bảng lương');
     }
 
-    /**
-     * Đánh dấu kỳ lương đã chi trả (chốt sổ sau khi duyệt và chuyển tiền).
-     */
+    public function reopenPeriod($id)
+    {
+        return $this->transitionPeriod($id, PayrollPeriod::STATUS_DRAFT, 'Đã mở lại bảng lương để tính lại');
+    }
+
+    public function publishPeriod($id)
+    {
+        return $this->transitionPeriod($id, PayrollPeriod::STATUS_PUBLISHED, 'Đã gửi phiếu lương cho nhân sự');
+    }
+
     public function markPaid($id)
     {
-        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        DB::transaction(function () use ($period) {
-            $locked = PayrollPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
-            abort_if($locked->status !== 'approved', 422, 'Chỉ kỳ lương đã duyệt mới được đánh dấu đã chi trả.');
-            $locked->update(['status' => 'paid']);
-            $locked->records()->update(['status' => 'paid']);
-        });
+        return $this->transitionPeriod($id, PayrollPeriod::STATUS_PAID, 'Đã ghi nhận chi trả bảng lương');
+    }
 
-        $redirect = redirect()->back()->with('status', "Đã ghi nhận chi trả bảng lương {$period->title}!");
-        // Lịch trả lương là ngày 10–15 tháng sau: ngoài khung vẫn ghi nhận, chỉ cảnh báo (không chặn).
-        if (! $period->isInPayWindow()) {
+    private function transitionPeriod($id, string $toStatus, string $message): RedirectResponse
+    {
+        $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
+        try {
+            $period = app(PayrollPeriodLifecycle::class)->transition($period, $toStatus);
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withErrors($exception->errors())->with('error', $exception->errors()['period'][0]);
+        }
+        $redirect = redirect()->back()->with('status', "{$message} {$period->title}!");
+        if ($toStatus === PayrollPeriod::STATUS_PAID && ! $period->isInPayWindow()) {
             [$from, $to] = $period->payWindow();
             $redirect->with('warning', 'Lưu ý: lương thường trả từ ngày '.$from->format('d/m').' đến '.$to->format('d/m').' — hôm nay nằm ngoài khung trả lương.');
         }
@@ -440,7 +389,7 @@ class PayrollController extends Controller
     public function calculatePeriod($id)
     {
         $period = PayrollPeriod::where('id', $id)->orWhere('code', $id)->firstOrFail();
-        abort_if($period->isLocked(), 422, 'Không thể tính lại kỳ lương đã duyệt hoặc đã chi trả.');
+        abort_if($period->isFrozen(), 422, $period->recalculationLockedMessage());
 
         if (! $this->queueCalculation($period)) {
             return redirect()->back()->with('error', 'Kỳ lương đang được tính — đợi lần tính hiện tại xong rồi bấm lại.');
@@ -482,17 +431,23 @@ class PayrollController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $before = $record->only(['foreign_session_pay', 'net_salary']);
-        $record->foreign_session_pay = $validated['foreign_session_pay'];
-        // Ô ghi chú luôn hiển thị giá trị hiện tại → để trống nghĩa là xóa ghi chú.
-        $record->adjustment_notes = $validated['notes'] ?? null;
-        $record->applyManualInputs();
-        $record->save();
-        $record->period->refreshTotals();
+        DB::transaction(function () use ($record, $validated, $request) {
+            $period = PayrollPeriod::whereKey($record->payroll_period_id)->lockForUpdate()->firstOrFail();
+            abort_if($period->isFrozen(), 422, 'Không thể sửa phiếu lương của kỳ đã chốt / gửi GV xem / trả.');
+            $record->refresh()->setRelation('period', $period);
 
-        activity('payroll_record')->causedBy($request->user())->performedOn($record)
-            ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
-            ->log('Nhập lương buổi có GVNN cho '.$record->user?->name.' — '.$record->period->title);
+            $before = $record->only(['foreign_session_pay', 'net_salary']);
+            $record->foreign_session_pay = $validated['foreign_session_pay'];
+            // Ô ghi chú luôn hiển thị giá trị hiện tại → để trống nghĩa là xóa ghi chú.
+            $record->adjustment_notes = $validated['notes'] ?? null;
+            $record->applyManualInputs();
+            $record->save();
+            $record->period->refreshTotals();
+
+            activity('payroll_record')->causedBy($request->user())->performedOn($record)
+                ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
+                ->log('Nhập lương buổi có GVNN cho '.$record->user?->name.' — '.$record->period->title);
+        });
 
         return redirect()->back()->with('status', 'Đã lưu lương buổi có GVNN và tính lại thực lĩnh.');
     }
@@ -534,7 +489,7 @@ class PayrollController extends Controller
             ? CommissionTier::byStudents()->effectiveAt($period->end_date)->orderBy('min_students')->get()
             : collect();
 
-        $canEdit = ! $period->isLocked() && $request->user()->can('payroll.edit');
+        $canEdit = ! $period->isFrozen() && $request->user()->can('payroll.edit');
         $lines = $record->manualLines();
         if ($canEdit && $record->isPartTime() && ! $record->isAssistant() && empty($lines)) {
             // Gợi ý các khoản phụ cấp của mockup GV Part-time (khoản 0đ không được lưu).
@@ -714,7 +669,7 @@ class PayrollController extends Controller
     }
 
     /**
-     * Kế toán / Admin nhập các khoản tay trên phiếu lương khi kỳ chưa duyệt — được giữ khi "Đồng bộ & Tính lại":
+     * Kế toán / Admin nhập các khoản tay trên phiếu lương khi kỳ đang tính — được giữ khi "Đồng bộ & Tính lại":
      * bậc KPI giữ HS (Part-time), KPI tự do (GV Full-time, Học thuật, Sale, khác), buổi có GVNN (Part-time, chờ BA),
      * thuế TNCN (Full-time), các dòng phụ cấp / thưởng / khấu trừ tự do có tên, ghi chú.
      * Hoa hồng và KPI Học vụ tự tính, không sửa tay.
@@ -722,7 +677,7 @@ class PayrollController extends Controller
     public function adjustRecord(Request $request, int $id)
     {
         $record = $this->scopeRecords(PayrollRecord::with('period'))->findOrFail($id);
-        abort_if($record->isLocked(), 422, 'Không thể sửa phiếu lương của kỳ đã duyệt/đã chi trả.');
+        abort_if($record->isLocked(), 422, 'Không thể sửa phiếu lương của kỳ đã chốt / gửi GV xem / trả.');
 
         $tiers = PayrollPeriod::payrollSettings()['retention_tiers'];
         $validated = $request->validate([
@@ -750,37 +705,43 @@ class PayrollController extends Controller
             throw ValidationException::withMessages(['lines' => 'Mỗi khoản cộng / trừ tự do cần có tên (VD: Hỗ trợ thỏa thuận, Gửi xe, Thưởng khác).']);
         }
 
-        $before = $record->only(['retention_tier', 'kpi_manual_amount', 'foreign_session_pay', 'tax_deduction', 'manual_lines', 'adjustment_notes', 'net_salary']);
+        DB::transaction(function () use ($record, $validated, $lines, $request) {
+            $period = PayrollPeriod::whereKey($record->payroll_period_id)->lockForUpdate()->firstOrFail();
+            abort_if($period->isFrozen(), 422, 'Không thể sửa phiếu lương của kỳ đã chốt / gửi GV xem / trả.');
+            $record->refresh()->setRelation('period', $period);
 
-        if ($record->usesQ3Formula()) {
-            if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
-                $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
-                $record->foreign_session_pay = (float) ($validated['foreign_session_pay'] ?? 0);
-            } elseif ($record->teaching_concurrent) {
-                // Học thuật kiêm nhiệm giảng dạy: bậc KPI kiêm nhiệm (giữ HS) như GV part-time.
-                $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
-            }
-            if ($record->kpi_source === PayrollRecord::KPI_MANUAL) {
-                $record->kpi_manual_amount = filled($validated['kpi_manual_amount'] ?? null) ? (float) $validated['kpi_manual_amount'] : null;
-            }
-            if ($record->isFullTime()) {
-                $record->tax_deduction = (float) ($validated['tax_deduction'] ?? 0);
-            }
-            $record->manual_lines = $lines;
-        } else {
-            // Phiếu trước Q3 (chưa tính lại): chỉ ghi chú + tổng khoản tự do vào cột cũ.
-            $record->other_bonus = collect($lines)->where('kind', 'earning')->sum('amount');
-            $record->other_deduction = collect($lines)->where('kind', 'deduction')->sum('amount');
-            $record->manual_lines = $lines;
-        }
-        $record->adjustment_notes = $validated['adjustment_notes'] ?? null;
-        $record->applyManualInputs();
-        $record->save();
-        $record->period->refreshTotals();
+            $before = $record->only(['retention_tier', 'kpi_manual_amount', 'foreign_session_pay', 'tax_deduction', 'manual_lines', 'adjustment_notes', 'net_salary']);
 
-        activity('payroll_record')->causedBy($request->user())->performedOn($record)
-            ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
-            ->log('Điều chỉnh phiếu lương '.$record->user?->name.' — '.$record->period->title);
+            if ($record->usesQ3Formula()) {
+                if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
+                    $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
+                    $record->foreign_session_pay = (float) ($validated['foreign_session_pay'] ?? 0);
+                } elseif ($record->teaching_concurrent) {
+                    // Học thuật kiêm nhiệm giảng dạy: bậc KPI kiêm nhiệm (giữ HS) như GV part-time.
+                    $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
+                }
+                if ($record->kpi_source === PayrollRecord::KPI_MANUAL) {
+                    $record->kpi_manual_amount = filled($validated['kpi_manual_amount'] ?? null) ? (float) $validated['kpi_manual_amount'] : null;
+                }
+                if ($record->isFullTime()) {
+                    $record->tax_deduction = (float) ($validated['tax_deduction'] ?? 0);
+                }
+                $record->manual_lines = $lines;
+            } else {
+                // Phiếu trước Q3 (chưa tính lại): chỉ ghi chú + tổng khoản tự do vào cột cũ.
+                $record->other_bonus = collect($lines)->where('kind', 'earning')->sum('amount');
+                $record->other_deduction = collect($lines)->where('kind', 'deduction')->sum('amount');
+                $record->manual_lines = $lines;
+            }
+            $record->adjustment_notes = $validated['adjustment_notes'] ?? null;
+            $record->applyManualInputs();
+            $record->save();
+            $record->period->refreshTotals();
+
+            activity('payroll_record')->causedBy($request->user())->performedOn($record)
+                ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
+                ->log('Điều chỉnh phiếu lương '.$record->user?->name.' — '.$record->period->title);
+        });
 
         return redirect()->route('payroll.records.show', $record->id)
             ->with('status', 'Đã lưu các khoản nhập tay — thực lĩnh mới '.Money::format((float) $record->net_salary).'.');
@@ -864,7 +825,7 @@ class PayrollController extends Controller
         $teachers = $this->teachingStaff();
         $branches = $classes->pluck('branch')->filter()->unique('id')->sortBy('name')->values();
 
-        // Khoảng ngày của các kỳ lương đã duyệt/đã chi trả: màn hình cảnh báo và khóa nút lưu ngay khi chọn ngày.
+        // Khoảng ngày của các kỳ lương đã gửi GV xem/đã trả: màn hình cảnh báo và khóa nút lưu ngay khi chọn ngày.
         $lockedRanges = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->get(['start_date', 'end_date', 'title'])
             ->map(fn (PayrollPeriod $p) => [
@@ -1318,7 +1279,7 @@ class PayrollController extends Controller
 
     /**
      * "Chỉnh tay bổ sung": sửa giờ vào / ra của một ca đã ghi nhận, bắt buộc lý do; ca quay về "Chờ duyệt"
-     * để đối soát lại. Không sửa được ca thuộc kỳ lương đã duyệt/đã chi trả.
+     * để đối soát lại. Không sửa được ca thuộc kỳ lương đã gửi GV xem/đã trả.
      */
     public function adjustTimesheet(Request $request, int $id)
     {
@@ -2099,7 +2060,7 @@ class PayrollController extends Controller
     }
 
     /**
-     * Phiếu lương cá nhân: chỉ các kỳ đã duyệt/đã chi trả (bản nháp có thể còn thay đổi).
+     * Phiếu lương cá nhân: chỉ các kỳ đã gửi GV xem/đã trả (bản nháp có thể còn thay đổi).
      */
     public function mySalary(Request $request)
     {
@@ -2192,6 +2153,21 @@ class PayrollController extends Controller
             'status_label' => $period->status_label,
             'status_badge' => $period->status_badge,
             'locked' => $period->isLocked(),
+            'frozen' => $period->isFrozen(),
+            'transitions' => $period->loadMissing('transitions.user')->transitions->sortBy('id')->values()
+                ->map(fn ($transition) => [
+                    'from_status' => $transition->from_status,
+                    'to_status' => $transition->to_status,
+                    'status_label' => PayrollPeriod::STATUS_LABELS[$transition->to_status] ?? $transition->to_status,
+                    'user_name' => $transition->user?->name,
+                    'created_at' => $transition->created_at?->toIso8601String(),
+                ])->all(),
+            'lifecycle_steps' => collect(PayrollPeriod::STATUS_LABELS)->map(function ($label, $status) use ($period) {
+                $last = $period->transitions->where('to_status', $status)->sortByDesc('id')->first();
+
+                return ['key' => $status, 'label' => $label, 'created_at' => $last?->created_at?->toIso8601String(), 'user_name' => $last?->user?->name];
+            })->values()->all(),
+            'actions' => app(PayrollPeriodLifecycle::class)->actions($period, Auth::user()),
         ];
     }
 

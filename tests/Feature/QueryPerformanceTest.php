@@ -92,7 +92,7 @@ class QueryPerformanceTest extends TestCase
         }, 'payroll_periods');
         $this->assertSame(1, $queries);
 
-        $period->update(['status' => 'approved']);
+        $period->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
         $this->assertTrue(PayrollPeriod::isLockedFor('2026-08-10'));
         $this->assertTrue(PayrollPeriod::isLockedFor('2026-08-31'));
         $this->assertFalse(PayrollPeriod::isLockedFor('2026-09-01'));

@@ -372,7 +372,7 @@ class KpiController extends Controller
         return [min(12, max(1, (int) $request->input('month', now()->month))), (int) $request->input('year', now()->year)];
     }
 
-    /** Kỳ lương của tháng đã duyệt / đã chi trả thì khóa toàn bộ dữ liệu lương, gồm phiếu KPI tháng đó (phiếu quý: tháng cuối quý). */
+    /** Kỳ lương của tháng đã gửi GV xem / đã trả thì khóa toàn bộ dữ liệu lương, gồm phiếu KPI tháng đó (phiếu quý: tháng cuối quý). */
     private function periodLocked(int $month, int $year, int $months = 1): bool
     {
         $monthStart = Carbon::create($year, $month, 1)->addMonths(max(1, $months) - 1);
@@ -540,8 +540,8 @@ class KpiController extends Controller
         $monthStart = Carbon::create($period['year'], $period['month'], 1);
         if ($this->periodLocked($period['month'], $period['year'], $period['months'])) {
             $message = $period['months'] > 1
-                ? 'Kỳ lương tháng cuối '.mb_strtolower($period['label']).' đã duyệt — không thể sửa đánh giá KPI của quý này.'
-                : 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã duyệt — không thể sửa đánh giá KPI của tháng này.';
+                ? 'Kỳ lương tháng cuối '.mb_strtolower($period['label']).' đã gửi GV xem/đã trả — không thể sửa đánh giá KPI của quý này.'
+                : 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã gửi GV xem/đã trả — không thể sửa đánh giá KPI của tháng này.';
 
             return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
         }

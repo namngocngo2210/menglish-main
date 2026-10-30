@@ -87,7 +87,7 @@ class ReviewRoundPayrollTest extends TestCase
 
     public function test_teacher_rate_cannot_start_inside_locked_period(): void
     {
-        $this->period(8, 'approved');
+        $this->period(8, PayrollPeriod::STATUS_PUBLISHED);
 
         $this->actingAs($this->admin)->post(route('payroll.config.teacher-rates.personal.store'), [
             'user_id' => $this->teacher->id, 'hourly_rate' => 250000, 'rate_unit' => 'session', 'effective_from' => '2026-08-15',

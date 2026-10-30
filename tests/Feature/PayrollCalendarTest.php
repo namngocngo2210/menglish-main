@@ -70,7 +70,7 @@ class PayrollCalendarTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-03 08:00:00'));
         $period->calculatePayrollForPeriod();
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
-        $this->assertSame('approved', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_CLOSED, $period->fresh()->status);
     }
 
     public function test_show_page_exposes_calendar(): void
@@ -90,7 +90,7 @@ class PayrollCalendarTest extends TestCase
 
     public function test_mark_paid_outside_pay_window_warns_but_is_allowed(): void
     {
-        $period = $this->september('approved');
+        $period = $this->september(PayrollPeriod::STATUS_PUBLISHED);
 
         $this->travelTo(Carbon::parse('2026-10-05 09:00:00'));
         $this->actingAs($this->admin)->post(route('payroll.periods.mark-paid', $period->id))
@@ -99,7 +99,7 @@ class PayrollCalendarTest extends TestCase
 
         $second = PayrollPeriod::create([
             'code' => 'PR-2026-08', 'title' => 'Bảng lương Tháng 8/2026', 'month' => 8, 'year' => 2026,
-            'status' => 'approved', 'start_date' => '2026-08-01', 'end_date' => '2026-08-31',
+            'status' => PayrollPeriod::STATUS_PUBLISHED, 'start_date' => '2026-08-01', 'end_date' => '2026-08-31',
         ]);
         $this->travelTo(Carbon::parse('2026-09-12 09:00:00'));
         $this->actingAs($this->admin)->post(route('payroll.periods.mark-paid', $second->id))->assertSessionMissing('warning');

@@ -169,7 +169,7 @@ class PayrollBusinessTest extends TestCase
             'year' => 2026,
             'start_date' => '2026-01-01',
             'end_date' => '2026-01-31',
-            'status' => 'approved',
+            'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
 
         $pastRecord = PayrollRecord::create([
@@ -237,14 +237,14 @@ class PayrollBusinessTest extends TestCase
         $this->assertEquals('Bảng lương Tháng 8/2026', $period->title);
         $this->assertEquals('2026-08-01', $period->start_date->format('Y-m-d'));
         $this->assertEquals('2026-08-31', $period->end_date->format('Y-m-d'));
-        $this->assertEquals('reviewing', $period->status);
+        $this->assertEquals(PayrollPeriod::STATUS_DRAFT, $period->status);
 
         // Approve period
         $responseApprove = $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.approve', $period->id));
         $responseApprove->assertRedirect();
 
         $period->refresh();
-        $this->assertEquals('approved', $period->status);
+        $this->assertEquals(PayrollPeriod::STATUS_CLOSED, $period->status);
     }
 
     public function test_can_view_department_breakdown_and_personal_salary_portal(): void
@@ -256,7 +256,7 @@ class PayrollBusinessTest extends TestCase
             'year' => 2026,
             'start_date' => '2026-09-01',
             'end_date' => '2026-09-30',
-            'status' => 'approved',
+            'status' => PayrollPeriod::STATUS_PUBLISHED,
             'total_staff' => 3,
             'total_hours' => 150,
             'total_amount' => 60000000,
@@ -269,7 +269,7 @@ class PayrollBusinessTest extends TestCase
             'base_salary' => 15000000,
             'teaching_salary' => 8000000,
             'net_salary' => 23000000,
-            'status' => 'approved',
+            'status' => 'confirmed',
         ]);
 
         $responseAcademic = $this->actingAs($this->payrollAdmin)->get(route('payroll.periods.academic', $period->id));
@@ -558,16 +558,17 @@ class PayrollBusinessTest extends TestCase
 
         $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.store'), ['month' => 3, 'year' => 2027]);
         $period = PayrollPeriod::where('month', 3)->where('year', 2027)->firstOrFail();
-        $this->assertSame('reviewing', $period->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->status);
 
         // Chưa duyệt không được đánh dấu đã chi trả
         $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.mark-paid', $period->id))
             ->assertStatus(422);
-        $this->assertSame('reviewing', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->fresh()->status);
 
         // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
         $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
+        $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
         $this->actingAs($this->payrollAdmin)->post(route('payroll.periods.mark-paid', $period->id))->assertRedirect();
 
         $period->refresh();

@@ -339,7 +339,8 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->manager)->post(route('payroll.periods.approve', $august->id))->assertForbidden();
         $this->finalizeKpi($august);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $august->id))->assertSessionHasNoErrors();
-        $this->assertSame('approved', $august->fresh()->status);
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $august->id))->assertSessionHasNoErrors();
+        $this->assertSame(PayrollPeriod::STATUS_PUBLISHED, $august->fresh()->status);
         $this->assertSame('deducted', $late->fresh()->status);
         $this->assertSame('deducted', $lateAug->fresh()->status);     // vi phạm 28/08 thuộc kỳ 8 → trừ kỳ 8 (TK-0014)
 
@@ -390,13 +391,14 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertSame('deducted', $lateAug->fresh()->status);
         $this->at('2026-10-01 11:00');
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasErrors('period');
-        $this->assertSame('reviewing', $september->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $september->fresh()->status);
         $this->at('2026-10-03 09:00');
         $this->actingAs($this->accountant)->post(route('payroll.periods.calculate', $september->id))->assertSessionHasNoErrors();
         $this->assertEquals(250000, $this->record($september, $this->partTime)->net_salary);
         $this->at('2026-10-03 09:30');
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $september->id))->assertSessionHasNoErrors();
         $this->assertSame('deducted', $lateAug->fresh()->status);
         $this->assertSame(1, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
 

@@ -110,6 +110,7 @@ class ModuleCompletionTest extends TestCase
         // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
         $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $this->actingAs($admin)->post(route('payroll.periods.approve', $period->id))->assertRedirect();
+        $this->actingAs($admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
         $this->assertSame('deducted', $penalty->fresh()->status);
     }
 

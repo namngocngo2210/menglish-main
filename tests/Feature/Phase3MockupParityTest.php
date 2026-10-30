@@ -83,7 +83,7 @@ class Phase3MockupParityTest extends TestCase
     {
         PayrollPeriod::create([
             'code' => 'PR-2026-07', 'title' => 'Bảng lương Tháng 7/2026', 'month' => 7, 'year' => 2026,
-            'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'status' => 'approved',
+            'start_date' => '2026-07-01', 'end_date' => '2026-07-31', 'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
 
         $html = $this->actingAs($this->academicStaff)
@@ -175,7 +175,7 @@ class Phase3MockupParityTest extends TestCase
         // Kỳ đã chốt → không sửa được.
         PayrollPeriod::create([
             'code' => 'PR-2026-08', 'title' => 'Bảng lương Tháng 8/2026', 'month' => 8, 'year' => 2026,
-            'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'status' => 'approved',
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
         $this->actingAs($this->admin)->get(route('payroll.timesheets.teachers', ['month' => '2026-08']))
             ->assertSee('Kỳ lương đã chốt, không thể sửa');
@@ -287,7 +287,7 @@ class Phase3MockupParityTest extends TestCase
         // Kỳ lương đã khóa vẫn "Chốt mức phạt" được (chủ dự án chốt 27/09/2026): tiền phạt trừ vào kỳ đang mở.
         PayrollPeriod::create([
             'code' => 'PR-2026-09', 'title' => 'Bảng lương Tháng 9/2026', 'month' => 9, 'year' => 2026,
-            'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'approved',
+            'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
         $this->actingAs($manager)->from(route('penalties.index'))
             ->post(route('penalties.confirm', $confirmed->id), ['decision' => 'fine', 'amount' => 100000])
@@ -405,7 +405,7 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
             ->assertSee('Bảng lương tháng')
-            ->assertSee('Chốt bảng lương')->assertSee('Đánh dấu đã trả')
+            ->assertSee('Chốt bảng lương')->assertDontSee('Đánh dấu đã trả')
             ->assertSee('Kỳ lương')->assertSee('Tháng 07/2026')
             ->assertSee('Tìm giáo viên / nhân sự...')
             ->assertSee('Chưa thể chốt bảng lương kỳ 08/2026 do: Còn 1 nhân sự chưa chốt KPI')
@@ -418,7 +418,7 @@ class Phase3MockupParityTest extends TestCase
         // BA chốt: còn nhân sự chưa chốt KPI thì chặn chốt bảng lương (không chỉ cảnh báo).
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
             ->assertSessionHasErrors('period');
-        $this->assertNotSame('approved', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->fresh()->status);
 
         $this->actingAs($this->admin)->get(route('payroll.periods.show', [$period->id, 'search' => 'GV-0492']))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('records.total', 1));
@@ -531,7 +531,8 @@ class Phase3MockupParityTest extends TestCase
         $period->update(['calculated_at' => now()->addMinute()]);
         $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'payroll_approved']);
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'payroll_published']);
         $this->actingAs($this->admin)->get(route('payroll.records.show', $pt->id))
             ->assertOk()->assertSee('Đã chốt')->assertDontSee('BẢN TẠM TÍNH')->assertDontSee('Lưu điều chỉnh');
     }
@@ -558,7 +559,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSeeInOrder(['Hạng', 'Nhân viên', 'Chi nhánh', 'Số HS Giữ', 'Đơn giá (VNĐ/hs)', 'Tổng KPI'])
             ->assertSeeInOrder(['GV Mockup P3', 'GV Hạng Hai'])
             ->assertSee('900.000')
-            ->assertSee('Số liệu tạm tính — kỳ chưa chốt')
+            ->assertSee('Số liệu tạm tính — kỳ chưa gửi GV xem')
             ->assertDontSee('9.999.000'); // không lộ thực nhận
 
         $this->actingAs($this->admin)->get(route('payroll.kpi-leaderboard', ['period' => '2026-09', 'branch_id' => $other->id]))
@@ -572,7 +573,7 @@ class Phase3MockupParityTest extends TestCase
     public function test_my_salary_screen_matches_mockup(): void
     {
         $july = $this->period(7, 'paid');
-        $august = $this->period(8, 'approved');
+        $august = $this->period(8, PayrollPeriod::STATUS_PUBLISHED);
         $september = $this->period(9, 'draft');
         \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 300000, 'rate_unit' => 'session', 'effective_from' => '2026-01-01']);
         $this->timesheet(['status' => 'valid', 'teaching_date' => '2026-08-16', 'type' => 'sub', 'scheduled_time' => '18:00-19:30']);
@@ -591,7 +592,7 @@ class Phase3MockupParityTest extends TestCase
         $this->actingAs($this->teacher)->get(route('portal.my-salary'))
             ->assertOk()
             ->assertSee('Lương của tôi')
-            ->assertSee('Kỳ lương hiện tại: Đã duyệt')
+            ->assertSee('Kỳ lương hiện tại: Đã gửi GV xem')
             ->assertSee('Tháng 08/2026')->assertSee('Tháng 07/2026')->assertDontSee('Tháng 09/2026')
             ->assertSee('Tải phiếu lương')
             ->assertSee('Tổng thu nhập')->assertSee('2.400.000')->assertSee('+20% so với tháng trước')

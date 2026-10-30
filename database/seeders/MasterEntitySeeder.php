@@ -416,7 +416,7 @@ class MasterEntitySeeder extends Seeder
         }
 
         // 7. Bảng lương kỳ & Timesheets
-        // firstOrCreate: chạy lại db:seed không được ghi đè trạng thái / tổng tiền của kỳ đã tính hoặc đã duyệt (khóa).
+        // firstOrCreate: chạy lại db:seed không được ghi đè trạng thái / tổng tiền của kỳ đã tính hoặc đã chốt / gửi GV xem (đóng băng).
         $period = PayrollPeriod::query()->firstOrCreate(
             ['code' => 'PR-2026-08'],
             [
@@ -425,7 +425,7 @@ class MasterEntitySeeder extends Seeder
                 'year' => 2026,
                 'start_date' => '2026-08-01',
                 'end_date' => '2026-08-31',
-                'status' => 'draft',
+                'status' => PayrollPeriod::STATUS_DRAFT,
                 'total_staff' => 38,
                 'total_hours' => 486.5,
                 'total_amount' => 342600000,
@@ -433,7 +433,7 @@ class MasterEntitySeeder extends Seeder
         );
 
         // Phiếu mẫu chỉ tạo khi kỳ còn mở và chưa có phiếu (không ghi đè phiếu đã tính lại / kỳ đã khóa).
-        if (! $period->isLocked()) {
+        if (! $period->isFrozen()) {
             PayrollRecord::query()->firstOrCreate(
                 ['payroll_period_id' => $period->id, 'user_id' => $teacher?->id],
                 [

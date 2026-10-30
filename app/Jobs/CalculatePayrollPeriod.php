@@ -21,7 +21,7 @@ class CalculatePayrollPeriod extends BackgroundTaskJob
         } catch (LockTimeoutException) {
             return ['ok' => false, 'message' => 'Kỳ lương đang được tính bởi phiên khác — vui lòng thử lại sau ít phút.'];
         } catch (HttpException $e) {
-            // Kỳ đã được duyệt / chi trả trong lúc chờ chạy.
+            // Kỳ đã chốt / gửi GV xem / trả trong lúc chờ chạy.
             return ['ok' => false, 'message' => $e->getMessage()];
         }
 

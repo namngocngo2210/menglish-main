@@ -63,8 +63,8 @@ function filter(event) {
                     <h3 class="font-h3 text-h3 text-on-surface">KPI giữ học sinh — giáo viên</h3>
                     <p class="font-body-small text-body-small text-on-surface-variant">Số HS giữ được × đơn giá bậc (đ/HS/tháng), cùng số liệu phiếu lương kỳ {{ monthLabel }}.</p>
                 </div>
-                <UiBadge v-if="period && !period.locked" color="warning">Số liệu tạm tính — kỳ chưa chốt</UiBadge>
-                <UiBadge v-else-if="period" color="success">Kỳ đã chốt</UiBadge>
+                <UiBadge v-if="period && !period.locked" color="warning">Số liệu tạm tính — kỳ chưa gửi GV xem</UiBadge>
+                <UiBadge v-else-if="period" color="success">Kỳ đã gửi GV xem</UiBadge>
             </template>
             <table>
                 <thead>

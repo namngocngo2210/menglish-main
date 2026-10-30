@@ -110,7 +110,7 @@ class FullBpmnSmokeTest extends TestCase
         // Kế toán cũ nay là Quản lý cơ sở: chỉ xem phiếu lương của mình (06/10/2026); bảng lương mọi người là của Admin.
         $this->actingAs($accountant)->get(route('payroll.periods.index'))->assertForbidden();
         $this->actingAs($admin)->get(route('payroll.periods.index'))->assertOk();
-        $period = PayrollPeriod::where('status', 'approved')->firstOrFail();
+        $period = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)->firstOrFail();
         $this->actingAs($admin)->get(route('payroll.periods.show', $period->id))->assertOk();
         $this->actingAs($teacher)->get(route('portal.my-salary'))->assertOk();
 

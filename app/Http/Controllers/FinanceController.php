@@ -72,7 +72,7 @@ class FinanceController extends Controller
 
         $period = PayrollPeriod::where('month', $periodMonth)
             ->where('year', $periodYear)
-            ->whereIn('status', ['approved', 'paid'])
+            ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
 
         $autoSalaryRow = null;
@@ -129,7 +129,7 @@ class FinanceController extends Controller
 
         $prevPeriod = PayrollPeriod::where('month', (int) $prevParsed->format('m'))
             ->where('year', (int) $prevParsed->format('Y'))
-            ->whereIn('status', ['approved', 'paid'])
+            ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
         $prevSalarySum = 0;
         if ($prevPeriod) {
@@ -429,7 +429,7 @@ class FinanceController extends Controller
         // Nguồn 2: Chi lương tự động từ Epic 7
         $period = PayrollPeriod::where('month', (int) $parsedDate->format('m'))
             ->where('year', (int) $parsedDate->format('Y'))
-            ->whereIn('status', ['approved', 'paid'])
+            ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
 
         $salaryTotal = 0;
@@ -579,7 +579,7 @@ class FinanceController extends Controller
         $scoped = $this->scopedBranchIds($request->user()) !== null || ($branchId !== 'all' && is_numeric($branchId));
         $period = PayrollPeriod::where('month', (int) $parsedDate->format('m'))
             ->where('year', (int) $parsedDate->format('Y'))
-            ->whereIn('status', ['approved', 'paid'])
+            ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
 
         $filename = "Bao_Cao_Doanh_Thu_Tam_Tinh_{$month}.csv";

@@ -525,6 +525,7 @@ class Phase3FormulaTest extends TestCase
         $this->calculate($september); // qua mốc chốt: tính lại lần cuối trước khi duyệt
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $september->id))->assertSessionHasNoErrors();
         $this->assertSame(0, CommissionItem::whereNotNull('settled_at')->count());
 
         // Tháng 10: đủ 30 ngày; 4 khách đủ 3/3 mốc, 1 khách 2/3, 1 khách chưa tick
@@ -549,6 +550,7 @@ class Phase3FormulaTest extends TestCase
         $this->calculate($october);
         $this->finalizeKpi($october);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $october->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $october->id))->assertSessionHasNoErrors();
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
 
         // Hủy hóa đơn phiếu ĐÃ trả hoa hồng → thu hồi đúng 150.000đ; phiếu còn hoãn → hủy khoản, không thu hồi
@@ -680,7 +682,8 @@ class Phase3FormulaTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
         $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
-        $this->assertSame('approved', $period->fresh()->status);
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
+        $this->assertSame(PayrollPeriod::STATUS_PUBLISHED, $period->fresh()->status);
 
         $this->actingAs($this->admin)->post(route('payroll.records.adjust', $record->id), ['retention_tier' => 15000])->assertStatus(422);
         $this->actingAs($this->admin)->post(route('payroll.records.update', $record->id), ['foreign_session_pay' => 1])->assertStatus(422);

@@ -9,6 +9,8 @@ import { route } from '@/lib/route';
 import { currentQuery, urlWith } from '@/lib/url';
 import { money, trimNumber } from './format';
 import PeriodTabs from './PeriodTabs.vue';
+import LifecycleActions from './LifecycleActions.vue';
+import PeriodLifecycle from './PeriodLifecycle.vue';
 import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
 
 defineOptions({ layout: { title: 'Bảng lương' } });
@@ -32,8 +34,9 @@ const periodError = computed(() => page.props.errors?.period ?? null);
 const query = computed(() => currentQuery());
 const type = computed(() => query.value.get('type'));
 const pendingUrl = computed(() => urlWith({ kpi: 'pending', page: null }));
-const showPending = computed(() => props.kpiPending.count > 0 && !props.period.locked);
-const [statusColor, statusText] = props.period.status === 'paid' ? ['secondary', 'Đã trả'] : props.period.status === 'approved' ? ['success', 'Đã chốt'] : ['info', 'Đang tính'];
+const showPending = computed(() => props.kpiPending.count > 0 && !props.period.frozen);
+const statusColor = computed(() => ({ draft: 'info', closed: 'warning', published: 'success', paid: 'secondary' })[props.period.status] ?? 'neutral');
+const statusText = computed(() => props.period.status_label ?? props.period.status);
 const kpiIcons = { done: 'check', pending: 'close', na: 'remove', self: 'insights' };
 const kpiOptions = [{ value: 'pending', label: 'Chưa chốt KPI' }, { value: 'done', label: 'Đã chốt KPI' }];
 const pad = (n) => String(n).padStart(2, '0');
@@ -66,21 +69,10 @@ function filter(event) {
             <Link v-if="showPending" :href="pendingUrl" class="font-body-small text-body-small font-semibold text-primary hover:underline">Xem danh sách</Link>
         </template>
         <template #actions>
-            <UiForm v-if="can('payroll.calculate') && !period.locked" :action="route('payroll.periods.calculate', period.id)" method="post">
+            <UiForm v-if="can('payroll.calculate') && !period.frozen" :action="route('payroll.periods.calculate', period.id)" method="post">
                 <UiButton type="submit" variant="secondary" icon="sync">Đồng bộ &amp; Tính lại</UiButton>
             </UiForm>
-            <template v-if="can('payroll.approve') && !period.locked">
-                <span v-if="kpiPending.count" :title="`Còn ${kpiPending.count} nhân sự chưa chốt KPI`"><UiButton icon="task_alt" disabled>Chốt bảng lương</UiButton></span>
-                <UiForm v-else :action="route('payroll.periods.approve', period.id)" method="post">
-                    <UiButton type="submit" icon="task_alt">Chốt bảng lương</UiButton>
-                </UiForm>
-            </template>
-            <template v-if="can('payroll.mark_paid')">
-                <UiForm v-if="period.status === 'approved'" :action="route('payroll.periods.mark-paid', period.id)" method="post">
-                    <UiButton type="submit" variant="secondary" icon="payments">Đánh dấu đã trả</UiButton>
-                </UiForm>
-                <span v-else-if="period.status !== 'paid'" title="Chỉ kỳ lương đã chốt mới đánh dấu đã trả"><UiButton variant="secondary" icon="payments" disabled>Đánh dấu đã trả</UiButton></span>
-            </template>
+            <LifecycleActions :period="period" />
             <UiButton variant="secondary" icon="download" :href="route('payroll.periods.export', type ? { id: period.id, type } : period.id)" native>Xuất Excel</UiButton>
         </template>
     </UiPageHeader>
@@ -89,6 +81,7 @@ function filter(event) {
 
     <div class="space-y-lg">
         <UiAlert v-if="periodError" type="error">{{ periodError }}</UiAlert>
+        <PeriodLifecycle :period="period" />
 
         <!-- Lịch chốt lương: KPI cuối tháng, công + lỗi cuối tháng + N ngày (Cấu hình SLA), trả lương 10–15 tháng sau -->
         <div class="grid grid-cols-1 gap-md rounded-xl border border-surface-container-highest bg-surface-container-lowest p-md shadow-sm sm:grid-cols-2 lg:grid-cols-4" data-payroll-calendar>
@@ -113,7 +106,7 @@ function filter(event) {
                 <p class="font-caption text-caption text-on-surface-variant">Ngày 10–15 tháng sau</p>
             </div>
         </div>
-        <UiAlert v-if="!period.locked && !period.calendar.can_approve" type="warning">
+        <UiAlert v-if="!period.frozen && !period.calendar.can_approve" type="warning">
             Chưa tới hạn chốt công / chốt lỗi — chốt bảng lương từ ngày {{ period.calendar.approve_from }}.
         </UiAlert>
 
@@ -123,7 +116,7 @@ function filter(event) {
             <Link :href="pendingUrl" class="font-semibold underline">Xem danh sách</Link>
         </UiAlert>
 
-        <UiAlert v-if="assistantRateMissing.length && !period.locked" type="warning" :title="`${assistantRateMissing.length} Trợ giảng chưa có đơn giá giờ – cần nhập lại`" data-assistant-rate-missing>
+        <UiAlert v-if="assistantRateMissing.length && !period.frozen" type="warning" :title="`${assistantRateMissing.length} Trợ giảng chưa có đơn giá giờ – cần nhập lại`" data-assistant-rate-missing>
             {{ assistantRateMissing.join(', ') }}. Đơn giá cũ theo buổi không được quy đổi nên lương giờ dạy đang là 0đ — chọn bậc đơn giá giờ ở
             <Link v-if="can('teacher_rate.manage')" :href="route('payroll.config.teacher-rates')" class="font-semibold underline">Đơn giá giáo viên</Link><span v-else>màn Đơn giá giáo viên</span>
             rồi bấm "Đồng bộ &amp; Tính lại".
@@ -204,7 +197,7 @@ function filter(event) {
                         <td>
                             <span class="inline-flex items-center gap-xs">
                                 <UiBadge :color="statusColor">{{ statusText }}</UiBadge>
-                                <span v-if="r.kpi_state[0] === 'pending' && !period.locked" class="material-symbols-outlined text-[18px] text-error" title="Chưa chốt KPI" aria-label="Chưa chốt KPI">error</span>
+                                <span v-if="r.kpi_state[0] === 'pending' && !period.frozen" class="material-symbols-outlined text-[18px] text-error" title="Chưa chốt KPI" aria-label="Chưa chốt KPI">error</span>
                             </span>
                         </td>
                         <td>
@@ -231,7 +224,7 @@ function filter(event) {
                             <!-- Nút sửa đặt ngay cạnh con số nó sửa, để cột thao tác chỉ còn "Chi tiết" -->
                             <div class="flex items-center justify-end gap-xs">
                                 <span>{{ r.is_part_time ? formatMoney(r.foreign_session_pay) : '—' }}</span>
-                                <template v-if="!period.locked && r.is_part_time && can('payroll.edit')">
+                                <template v-if="!period.frozen && r.is_part_time && can('payroll.edit')">
                                     <UiButton variant="ghost" size="sm" icon="edit" title="Sửa lương buổi GVNN" aria-label="Sửa lương buổi GVNN" @click="foreignOpen = r.id" />
                                     <UiModal :show="foreignOpen === r.id" title="Lương buổi có GVNN" max-width="md" class="text-left" @close="foreignOpen = null">
                                         <UiForm :id="`foreign-form-${r.id}`" :action="route('payroll.records.update', r.id)" method="post" preserve-state="errors" class="space-y-md text-left">

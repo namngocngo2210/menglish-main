@@ -280,7 +280,7 @@ class BaPermissionsTest extends TestCase
         // Chốt công / chốt lỗi cuối tháng + 2 ngày: chỉ duyệt được sau mốc này.
         $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
-        $this->assertSame('approved', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_CLOSED, $period->fresh()->status);
     }
 
     public function test_migration_moves_existing_roles_and_head_accountants_to_permissions(): void

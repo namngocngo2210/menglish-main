@@ -40,7 +40,7 @@ class PayrollModuleTest extends TestCase
         $this->travelTo($period->attendanceCloseAt()->addDay()->setTime(9, 0));
         $approveResponse = $this->actingAs($user)->post("/payroll/periods/{$period->id}/approve");
         $period->refresh();
-        $this->assertEquals('approved', $period->status);
+        $this->assertEquals(PayrollPeriod::STATUS_CLOSED, $period->status);
     }
 
     public function test_can_record_manual_timesheet(): void
