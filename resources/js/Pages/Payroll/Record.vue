@@ -32,6 +32,9 @@ const props = defineProps({
     lateLines: { type: Array, default: () => [] },
     lateInfo: { type: Object, default: () => ({ threshold: 15, per_minute: 5000, total: 0 }) },
     dailyAttendance: { type: Object, default: null },
+    // Full-time: ngày công tính lương cơ bản (công chuẩn / công hưởng lương) và đi muộn trừ theo phút.
+    workdays: { type: Object, default: null },
+    dailyLate: { type: Object, default: null },
     commissionTiers: { type: Array, default: () => [] },
     penalties: { type: Array, default: () => [] },
     clawbacks: { type: Array, default: () => [] },
@@ -108,8 +111,16 @@ function sessionNote(ts) {
 
     <UiAlert v-if="firstError" type="error" class="mb-md">{{ firstError }}</UiAlert>
 
+    <UiAlert v-if="record.assistant_rate_missing" type="warning" class="mb-md" data-assistant-rate-missing>
+        Chưa có đơn giá giờ – cần nhập lại. Đơn giá cũ theo buổi của Trợ giảng không được quy đổi: lương giờ dạy đang là 0đ. Chọn bậc đơn giá giờ ở màn Đơn giá giáo viên rồi bấm "Đồng bộ &amp; Tính lại".
+    </UiAlert>
+
     <UiAlert v-if="record.uses_q3" type="info" class="mb-md">
-        <template v-if="isPT">Công thức Part-time: <strong>số buổi × đơn giá buổi riêng + KPI giữ HS + buổi có GVNN + phụ cấp tự do − khoản trừ</strong>. Không trừ BHXH / Công đoàn / TNCN.</template>
+        <template v-if="record.is_assistant">Công thức Trợ giảng: <strong>số giờ dạy hợp lệ × đơn giá giờ của TA − khoản trừ (phạt vẫn trừ)</strong>. Không KPI, không phụ cấp, không thưởng tái tục, không trừ BHXH / Công đoàn.</template>
+        <template v-else-if="isPT">Công thức Part-time: <strong>số buổi × đơn giá buổi riêng + KPI giữ HS + buổi có GVNN + phụ cấp tự do − khoản trừ</strong>. Không trừ BHXH / Công đoàn / TNCN.</template>
+        <template v-else-if="record.insurance_base !== null">
+            Công thức Full-time: <strong>lương cơ bản × công hưởng lương / công chuẩn + các khoản cộng − BHXH {{ pct(record.rate_insurance) }}% − Công đoàn {{ pct(record.rate_union) }}% (trên mức lương đóng BHXH {{ money(record.insurance_base) }}đ) − đi muộn (phút × lương phút) − thuế TNCN (nhập tay) − trừ vi phạm</strong>.
+        </template>
         <template v-else>Công thức Full-time: <strong>lương cơ bản + các khoản cộng − BHXH {{ pct(settings.insurance_rate_percent) }}% − Công đoàn {{ pct(settings.union_rate_percent) }}% (trên lương cơ bản) − thuế TNCN (nhập tay) − trừ vi phạm</strong>.</template>
     </UiAlert>
 
@@ -131,8 +142,9 @@ function sessionNote(ts) {
                         </div>
                     </section>
 
-                    <div class="grid grid-cols-1 gap-lg md:grid-cols-2">
-                        <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
+                    <div :class="['grid grid-cols-1 gap-lg', record.is_assistant ? '' : 'md:grid-cols-2']">
+                        <!-- Trợ giảng: không KPI giữ học sinh -->
+                        <section v-if="!record.is_assistant" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
                             <h3 class="font-h3 text-h3 text-on-surface">Bậc KPI giữ học sinh</h3>
                             <UiSelect v-if="canEdit" name="retention_tier" label="Đơn giá KPI (đ/hs/tháng)" :options="tierOptions" :value="record.retention_tier !== null ? String(Math.trunc(record.retention_tier)) : ''" placeholder="— Chưa chọn bậc —" :hint="tierHint" />
                             <p v-else class="font-body-medium text-body-medium">Đơn giá KPI: {{ record.retention_tier !== null ? money(record.retention_tier) + 'đ/hs/tháng' : 'chưa chọn bậc' }}</p>
@@ -149,7 +161,7 @@ function sessionNote(ts) {
                             </div>
                         </section>
 
-                        <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
+                        <section v-if="!record.is_assistant" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
                             <h3 class="font-h3 text-h3 text-on-surface">Phụ cấp mở rộng</h3>
                             <UiInput v-if="canEdit" type="number" name="foreign_session_pay" label="Lớp GVNN đan xen (đ) — chờ BA chốt" min="0" step="1000" :value="Math.trunc(record.foreign_session_pay)" :hint="`${record.foreign_teacher_sessions_count} buổi có GVNN cùng lớp trong kỳ. Kế toán nhập tổng tiền.`" />
                             <p v-else class="flex justify-between font-body-medium text-body-medium"><span>Lớp GVNN đan xen</span><span class="font-mono">{{ money(record.foreign_session_pay) }} đ</span></p>
@@ -189,9 +201,12 @@ function sessionNote(ts) {
                         </h3>
                         <div class="grid grid-cols-1 gap-md md:grid-cols-2">
                             <div class="rounded-lg bg-surface-container-low p-md">
-                                <p class="font-body-small text-body-small text-on-surface-variant">{{ key === 'academic_lead' ? 'Lương cứng (VNĐ)' : 'Lương cơ bản (VNĐ)' }}</p>
-                                <p class="font-h3 text-h3 font-mono">{{ money(record.base_salary) }}</p>
-                                <p class="font-caption text-caption text-on-surface-variant">Theo hồ sơ nhân sự · căn cứ tính BHXH, Công đoàn</p>
+                                <p class="font-body-small text-body-small text-on-surface-variant">{{ key === 'academic_lead' ? 'Lương cứng (VNĐ)' : 'Lương cơ bản (VNĐ)' }}{{ workdays ? ' theo ngày công' : '' }}</p>
+                                <p class="font-h3 text-h3 font-mono" data-base-salary-earned>{{ money(record.base_salary_earned) }}</p>
+                                <p v-if="workdays" class="font-caption text-caption text-on-surface-variant" data-workdays>
+                                    Lương hợp đồng {{ money(record.base_salary) }}đ × {{ pct(workdays.paid_days) }}/{{ workdays.standard_days }} công
+                                </p>
+                                <p v-else class="font-caption text-caption text-on-surface-variant">Theo hồ sơ nhân sự{{ record.insurance_base === null ? ' · căn cứ tính BHXH, Công đoàn' : '' }}</p>
                             </div>
                             <template v-if="record.kpi_source === 'manual'">
                                 <UiInput v-if="canEdit" type="number" name="kpi_manual_amount" label="Lương KPI (VNĐ) — nhập tự do" min="0" step="1000" :value="record.kpi_manual_amount !== null ? Math.trunc(record.kpi_manual_amount) : null" :hint="`${kpiStateLabel} · Admin / Kế toán nhập (0đ vẫn tính là đã chốt).`" />
@@ -324,7 +339,7 @@ function sessionNote(ts) {
 
                     <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
                         <h3 class="flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">add_circle</span>Phụ cấp mở rộng</h3>
-                        <PayslipLines kind="earning" :lines="editLines" :saved="record.manual_lines" :can-edit="canEdit" add-label="Thêm phụ cấp mới" placeholder="VD: Phụ cấp trách nhiệm, Thưởng khác" />
+                        <PayslipLines v-if="!record.is_assistant" kind="earning" :lines="editLines" :saved="record.manual_lines" :can-edit="canEdit" add-label="Thêm phụ cấp mới" placeholder="VD: Phụ cấp trách nhiệm, Thưởng khác" />
                     </section>
                 </template>
 
@@ -359,12 +374,12 @@ function sessionNote(ts) {
                     <div class="grid grid-cols-1 gap-md md:grid-cols-3">
                         <template v-if="record.uses_q3">
                             <div class="rounded-lg bg-surface-container-low p-md">
-                                <p class="font-body-small text-body-small text-on-surface-variant">BHXH ({{ pct(record.rate_insurance) }}% lương CB)</p>
+                                <p class="font-body-small text-body-small text-on-surface-variant">BHXH ({{ pct(record.rate_insurance) }}% {{ record.insurance_base !== null ? 'mức lương đóng BHXH' : 'lương CB' }})</p>
                                 <p class="font-h3 text-h3 font-mono text-error">-{{ money(record.insurance_deduction) }}</p>
-                                <p class="font-caption text-caption text-on-surface-variant">Tự động tính, chỉ đọc</p>
+                                <p class="font-caption text-caption text-on-surface-variant" data-insurance-base>{{ record.insurance_base !== null ? `Mức lương đóng BHXH ${money(record.insurance_base)}đ · tự động` : 'Tự động tính, chỉ đọc' }}</p>
                             </div>
                             <div class="rounded-lg bg-surface-container-low p-md">
-                                <p class="font-body-small text-body-small text-on-surface-variant">Phí Công đoàn ({{ pct(record.rate_union) }}% lương CB)</p>
+                                <p class="font-body-small text-body-small text-on-surface-variant">Phí Công đoàn ({{ pct(record.rate_union) }}% {{ record.insurance_base !== null ? 'mức lương đóng BHXH' : 'lương CB' }})</p>
                                 <p class="font-h3 text-h3 font-mono text-error">-{{ money(record.union_deduction) }}</p>
                                 <p class="font-caption text-caption text-on-surface-variant">Tự động tính, chỉ đọc</p>
                             </div>
@@ -506,7 +521,7 @@ function sessionNote(ts) {
                         <div><dt class="text-on-surface-variant">Về sớm</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.early_count }} lần</dd></div>
                         <div><dt class="text-on-surface-variant">Quên chấm ra</dt><dd class="font-body-semibold text-body-semibold">{{ dailyAttendance.missing_out }} ngày</dd></div>
                     </dl>
-                    <p class="font-caption text-caption text-on-surface-variant">Đi muộn tự lập biên bản chờ giải trình; tiền phạt (nếu có) trừ qua mục "Trừ vi phạm".</p>
+                    <p class="font-caption text-caption text-on-surface-variant">Full-time: đi muộn cộng dồn cả tháng × công giờ (dòng "Đi muộn" ở khoản trừ), không lập biên bản từng lần; quên chấm vào / ra trừ mỗi lần. GV / TA: đi muộn tính theo check-in ca dạy.</p>
                     <UiButton v-if="can('staff_checkin.view')" variant="ghost" size="sm" icon="open_in_new" :href="route('staff-attendance.index', { view: 'month', month: period.start_date?.slice(0, 7), user_id: record.user_id })">Xem bảng công</UiButton>
                 </section>
             </aside>

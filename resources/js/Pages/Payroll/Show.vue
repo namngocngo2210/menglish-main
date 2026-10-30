@@ -23,6 +23,7 @@ const props = defineProps({
     filtered: { type: Boolean, default: false },
     // Chỉ người xem mọi phiếu lương (Admin): nhân sự đang làm việc mà kỳ chưa có phiếu lương và lý do.
     missingStaff: { type: Object, default: null },
+    assistantRateMissing: { type: Array, default: () => [] },
     backgroundTasks: { type: Array, default: () => [] },
 });
 
@@ -80,7 +81,7 @@ function filter(event) {
                 </UiForm>
                 <span v-else-if="period.status !== 'paid'" title="Chỉ kỳ lương đã chốt mới đánh dấu đã trả"><UiButton variant="secondary" icon="payments" disabled>Đánh dấu đã trả</UiButton></span>
             </template>
-            <UiButton variant="secondary" icon="download" :href="route('payroll.periods.export', period.id)" native>Xuất Excel</UiButton>
+            <UiButton variant="secondary" icon="download" :href="route('payroll.periods.export', type ? { id: period.id, type } : period.id)" native>Xuất Excel</UiButton>
         </template>
     </UiPageHeader>
 
@@ -122,6 +123,12 @@ function filter(event) {
             <Link :href="pendingUrl" class="font-semibold underline">Xem danh sách</Link>
         </UiAlert>
 
+        <UiAlert v-if="assistantRateMissing.length && !period.locked" type="warning" :title="`${assistantRateMissing.length} Trợ giảng chưa có đơn giá giờ – cần nhập lại`" data-assistant-rate-missing>
+            {{ assistantRateMissing.join(', ') }}. Đơn giá cũ theo buổi không được quy đổi nên lương giờ dạy đang là 0đ — chọn bậc đơn giá giờ ở
+            <Link v-if="can('teacher_rate.manage')" :href="route('payroll.config.teacher-rates')" class="font-semibold underline">Đơn giá giáo viên</Link><span v-else>màn Đơn giá giáo viên</span>
+            rồi bấm "Đồng bộ &amp; Tính lại".
+        </UiAlert>
+
         <UiAlert v-if="missingStaff?.count" type="info" dismissible :title="`${missingStaff.count} nhân sự chưa có phiếu lương kỳ này`" data-missing-staff>
             Kỳ lương chỉ tạo phiếu cho người có khoản phát sinh (lương cơ bản, buổi dạy hợp lệ, hoa hồng). Nhập lương cơ bản ở hồ sơ nhân sự rồi bấm "Đồng bộ &amp; Tính lại".
             <ul class="mt-xs space-y-xs">
@@ -135,7 +142,7 @@ function filter(event) {
         </UiAlert>
 
         <!-- Khối / loại nhân sự -->
-        <PeriodTabs :period-id="period.id" :current="type === 'teacher_parttime' ? 'parttime' : type ? null : 'all'" />
+        <PeriodTabs :period-id="period.id" :current="type === 'teacher_parttime' ? 'parttime' : type === 'assistant' ? 'assistant' : type ? null : 'all'" />
 
         <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
             <UiStatCard label="Tổng chi quỹ lương" :value="formatMoney(stats.total_amount)" tone="primary" icon="account_balance_wallet" :hint="`${stats.records} nhân sự nhận lương`" />
@@ -212,7 +219,7 @@ function filter(event) {
                                 <span class="text-tertiary">{{ formatMoney(r.teaching_salary) }}</span>
                                 <p class="font-caption text-caption text-on-surface-variant">{{ r.teaching_sessions }} buổi</p>
                             </template>
-                            <template v-else>{{ formatMoney(r.base_salary + r.teaching_salary) }}</template>
+                            <template v-else>{{ formatMoney(r.base_salary_earned + r.teaching_salary) }}</template>
                         </td>
                         <td v-if="r.kpi_source === 'self'" class="text-right font-mono text-on-surface-variant">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '%' : '—' }}</td>
                         <td v-else class="text-right font-mono">

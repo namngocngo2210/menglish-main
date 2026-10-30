@@ -330,15 +330,17 @@ class DemoPhase3Seeder extends Seeder
         $rates = [
             ['teacher_cg', 220000, $since, 'Đơn giá buổi GV part-time (phiên bản cũ) '.self::MARKER],
             ['teacher_cg', 250000, $this->thisMonth, 'Tăng đơn giá sau đánh giá thử việc '.self::MARKER],
-            ['assistant_cg', 120000, $since, 'Đơn giá buổi trợ giảng '.self::MARKER],
-            ['assistant_bd', 120000, $since, 'Đơn giá buổi trợ giảng '.self::MARKER],
+            ['assistant_cg', 35000, $since, 'Bậc đơn giá giờ trợ giảng '.self::MARKER],
+            ['assistant_bd', 30000, $since, 'Bậc đơn giá giờ trợ giảng '.self::MARKER],
             ['foreign', 450000, $since, 'Đơn giá buổi GVNN '.self::MARKER],
         ];
         foreach ($rates as [$key, $amount, $from, $note]) {
             $branchIds = $this->staff[$key]->branchIds();
             $manager = $managers->first(fn (User $m) => array_intersect($m->branchIds(), $branchIds) !== []) ?? $admin;
             $this->asUser($manager, PayrollController::class, 'storePersonalTeacherRate', [
-                'user_id' => $this->staff[$key]->id, 'hourly_rate' => $amount, 'rate_unit' => TeacherHourlyRate::UNIT_SESSION,
+                'user_id' => $this->staff[$key]->id, 'hourly_rate' => $amount,
+                // Trợ giảng: bậc đơn giá GIỜ (TK-0010); GV: đơn giá buổi.
+                'rate_unit' => str_starts_with($key, 'assistant') ? TeacherHourlyRate::UNIT_HOUR : TeacherHourlyRate::UNIT_SESSION,
                 'effective_from' => $from->toDateString(), 'note' => $note,
             ]);
         }

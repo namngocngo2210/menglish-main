@@ -215,6 +215,9 @@ class PayrollPeriod extends Model
             || StaffAttendance::whereBetween('work_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
             || StaffAttendanceRequest::approved()->overlapping($this->start_date->toDateString(), $this->end_date->toDateString())
                 ->where('updated_at', '>', $this->calculated_at)->exists()
+            // Ngày lễ trong kỳ thêm / sửa sau lần tính: đổi công chuẩn (lương cơ bản theo ngày công, lương phút đi muộn)
+            || Holiday::whereDate('start_date', '<=', $this->end_date->toDateString())->whereDate('end_date', '>=', $this->start_date->toDateString())
+                ->where('updated_at', '>', $this->calculated_at)->exists()
             // Học thuật kiêm nhiệm giảng dạy: học phí / xếp lớp đổi làm đổi lương đứng lớp
             || ($this->records()->where('teaching_concurrent', true)->exists()
                 && (StudentTuition::where('updated_at', '>', $this->calculated_at)->exists()
@@ -247,7 +250,27 @@ class PayrollPeriod extends Model
         $formula = app(PayrollFormulaService::class);
         $end = $this->end_date->copy();
         $records = $this->records()->where('employee_type', PayrollRecord::TYPE_FULLTIME)
-            ->with(['user' => fn ($q) => $q->withTrashed()->with('roles')])->get(['id', 'user_id', 'base_salary']);
+            ->with(['user' => fn ($q) => $q->withTrashed()->with('roles')])->get(['id', 'user_id', 'salary_role', 'base_salary', 'base_salary_paid', 'calculation_details']);
+        // Phiếu cũ không có vai trò lương (TK-0011) hoặc tính trước khi trả lương theo ngày công (base_salary_paid NULL) → tính lại.
+        if ($this->records()->whereNull('salary_role')->exists()
+            || $records->contains(fn (PayrollRecord $r) => (float) $r->base_salary > 0 && $r->base_salary_paid === null)) {
+            return true;
+        }
+        // Lịch nghỉ trong tuần / phụ cấp hợp đồng / ngày bắt đầu hợp đồng ở hồ sơ đổi sau lần tính (đổi công chuẩn,
+        // công hưởng lương tính từ ngày vào giữa kỳ, phụ cấp theo ngày công).
+        $periodStart = $this->start_date->copy()->startOfDay();
+        $workdaysFrom = function (User $user) use ($periodStart): string {
+            $contractStart = $user->contract_start_date?->copy()->startOfDay();
+
+            return ($contractStart && $contractStart->gt($periodStart) ? $contractStart : $periodStart)->toDateString();
+        };
+        $profileChanged = fn (PayrollRecord $r) => $r->user && is_array(data_get($r->calculation_details, 'workdays')) && (
+            data_get($r->calculation_details, 'workdays.weekly_days_off', []) !== $r->user->payrollDaysOff()
+            || (string) data_get($r->calculation_details, 'workdays.from', '') !== $workdaysFrom($r->user)
+            || abs((float) data_get($r->calculation_details, 'workdays.allowance_full', 0) - ($r->isAssistant() ? 0.0 : (float) $r->user->monthly_allowance)) > 0.5);
+        if ($records->contains($profileChanged)) {
+            return true;
+        }
         if ($records->contains(fn (PayrollRecord $r) => $r->user && abs((float) $r->base_salary - $formula->baseSalaryFor($r->user, $end)) > 0.5)) {
             return true;
         }
@@ -314,6 +337,12 @@ class PayrollPeriod extends Model
         ksort($table);
 
         return [
+            // Mức đóng BHXH (TK-0009): BHXH / Công đoàn tính trên mức này, không theo lương cơ bản.
+            'insurance_salary_base' => (float) SystemSetting::get('payroll_insurance_salary_base', config('payroll.insurance_salary_base', 5400000)),
+            // Phạt mỗi lần quên chấm vào / chấm ra (TK-0013).
+            'missing_punch_fine' => (float) SystemSetting::get('payroll_missing_punch_fine', config('payroll.attendance.missing_punch_fine', 30000)),
+            // Bậc đơn giá giờ Trợ giảng (TK-0010), Admin chọn cho từng TA ở màn Đơn giá giáo viên.
+            'assistant_hourly_tiers' => array_values(array_map('floatval', (array) SystemSetting::get('payroll_assistant_hourly_tiers', config('payroll.assistant_hourly_tiers', [30000, 35000, 40000])))),
             'insurance_rate_percent' => (float) SystemSetting::get('payroll_insurance_rate_percent', config('payroll.insurance_rate_percent', 10.5)),
             'union_rate_percent' => (float) SystemSetting::get('payroll_union_rate_percent', config('payroll.union_rate_percent', 0.5)),
             'academic_kpi_fund' => (float) SystemSetting::get('payroll_academic_kpi_fund', config('payroll.academic_kpi_fund', 2000000)),
@@ -406,9 +435,13 @@ class PayrollPeriod extends Model
             $teachesAsLead = ! $isPartTime && $profile['salary_role'] === Roles::ACADEMIC_LEAD && StaffType::isTeachingAcademicLead($user);
             $share = $teachesAsLead ? $teachingShare->forTimesheets($timesheets, $settings) : null;
             $paysSessions = $isPartTime || $share !== null;
-            $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => $share !== null
-                ? ($share['outcomes'][$ts->id] ?? ['amount' => 0.0, 'counted' => false, 'late_rule' => null, 'unit' => null])
-                : $ts->payOutcome($user, $settings));
+            // Trợ giảng (TK-0010): số giờ hợp lệ × đơn giá giờ của TA; không có đơn giá giờ → 0đ + cảnh báo.
+            $isAssistant = $profile['salary_role'] === Roles::ASSISTANT;
+            $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => match (true) {
+                $share !== null => $share['outcomes'][$ts->id] ?? ['amount' => 0.0, 'counted' => false, 'late_rule' => null, 'unit' => null],
+                $isAssistant => $ts->assistantPayOutcome($settings),
+                default => $ts->payOutcome($user, $settings),
+            });
             // Ca đi muộn / về sớm từ ngưỡng mà không báo trước: không tính buổi (Part-time và Học thuật kiêm nhiệm; Full-time lương cơ bản không đổi).
             $voided = $paysSessions ? $outcomes->where('counted', false)->count() : 0;
             $actualHours = (float) $timesheets->values()->filter(fn (TeacherTimesheet $ts, $i) => ! $paysSessions || $outcomes[$i]['counted'])->sum('hours');
@@ -450,14 +483,15 @@ class PayrollPeriod extends Model
                 ->get(['id', 'amount']);
             $commissionClawback = (float) max(0, -$adjustments->sum('amount'));
 
-            // 3. Phạt: chỉ biên bản đã quyết phạt mà QUÁ HẠN NỘP chưa nộp (Penalty::scopeDeductibleFor).
+            // 3. Phạt: biên bản đã quyết phạt thuộc kỳ (ngày vi phạm trong kỳ) hoặc chuyển sang từ kỳ đã khóa / quá hạn nộp
+            // (Penalty::scopeDeductibleFor, TK-0014).
             $penalties = Penalty::where('user_id', $user->id)->deductibleFor($this)->get(['id', 'amount']);
             $penaltyDeduction = (float) $penalties->sum('amount');
 
             // 4. Công thức theo loại nhân sự
             $baseSalary = $formula->baseSalaryFor($user, $end);
             $details = [
-                'rates' => ['insurance' => $settings['insurance_rate_percent'], 'union' => $settings['union_rate_percent']],
+                'rates' => ['insurance' => $settings['insurance_rate_percent'], 'union' => $settings['union_rate_percent'], 'insurance_base' => $settings['insurance_salary_base']],
                 'sessions' => ['count' => $sessions, 'per_session' => $sessionPay->where('unit', 'session')->count(), 'per_hour' => $sessionPay->where('unit', 'hour')->count()],
                 'late' => ['threshold' => $settings['late_threshold_minutes'], 'per_minute' => $settings['late_deduction_per_minute'], 'total_deduction' => round((float) collect($lateLines)->sum('deduction'), 2), 'lines' => $lateLines],
             ];
@@ -467,7 +501,16 @@ class PayrollPeriod extends Model
             $retention = ['base' => 0, 'retained' => 0];
             $renewal = ['amount' => 0.0, 'classes' => []];
 
-            if ($isPartTime) {
+            if ($isAssistant) {
+                // Trợ giảng (TK-0011): chỉ lương giờ dạy (Part-time) hoặc lương cơ bản (Full-time); không KPI, không phụ cấp,
+                // không thưởng tái tục; vẫn trừ phạt.
+                $missingRate = $paysSessions ? $outcomes->filter(fn (array $o) => ! empty($o['missing_rate']))->count() : 0;
+                $details['assistant'] = [
+                    'hours' => $actualHours,
+                    'rates' => $paysSessions ? $outcomes->pluck('rate')->filter()->unique()->values()->map(fn ($r) => (float) $r)->all() : [],
+                    'missing_rate_sessions' => $missingRate,
+                ];
+            } elseif ($isPartTime) {
                 $kpiSource = PayrollRecord::KPI_RETENTION;
                 $retentionData = $formula->retentionFor(
                     $formula->retentionClassIds($user, $timesheets->pluck('class_id')->unique()->all()), $start, $end
@@ -495,22 +538,57 @@ class PayrollPeriod extends Model
                 } else {
                     $kpiSource = PayrollRecord::KPI_MANUAL;
                 }
-                $renewal = $formula->renewalBonusFor($user, $start, $end);
-                $details['renewal'] = $renewal;
+                // Thưởng tái tục chỉ cho Học vụ (TK-0015); GV full-time và vai trò khác không có.
+                if ($formula->getsRenewalBonus($profile['salary_role'])) {
+                    $renewal = $formula->renewalBonusFor($user, $start, $end);
+                    $details['renewal'] = $renewal;
+                }
             }
-            // Chấm công hằng ngày (điện thoại): ngày công, đi muộn, nghỉ có phép — để Kế toán đối soát; tiền phạt đi muộn
-            // đi qua biên bản (chờ giải trình → người chốt quyết mức phạt) như mọi biên bản khác.
+            // Chấm công hằng ngày (điện thoại): ngày công, đi muộn, nghỉ có phép — để Kế toán đối soát.
             $attendanceSummary = $attendanceService->summary($user->id, $start, $end);
             if ($attendanceSummary['days'] > 0 || $attendanceSummary['leave_days'] > 0) {
                 $details['attendance'] = $attendanceSummary;
+            }
+
+            // Ngày công (TK-0012 / TK-0013): quên chấm vào / ra phạt mỗi lần (mọi nhân sự có chấm công hằng ngày).
+            $workdays = $attendanceService->workdays($user, $start, $end);
+            $missingPunchDeduction = round($workdays['missing_punches'] * $settings['missing_punch_fine'], 0);
+            if ($workdays['missing_punches'] > 0) {
+                $details['missing_punch'] = ['count' => $workdays['missing_punches'], 'check_in' => $workdays['missing_check_in'],
+                    'check_out' => $workdays['missing_check_out'], 'fine' => $settings['missing_punch_fine'], 'deduction' => $missingPunchDeduction];
+            }
+
+            // Full-time có lương cơ bản: lương cơ bản / phụ cấp hợp đồng / BHXH theo ngày công (× công hưởng lương / công chuẩn,
+            // tối đa đủ tháng); đi muộn cộng dồn giờ × công giờ (lương cơ bản ÷ công chuẩn ÷ 7). GV / TA không trừ đi muộn ở đây
+            // (đã tính theo check-in ca dạy).
+            $basePaid = 0.0;
+            $allowancePaid = 0.0;
+            $lateDeduction = 0.0;
+            $ratio = 0.0;
+            $insured = ! $isPartTime && $baseSalary > 0 && $formula->paysInsurance($profile['salary_role']);
+            if (! $isPartTime && $baseSalary > 0) {
+                $standardDays = (int) $workdays['standard_days'];
+                $ratio = $standardDays > 0 ? min(1, $workdays['paid_days'] / $standardDays) : 0.0;
+                $basePaid = round($baseSalary * $ratio, 0);
+                $allowanceFull = $isAssistant ? 0.0 : (float) $user->monthly_allowance;
+                $allowancePaid = round($allowanceFull * $ratio, 0);
+                $hourly = $standardDays > 0 ? $baseSalary / $standardDays / (float) config('payroll.attendance.hours_per_day', 7) : 0.0;
+                $penalized = $attendanceService->dailyLatePenalized($user);
+                $lateMinutes = $penalized ? (int) $workdays['late_minutes'] : 0;
+                $lateDeduction = round($lateMinutes / 60 * $hourly, 0);
+                $details['workdays'] = $workdays + ['ratio' => round($ratio, 6), 'allowance_full' => $allowanceFull];
+                $details['daily_late'] = ['minutes' => $lateMinutes, 'days' => $penalized ? $workdays['late_days'] : 0,
+                    'hourly_wage' => round($hourly, 2), 'deduction' => $lateDeduction, 'penalized' => $penalized];
             }
             $details['commission'] = [
                 'closed_count' => $closedCount,
                 'deferred' => $commission['deferred']->map(fn (CommissionItem $i) => ['id' => $i->id, 'amount' => (float) $i->amount, 'reason' => $i->deferred_reason])->values()->all(),
             ];
 
-            $insuranceDeduction = round($baseSalary * $settings['insurance_rate_percent'] / 100, 0);
-            $unionDeduction = round($baseSalary * $settings['union_rate_percent'] / 100, 0);
+            // BHXH / Công đoàn (TK-0009): mức đóng × tỉ lệ × công hưởng lương / công chuẩn; chỉ GV full-time, Học vụ, Học thuật.
+            $insuranceDeduction = $insured ? round($settings['insurance_salary_base'] * $ratio * $settings['insurance_rate_percent'] / 100, 0) : 0.0;
+            $unionDeduction = $insured ? round($settings['insurance_salary_base'] * $ratio * $settings['union_rate_percent'] / 100, 0) : 0.0;
+            $details['rates']['insured'] = $insured;
 
             // Khoản nhập tay của phiếu (giữ qua các lần tính lại)
             $manualLines = $existing?->manual_lines ?? [];
@@ -530,6 +608,11 @@ class PayrollPeriod extends Model
                 'employee_type' => $profile['employee_type'],
                 'salary_role' => $profile['salary_role'],
                 'base_salary' => $baseSalary,
+                // Phiếu Full-time có lương cơ bản: lương / phụ cấp hợp đồng thực trả theo ngày công; còn lại NULL / 0.
+                'base_salary_paid' => ! $isPartTime && $baseSalary > 0 ? $basePaid : null,
+                'contract_allowance' => $allowancePaid,
+                'late_deduction' => $lateDeduction,
+                'missing_punch_deduction' => $missingPunchDeduction,
                 'standard_hours' => 0,
                 'actual_hours' => $actualHours,
                 'teaching_sessions' => $sessions,
@@ -592,10 +675,23 @@ class PayrollPeriod extends Model
         $money = fn ($v) => Money::format((float) $v);
         $parts = [$record->employee_type_label.' ('.$record->salary_role_label.')'];
         if ($record->isPartTime()) {
-            $parts[] = (int) $record->teaching_sessions.' buổi dạy = '.$money($record->teaching_salary);
-            $parts[] = 'giữ '.(int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS';
+            $parts[] = $record->isAssistant()
+                ? PayrollRecord::number($record->actual_hours).' giờ dạy = '.$money($record->teaching_salary)
+                : (int) $record->teaching_sessions.' buổi dạy = '.$money($record->teaching_salary);
+            if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
+                $parts[] = 'giữ '.(int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS';
+            }
         } else {
-            $parts[] = 'lương cơ bản '.$money($record->base_salary);
+            $workdays = (array) data_get($record->calculation_details, 'workdays', []);
+            $parts[] = $record->hasWorkdays()
+                ? 'lương cơ bản '.$money($record->base_salary).' × '.PayrollRecord::number($workdays['paid_days'] ?? 0).'/'.(int) ($workdays['standard_days'] ?? 0).' công = '.$money($record->base_salary_earned)
+                : 'lương cơ bản '.$money($record->base_salary_earned);
+            if ((float) $record->contract_allowance > 0) {
+                $parts[] = 'phụ cấp HĐ '.$money($record->contract_allowance);
+            }
+            if ((float) $record->late_deduction > 0) {
+                $parts[] = 'đi muộn '.PayrollRecord::durationLabel((int) data_get($record->calculation_details, 'daily_late.minutes', 0)).' = '.$money($record->late_deduction);
+            }
             if ($record->teaching_concurrent) {
                 $parts[] = 'đứng lớp '.(int) $record->teaching_sessions.' buổi = '.$money($record->teaching_salary);
                 $parts[] = 'giữ '.(int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS';
@@ -609,6 +705,9 @@ class PayrollPeriod extends Model
         }
         if ((float) $record->penalty_deduction > 0) {
             $parts[] = 'phạt '.$money($record->penalty_deduction);
+        }
+        if ((float) $record->missing_punch_deduction > 0) {
+            $parts[] = 'quên chấm công '.(int) data_get($record->calculation_details, 'missing_punch.count', 0).' lần = '.$money($record->missing_punch_deduction);
         }
         if ((float) $record->commission_clawback > 0) {
             $parts[] = 'thu hồi HH '.$money($record->commission_clawback);

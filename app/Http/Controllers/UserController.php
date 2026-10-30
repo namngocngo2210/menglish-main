@@ -357,7 +357,7 @@ class UserController extends Controller
     }
 
     /** Trường nhạy cảm trên form nhân sự: chỉ người có payroll.view đọc / sửa (canViewSensitive). */
-    private const SENSITIVE_FIELDS = ['id_card_number', 'id_card_issued_on', 'bank_account', 'base_salary', 'hourly_rate'];
+    private const SENSITIVE_FIELDS = ['id_card_number', 'id_card_issued_on', 'bank_account', 'base_salary', 'monthly_allowance', 'hourly_rate'];
 
     public function update(UserRequest $request, User $user): Response|RedirectResponse
     {
@@ -723,7 +723,7 @@ class UserController extends Controller
         ];
 
         if (self::canViewSensitive($viewer)) {
-            $payload += $user->only(['id_card_number', 'base_salary', 'hourly_rate', 'hometown', 'current_address', 'emergency_contact', 'bank_account'])
+            $payload += $user->only(['id_card_number', 'base_salary', 'monthly_allowance', 'hourly_rate', 'hometown', 'current_address', 'emergency_contact', 'bank_account'])
                 + ['id_card_issued_on' => $user->id_card_issued_on?->format('d/m/Y')];
         }
 

@@ -75,9 +75,15 @@ class DemoPhase3SeederTest extends TestCase
         $this->assertSame('parttime', $pt->employee_type);
         $this->assertEquals(20000, $pt->retention_tier);
         $this->assertCount(1, $pt->manualLines('earning'));
-        $ft = PayrollRecord::where('payroll_period_id', $current->id)->where('employee_type', 'fulltime')->where('tax_deduction', '>', 0)->firstOrFail();
-        $this->assertEquals(round((float) $ft->base_salary * 0.105), (float) $ft->insurance_deduction);
-        $this->assertEquals(round((float) $ft->base_salary * 0.005), (float) $ft->union_deduction);
+        // BHXH / Công đoàn trên mức lương đóng BHXH × công hưởng lương / công chuẩn (TK-0009), chỉ GV full-time / Học vụ / Học thuật.
+        $ft = PayrollRecord::where('payroll_period_id', $current->id)->where('employee_type', 'fulltime')->where('tax_deduction', '>', 0)
+            ->whereIn('salary_role', ['teacher_fulltime', 'academic_staff', 'academic_lead'])->firstOrFail();
+        $ratio = (float) data_get($ft->calculation_details, 'workdays.ratio');
+        $this->assertGreaterThan(0, $ratio);
+        // ratio lưu làm tròn 6 chữ số → cho lệch 1đ.
+        $this->assertEqualsWithDelta(round(5400000 * $ratio * 0.105), (float) $ft->insurance_deduction, 1);
+        $this->assertEqualsWithDelta(round(5400000 * $ratio * 0.005), (float) $ft->union_deduction, 1);
+        $this->assertEqualsWithDelta(round((float) $ft->base_salary * $ratio), (float) $ft->base_salary_paid, 1);
 
         // Chạy lại không tạo trùng.
         $tables = ['teacher_hourly_rates', 'teacher_timesheets', 'penalties', 'kpi_evaluations', 'kpi_evaluation_items', 'commission_items', 'commission_adjustments',
@@ -118,7 +124,8 @@ class DemoPhase3SeederTest extends TestCase
             'name' => 'Nhân sự đang dùng thử', 'email' => 'that@example.com', 'password' => 'secret-password',
             'is_active' => true, 'base_salary' => 7000000, 'contract_type' => 'Toàn thời gian', 'contract_start_date' => now()->subYear()->toDateString(),
         ]);
-        $staff->syncRoles([Roles::ASSISTANT]);
+        // GV full-time: KPI nhập tay chưa chốt → kỳ tháng trước không chốt được (Trợ giảng không có KPI — TK-0011).
+        $staff->syncRoles([Roles::TEACHER_FULLTIME]);
         DB::table('staff_attendances')->insert([
             'user_id' => $staff->id, 'work_date' => now()->subMonthNoOverflow()->startOfMonth()->addDays(9)->toDateString(),
             'source' => 'mobile', 'created_at' => now(), 'updated_at' => now(),

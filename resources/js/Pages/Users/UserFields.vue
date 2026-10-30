@@ -28,7 +28,7 @@ const fid = (field) => props.idPrefix + field;
 const tabs = {
     account: ['Tài khoản', 'manage_accounts', ['name', 'email', 'phone', 'branch_id', 'extra_branch_ids', 'role', 'academic_teaching', 'concurrent_roles', 'password']],
     profile: ['Hồ sơ', 'badge', ['date_of_birth', 'personal_email', 'facebook', 'contact_channel', 'id_card_number', 'id_card_issued_on', 'emergency_contact', 'hometown', 'current_address', 'graduation_school', 'major', 'certificates', 'teaching_level', 'staff_note']],
-    salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'hourly_rate', 'joined_on', 'bank_account', 'contract_start_date', 'contract_end_date', 'contract_file', 'work_start_time', 'work_end_time', 'weekly_days_off']],
+    salary: ['Hợp đồng & Lương', 'payments', ['contract_type', 'base_salary', 'monthly_allowance', 'hourly_rate', 'joined_on', 'bank_account', 'contract_start_date', 'contract_end_date', 'contract_file', 'work_start_time', 'work_end_time', 'weekly_days_off']],
 };
 const contractTypes = [
     { value: 'Toàn thời gian', label: 'Toàn thời gian (Fulltime)' },
@@ -59,8 +59,17 @@ const extraBranchErrors = computed(() => Object.entries(errors.value)
 const teaching = ref(!!props.user?.academic_teaching);
 
 // Lịch làm việc riêng (chấm công): ngày nghỉ cố định trong tuần, 1 = Thứ 2 … 7 = Chủ nhật.
-const weekdays = [[1, 'T2'], [2, 'T3'], [3, 'T4'], [4, 'T5'], [5, 'T6'], [6, 'T7'], [7, 'CN']];
-const daysOff = ref((props.user?.weekly_days_off ?? []).map(Number));
+// TK-0012: nghỉ 1 ngày/tuần (chọn ngày) hoặc nghỉ T7 + CN.
+const weekdayOptions = [[1, 'Thứ 2'], [2, 'Thứ 3'], [3, 'Thứ 4'], [4, 'Thứ 5'], [5, 'Thứ 6'], [6, 'Thứ 7'], [7, 'Chủ nhật']]
+    .map(([value, label]) => ({ value: String(value), label }));
+const scheduleKinds = [
+    { value: 'one', label: 'Nghỉ 1 ngày / tuần' },
+    { value: 'weekend', label: 'Nghỉ T7 + CN' },
+];
+const initialDays = (props.user?.weekly_days_off ?? []).map(Number).sort();
+const scheduleKind = ref(initialDays.length === 0 ? '' : (initialDays.length === 2 && initialDays[0] === 6 && initialDays[1] === 7 ? 'weekend' : 'one'));
+const oneDayOff = ref(String(initialDays.length === 1 ? initialDays[0] : 7));
+const daysOff = computed(() => (scheduleKind.value === 'weekend' ? [6, 7] : scheduleKind.value === 'one' ? [Number(oneDayOff.value)] : []));
 
 const tab = ref(firstErrorTab() ?? (tabs[props.initialTab] ? props.initialTab : 'account'));
 watch(errors, () => {
@@ -191,6 +200,7 @@ onMounted(() => {
             <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
                 <UiSelect name="contract_type" :id="fid('contract_type')" label="Loại hợp đồng" placeholder="-- Chọn loại HĐ --" :value="user?.contract_type" :options="contractTypes" />
                 <UiInput v-if="canEditSensitive" name="base_salary" :id="fid('base_salary')" type="number" min="0" step="1000" label="Lương cơ bản (VNĐ)" :value="user?.base_salary" placeholder="VD: 15000000" class="font-code" />
+                <UiInput v-if="canEditSensitive" name="monthly_allowance" :id="fid('monthly_allowance')" type="number" min="0" step="1000" label="Phụ cấp theo hợp đồng (VNĐ/tháng)" :value="user?.monthly_allowance" placeholder="VD: 500000" class="font-code" hint="Trả theo ngày công như lương cơ bản." />
                 <UiInput v-if="canEditSensitive" name="hourly_rate" :id="fid('hourly_rate')" type="number" min="0" step="1000" label="Thù lao giờ dạy (VNĐ)" :value="user?.hourly_rate" placeholder="VD: 250000" class="font-code" />
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
@@ -210,13 +220,12 @@ onMounted(() => {
                     <UiInput name="work_start_time" :id="fid('work_start_time')" type="time" label="Giờ vào riêng" :value="user?.work_start_time ?? ''" />
                     <UiInput name="work_end_time" :id="fid('work_end_time')" type="time" label="Giờ ra riêng" :value="user?.work_end_time ?? ''" />
                 </div>
-                <p class="mb-xs mt-sm font-body-small text-body-small text-on-surface">Ngày nghỉ cố định trong tuần</p>
-                <div class="flex flex-wrap gap-sm">
-                    <label v-for="[value, label] in weekdays" :key="value" class="flex items-center gap-xs font-body-small text-body-small">
-                        <input v-model="daysOff" type="checkbox" name="weekly_days_off[]" :value="value" :id="fid('day_off_' + value)" class="rounded border-outline-variant text-primary-container focus:ring-primary-container" />
-                        <span>{{ label }}</span>
-                    </label>
+                <div class="mt-sm grid grid-cols-1 gap-md sm:grid-cols-2">
+                    <UiSelect v-model="scheduleKind" name="weekly_schedule_kind" :id="fid('weekly_schedule_kind')" label="Lịch nghỉ trong tuần" :options="scheduleKinds" placeholder="-- Chưa đặt (tính lương như nghỉ CN) --" />
+                    <UiSelect v-if="scheduleKind === 'one'" v-model="oneDayOff" name="weekly_one_day_off" :id="fid('weekly_one_day_off')" label="Ngày nghỉ" :options="weekdayOptions" />
                 </div>
+                <input v-for="d in daysOff" :key="d" type="hidden" name="weekly_days_off[]" :value="d" />
+                <p class="mt-xs font-caption text-caption text-on-surface-variant">Công chuẩn tính lương = số ngày trong tháng − ngày nghỉ cố định (ngày lễ vẫn tính).</p>
                 <UiErrors class="mt-1" :messages="Object.entries(errors).filter(([k]) => k.startsWith('weekly_days_off')).map(([, m]) => m)" />
             </fieldset>
             <UiField label="File hợp đồng lao động (PDF, Word, ảnh — tối đa 10MB)" name="contract_file" :for="fid('contract_file')">

@@ -35,16 +35,26 @@ const renewalRowError = computed(() => {
                 <div class="space-y-1 text-xs leading-relaxed text-on-surface-variant">
                     <p>Thay đổi chỉ áp dụng khi <strong>tính/tính lại</strong> các kỳ lương về sau. Kỳ lương <strong>Đã duyệt / Đã chi trả</strong> không bị ảnh hưởng.</p>
                     <p><strong>Part-time</strong> = số buổi × đơn giá buổi riêng (màn Đơn giá GV) + KPI giữ HS (bậc {{ settings.retention_tiers }}đ, chọn trên phiếu lương) + buổi có GVNN (chờ BA) + phụ cấp tự do − khoản trừ. Không BHXH / Công đoàn.</p>
-                    <p><strong>Full-time</strong> = lương cơ bản + KPI / hoa hồng / thưởng tái tục / phụ cấp − BHXH − Công đoàn − thuế TNCN (nhập tay) − trừ vi phạm.</p>
+                    <p><strong>Full-time</strong> = (lương cơ bản + phụ cấp hợp đồng) ÷ công chuẩn × công hưởng lương + KPI / hoa hồng / thưởng tái tục (chỉ Học vụ) / phụ cấp − BHXH − Công đoàn (trên mức lương đóng BHXH, chỉ GV full-time / Học vụ / Học thuật) − đi muộn − quên chấm công − thuế TNCN (nhập tay) − trừ vi phạm.</p>
+                    <p><strong>Trợ giảng</strong> = số giờ dạy hợp lệ × đơn giá giờ (bậc {{ settings.assistant_hourly_tiers }}đ, chọn ở màn Đơn giá GV) − khoản trừ. Không KPI, không phụ cấp, không thưởng tái tục.</p>
                 </div>
             </UiAlert>
 
             <UiForm :action="route('payroll.config.settings.store')" method="post" preserve-state="errors" class="divide-y divide-surface-container-highest rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
                 <div class="space-y-5 p-6">
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                        <UiInput id="insurance_rate_percent" type="number" name="insurance_rate_percent" label="BHXH (% lương cơ bản)" suffix="%" min="0" max="100" step="0.1" :value="settings.insurance_rate_percent" class="font-mono" />
-                        <UiInput id="union_rate_percent" type="number" name="union_rate_percent" label="Công đoàn (% lương cơ bản)" suffix="%" min="0" max="100" step="0.1" :value="settings.union_rate_percent" class="font-mono" />
+                        <UiInput id="insurance_salary_base" type="number" name="insurance_salary_base" label="Mức lương đóng BHXH" suffix="đ" min="0" step="1000" :value="settings.insurance_salary_base" class="font-mono" hint="Chỉ để tính BHXH / Công đoàn của GV full-time, Học vụ, Học thuật — không cộng vào thu nhập." />
+                        <UiInput id="insurance_rate_percent" type="number" name="insurance_rate_percent" label="BHXH (% mức lương đóng BHXH)" suffix="%" min="0" max="100" step="0.1" :value="settings.insurance_rate_percent" class="font-mono" />
+                        <UiInput id="union_rate_percent" type="number" name="union_rate_percent" label="Công đoàn (% mức lương đóng BHXH)" suffix="%" min="0" max="100" step="0.1" :value="settings.union_rate_percent" class="font-mono" />
                         <UiInput id="academic_kpi_fund" type="number" name="academic_kpi_fund" label="Quỹ KPI Học vụ / tháng" suffix="đ" min="0" step="1000" :value="settings.academic_kpi_fund" class="font-mono" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="text-xs font-bold text-on-surface-variant">Chấm công hằng ngày (Full-time)</h3>
+                        <p class="text-xs text-on-surface-variant">Đi muộn cộng dồn cả tháng × công giờ (lương cơ bản ÷ công chuẩn ÷ 7), không lập biên bản từng lần. Quên chấm vào / chấm ra: trừ mỗi lần trên phiếu lương.</p>
+                        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            <UiInput id="missing_punch_fine" type="number" name="missing_punch_fine" label="Phạt mỗi lần quên chấm vào / chấm ra" suffix="đ" min="0" step="1000" :value="settings.missing_punch_fine" class="font-mono" />
+                        </div>
                     </div>
 
                     <div class="space-y-2">

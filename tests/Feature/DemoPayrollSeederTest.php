@@ -56,14 +56,12 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertTrue(StaffAttendance::where('late_excused', true)->where('late_minutes', '>', 0)->exists());
         $this->assertTrue(StaffAttendance::where('source', StaffAttendance::SOURCE_REQUEST)->exists());
 
-        // Đơn xin duyệt đủ trạng thái; biên bản đi muộn tự động đi qua các bước.
+        // Đơn xin duyệt đủ trạng thái; đi muộn chấm công không lập biên bản từng lần (TK-0013).
         foreach (['pending', 'approved', 'rejected', 'cancelled'] as $status) {
             $this->assertTrue(StaffAttendanceRequest::where('status', $status)->exists(), "Thiếu đơn {$status}.");
         }
-        $auto = Penalty::where('notes', 'like', 'Tự động từ chấm công%');
-        foreach (['pending', 'explained', 'confirmed', 'fined', 'paid', 'cancelled', 'resolved'] as $status) {
-            $this->assertTrue((clone $auto)->where('status', $status)->exists(), "Thiếu biên bản đi muộn {$status}.");
-        }
+        $this->assertFalse(Penalty::where('notes', 'like', 'Tự động từ chấm công%')->exists());
+        $this->assertFalse(StaffAttendance::whereNotNull('penalty_id')->exists());
 
         // Lớp K28: ca hợp lệ, ca chờ đối soát (2 ngày gần nhất), ca ngoài lịch bị từ chối.
         $classIds = ClassModel::whereIn('code', ['DEMO-CG-IF1', 'DEMO-CG-SPK1', 'DEMO-BD-GT1', 'DEMO-DD-GT1', 'DEMO-DD-IE1'])->pluck('id');

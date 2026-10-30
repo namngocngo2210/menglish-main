@@ -27,14 +27,18 @@ class PayrollFormulaService
 
     public const FULLTIME_CONTRACTS = ['toàn thời gian', 'fulltime', 'full-time'];
 
-    public const DEPARTMENTS = ['teacher', 'fulltime', 'academic', 'operations'];
+    public const DEPARTMENTS = ['teacher', 'fulltime', 'assistant', 'academic', 'operations'];
+
+    /** Nhãn khối (department) trên bảng lương / file xuất. */
+    public const DEPARTMENT_LABELS = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'assistant' => 'Trợ giảng', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
 
     /**
      * Loại nhân sự trên phiếu lương, suy từ vai trò + loại hợp đồng:
      * - Học thuật (academic_lead) → Full-time, bảng "Khối Học thuật"; Học vụ (academic_staff) → Full-time, bảng "Học vụ & Vận hành".
      * - teacher_parttime → Part-time; teacher_fulltime → Full-time.
-     * - teacher / assistant (và nhân sự chưa gán vai trò): HĐ "Bán thời gian"/"Cộng tác viên" → Part-time;
-     *   "Toàn thời gian" → Full-time; chưa rõ (Thử việc / trống) → có lương cơ bản thì Full-time, không thì Part-time.
+     * - assistant → nhóm "Trợ giảng" (salary_role / department assistant); Part-time / Full-time theo hợp đồng như dưới.
+     * - Nhân sự chưa gán vai trò: HĐ "Bán thời gian"/"Cộng tác viên" → GV Part-time;
+     *   "Toàn thời gian" → GV Full-time; chưa rõ (Thử việc / trống) → có lương cơ bản thì Full-time, không thì Part-time.
      * - Sale → Full-time (có hoa hồng); nhân sự khác → Full-time, bảng theo users.department (mặc định Vận hành).
      *
      * @return array{employee_type: string, salary_role: string, department: string}
@@ -57,13 +61,15 @@ class PayrollFormulaService
         if ($has(Roles::TEACHER_FULLTIME)) {
             return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::TEACHER_FULLTIME, 'department' => 'fulltime'];
         }
+        // Trợ giảng (chủ dự án chốt 30/10/2026): nhóm "Trợ giảng" riêng trên bảng lương; loại Part-time / Full-time theo
+        // hợp đồng / lương cơ bản như dưới. Không KPI giữ HS, không thưởng tái tục.
+        if ($has(Roles::ASSISTANT)) {
+            return ['employee_type' => $this->contractIsPartTime($user) ? PayrollRecord::TYPE_PARTTIME : PayrollRecord::TYPE_FULLTIME,
+                'salary_role' => Roles::ASSISTANT, 'department' => 'assistant'];
+        }
         // Nhân sự chưa gán vai trò (dữ liệu cũ) xét như giáo viên: theo hợp đồng / lương cơ bản.
-        if ($has(Roles::ASSISTANT) || $roles->isEmpty()) {
-            $contract = mb_strtolower(trim((string) $user->contract_type));
-            $partTime = in_array($contract, self::PARTTIME_CONTRACTS, true)
-                || (! in_array($contract, self::FULLTIME_CONTRACTS, true) && (float) $user->base_salary <= 0);
-
-            return $partTime
+        if ($roles->isEmpty()) {
+            return $this->contractIsPartTime($user)
                 ? ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => Roles::TEACHER_PARTTIME, 'department' => 'teacher']
                 : ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::TEACHER_FULLTIME, 'department' => 'fulltime'];
         }
@@ -72,6 +78,27 @@ class PayrollFormulaService
         }
 
         return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'staff', 'department' => $fallbackDepartment];
+    }
+
+    /** BHXH / Công đoàn chỉ áp cho GV full-time, Học vụ, Học thuật (TK-0009; config payroll.insurance_roles). */
+    public function paysInsurance(?string $salaryRole): bool
+    {
+        return in_array($salaryRole, (array) config('payroll.insurance_roles', [Roles::TEACHER_FULLTIME, Roles::ACADEMIC_STAFF, Roles::ACADEMIC_LEAD]), true);
+    }
+
+    /** Thưởng tái tục chỉ cho Học vụ (TK-0015); GV full-time hưởng KPI theo đầu HS (chưa có bảng bậc — TK-0020). */
+    public function getsRenewalBonus(?string $salaryRole): bool
+    {
+        return $salaryRole === Roles::ACADEMIC_STAFF;
+    }
+
+    /** HĐ "Bán thời gian"/"Cộng tác viên" → Part-time; "Toàn thời gian" → Full-time; chưa rõ → không có lương cơ bản thì Part-time. */
+    private function contractIsPartTime(User $user): bool
+    {
+        $contract = mb_strtolower(trim((string) $user->contract_type));
+
+        return in_array($contract, self::PARTTIME_CONTRACTS, true)
+            || (! in_array($contract, self::FULLTIME_CONTRACTS, true) && (float) $user->base_salary <= 0);
     }
 
     /**

@@ -446,7 +446,8 @@ class Phase3MockupParityTest extends TestCase
         $period = $this->period();
         $lead = $this->userWithRole('academic_lead', ['name' => 'Học thuật P3', 'base_salary' => 15000000]);
         $ftTeacher = $this->userWithRole('teacher_fulltime', ['name' => 'GV Fulltime P3', 'base_salary' => 15000000]);
-        // Lương cơ bản hồ sơ khớp phiếu dựng tay: lệch thì kỳ báo phải "Đồng bộ & Tính lại" trước khi chốt.
+        // Lương cơ bản hồ sơ khớp phiếu dựng tay: lệch thì kỳ báo phải "Đồng bộ & Tính lại" trước khi chốt (phiếu Full-time
+        // dựng tay có base_salary_paid như phiếu đã tính theo ngày công, TK-0012).
         $this->academicStaff->update(['base_salary' => 6500000]);
         \App\Models\TeacherHourlyRate::create(['user_id' => $this->teacher->id, 'hourly_rate' => 150000, 'rate_unit' => 'session', 'effective_from' => '2026-01-01']);
         $this->timesheet(['status' => 'valid', 'teaching_date' => '2026-08-05', 'type' => 'sub', 'scheduled_time' => '17:30-19:00']);
@@ -458,12 +459,12 @@ class Phase3MockupParityTest extends TestCase
         ]);
         $ft = \App\Models\PayrollRecord::create([
             'payroll_period_id' => $period->id, 'user_id' => $ftTeacher->id, 'department' => 'fulltime', 'employee_type' => 'fulltime',
-            'salary_role' => 'teacher_fulltime', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'insurance_deduction' => 1575000,
+            'salary_role' => 'teacher_fulltime', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'base_salary_paid' => 15000000, 'insurance_deduction' => 1575000,
             'union_deduction' => 75000, 'net_salary' => 13350000,
         ]);
         $hv = \App\Models\PayrollRecord::create([
             'payroll_period_id' => $period->id, 'user_id' => $this->academicStaff->id, 'department' => 'operations', 'employee_type' => 'fulltime',
-            'salary_role' => 'academic_staff', 'kpi_source' => 'academic_kpi', 'kpi_score' => 87.5, 'kpi_bonus' => 1750000, 'base_salary' => 6500000,
+            'salary_role' => 'academic_staff', 'kpi_source' => 'academic_kpi', 'kpi_score' => 87.5, 'kpi_bonus' => 1750000, 'base_salary' => 6500000, 'base_salary_paid' => 6500000,
             'calculation_details' => ['kpi' => ['fund' => 2000000, 'items' => [
                 ['code' => '1.1', 'name' => 'Tỷ lệ chuyên cần', 'group' => 'Chăm sóc học viên', 'weight' => 50, 'score' => 100, 'amount' => 1000000],
                 ['code' => '2.1', 'name' => 'Dự giờ', 'group' => 'Chất lượng giảng dạy', 'weight' => 50, 'score' => 75, 'amount' => 750000],
@@ -472,7 +473,7 @@ class Phase3MockupParityTest extends TestCase
         ]);
         $ht = \App\Models\PayrollRecord::create([
             'payroll_period_id' => $period->id, 'user_id' => $lead->id, 'department' => 'academic', 'employee_type' => 'fulltime',
-            'salary_role' => 'academic_lead', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'net_salary' => 15000000,
+            'salary_role' => 'academic_lead', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'base_salary_paid' => 15000000, 'net_salary' => 15000000,
         ]);
 
         // GV Part-time

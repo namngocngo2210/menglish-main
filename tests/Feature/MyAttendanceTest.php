@@ -296,18 +296,17 @@ class MyAttendanceTest extends TestCase
         $this->assertSame(0, StaffAttendance::count());
     }
 
-    public function test_late_check_in_opens_pending_penalty_and_approved_late_request_cancels_it(): void
+    /** TK-0013: đi muộn không lập biên bản từng lần — bảng lương cộng dồn phút muộn cả tháng. */
+    public function test_late_check_in_records_minutes_without_penalty_and_approved_late_request_excuses_it(): void
     {
         $this->travelTo(Carbon::parse('2026-10-05 08:20:00'));
         $this->punch($this->staff)->assertSessionHas('warning');
 
         $row = StaffAttendance::sole();
         $this->assertSame(20, $row->late_minutes);
-        $penalty = Penalty::findOrFail($row->penalty_id);
-        $this->assertSame('pending', $penalty->status);
-        $this->assertEquals(0, $penalty->amount);
-        $this->assertSame($this->staff->id, $penalty->user_id);
-        $this->assertStringContainsString('Đi muộn 20 phút', $penalty->violation_type);
+        $this->assertTrue($row->isLate());
+        $this->assertNull($row->penalty_id);
+        $this->assertSame(0, Penalty::count());
 
         $this->actingAs($this->staff)->post(route('my-attendance.requests.store'), [
             'type' => StaffAttendanceRequest::TYPE_LATE_EARLY, 'date_from' => '2026-10-05', 'reason' => 'Kẹt xe do mưa lớn',
@@ -320,7 +319,8 @@ class MyAttendanceTest extends TestCase
 
         $this->assertSame(StaffAttendanceRequest::STATUS_APPROVED, $request->fresh()->status);
         $this->assertTrue($row->fresh()->late_excused);
-        $this->assertSame('cancelled', $penalty->fresh()->status);
+        $this->assertFalse($row->fresh()->isLate());
+        $this->assertSame(0, Penalty::count());
         $this->assertSame('Muộn có phép', $row->fresh()->statusLabel());
     }
 
@@ -619,7 +619,7 @@ class MyAttendanceTest extends TestCase
         $this->punch($this->staff);
         $row = StaffAttendance::sole();
         $this->assertTrue($row->isLate());
-        $penalty = Penalty::findOrFail($row->penalty_id);
+        $this->assertNull($row->penalty_id);
 
         // Không ghi lý do → chặn; tự sửa công của mình → chặn.
         $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
@@ -637,7 +637,7 @@ class MyAttendanceTest extends TestCase
         $this->assertSame('17:35', $row->check_out_at->format('H:i'));
         $this->assertFalse($row->isLate());
         $this->assertStringContainsString('Máy chủ lỗi', $row->note);
-        $this->assertSame('cancelled', $penalty->fresh()->status);
+        $this->assertSame(0, Penalty::count());
 
         // Ngày chưa có lượt chấm: quản lý tạo ngày công (nhân sự quên chấm cả ngày).
         $this->actingAs($this->admin)->post(route('staff-attendance.adjust'), [
@@ -667,7 +667,8 @@ class MyAttendanceTest extends TestCase
         $this->assertSame(StaffAttendanceRequest::STATUS_REVOKED, $request->fresh()->status);
         $row = StaffAttendance::sole();
         $this->assertTrue($row->isLate());
-        $this->assertNotNull($row->penalty_id);
+        // Đi muộn lại bị tính trên bảng lương (cộng dồn phút), không lập biên bản (TK-0013).
+        $this->assertNull($row->penalty_id);
         $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->staff->id, 'type' => 'staff_attendance_request', 'title' => 'Thu hồi đơn Xin đi muộn / về sớm ngày 05/10/2026']);
 
         // Đơn đã thu hồi không thu hồi lại được.

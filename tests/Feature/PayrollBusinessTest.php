@@ -14,10 +14,12 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\AttendsWorkdays;
 use Tests\TestCase;
 
 class PayrollBusinessTest extends TestCase
 {
+    use AttendsWorkdays;
     use RefreshDatabase;
 
     private User $hrManager;
@@ -460,7 +462,8 @@ class PayrollBusinessTest extends TestCase
             'total_amount' => 0,
         ]);
 
-        // 5. Trigger calculation
+        // 5. Trigger calculation (lương cơ bản theo ngày công: đi làm đủ tháng 8)
+        $this->attendFullMonth($teacher, 8);
         $period->calculatePayrollForPeriod();
 
         // 6. Verify PayrollRecord for teacher
@@ -473,11 +476,11 @@ class PayrollBusinessTest extends TestCase
         $this->assertEquals(0, $record->teaching_salary);
         $this->assertEquals(12000000, $record->base_salary);
         $this->assertEquals(200000, $record->penalty_deduction);
-        $this->assertEquals(1260000, $record->insurance_deduction); // BHXH 10,5%
-        $this->assertEquals(60000, $record->union_deduction);       // Công đoàn 0,5%
+        $this->assertEquals(567000, $record->insurance_deduction); // BHXH 10,5% × mức đóng 5.400.000 (TK-0009)
+        $this->assertEquals(27000, $record->union_deduction);       // Công đoàn 0,5% × mức đóng
 
-        // Net = 12M − 1.26M − 60k − 200k = 10.48M
-        $this->assertEquals(10480000, $record->net_salary);
+        // Net = 12M − 567k − 27k − 200k
+        $this->assertEquals(11206000, $record->net_salary);
     }
 
     public function test_payroll_settings_override_calculation_constants(): void
@@ -501,16 +504,17 @@ class PayrollBusinessTest extends TestCase
             'month' => 9, 'year' => 2026, 'start_date' => '2026-09-01', 'end_date' => '2026-09-30',
             'status' => 'draft', 'total_staff' => 0, 'total_hours' => 0, 'total_amount' => 0,
         ]);
+        $this->attendFullMonth($teacher, 9);
         $period->calculatePayrollForPeriod();
 
         $record = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $teacher->id)->firstOrFail();
         $this->assertEquals(0, $record->allowance);                 // bỏ phụ cấp cố định
         $this->assertEquals(0, $record->kpi_bonus);                 // bỏ "+1 triệu khi ≥ 40 giờ"
-        $this->assertEquals(2100000, $record->insurance_deduction); // 21% của 10M
-        $this->assertEquals(100000, $record->union_deduction);      // 1% của 10M
+        $this->assertEquals(1134000, $record->insurance_deduction); // 21% của mức đóng 5,4M
+        $this->assertEquals(54000, $record->union_deduction);      // 1% của mức đóng 5,4M
 
-        // Net = 10M − 2.1M − 100k = 7.8M
-        $this->assertEquals(7800000, $record->net_salary);
+        // Net = 10M − 1.134M − 54k
+        $this->assertEquals(8812000, $record->net_salary);
     }
 
     public function test_payroll_settings_ui_is_gated_and_persists_values(): void
