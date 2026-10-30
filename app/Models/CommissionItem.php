@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Một khoản hoa hồng tuyển sinh = học phí của một phiếu thu (khách mới) × % mốc theo thứ tự chốt của học viên
- * trong tháng chốt (closing_rank).
+ * trong tháng chốt (closing_rank), theo bảng % hiệu lực tại ngày đóng học phí thành công đầu tiên.
  * Trạng thái: deferred (chưa đạt gate kép, chờ kỳ sau) → payable (đã gắn vào phiếu lương kỳ chưa duyệt)
- * → paid (kỳ trả đã duyệt, settled_at). void = phiếu bị hủy / hoàn phí có thu hồi trước khi trả.
+ * → paid (kỳ trả đã duyệt, settled_at). void = phiếu bị hủy / hoàn phí trước khi trả.
  */
 class CommissionItem extends Model
 {

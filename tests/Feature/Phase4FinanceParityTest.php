@@ -278,7 +278,7 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($this->admin)->get(route('tuition.refunds'))->assertSee('Xử lý trễ hạn');
     }
 
-    public function test_commission_clawback_choice_still_applies_on_admin_refund_approval(): void
+    public function test_obsolete_clawback_choice_is_ignored_on_admin_refund_approval(): void
     {
         $refund = $this->refundRequest();
 
@@ -288,8 +288,10 @@ class Phase4FinanceParityTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $refund->refresh();
-        $this->assertTrue((bool) $refund->clawback_commission);
-        $this->assertSame(30000.0, (float) $refund->clawback_amount);
+        $this->assertFalse((bool) $refund->clawback_commission);
+        $this->assertSame(0.0, (float) $refund->clawback_amount);
+        $this->assertNull($refund->clawback_user_id);
+        $this->assertDatabaseCount('commission_adjustments', 0);
         $this->assertNotNull($refund->approved_at);
     }
 

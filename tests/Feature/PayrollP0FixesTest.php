@@ -128,8 +128,8 @@ class PayrollP0FixesTest extends TestCase
         ]);
         \App\Models\TuitionReceipt::create([
             'receipt_number' => 'PT-P0-1', 'student_tuition_id' => $tuition->id, 'student_id' => $student->id,
-            'amount' => 20000000, 'payment_method' => 'cash', 'payment_date' => '2026-08-10',
-            'status' => 'approved', 'approved_at' => '2026-08-10 10:00:00',
+            'amount' => 20000000, 'payment_method' => 'cash', 'payment_date' => '2026-08-01',
+            'status' => 'approved', 'approved_at' => '2026-08-01 10:00:00',
         ]);
 
         $period = $this->period();

@@ -31,7 +31,7 @@ use Tests\TestCase;
 /**
  * Vòng 2 — các việc còn tồn của vòng 1 (docs/audit-report-and-roadmap.md, Phần D):
  * mã biên bản, số HĐ phiếu hoàn/chuyển nhượng, kết thúc bảo lưu, đồng bộ buổi học bù,
- * ngưỡng khai giảng, thu hồi hoa hồng khi hủy HĐ sau kỳ lương đã duyệt, phạm vi chi nhánh màn Học phí.
+ * ngưỡng khai giảng, giữ hoa hồng đã trả khi hủy HĐ, phạm vi chi nhánh màn Học phí.
  */
 class Round2LeftoversTest extends TestCase
 {
@@ -305,9 +305,9 @@ class Round2LeftoversTest extends TestCase
             ->assertSee('Còn 7 chỗ')->assertSee('Ngưỡng khai giảng: 3')->assertSee('Cần thêm 2 học viên để khai giảng');
     }
 
-    // ── 6. Hủy HĐ sau khi kỳ lương đã duyệt → thu hồi hoa hồng ──────────
+    // ── 6. Hủy HĐ sau khi kỳ lương đã duyệt → không thu hồi hoa hồng ──────────
 
-    public function test_invoice_cancellation_after_approved_payroll_claws_back_commission(): void
+    public function test_invoice_cancellation_after_approved_payroll_preserves_paid_commission(): void
     {
         // Q3: bậc theo số HS chốt — thay 3 bậc mặc định bằng một bậc 5%
         CommissionTier::query()->delete();
@@ -323,6 +323,9 @@ class Round2LeftoversTest extends TestCase
         ]);
         $tuition = $this->makeTuition($student, 10000000);
 
+        // Phiếu chỉ thu phụ thu vẫn xác định ngày chốt, nhưng không tạo hoa hồng.
+        $this->travelTo(Carbon::parse('2026-08-20 10:00:00'));
+        $this->approvedReceipt($tuition, 100, ['surcharge_amount' => 100]);
         $this->travelTo(Carbon::parse('2026-09-10 10:00:00'));
         $septReceipt = $this->approvedReceipt($tuition, 4000000, ['invoice_number' => 'C26MEN-0000501']);
         $this->travelTo(Carbon::parse('2026-10-03 10:00:00'));
@@ -341,20 +344,22 @@ class Round2LeftoversTest extends TestCase
             'amount' => $receipt->amount, 'reason' => 'Xuất sai thông tin', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
 
-        // Phiếu tháng 9 (kỳ đã duyệt, đã chi 5%) → thu hồi 200.000đ ở kỳ kế tiếp.
+        // Phiếu tháng 9 (kỳ đã duyệt, đã chi 5%) → giữ hoa hồng, không thu hồi.
         $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.approve', $cancel($septReceipt)->id))
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('status', fn ($msg) => str_contains($msg, 'thu hồi 200.000 đ'));
-        $adjustment = CommissionAdjustment::where('user_id', $sales->id)->sole();
-        $this->assertEquals(-200000, (float) $adjustment->amount);
-        $this->assertNull($adjustment->settled_at);
+            ->assertSessionHas('status', fn ($msg) => ! str_contains($msg, 'thu hồi'));
+        $this->assertSame(0, CommissionAdjustment::count());
+        $item = \App\Models\CommissionItem::where('tuition_receipt_id', $septReceipt->id)->sole();
+        $this->assertTrue($item->isPaidOut());
+        $this->assertEquals(200000, $item->amount);
         $this->assertSame('cancelled', $septReceipt->fresh()->status);
 
         // Phiếu tháng 10 (kỳ chưa duyệt) → không tạo thu hồi, lần tính lương tự loại phiếu.
         $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.approve', $cancel($octReceipt)->id))
             ->assertSessionHasNoErrors();
-        $this->assertSame(1, CommissionAdjustment::count());
+        $this->assertSame(0, CommissionAdjustment::count());
 
+        $sales->update(['base_salary' => 5000000]);
         $october = PayrollPeriod::create([
             'code' => 'PR-2026-10', 'title' => 'Bảng lương Tháng 10/2026', 'month' => 10, 'year' => 2026, 'status' => 'draft',
             'start_date' => '2026-10-01', 'end_date' => '2026-10-31',
@@ -363,7 +368,7 @@ class Round2LeftoversTest extends TestCase
         $october->calculatePayrollForPeriod();
         $record = $october->records()->where('user_id', $sales->id)->firstOrFail();
         $this->assertEquals(0, (float) $record->commission_base);
-        $this->assertEquals(200000, (float) $record->commission_clawback);
+        $this->assertEquals(0, (float) $record->commission_clawback);
     }
 
     // ── 7. Phạm vi chi nhánh các màn Học phí ────────────────────────────

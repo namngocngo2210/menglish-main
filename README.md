@@ -72,7 +72,8 @@ Có gì trong dữ liệu (L = tháng trước, C = tháng này):
 - **Chấm công** (màn Chấm công GV): GV / TA **tự check-in đúng ngày** mọi buổi thật đã qua của `DEMO-*-FAM1` / `FAM0`; 1 buổi GV quên check-in → Học vụ **chấm công tay** (lý do + giờ vào/ra), lần nhập trùng **bị từ chối**; 1 ca chấm tay không có buổi trên lịch (workshop) và ca mẫu không gắn buổi của MasterEntitySeeder **bị từ chối khi duyệt**; Học vụ duyệt ca mỗi sáng.
 - **Kỷ luật** (màn Danh sách vi phạm): đủ các bước chờ giải trình / đã giải trình / xác nhận lỗi / quyết phạt (chưa tới hạn) / đã nộp trực tiếp / **đã trừ lương** (quá hạn, kỳ L) / đã hủy; 1 biên bản quá hạn trừ ở kỳ C.
 - **KPI Học vụ** 15 mục / 6 nhóm tháng L và C cho `nva`, `giaovu2` (Quản lý chi nhánh chấm).
-- **Hoa hồng** (Sale `tranmaia`): 4 khách mới SĐT `0377…` chốt vào `DEMO-CG-FAM1`. Khách chốt tháng L−1, đủ 3/3 mốc → **trả ở kỳ L**; 3 khách chốt đầu tháng L → **hoãn** ở kỳ L (chưa đủ 30 ngày); tháng C 2 khách đủ 3/3 mốc → **trả kỳ C**, 1 khách 2/3 mốc → vẫn hoãn. Khách đã được trả hoa hồng **hoàn phí**, Admin chọn **thu hồi** → trừ ở kỳ C.
+- Quy tắc chi tiết: [Hoa hồng tuyển sinh](docs/hoa-hong-tuyen-sinh.md).
+- **Hoa hồng** (Sale `tranmaia`): 4 khách mới SĐT `0377…` chốt vào `DEMO-CG-FAM1`. Khách chốt tháng L−1, đủ 3/3 mốc → **trả ở kỳ L**; 3 khách chốt đầu tháng L → **hoãn** ở kỳ L (chưa đủ 30 ngày); tháng C 2 khách đủ 3/3 mốc → **trả kỳ C**, 1 khách 2/3 mốc → vẫn hoãn. Khách đã được trả hoa hồng **hoàn phí** → giữ nguyên khoản đã trả, không thu hồi. Ngày chốt hoa hồng là ngày đóng học phí thành công đầu tiên.
 - **Kỳ lương**: kỳ L **Đã gửi GV xem** (từ ngày 10: **Đã trả**; khóa; Kế toán đã nhập bậc KPI giữ HS, KPI tự do, thuế TNCN, phụ cấp / khấu trừ tự do rồi tính lại); kỳ C **Đang tính** (đã tính + nhập tay, chờ Admin chốt rồi gửi GV xem). Vòng đời kỳ lương: `docs/vong-doi-ky-luong.md`.
 
 Đăng nhập để xem (mật khẩu như trên):

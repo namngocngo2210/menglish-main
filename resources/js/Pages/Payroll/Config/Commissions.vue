@@ -83,11 +83,11 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
 
             <template v-if="tab === 'commission'">
                 <UiAlert type="warning" title="Hoa hồng tăng tiến theo mốc × học phí thu được — gate kép, hoãn không mất">
-                    Mỗi học viên mang % của mốc chứa <strong>thứ tự chốt của HS đó trong tháng</strong> của người phụ trách. VD mốc 1–5: 4%, từ 6: 3% → 5 HS đầu tháng được 4%, HS thứ 6 trở đi 3%.
+                    Mỗi học viên mang % của mốc chứa <strong>thứ tự chốt của HS đó trong tháng</strong> của người phụ trách. Mặc định HS thứ 1–5: 3%, 6–10: 4%, từ 11: 5% (cấu hình được). Ngày chốt là ngày đóng học phí thành công đầu tiên (phiếu thu được duyệt), không phải ngày chuyển đổi CRM.
                     Hoa hồng = % × <strong>học phí thu được</strong> của khách mới (không tính tiền sách / Thu khác); hệ thống tự tính, thứ tự đếm lại từ 1 mỗi tháng.
                     Từng khách chỉ được trả khi <strong>đủ {{ gateDays }} ngày từ ngày chốt</strong> và
-                    <strong>đủ {{ gateMilestones }}/3 mốc chăm sóc tháng đầu</strong>; chưa đủ thì hoãn sang kỳ sau (giữ % kỳ phát sinh).
-                    Sửa một mốc tạo <strong>phiên bản mới</strong>; kỳ lương dùng mốc hiệu lực tại ngày cuối kỳ.
+                    <strong>đủ {{ gateMilestones }}/3 mốc chăm sóc tháng đầu</strong>; chưa đủ thì hoãn sang kỳ sau (giữ % tại ngày chốt).
+                    Sửa một mốc tạo <strong>phiên bản mới</strong>; mọi đợt đóng của học viên dùng bảng mốc hiệu lực tại ngày chốt. Không thu hồi hoa hồng đã trả khi hoàn phí / hủy hóa đơn; khoản chưa trả liên quan không được chi.
                 </UiAlert>
 
                 <div class="grid grid-cols-1 items-start gap-lg lg:grid-cols-12">

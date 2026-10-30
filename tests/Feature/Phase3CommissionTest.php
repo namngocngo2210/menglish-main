@@ -3,9 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
-use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
 use App\Models\CommissionTier;
 use App\Models\Course;
@@ -25,23 +23,18 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
-use Tests\Concerns\AttendsWorkdays;
-use Tests\Concerns\FinalizesPayrollKpi;
 use Tests\TestCase;
 
 /**
  * Phase 3 — Hoa hồng tuyển sinh theo A6: tiền thực thu (phiếu duyệt), chỉ khách mới
- * (khoản học phí đầu tiên), tính vào tháng duyệt phiếu, thu hồi khi hoàn phí do người
- * duyệt quyết định; mốc hoa hồng có phiên bản theo ngày hiệu lực.
+ * (khoản học phí đầu tiên), tính vào tháng duyệt phiếu, không thu hồi khi hoàn phí; mốc hoa hồng có phiên bản theo ngày hiệu lực.
  *
  * Q3 (bản sửa): bậc theo số HS chốt (ở đây một bậc 5% cho mọi số HS) và gate kép — khách
- * trong các test này chốt 01/08 và đã tick đủ 3/3 mốc nên hoa hồng trả ngay trong kỳ phát sinh.
+ * trong các test trả ngay này có phiếu duyệt 01/08 và đã tick đủ 3/3 mốc nên hoa hồng trả ngay trong kỳ phát sinh.
  * Hoãn / trả kỳ sau: xem Phase3FormulaTest.
  */
 class Phase3CommissionTest extends TestCase
 {
-    use AttendsWorkdays;
-    use FinalizesPayrollKpi;
     use RefreshDatabase;
 
     private Branch $branch;
@@ -156,7 +149,7 @@ class Phase3CommissionTest extends TestCase
     {
         [, $tuition] = $this->convertedStudent('HV-C1', null, 50000000);
         // 6M học phí + 400k sách (phụ thu / Thu khác) trên cùng phiếu, 2M đợt sau
-        $this->approvedReceipt($tuition, 6400000, '2026-08-05 09:00:00', 400000);
+        $this->approvedReceipt($tuition, 6400000, '2026-08-01 09:00:00', 400000);
         $this->approvedReceipt($tuition, 2000000, '2026-08-20 09:00:00');
 
         $period = $this->period(8);
@@ -174,7 +167,7 @@ class Phase3CommissionTest extends TestCase
         // Hợp đồng 12M = 10M học phí + 2M sách (other_fees); thu đủ 12M rồi thêm 1 phiếu chỉ thu sách riêng
         $tuition = StudentTuition::where('student_id', $student->id)->firstOrFail();
         $tuition->update(['total_amount' => 10000000, 'other_fees' => 2000000, 'final_amount' => 12000000, 'debt_amount' => 12000000]);
-        $this->approvedReceipt($tuition, 6000000, '2026-08-05 09:00:00');
+        $this->approvedReceipt($tuition, 6000000, '2026-08-01 09:00:00');
         $this->approvedReceipt($tuition, 6000000, '2026-08-15 09:00:00');
         $this->approvedReceipt($tuition, 300000, '2026-08-16 09:00:00', 300000);
 
@@ -202,7 +195,7 @@ class Phase3CommissionTest extends TestCase
 
             return $tuition;
         });
-        // Thu theo thứ tự ngược với thứ tự chốt: % vẫn theo thứ tự chốt, không theo thứ tự thu
+        // Duyệt cùng thời điểm: thứ tự chốt phân định bằng id khách, không theo id phiếu
         $tuitions->reverse()->each(fn (StudentTuition $t, int $i) => $this->approvedReceipt($t, 10000000, '2026-08-20 09:00:00'));
 
         $period = $this->period(8);
@@ -248,6 +241,7 @@ class Phase3CommissionTest extends TestCase
         // Chốt tháng 8, đóng một phần ở tháng 9 → hiện ở tháng 9 là "chốt tháng trước", vẫn mang HS thứ 1 của tháng 8
         [$old, $oldTuition] = $this->convertedStudent('HV-T0', $staff);
         CrmCustomer::where('converted_student_id', $old->id)->update(['converted_at' => '2026-08-20 09:00:00']);
+        $this->approvedReceipt($oldTuition, 1000000, '2026-08-20 09:00:00');
         $this->approvedReceipt($oldTuition, 2000000, '2026-09-05 09:00:00');
 
         // Tháng 9: A thu đủ 12M, B thu 4M / 10M học phí + 2M sách, C chưa đóng đồng nào
@@ -266,10 +260,10 @@ class Phase3CommissionTest extends TestCase
         $statement = app(SalesCommissionService::class)->statementFor($staff->id, now());
         $rows = collect($statement['rows'])->keyBy('student');
 
-        $this->assertSame(3, $statement['closed']);
+        $this->assertSame(2, $statement['closed']);
         $this->assertSame(1, $statement['fully_paid']);
-        // Tạm tính khi thu đủ: 4% × (12M + 10M + 12M) học phí không sách của 3 HS chốt tháng này
-        $this->assertEquals(round(0.04 * 34000000), $statement['expected']);
+        // Tạm tính khi thu đủ: 4% × (12M + 10M) học phí không sách của 2 HS đã đóng tiền tháng này
+        $this->assertEquals(round(0.04 * 22000000), $statement['expected']);
         // Đã ghi nhận chỉ theo tiền đã về: 4% × (12M + 4M)
         $this->assertEquals(round(0.04 * 16000000), $statement['earned_closed']);
 
@@ -282,10 +276,7 @@ class Phase3CommissionTest extends TestCase
         $this->assertEquals(400000, $rowB['expected']);
         $this->assertEquals(160000, $rowB['earned_total']);
 
-        $rowC = $rows->get('Học viên HV-TC');
-        $this->assertSame(3, $rowC['rank']);
-        $this->assertEquals(0, $rowC['earned_total']);
-        $this->assertEquals(480000, $rowC['expected']);
+        $this->assertFalse($rows->has('Học viên HV-TC')); // chưa đóng tiền nên chưa chốt
 
         $rowOld = $rows->get('Học viên HV-T0');
         $this->assertFalse($rowOld['closed_this_month']);
@@ -295,7 +286,7 @@ class Phase3CommissionTest extends TestCase
         $this->actingAs($staff)->get(route('profile.edit'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')
-                ->where('commission.expected', fn ($v) => (float) $v === round(0.04 * 34000000))
+                ->where('commission.expected', fn ($v) => (float) $v === round(0.04 * 22000000))
                 ->where('statCards.0.label', 'Hoa hồng tạm tính'));
     }
 
@@ -310,14 +301,15 @@ class Phase3CommissionTest extends TestCase
         $september = $this->period(9);
         $september->calculatePayrollForPeriod();
 
-        $this->assertEquals(200000, $this->salesRecord($august)->commission_bonus);
-        $this->assertEquals(150000, $this->salesRecord($september)->commission_bonus);
+        $this->assertEquals(0, $this->salesRecord($august)->commission_bonus);
+        $this->assertEquals(200000, $this->salesRecord($august)->commission_deferred);
+        $this->assertEquals(350000, $this->salesRecord($september)->commission_bonus);
     }
 
     public function test_only_first_tuition_earns_commission_not_renewals(): void
     {
         [$student, $first] = $this->convertedStudent('HV-R1');
-        $this->approvedReceipt($first, 5000000, '2026-08-05 09:00:00');
+        $this->approvedReceipt($first, 5000000, '2026-08-01 09:00:00');
 
         // Tái tục: khoản học phí thứ hai của cùng học viên
         $renewal = $this->tuition($student, 9000000);
@@ -337,7 +329,7 @@ class Phase3CommissionTest extends TestCase
     public function test_pending_rejected_and_transfer_in_receipts_are_excluded(): void
     {
         [, $tuition] = $this->convertedStudent('HV-X1');
-        $this->approvedReceipt($tuition, 2000000, '2026-08-05 09:00:00');
+        $this->approvedReceipt($tuition, 2000000, '2026-08-01 09:00:00');
         $this->approvedReceipt($tuition, 3000000, '2026-08-06 09:00:00', 0, 'XFER-IN-99');
         TuitionReceipt::create([
             'receipt_number' => 'PT-PENDING', 'student_tuition_id' => $tuition->id, 'student_id' => $tuition->student_id,
@@ -355,8 +347,8 @@ class Phase3CommissionTest extends TestCase
         $other = $this->userWithRole('sales_consultant', ['name' => 'Sale Khác']);
         [, $tuitionA] = $this->convertedStudent('HV-S1', $this->sales);
         [, $tuitionB] = $this->convertedStudent('HV-S2', $other);
-        $this->approvedReceipt($tuitionA, 1000000, '2026-08-05 09:00:00');
-        $this->approvedReceipt($tuitionB, 3000000, '2026-08-05 09:00:00');
+        $this->approvedReceipt($tuitionA, 1000000, '2026-08-01 09:00:00');
+        $this->approvedReceipt($tuitionB, 3000000, '2026-08-01 09:00:00');
 
         $period = $this->period(8);
         $period->calculatePayrollForPeriod();
@@ -365,7 +357,7 @@ class Phase3CommissionTest extends TestCase
         $this->assertEquals(150000, $this->salesRecord($period, $other)->commission_bonus);
     }
 
-    public function test_commission_tier_effective_at_period_end_is_used(): void
+    public function test_commission_tier_at_close_date_is_kept_for_later_installments(): void
     {
         CommissionTier::query()->update(['effective_to' => '2026-08-31']);
         CommissionTier::create([
@@ -382,8 +374,8 @@ class Phase3CommissionTest extends TestCase
         $september = $this->period(9);
         $september->calculatePayrollForPeriod();
 
-        $this->assertEquals(50000, $this->salesRecord($august)->commission_bonus);
-        $this->assertEquals(80000, $this->salesRecord($september)->commission_bonus);
+        $this->assertEquals(50000, $this->salesRecord($august)->commission_deferred);
+        $this->assertEquals(100000, $this->salesRecord($september)->commission_bonus);
     }
 
     public function test_editing_commission_tier_creates_new_version_and_keeps_history(): void
@@ -422,7 +414,7 @@ class Phase3CommissionTest extends TestCase
             ->assertDontSee('% Tái tục');
     }
 
-    // ───────────── Hoàn phí & thu hồi hoa hồng ─────────────
+    // ───────────── Hoàn phí không thu hồi hoa hồng ─────────────
 
     private function refundRequest(Student $student, float $amount, string $type = 'refund', ?Student $target = null): TuitionRefundRequest
     {
@@ -433,90 +425,49 @@ class Phase3CommissionTest extends TestCase
         ]);
     }
 
-    public function test_refund_within_first_month_suggests_and_applies_clawback_in_next_payroll(): void
+    public function test_refund_approval_never_creates_a_clawback_even_when_requested(): void
     {
         [$student, $tuition] = $this->convertedStudent('HV-RF1');
-        $this->approvedReceipt($tuition, 6000000, '2026-08-05 09:00:00');
-        ClassEnrollment::create(['student_id' => $student->id, 'class_id' => $this->classModel->id, 'enrolled_at' => '2026-08-20', 'status' => 'active']);
-
+        $this->approvedReceipt($tuition, 6000000, '2026-08-01 09:00:00');
         $august = $this->period(8);
         $august->calculatePayrollForPeriod();
         $this->assertEquals(300000, $this->salesRecord($august)->commission_bonus);
-        $this->finalizeKpi($august);
-        $this->actingAs($this->admin)->post(route('payroll.periods.approve', $august->id))->assertSessionHasNoErrors();
-        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $august->id))->assertSessionHasNoErrors();
 
         $this->travelTo(Carbon::parse('2026-09-05 10:00:00'));
         $refund = $this->refundRequest($student, 4000000);
-
-        // Màn duyệt hoàn phí gợi ý "Có thu hồi" (học chưa tới 1 tháng) với số tiền 5% × 4M
-        $this->actingAs($this->admin)->get(route('tuition.refunds'))
-            ->assertOk()
-            ->assertSee('Thu hồi hoa hồng')
-            ->assertSee('value="200000"', false)
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Refunds')->where('clawbackHints.'.$refund->id.'.suggest', true));
-
-        // Không gửi lựa chọn → áp dụng gợi ý (Phase 4: hoàn tiền bắt buộc ảnh bằng chứng)
-        Storage::fake('local');
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['proof_image' => UploadedFile::fake()->image('unc.jpg')])->assertSessionHasNoErrors();
-
-        $refund->refresh();
-        $this->assertTrue($refund->clawback_commission);
-        $this->assertEquals(200000, $refund->clawback_amount);
-        $this->assertSame($this->sales->id, $refund->clawback_user_id);
-
-        // Kỳ tháng 9: không có thu mới, bị trừ 200k thu hồi hoa hồng (sale = Full-time theo Q3)
-        $this->sales->update(['base_salary' => 5000000]);
-        $this->attendFullMonth($this->sales, 9);
-        $this->travelTo(Carbon::parse('2026-09-30 10:00:00'));
-        $september = $this->period(9);
-        $september->calculatePayrollForPeriod();
-        $record = $this->salesRecord($september);
-        $this->assertEquals(0, $record->commission_bonus);
-        $this->assertEquals(200000, $record->commission_clawback);
-        // 5M (đủ công) − 200k thu hồi; Sale không đóng BHXH / Công đoàn (TK-0009)
-        $this->assertEquals(4800000, $record->net_salary);
-
-        $this->travelTo(\Carbon\Carbon::parse('2026-10-03 09:00:00')); // duyệt kỳ sau chốt công / lỗi (cuối tháng + 2 ngày)
-        $september->calculatePayrollForPeriod(); // qua mốc chốt: tính lại lần cuối trước khi duyệt
-        $this->finalizeKpi($september);
-        $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
-        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $september->id))->assertSessionHasNoErrors();
-        $this->assertNotNull(CommissionAdjustment::firstOrFail()->settled_at);
-
-        // Kỳ sau không trừ lại
-        $october = $this->period(10);
-        $october->calculatePayrollForPeriod();
-        $this->assertEquals(0, $this->salesRecord($october)->commission_clawback);
+        $this->actingAs($this->admin)->get(route('tuition.refunds'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/Refunds')->missing('clawbackHints'));
+        Storage::fake(TuitionRefundRequest::PROOF_DISK);
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), [
+            'clawback_commission' => 1, 'clawback_amount' => 200000,
+            'proof_image' => UploadedFile::fake()->image('unc.jpg'),
+        ])->assertSessionHasNoErrors();
+        $this->assertFalse($refund->fresh()->clawback_commission);
+        $this->assertEquals(0, $refund->fresh()->clawback_amount);
+        $this->assertNull($refund->fresh()->clawback_user_id);
+        $this->assertDatabaseCount('commission_adjustments', 0);
+        $this->assertSame(CommissionItem::STATUS_VOID, CommissionItem::sole()->status);
+        $this->actingAs($this->admin)->get(route('tuition.refunds'))->assertOk()
+            ->assertDontSee('Thu hồi HH')->assertDontSee('Không thu hồi HH');
+        // Hồ sơ cũ vẫn hiển thị huy hiệu thu hồi đã lưu trong lịch sử.
+        $refund->update(['clawback_commission' => true, 'clawback_amount' => 200000, 'clawback_user_id' => $this->sales->id]);
+        $this->actingAs($this->admin)->get(route('tuition.refunds'))->assertOk()->assertSee('Thu hồi HH');
     }
 
-    public function test_approver_can_decline_clawback_and_old_students_default_to_no(): void
+    public function test_refund_ignores_obsolete_clawback_fields_without_validation(): void
     {
         [$student, $tuition] = $this->convertedStudent('HV-RF2');
         $this->approvedReceipt($tuition, 6000000, '2026-05-05 09:00:00');
-        ClassEnrollment::create(['student_id' => $student->id, 'class_id' => $this->classModel->id, 'enrolled_at' => '2026-05-10', 'status' => 'active']);
-
         $this->travelTo(Carbon::parse('2026-09-05 10:00:00'));
         $refund = $this->refundRequest($student, 1000000);
-
-        $this->actingAs($this->admin)->get(route('tuition.refunds'))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('clawbackHints.'.$refund->id.'.suggest', false));
-
-        Storage::fake('local');
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => '0', 'proof_image' => UploadedFile::fake()->image('unc.jpg')])
-            ->assertSessionHasNoErrors();
-
+        Storage::fake(TuitionRefundRequest::PROOF_DISK);
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), [
+            'clawback_commission' => 'bỏ qua', 'clawback_amount' => -30000,
+            'proof_image' => UploadedFile::fake()->image('unc.jpg'),
+        ])->assertSessionHasNoErrors();
         $this->assertFalse($refund->fresh()->clawback_commission);
+        $this->assertEquals(0, $refund->fresh()->clawback_amount);
         $this->assertDatabaseCount('commission_adjustments', 0);
-
-        // Người duyệt vẫn có thể chủ động chọn thu hồi với số tiền tự nhập
-        [$student2, $tuition2] = $this->convertedStudent('HV-RF3');
-        $this->approvedReceipt($tuition2, 6000000, '2026-05-05 09:00:00');
-        $this->travelTo(Carbon::parse('2026-09-06 10:00:00'));
-        $refund2 = $this->refundRequest($student2, 1000000);
-        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund2->id), ['clawback_commission' => '1', 'clawback_amount' => 30000, 'proof_image' => UploadedFile::fake()->image('unc.jpg')])
-            ->assertSessionHasNoErrors();
-        $this->assertEquals(-30000, CommissionAdjustment::firstOrFail()->amount);
     }
 
     public function test_transfer_never_claws_back_and_transfer_in_money_is_not_commission(): void
@@ -537,7 +488,8 @@ class Phase3CommissionTest extends TestCase
         $september = $this->period(9);
         $september->calculatePayrollForPeriod();
         // Chỉ 6M thực thu của học viên nguồn; 2M nhận chuyển nhượng của học viên đích không tính
-        $this->assertEquals(6000000, $this->salesRecord($september)->commission_base);
+        $this->assertEquals(6000000, CommissionItem::sum('base_amount'));
+        $this->assertEquals(300000, $this->salesRecord($september)->commission_deferred);
     }
 
     // ───────────── BXH KPI & báo cáo CRM cùng căn cứ ─────────────
@@ -554,14 +506,16 @@ class Phase3CommissionTest extends TestCase
             ->assertSee('Sale Thực Thu')
             ->assertSee('7.000.000')
             ->assertSee('350.000')
-            ->assertDontSee('99.000.000');
+            ->assertDontSee('99.000.000')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('salesPage.data', fn ($rows) => collect($rows)
+                ->contains(fn ($row) => $row['name'] === 'Sale Thực Thu' && $row['closed'] === 1)));
 
         $this->actingAs($this->admin)->get(route('crm.reports', ['preset' => 'this_month']))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('repsData', function ($reps) {
                 $rep = collect($reps)->firstWhere('name', 'Sale Thực Thu');
 
-                return $rep && (float) $rep['revenue'] === 7000000.0 && (float) $rep['commission_amount'] === 350000.0;
+                return $rep && (float) $rep['revenue'] === 7000000.0 && (float) $rep['commission_amount'] === 350000.0 && $rep['closed_students'] === 1 && $rep['won'] === 0;
             }));
     }
 }

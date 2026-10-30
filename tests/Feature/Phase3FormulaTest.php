@@ -505,7 +505,7 @@ class Phase3FormulaTest extends TestCase
         $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers'))->assertOk()->assertSee('HS thứ (trong tháng chốt)')->assertSee('Từ HS thứ 20');
     }
 
-    public function test_commission_is_deferred_until_30_days_and_3_care_milestones_then_paid_later_with_clawback(): void
+    public function test_commission_is_deferred_until_30_days_and_3_care_milestones_then_paid_later_without_clawback(): void
     {
         $sale = $this->userWithRole('sales_consultant', ['name' => 'Sale Hoãn']);
         // 6 khách chốt ngày 05/09 → HS thứ 1–5: 3%, HS thứ 6: 4%; mỗi khách đóng 5.000.000đ ngày 10/09
@@ -553,18 +553,18 @@ class Phase3FormulaTest extends TestCase
         $this->actingAs($this->admin)->post(route('payroll.periods.publish', $october->id))->assertSessionHasNoErrors();
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->count());
 
-        // Hủy hóa đơn phiếu ĐÃ trả hoa hồng → thu hồi đúng 150.000đ; phiếu còn hoãn → hủy khoản, không thu hồi
+        // Hủy hóa đơn: giữ khoản đã trả, hủy khoản còn hoãn; không tạo thu hồi
         $service = app(SalesCommissionService::class);
         $paidReceipt = $closed[0][2];
         $deferredReceipt = $closed[5][2];
-        $adjustment = $service->recordCancellationClawback($paidReceipt, $this->admin, 'C26-0001');
+        $service->voidForCancelledReceipt($paidReceipt, 'C26-0001');
         $paidReceipt->update(['status' => TuitionReceipt::STATUS_CANCELLED]);
-        $this->assertEquals(-150000, (float) $adjustment->amount);
-        $this->assertNull($service->recordCancellationClawback($deferredReceipt, $this->admin, 'C26-0002'));
+        $this->assertSame(CommissionItem::STATUS_PAID, CommissionItem::where('tuition_receipt_id', $paidReceipt->id)->value('status'));
+        $service->voidForCancelledReceipt($deferredReceipt, 'C26-0002');
         $deferredReceipt->update(['status' => TuitionReceipt::STATUS_CANCELLED]);
         $this->assertSame(CommissionItem::STATUS_VOID, CommissionItem::where('tuition_receipt_id', $deferredReceipt->id)->value('status'));
 
-        // Tháng 11: khách còn lại (HS thứ 5) đủ mốc → trả 150.000đ; trừ 150.000đ thu hồi
+        // Tháng 11: khách còn lại (HS thứ 5) đủ mốc → trả 150.000đ, không thu hồi
         $this->travelTo(Carbon::parse('2026-11-10 09:00:00'));
         $this->tickMilestones($closed[4][0], 3);
         $this->travelTo(Carbon::parse('2026-12-01 08:00:00'));
@@ -572,15 +572,15 @@ class Phase3FormulaTest extends TestCase
         $record = $this->record($november, $sale);
         $this->assertEquals(150000, $record->commission_bonus);
         $this->assertEquals(0, $record->commission_deferred);
-        $this->assertEquals(150000, $record->commission_clawback);
-        $this->assertEquals(0, $record->net_salary);
-        $this->assertSame(1, CommissionAdjustment::count());
+        $this->assertEquals(0, $record->commission_clawback);
+        $this->assertEquals(150000, $record->net_salary);
+        $this->assertSame(0, CommissionAdjustment::count());
 
         // Kỳ đã duyệt không tính lại, khoản đã trả không trả lại
         $this->assertSame(4, CommissionItem::where('status', CommissionItem::STATUS_PAID)->count());
     }
 
-    public function test_refund_with_clawback_voids_deferred_commission_of_the_student(): void
+    public function test_refund_voids_deferred_commission_without_clawback(): void
     {
         $sale = $this->userWithRole('sales_consultant');
         [, $student] = $this->closedCustomer($sale, '2026-09-20 09:00:00', 6000000, '2026-09-21 10:00:00');
@@ -593,8 +593,7 @@ class Phase3FormulaTest extends TestCase
             'student_id' => $student->id, 'type' => 'refund', 'total_paid' => 6000000, 'refund_amount' => 6000000,
             'reason' => 'Chuyển nhà', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
-        $this->assertEquals(0, app(SalesCommissionService::class)->suggestedClawbackAmount($refund)); // chưa trả gì
-        app(SalesCommissionService::class)->recordRefundDecision($refund, true, null, $this->admin);
+        app(SalesCommissionService::class)->recordRefundApproval($refund);
 
         $this->assertSame(CommissionItem::STATUS_VOID, CommissionItem::value('status'));
         $this->assertSame(0, CommissionAdjustment::count());
