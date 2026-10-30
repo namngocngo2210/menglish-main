@@ -32,6 +32,18 @@ docker/menglish.sh production backup              # DB + file upload (public/upl
 `deploy` tự restart `queue` sau migrate. Job lỗi xem bằng `docker/menglish.sh <env> artisan queue:failed`,
 log bằng `docker/menglish.sh <env> logs -f queue`. Nếu `queue` không chạy, import đề cứ ở trạng thái "Chờ xử lý".
 
+## Lệnh chạy một lần sau deploy
+
+Sau khi deploy bản bổ sung của TK-2026-0003, kiểm tra rồi bổ sung việc Học thuật cho order đề cũ còn chờ duyệt:
+
+```bash
+docker/menglish.sh <env> artisan academic-orders:backfill-tasks --dry-run
+docker/menglish.sh <env> artisan academic-orders:backfill-tasks
+```
+
+Thay `<env>` bằng `production` hoặc `staging`. Chạy thử không ghi dữ liệu hay gửi thông báo; chạy thật gửi thông báo NHẬN VIỆC.
+Lệnh có tính idempotent: chạy lại không tạo trùng việc, kể cả việc đã xóa mềm.
+
 ## Deploy bằng GitHub Actions (chạy tay)
 
 `.github/workflows/deploy-server.yml` chỉ chạy khi bấm tay, push / merge vào `main` không tự deploy:
