@@ -6,9 +6,9 @@ use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\CrmCustomer;
 use App\Models\Student;
-use App\Models\StudentTuition;
 use App\Models\User;
 use App\Services\CrmStageService;
+use App\Services\Tuition\TuitionClassLinker;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
  */
 class WaitingLeadPlacement
 {
-    public function __construct(private CrmStageService $stages, private PlacementLevelMatcher $levels) {}
+    public function __construct(private CrmStageService $stages, private PlacementLevelMatcher $levels, private TuitionClassLinker $tuitionLinker) {}
 
     /** Lead Chờ xếp lớp của học viên (khóa dòng; gọi trong transaction). */
     public function waitingLeadFor(Student $student): ?CrmCustomer
@@ -68,7 +68,7 @@ class WaitingLeadPlacement
     public function complete(CrmCustomer $customer, Student $student, ClassModel $class, ClassEnrollment $enrollment, ?User $actor): void
     {
         $enrollment->update(['customer_id' => $customer->id]);
-        StudentTuition::where('student_id', $student->id)->whereNull('class_id')->update(['class_id' => $class->id]);
+        $this->tuitionLinker->linkUnassigned($student, $class);
         $customer->update(['waiting_since' => null]);
         $this->stages->advanceTo($customer, 'won', $actor, "Học vụ xếp lớp {$class->name} cho học viên {$student->code}.");
     }

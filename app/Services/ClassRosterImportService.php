@@ -14,6 +14,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Services\Concerns\ReadsImportRows;
 use App\Services\TeachingShifts\TeachingShiftRules;
+use App\Services\Tuition\TuitionClassLinker;
 use App\Support\DataScope;
 use App\Support\Roles;
 use Carbon\Carbon;
@@ -135,6 +136,7 @@ class ClassRosterImportService
     public function __construct(
         private readonly SessionScheduleService $schedule,
         private readonly TeachingShiftRules $shiftRules,
+        private readonly TuitionClassLinker $tuitionLinker,
     ) {}
 
     /**
@@ -540,6 +542,7 @@ class ClassRosterImportService
                         // nhập học ở lớp mới (ngày đó trước khi vào lớp cũ hoặc sau hôm nay → hôm nay).
                         $enrolledAt = $row['enrolled_at'] ?? today()->toDateString();
                         $oldClassId = (int) $student->current_class_id;
+                        $leftOn = null;
                         if ($oldClassId && $oldClassId !== (int) $classId && ! in_array($oldClassId, $fileClassIds[$student->id] ?? [], true)) {
                             $joinedOld = ClassEnrollment::query()->where('student_id', $student->id)->where('class_id', $oldClassId)
                                 ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->min('enrolled_at');
@@ -561,8 +564,12 @@ class ClassRosterImportService
                             'confirmed_by' => $user->id,
                         ]);
                         $student->forceFill(['current_class_id' => $classId])->save();
+                        if ($leftOn !== null) {
+                            $this->tuitionLinker->moveOnTransfer($student, $oldClassId, (int) $classId, $leftOn);
+                        }
                         $result['enrollments']++;
                     }
+                    $this->tuitionLinker->linkUnassigned($student, ClassModel::find($classId));
                 });
             } catch (\Throwable $e) {
                 $result['failed'][] = ['line' => 'Học viên dòng '.$row['line'], 'error' => $e instanceof \RuntimeException ? $e->getMessage() : 'Lỗi ghi dữ liệu: '.$e->getMessage()];

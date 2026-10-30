@@ -22,6 +22,7 @@ use App\Services\StudentDeferralService;
 use App\Services\Students\ClassStartActivation;
 use App\Services\Students\StudentLearningProfile;
 use App\Services\Tuition\SessionLedger;
+use App\Services\Tuition\TuitionClassLinker;
 use App\Support\DataScope;
 use App\Support\Practice\SchoolGrade;
 use App\Support\Ui;
@@ -221,7 +222,7 @@ class StudentProfileController extends Controller
         ]);
     }
 
-    public function storeEnrollment(Request $request, WaitingLeadPlacement $placement)
+    public function storeEnrollment(Request $request, WaitingLeadPlacement $placement, TuitionClassLinker $tuitionLinker)
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
@@ -232,7 +233,7 @@ class StudentProfileController extends Controller
         $class = $this->visibleClasses($request->user())->findOrFail($validated['class_id']);
         $this->assertCanJoinClass($student, $class);
 
-        DB::transaction(function () use ($student, $class, $placement, $request) {
+        DB::transaction(function () use ($student, $class, $placement, $request, $tuitionLinker) {
             $waitingLead = $placement->waitingLeadFor($student);
             if ($waitingLead) {
                 $placement->assertMatchesClosedCourse($waitingLead, $class);
@@ -249,11 +250,16 @@ class StudentProfileController extends Controller
             ]);
 
             // Đổi lớp chính (chuyển lớp): lớp chính cũ hết tính buổi vào sổ buổi từ hôm nay, buổi tồn mang sang lớp mới.
-            if ($student->current_class_id && (int) $student->current_class_id !== (int) $class->id) {
+            $oldClassId = (int) $student->current_class_id;
+            if ($oldClassId && $oldClassId !== (int) $class->id) {
                 $student->leaveMainClass(today()->toDateString());
             }
             // Cập nhật lớp hiện tại của học sinh
             $student->update(['current_class_id' => $class->id]);
+            if ($oldClassId && $oldClassId !== (int) $class->id) {
+                $tuitionLinker->moveOnTransfer($student, $oldClassId, (int) $class->id, today());
+            }
+            $tuitionLinker->linkUnassigned($student, $class);
             // Học viên chốt từ CRM đang Chờ xếp lớp: đi chung đường với nút Gán lớp (lead → Đã chốt, học phí gắn lớp).
             if ($waitingLead) {
                 $placement->complete($waitingLead, $student, $class, $enrollment, $request->user());
@@ -268,7 +274,7 @@ class StudentProfileController extends Controller
      * "Chuyển lớp" trên hồ sơ: đổi lớp chính từ ngày chuyển (cho chọn ngày đã qua khi cập nhật trễ). Lớp cũ thành
      * "Đã chuyển lớp" từ ngày đó (ra khỏi danh sách lớp, ngừng trừ buổi), lớp mới trừ buổi từ ngày đó; buổi tồn giữ nguyên.
      */
-    public function transferClass(Request $request, $id)
+    public function transferClass(Request $request, TuitionClassLinker $tuitionLinker, $id)
     {
         $student = $this->findVisibleStudent($request->user(), $id);
         $validated = $request->validate([
@@ -298,8 +304,9 @@ class StudentProfileController extends Controller
             throw ValidationException::withMessages(['transferred_on' => 'Ngày chuyển lớp phải từ ngày vào lớp '.$oldClass?->name.' ('.Carbon::parse($joinedOld)->format('d/m/Y').').']);
         }
 
-        DB::transaction(function () use ($student, $class, $transferredOn) {
+        DB::transaction(function () use ($student, $class, $transferredOn, $tuitionLinker) {
             $this->assertClassHasSeat($class);
+            $oldClassId = (int) $student->current_class_id;
             $student->leaveMainClass($transferredOn);
             ClassEnrollment::create([
                 'student_id' => $student->id,
@@ -309,6 +316,7 @@ class StudentProfileController extends Controller
                 'status' => 'pending',
             ]);
             $student->update(['current_class_id' => $class->id]);
+            $tuitionLinker->moveOnTransfer($student, $oldClassId, (int) $class->id, $transferredOn);
         });
 
         return redirect()->route('students.show', $student->id)
@@ -319,7 +327,7 @@ class StudentProfileController extends Controller
      * "Liên kết lớp khác": thêm học viên vào một lớp nữa (học song song) mà không đổi lớp chính.
      * Kiểm tra cùng chi nhánh, chưa có trong lớp và lớp còn chỗ.
      */
-    public function linkClass(Request $request, WaitingLeadPlacement $placement, $id)
+    public function linkClass(Request $request, WaitingLeadPlacement $placement, TuitionClassLinker $tuitionLinker, $id)
     {
         $student = $this->findVisibleStudent($request->user(), $id);
         $validated = $request->validate([
@@ -332,7 +340,7 @@ class StudentProfileController extends Controller
         }
         $this->assertCanJoinClass($student, $class);
 
-        DB::transaction(function () use ($student, $class, $placement, $request) {
+        DB::transaction(function () use ($student, $class, $placement, $request, $tuitionLinker) {
             $waitingLead = $placement->waitingLeadFor($student);
             if ($waitingLead) {
                 $placement->assertMatchesClosedCourse($waitingLead, $class);
@@ -352,6 +360,7 @@ class StudentProfileController extends Controller
             if (! $student->current_class_id) {
                 $student->update(['current_class_id' => $class->id]);
             }
+            $tuitionLinker->linkUnassigned($student, $class);
             // Học viên chốt từ CRM đang Chờ xếp lớp: đi chung đường với nút Gán lớp (lead → Đã chốt, học phí gắn lớp).
             if ($waitingLead) {
                 $placement->complete($waitingLead, $student, $class, $enrollment, $request->user());

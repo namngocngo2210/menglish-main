@@ -47,6 +47,7 @@ use App\Services\SalesCommissionService;
 use App\Services\Students\ClassStartActivation;
 use App\Services\Students\StudentAccountService;
 use App\Services\Tuition\SessionLedger;
+use App\Services\Tuition\TuitionClassLinker;
 use App\Support\Approvals\ApprovableSource;
 use App\Support\Approvals\ApprovalInboxService;
 use App\Support\CenterInfo;
@@ -2851,6 +2852,7 @@ class CrmController extends Controller
             'status' => 'pending',
         ]);
         $student->forceFill(['current_class_id' => $class->id])->save();
+        app(TuitionClassLinker::class)->linkUnassigned($student, $class);
 
         return $enrollment;
     }

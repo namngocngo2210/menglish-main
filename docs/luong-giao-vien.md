@@ -1,5 +1,12 @@
 # Luồng màn hình Giáo viên: lớp → chặng → buổi → báo cáo
 
+## Doanh thu lớp và học phí khi xếp / chuyển lớp
+
+Doanh thu tính lương theo `PayrollFormulaService::classRevenue` lấy lớp từ `student_tuitions.class_id`.
+Xếp lớp gắn các khoản NULL chưa dùng hết vào lớp chính; chuyển lớp mang các khoản chưa dùng hết trước ngày
+chuyển sang lớp mới, giữ lớp cũ cho khoản đã dùng hết. Không tự tính lại lương, kỳ đã khóa giữ nguyên.
+Xem [quy tắc gắn lớp học phí và lệnh bù dữ liệu](hoc-phi-gan-lop.md).
+
 ## Bối cảnh (rà soát 26/10/2026 trên staging)
 
 - **GV không có lối vào lớp của mình.** `/classes` và Trang lớp chạy đúng phạm vi (GV chỉ thấy lớp mình dạy), nhưng nhóm sidebar
