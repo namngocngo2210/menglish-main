@@ -24,7 +24,8 @@ class BranchAddressSearchTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['cache.default' => 'array']);
+        // User-Agent lấy từ APP_NAME; ghim tên app để test không phụ thuộc file .env của máy chạy (mặc định Laravel là 'Laravel').
+        config(['cache.default' => 'array', 'app.name' => 'MENGLISH Admin']);
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
         $this->admin = User::factory()->create(['is_active' => true]);

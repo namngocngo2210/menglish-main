@@ -363,6 +363,8 @@ class DemoPhase2Seeder extends Seeder
         foreach ($homeworkSessions as $k => $session) {
             $this->asUser($teacher, TeacherPortalController::class, 'homeworkStore', [
                 'class_session_id' => $session->id,
+                // Tiêu đề riêng: tiêu đề mặc định "Bài tập buổi …" là dấu hiệu bài tập theo syllabus của DemoSyllabusLibrarySeeder.
+                'title' => $k === 0 ? 'Workbook Unit 1 trang 4–5' : 'Quay video đọc từ vựng Unit 2',
                 'categories' => $k === 0 ? ['workbook', 'quiz'] : ['vocabulary', 'video'],
                 'items' => $k === 0
                     ? ['workbook' => 'Workbook Unit 1 trang 4–5', 'quiz' => 'Quizizz từ vựng Unit 1']

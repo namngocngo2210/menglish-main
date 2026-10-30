@@ -92,7 +92,9 @@ class SyllabusLibraryTest extends TestCase
         $this->actingAs($this->lead)->get(route('syllabus.curriculums.show', ['id' => $this->curriculum->id, 'edit_lesson' => $this->lesson->id]))
             ->assertOk()
             ->assertSee('Loại buổi')->assertSee('Hoạt động gợi ý 2')->assertSee('Bài tập Quizizz')
-            ->assertSee('Link PPT')->assertSee('Mốc thông báo')->assertSee('Order in ấn');
+            ->assertSee('Mốc thông báo')->assertSee('Order in ấn')
+            // PPT tải file lên ở mục "Bài giảng PPT" của buổi (23f2069e0), form sửa buổi không còn ô Link PPT.
+            ->assertSee('PPT / PPT GVNN của buổi')->assertDontSee('Link PPT');
     }
 
     public function test_library_permission_granted_to_lead_and_manager_only(): void

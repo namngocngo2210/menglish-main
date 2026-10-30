@@ -92,9 +92,12 @@ class DemoSyllabusLibrarySeederTest extends TestCase
 
         // Giai đoạn 5: CG FAM 1 có bài tập theo syllabus, học viên nộp theo giỏ, GV đã xem 1 bài.
         $cg = ClassModel::where('code', 'DEMO-CG-FAM1')->firstOrFail();
-        $this->assertGreaterThanOrEqual(1, Homework::where('class_id', $cg->id)->where('title', 'like', 'Bài tập buổi%')->count());
-        $this->assertEqualsCanonicalizing(['paper', 'quizizz', 'video'], HomeworkSubmission::distinct()->pluck('basket')->all());
-        $this->assertSame(1, HomeworkSubmission::where('status', 'reviewed')->count());
+        $syllabusHomework = Homework::where('class_id', $cg->id)->where('title', 'like', 'Bài tập buổi%')->pluck('id');
+        $this->assertGreaterThanOrEqual(1, $syllabusHomework->count());
+        // Chỉ xét bài nộp của bài tập theo syllabus (DemoPhase2 / DemoKpiSources cũng seed bài nộp + chấm cho lớp của chúng).
+        $submissions = HomeworkSubmission::whereIn('homework_id', $syllabusHomework);
+        $this->assertEqualsCanonicalizing(['paper', 'quizizz', 'video'], (clone $submissions)->distinct()->pluck('basket')->all());
+        $this->assertSame(1, (clone $submissions)->where('status', 'reviewed')->count());
 
         // Quy trình đủ bước (docs/kho-syllabus.md §7–9): nhắc 24h chưa xác nhận, Customize "Giãn" đã duyệt, order theo mốc,
         // việc cuối chặng quá hạn / hoàn thành, báo cáo tuần Học thuật có ghi chú của Quản lý; buổi test đã dạy chưa nhập điểm.

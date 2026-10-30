@@ -10,6 +10,7 @@ use App\Models\MaterialOrder;
 use App\Models\SyllabusAssignment;
 use App\Models\SyllabusLesson;
 use App\Services\Syllabus\SyllabusOrders;
+use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
@@ -92,6 +93,8 @@ class SyllabusOrderTest extends TestCase
     public function test_test_order_blocked_while_same_stage_order_is_pending_and_admin_is_notified(): void
     {
         $this->markLessons(3);
+        // Người duyệt order đề test là Admin (BigTestSlaService::approvers); không có Admin thì không ai nhận thông báo.
+        $admin = $this->userWithRole(Roles::ADMIN, 'Admin duyệt đề');
         $url = route('teacher.orders.store', $this->class->id);
         // Order Big Test cùng chặng đang chờ duyệt (vd. tạo trước khi bỏ màn Order Test cũ) → không order trùng.
         $pending = BigTestOrder::create(['code' => 'ORDTEST-OLD', 'class_id' => $this->class->id, 'syllabus_stage_id' => $this->assignment->stage_id,
@@ -103,7 +106,7 @@ class SyllabusOrderTest extends TestCase
         $this->actingAs($this->teacher)->post($url, ['lesson_id' => $this->lesson(4)->id])->assertSessionHasNoErrors();
         $this->assertSame(2, BigTestOrder::count());
         // Báo riêng người duyệt, không phát thông báo chung.
-        $this->assertTrue(AdminNotification::where('type', 'big_test_order')->whereNotNull('user_id')->exists());
+        $this->assertSame([$admin->id], AdminNotification::where('type', 'big_test_order')->whereNotNull('user_id')->pluck('user_id')->map(fn ($id) => (int) $id)->all());
         $this->assertSame(0, AdminNotification::where('type', 'big_test_order')->whereNull('user_id')->count());
     }
 
