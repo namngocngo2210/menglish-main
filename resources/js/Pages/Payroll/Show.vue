@@ -26,6 +26,7 @@ const props = defineProps({
     // Chỉ người xem mọi phiếu lương (Admin): nhân sự đang làm việc mà kỳ chưa có phiếu lương và lý do.
     missingStaff: { type: Object, default: null },
     assistantRateMissing: { type: Array, default: () => [] },
+    negativeNet: { type: Array, default: () => [] },
     backgroundTasks: { type: Array, default: () => [] },
 });
 
@@ -122,6 +123,16 @@ function filter(event) {
             rồi bấm "Đồng bộ &amp; Tính lại".
         </UiAlert>
 
+        <UiAlert v-if="negativeNet.length" type="error" :title="`Khấu trừ vượt thu nhập: ${negativeNet.length} nhân sự có thực lĩnh âm`" data-negative-net>
+            <ul class="space-y-xs">
+                <li v-for="staff in negativeNet" :key="staff.id">
+                    <Link :href="route('payroll.records.show', staff.id)" class="font-semibold underline">{{ staff.name }}</Link>
+                    – thiếu {{ formatMoney(staff.shortfall) }}.
+                </li>
+            </ul>
+            <p class="mt-xs">Thực lĩnh tạm tính giữ ở 0 đ. Điều chỉnh khoản nhập tay hoặc chuyển phạt sang kỳ sau, Đồng bộ &amp; Tính lại rồi chốt lại.</p>
+        </UiAlert>
+
         <UiAlert v-if="missingStaff?.count" type="info" dismissible :title="`${missingStaff.count} nhân sự chưa có phiếu lương kỳ này`" data-missing-staff>
             Kỳ lương chỉ tạo phiếu cho người có khoản phát sinh (lương cơ bản, buổi dạy hợp lệ, hoa hồng). Nhập lương cơ bản ở hồ sơ nhân sự rồi bấm "Đồng bộ &amp; Tính lại".
             <ul class="mt-xs space-y-xs">
@@ -180,8 +191,8 @@ function filter(event) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="r in records.data" :key="r.id">
-                        <td class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-lowest">
+                    <tr v-for="r in records.data" :key="r.id" :class="{ 'bg-error-container': r.shortfall > 0 }">
+                        <td class="sticky left-0 z-10 border-r border-surface-container" :class="r.shortfall > 0 ? 'bg-error-container' : 'bg-surface-container-lowest'">
                             <div class="flex items-center gap-sm">
                                 <UiAvatar :name="r.name ?? 'U'" size="sm" />
                                 <div>
@@ -250,11 +261,15 @@ function filter(event) {
                         <td class="text-right font-mono text-error">-{{ formatMoney(r.insurance_deduction + r.union_deduction) }}</td>
                         <td class="text-right font-mono text-error">-{{ formatMoney(r.tax_deduction) }}</td>
                         <td class="text-right font-mono text-error">-{{ formatMoney(r.other_deductions) }}</td>
-                        <td class="sticky right-0 z-10 border-l border-surface-container bg-surface-container-lowest text-right">
+                        <td class="sticky right-0 z-10 border-l border-surface-container text-right" :class="r.shortfall > 0 ? 'bg-error-container' : 'bg-surface-container-lowest'">
                             <div class="flex items-center justify-end gap-xs">
                                 <span class="font-bold text-primary">{{ formatMoney(r.net_salary) }}</span>
                                 <UiButton variant="ghost" size="sm" icon="visibility" :href="route('payroll.records.show', r.id)">Chi tiết</UiButton>
                             </div>
+                            <p v-if="r.shortfall > 0" class="mt-xs inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-on-error-container">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>
+                                <span><span class="sr-only">Khấu trừ vượt thu nhập: </span>Thiếu {{ formatMoney(r.shortfall) }}</span>
+                            </p>
                         </td>
                     </tr>
                     <tr v-if="!records.data.length">

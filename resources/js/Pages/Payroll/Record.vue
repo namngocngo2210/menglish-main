@@ -111,6 +111,10 @@ function sessionNote(ts) {
 
     <UiAlert v-if="firstError" type="error" class="mb-md">{{ firstError }}</UiAlert>
 
+    <UiAlert v-if="record.shortfall > 0" type="error" class="mb-md" data-negative-net>
+        Khấu trừ vượt thu nhập: thiếu {{ formatMoney(record.shortfall) }} — thực lĩnh tạm tính 0 đ.
+    </UiAlert>
+
     <UiAlert v-if="record.assistant_rate_missing" type="warning" class="mb-md" data-assistant-rate-missing>
         Chưa có đơn giá giờ – cần nhập lại. Đơn giá cũ theo buổi của Trợ giảng không được quy đổi: lương giờ dạy đang là 0đ. Chọn bậc đơn giá giờ ở màn Đơn giá giáo viên rồi bấm "Đồng bộ &amp; Tính lại".
     </UiAlert>

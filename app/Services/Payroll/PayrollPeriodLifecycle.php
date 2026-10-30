@@ -64,7 +64,15 @@ class PayrollPeriodLifecycle
             if ($period->calculated_at === null || $period->hasChangesSinceCalculation()) {
                 return 'Chấm công hoặc biên bản phạt của kỳ đã thay đổi sau lần tính gần nhất — vui lòng bấm "Đồng bộ & Tính lại" trước khi duyệt.';
             }
-            $pending = $period->records()->with('user')->get()->filter(fn (PayrollRecord $record) => $record->kpi_state[0] === 'pending');
+            $records = $period->records()->with('user')->get();
+            $negativeNet = $records->filter(fn (PayrollRecord $record) => $record->netShortfall() > 0)
+                ->sortBy(fn (PayrollRecord $record) => $record->user?->name);
+            if ($negativeNet->isNotEmpty()) {
+                return 'Chưa thể chốt bảng lương: '.$negativeNet->count().' nhân sự có thực lĩnh âm (khấu trừ lớn hơn thu nhập) — '
+                    .$negativeNet->map(fn (PayrollRecord $record) => ($record->user?->name ?? 'Chưa cập nhật').' – thiếu '.Money::format($record->netShortfall()))->implode('; ')
+                    .'. Điều chỉnh khoản nhập tay hoặc chuyển phạt sang kỳ sau, Đồng bộ & Tính lại rồi chốt lại.';
+            }
+            $pending = $records->filter(fn (PayrollRecord $record) => $record->kpi_state[0] === 'pending');
             if ($pending->isNotEmpty()) {
                 return 'Chưa thể chốt bảng lương: còn '.$pending->count().' nhân sự chưa chốt KPI ('
                     .$pending->take(5)->map(fn ($r) => $r->user?->name)->filter()->implode(', ')

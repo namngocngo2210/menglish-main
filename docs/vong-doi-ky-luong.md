@@ -9,6 +9,12 @@ Luồng: **Đang tính → Đã chốt → Đã gửi GV xem → Đã trả** (`
 | **Đã gửi GV xem** (`published`) | Đánh dấu đã trả → Đã trả | `payroll.mark_paid` | Khóa phiếu và dữ liệu nguồn của kỳ (chấm công, phạt, đơn giá…). Nhân sự xem được phiếu của mình; phạt được đóng dấu đã trừ, hoa hồng được tất toán và thông báo được gửi. |
 | **Đã trả** (`paid`) | Hoàn tất | — | Giữ nguyên khóa; không mở lại. Trả ngoài ngày 10–15 tháng sau chỉ cảnh báo. |
 
-Chỉ chốt sau khi đã tính ít nhất một lần, qua hạn chốt công / lỗi, không có lần tính nền đang chờ, không còn KPI chờ chốt và dữ liệu khớp lần tính gần nhất. Nếu dữ liệu nguồn đổi sau khi chốt, phải **Mở lại → Đồng bộ & Tính lại → Chốt bảng lương** rồi mới **Gửi GV xem**. Mỗi lần chuyển trạng thái được ghi lịch sử cùng người thao tác và thời gian. Không có thao tác mở lại sau khi đã gửi GV xem hoặc đã trả.
+Chỉ chốt sau khi đã tính ít nhất một lần, qua hạn chốt công / lỗi, không có lần tính nền đang chờ, không còn KPI chờ chốt, dữ liệu khớp lần tính gần nhất và không có nhân sự bị khấu trừ lớn hơn thu nhập (thực lĩnh trước giới hạn âm). Nếu dữ liệu nguồn đổi sau khi chốt, phải **Mở lại → Đồng bộ & Tính lại → Chốt bảng lương** rồi mới **Gửi GV xem**. Mỗi lần chuyển trạng thái được ghi lịch sử cùng người thao tác và thời gian. Không có thao tác mở lại sau khi đã gửi GV xem hoặc đã trả.
 
 Chuyển đổi dữ liệu cũ: `draft` và `reviewing` → `draft`; `approved` → `published`; `paid` giữ nguyên. Kỳ `approved` trước đây đã khóa dữ liệu, trừ phạt, tất toán hoa hồng và hiện trong **Lương của tôi**, nên phải chuyển sang **Đã gửi GV xem**; chuyển về **Đã chốt** sẽ mở khóa dữ liệu đã tất toán. Chỉ các kỳ đổi giá trị trạng thái mới có dòng lịch sử chuyển đổi, với ghi chú “Chuyển đổi trạng thái cũ (TK-0016)”.
+
+## Khấu trừ vượt thu nhập (TK-0017)
+
+Tính lương vẫn tạo phiếu và giữ thực lĩnh tối thiểu **0 đ** để số chi trả / tổng quỹ lương không âm. Phần thiếu được tính từ tổng thu nhập trừ tổng khấu trừ của phiếu hiện tại, không bị mất khi sửa tay hoặc tính lại. Bảng lương luôn cảnh báo tên từng nhân sự và số tiền thiếu, đánh dấu dòng tương ứng; phiếu lương cũng hiện phần thiếu. Cảnh báo chỉ hiển thị các phiếu trong phạm vi người xem, còn điều kiện chốt kiểm tra toàn bộ phiếu của kỳ.
+
+Khi còn phần thiếu, **Chốt bảng lương** bị khóa và máy chủ từ chối thao tác. Kế toán đối soát các khoản trừ, điều chỉnh dòng khoản cộng / khoản trừ nhập tay trên phiếu hoặc chuyển khoản phạt sang kỳ sau theo thỏa thuận. Sau đó bấm **Đồng bộ & Tính lại**, kiểm tra không còn phần thiếu rồi **Chốt bảng lương**. Hệ thống không tự chuyển hoặc xóa phần phạt vượt thu nhập; kỳ đã chốt cần **Mở lại** trước khi điều chỉnh.

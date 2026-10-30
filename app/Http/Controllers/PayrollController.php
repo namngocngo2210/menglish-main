@@ -218,6 +218,14 @@ class PayrollController extends Controller
             // Trợ giảng chưa có đơn giá giờ (TK-0010): lương giờ dạy 0đ → cần nhập lại đơn giá ở Đơn giá giáo viên.
             'assistantRateMissing' => $period->records->filter(fn (PayrollRecord $r) => $r->assistantRateMissing())
                 ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
+            'negativeNet' => $period->records->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0)
+                ->sortBy(fn (PayrollRecord $r) => $r->user?->name)
+                ->map(fn (PayrollRecord $r) => [
+                    'id' => $r->id,
+                    'name' => $r->user?->name ?? 'Chưa cập nhật',
+                    'shortfall' => $r->netShortfall(),
+                    'raw_net' => $r->rawNetSalary(),
+                ])->values()->all(),
             'records' => $records->through(fn (PayrollRecord $r) => $this->recordRow($r)),
             'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
             'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
@@ -2289,6 +2297,8 @@ class PayrollController extends Controller
             'assistant_rate_missing' => $r->assistantRateMissing(),
             'other_deductions' => (float) $r->penalty_deduction + (float) $r->late_deduction + (float) $r->missing_punch_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
             'net_salary' => (float) $r->net_salary,
+            'shortfall' => $r->netShortfall(),
+            'raw_net' => $r->rawNetSalary(),
         ];
     }
 }
