@@ -58,3 +58,22 @@ nguồn chưa tới hạn), người tốt cao hơn người kém, chạy lại 
 
 Đã chạy thử seed đầy đủ ở ngày 15 (test), 26/10, 02/11, 31/12: không lỗi; nguồn còn trống chỉ là báo cáo tháng của tháng này
 (chưa tới hạn), chăm sóc tháng đầu tháng trước (ngoài phạm vi), dữ liệu tháng này khi mới sang tháng.
+
+## Demo lương đứng lớp Học thuật (TK-2026-0018)
+
+`DemoPayrollSeeder` bổ sung kỳ tháng trước cho tài khoản `academiclead@menglish.edu.vn`:
+
+- Lớp `DEMO-CG-HT27` (**# Tiếng Anh Học thuật · K27 (CG)**): Học thuật dạy chính khóa các sáng thứ 4, Học vụ chấm tay
+  và duyệt ca hợp lệ theo đồng hồ demo; 6 HS có lượt xếp lớp từ đầu kỳ.
+- Một buổi dạy thay (`sub`) sáng chủ nhật ở `DEMO-CG-SPK27`, GV chính của lớp vẫn là người khác.
+- Học phí gắn đúng hai lớp: 12.000.000đ / 24 buổi, ưu đãi 1.200.000đ, chưa thanh toán và còn nợ toàn bộ.
+  Lương đứng lớp vẫn lấy **500.000đ/HS/buổi**, mặc định 40%, không bị giảm bởi ưu đãi hoặc công nợ.
+- Phiếu Học thuật có **Lương đứng lớp > 0** và hai hàng lớp; bậc KPI giữ HS được điền để chốt kỳ demo được.
+  Không bật cờ kiêm nhiệm: phiếu KPI giảng dạy riêng vẫn theo quy tắc hiện có.
+
+Chạy lại không nhân bản ca, học viên, lượt xếp lớp hay học phí. Giữ quy ước hiện tại: đã có lớp K27 thì bỏ qua
+phần tháng trước; kỳ đã chi trả hoặc kỳ không thuộc demo không bị sửa. CSDL đã seed K27 trước thay đổi này không
+được bù lại phiếu đã khóa. Công thức chi tiết: [Lương đứng lớp Học thuật](luong-giao-vien.md#lương-đứng-lớp-học-thuật-tk-2026-0018).
+
+`DemoPayrollSeederTest` kiểm tra tiền đứng lớp dương, hai hàng lớp có số buổi / HS / giá trị / tiền, có ca chính khóa
+và dạy thay hợp lệ, học phí gắn lớp, và giữ nguyên dữ liệu khi seed lần hai. Test PHP cần chạy trong môi trường có PHP.

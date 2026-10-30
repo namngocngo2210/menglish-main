@@ -34,7 +34,7 @@ final class StaffType
         return $roles->contains(Roles::ASSISTANT) && $roles->intersect(self::TEACHER_ROLES)->isEmpty();
     }
 
-    /** Học thuật có bật "Kiêm nhiệm giảng dạy": lương đứng lớp theo % học phí + KPI kiêm nhiệm. */
+    /** Học thuật có bật "Kiêm nhiệm giảng dạy": dùng cho phiếu KPI giảng dạy riêng; lương đứng lớp còn xét ca đã dạy. */
     public static function isTeachingAcademicLead(User $user): bool
     {
         return (bool) $user->academic_teaching && self::roles($user)->contains(Roles::ACADEMIC_LEAD);

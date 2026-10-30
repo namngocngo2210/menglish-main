@@ -16,8 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *   + lương buổi có GVNN (nhập tay, chờ BA) + phụ cấp tự do − phạt quá hạn − khấu trừ tự do. Không BHXH/Công đoàn.
  * - Full-time (GV full-time, Học vụ, Học thuật, Sale, nhân sự khác): lương cơ bản + KPI + hoa hồng + thưởng tái tục
  *   + phụ cấp tự do − BHXH − Công đoàn (tự động trên lương cơ bản) − thuế TNCN (nhập tay) − phạt − khấu trừ tự do.
- *   Học thuật kiêm nhiệm giảng dạy (teaching_concurrent): cộng thêm lương đứng lớp (teaching_salary = buổi dạy × % học phí
- *   theo buổi, TeachingShareService) và KPI kiêm nhiệm (teaching_kpi_bonus = HS giữ được × bậc chọn tay, như Part-time).
+ *   Học thuật có ca lớp hợp lệ (teaching_concurrent, không cần bật cờ): cộng lương đứng lớp = % × tổng giá niêm yết
+ *   theo buổi của HS giữ cuối kỳ, qua từng ca chính khóa / dạy thay (TeachingShareService; không trừ ưu đãi, không xét nợ).
+ *   KPI kiêm nhiệm giữ cách tính HS giữ được × bậc chọn tay như Part-time; đã bật cờ vẫn giữ phiếu khi chưa có ca.
  *
  * Khoản nhập tay (giữ khi tính lại): retention_tier, kpi_manual_amount, foreign_session_pay, tax_deduction,
  * manual_lines ([{kind: earning|deduction, label, amount}]), adjustment_notes.

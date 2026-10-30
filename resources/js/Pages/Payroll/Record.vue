@@ -252,7 +252,7 @@ function sessionNote(ts) {
                                 <p class="font-body-small text-body-small text-on-surface-variant">Lương đứng lớp ({{ record.teaching_sessions }} buổi)</p>
                                 <p class="font-h3 text-h3 font-mono">{{ money(record.teaching_salary) }}</p>
                                 <p class="font-caption text-caption text-on-surface-variant">
-                                    Buổi chấm công hợp lệ × {{ pct(teachingShare.rate_percent ?? teachingShare.default_percent) }}% học phí theo buổi{{ teachingShare.rate_percent === null ? ' (mức mặc định)' : '' }}
+                                    Buổi chấm công hợp lệ × tỷ lệ học phí hiệu lực theo ngày dạy (mặc định {{ pct(teachingShare.default_percent) }}%)
                                 </p>
                             </div>
                             <div class="space-y-xs">
@@ -271,37 +271,37 @@ function sessionNote(ts) {
                                 </p>
                             </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full min-w-[640px] text-left font-body-small text-body-small [&_td]:px-xs [&_th]:px-xs" data-teaching-share-table>
+                        <UiDataTable min-width="760px">
+                            <table data-teaching-share-table>
                                 <thead>
-                                    <tr class="whitespace-nowrap font-label text-label uppercase text-on-surface-variant">
-                                        <th class="py-xs">Lớp</th><th class="py-xs text-right">Học phí / buổi</th><th class="py-xs text-right">Số HS</th><th class="py-xs text-right">Số buổi</th><th class="py-xs text-right">Vào sau / nghỉ</th><th class="py-xs text-right">Lương</th>
+                                    <tr>
+                                        <th scope="col">Lớp</th><th scope="col" class="text-right">Số buổi dạy</th><th scope="col" class="text-right">HS còn giữ cuối tháng</th><th scope="col" class="text-right">Giá trị 1 buổi</th><th scope="col" class="text-right">%</th><th scope="col" class="text-right">Thành tiền</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="row in teachingShare.classes" :key="row.class_id" class="border-t border-surface-container">
-                                        <td class="min-w-[12rem] py-xs">{{ row.class }}<span class="block font-caption text-caption text-on-surface-variant">{{ row.percent !== null ? pct(row.percent) + '%' : 'nhiều mức %' }} × {{ money(row.tuition) }}đ học phí các buổi</span></td>
-                                        <td class="py-xs text-right font-mono">{{ money(row.avg_price) }}</td>
-                                        <td class="py-xs text-right font-mono">{{ row.students }}</td>
-                                        <td class="py-xs text-right font-mono">{{ row.sessions }}</td>
-                                        <td class="py-xs text-right font-mono">{{ row.partial_students || '' }}</td>
-                                        <td class="py-xs text-right font-mono font-semibold">{{ money(row.amount) }}</td>
+                                    <tr v-for="row in teachingShare.classes" :key="row.class_id">
+                                        <td class="min-w-[12rem]">{{ row.class }}<span class="block font-caption text-caption text-on-surface-variant">{{ money(row.tuition) }}đ giá trị các buổi được tính</span></td>
+                                        <td class="text-right font-mono">{{ row.sessions }}</td>
+                                        <td class="text-right font-mono">{{ row.students }}</td>
+                                        <td class="text-right font-mono">{{ row.session_value != null ? money(row.session_value) : '—' }}</td>
+                                        <td class="text-right font-mono">{{ row.percent !== null ? pct(row.percent) + '%' : (row.sessions ? 'Nhiều mức' : '—') }}</td>
+                                        <td class="text-right font-mono font-semibold">{{ money(row.amount) }}</td>
                                     </tr>
-                                    <tr v-if="!teachingShare.classes.length"><td colspan="6" class="py-sm text-on-surface-variant">Chưa có buổi dạy lớp hợp lệ trong kỳ.</td></tr>
+                                    <tr v-if="!teachingShare.classes.length"><td colspan="6" class="text-on-surface-variant">Chưa có buổi dạy lớp hợp lệ trong kỳ.</td></tr>
                                 </tbody>
                                 <tfoot v-if="teachingShare.classes.length">
                                     <tr class="border-t-2 border-outline-variant font-semibold">
-                                        <td class="py-xs">Tổng</td><td></td>
-                                        <td class="py-xs text-right font-mono">{{ teachingShare.classes.reduce((n, r) => n + r.students, 0) }}</td>
-                                        <td class="py-xs text-right font-mono">{{ teachingShare.classes.reduce((n, r) => n + r.sessions, 0) }}</td>
-                                        <td></td>
-                                        <td class="py-xs text-right font-mono">{{ money(record.teaching_salary) }}</td>
+                                        <th scope="row" class="text-left">Tổng</th>
+                                        <td class="text-right font-mono">{{ teachingShare.classes.reduce((n, r) => n + r.sessions, 0) }}</td>
+                                        <td class="text-right font-mono">{{ teachingShare.classes.reduce((n, r) => n + r.students, 0) }}</td>
+                                        <td></td><td></td>
+                                        <td class="text-right font-mono">{{ money(record.teaching_salary) }}</td>
                                     </tr>
                                 </tfoot>
                             </table>
-                        </div>
+                        </UiDataTable>
                         <p class="font-caption text-caption text-on-surface-variant">
-                            Học phí / buổi lấy theo khoản học phí của từng HS (thu theo khóa hay theo tháng đều chia ra buổi, đã trừ ưu đãi); HS chưa có khoản học phí tính theo giá niêm yết của lớp. HS vào lớp sau, rời lớp hoặc bảo lưu không tính những buổi đó.{{ teachingShare.skipped ? ` ${teachingShare.skipped} ca không phải buổi dạy lớp (kèm 1-1, chấm bài, workshop) không tính % học phí.` : '' }}
+                            Giá trị 1 buổi = tổng giá niêm yết ÷ số buổi trên khoản học phí của từng HS còn giữ cuối kỳ (ưu tiên khoản gắn lớp, chưa có thì khoản gần nhất; không có học phí thì dùng giá niêm yết của lớp). Không trừ ưu đãi, không xét thanh toán hay công nợ. HS bảo lưu / thôi học hoặc đã rời lớp cuối kỳ không tính bất kỳ buổi nào trong kỳ; HS còn giữ chỉ tính từ ngày vào lớp và ngoài thời gian bảo lưu đã duyệt. Bao gồm ca dạy thay; ca bị hủy do đi muộn / về sớm không tính. Giá trị các buổi thực tính có thể khác số buổi × giá trị 1 buổi do ngày vào lớp / bảo lưu.{{ teachingShare.skipped ? ` ${teachingShare.skipped} ca không phải buổi dạy lớp (kèm 1-1, chấm bài, workshop) không tính % học phí.` : '' }}
                         </p>
                     </section>
 
