@@ -28,6 +28,19 @@ docker/menglish.sh production backup              # DB + file upload (public/upl
 
 `deploy` giữ nguyên trạng thái scheduler: đang dừng thì vẫn dừng.
 
+### Bù lớp học phí sau triển khai (chạy một lần)
+
+Sau khi triển khai thay đổi gắn lớp học phí, chạy thử trên từng môi trường, rà bảng thay đổi và các khoản bỏ
+qua rồi mới chạy thật:
+
+```bash
+docker/menglish.sh <env> artisan tuitions:link-classes --dry-run
+docker/menglish.sh <env> artisan tuitions:link-classes
+```
+
+Thay `<env>` bằng `staging` hoặc `production`. Lệnh chỉ đổi `class_id`, giữ nguyên tiền / công nợ và không
+tính lại kỳ lương đã khóa. Chạy lại không tạo thay đổi trùng. Xem [quy tắc và phạm vi bù dữ liệu](hoc-phi-gan-lop.md).
+
 `queue` chạy job hàng đợi (`php artisan queue:work`, driver `database`, bảng `jobs`), hiện dùng cho import đề cố định.
 `deploy` tự restart `queue` sau migrate. Job lỗi xem bằng `docker/menglish.sh <env> artisan queue:failed`,
 log bằng `docker/menglish.sh <env> logs -f queue`. Nếu `queue` không chạy, import đề cứ ở trạng thái "Chờ xử lý".

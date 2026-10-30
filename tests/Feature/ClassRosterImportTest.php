@@ -10,6 +10,7 @@ use App\Models\ClassScheduleConfig;
 use App\Models\ClassSession;
 use App\Models\Room;
 use App\Models\Student;
+use App\Models\StudentTuition;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -194,6 +195,24 @@ class ClassRosterImportTest extends TestCase
             'branch_id' => $this->branch->id, 'current_class_id' => $kindy8->id, 'status' => 'studying']);
         ClassEnrollment::create(['student_id' => $minhAnh->id, 'class_id' => $kindy8->id, 'enrolled_at' => '2026-06-01', 'status' => 'completed']);
         $transferredOn = today()->subDays(2)->format('d/m/Y');
+        ClassSession::create([
+            'class_id' => $kindy8->id, 'branch_id' => $this->branch->id, 'date' => today()->subDays(4),
+            'start_time' => '08:00', 'end_time' => '09:30', 'status' => 'scheduled',
+        ]);
+        // Buổi của lớp mới sau ngày chuyển không làm khoản đang dùng dở bị coi là đã dùng hết trước khi chuyển.
+        ClassSession::create([
+            'class_id' => $kindy10->id, 'branch_id' => $this->branch->id, 'date' => today()->subDay(),
+            'start_time' => '08:00', 'end_time' => '09:30', 'status' => 'scheduled',
+        ]);
+        $tuitionData = [
+            'student_id' => $minhAnh->id, 'class_id' => $kindy8->id, 'branch_id' => $this->branch->id,
+            'session_count' => 1, 'total_amount' => 500000, 'final_amount' => 500000,
+            'paid_amount' => 100000, 'debt_amount' => 400000, 'status' => 'partial', 'transfer_memo' => 'Nội dung đã chốt',
+        ];
+        $usedTuition = StudentTuition::create($tuitionData);
+        $unfinishedTuition = StudentTuition::create($tuitionData);
+        $unassignedTuition = StudentTuition::create(array_replace($tuitionData, ['class_id' => null]));
+        $before = $unfinishedTuition->fresh()->getRawOriginal();
 
         $token = $this->previewToken($this->workbook([
             'Lớp' => [['Cơ sở', 'Mã lớp', 'Tên lớp'], ['Đội Cấn', 'KINDY10', 'Kindy 10']],
@@ -207,11 +226,16 @@ class ClassRosterImportTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token]);
 
+        $this->assertSame([], $this->importReport()['failed']);
         $this->assertSame($kindy10->id, $minhAnh->fresh()->current_class_id);
         $old = ClassEnrollment::where('class_id', $kindy8->id)->firstOrFail();
         $this->assertSame([Student::ENROLLMENT_TRANSFERRED, today()->subDays(2)->toDateString()], [$old->status, $old->left_at->toDateString()]);
         $this->assertFalse($kindy8->hasOnRoster($minhAnh->id));
         $this->assertTrue($kindy10->hasOnRoster($minhAnh->id));
+        $this->assertSame($kindy8->id, $usedTuition->fresh()->class_id);
+        $this->assertSame($kindy10->id, $unfinishedTuition->fresh()->class_id);
+        $this->assertSame($kindy10->id, $unassignedTuition->fresh()->class_id);
+        $this->assertSame(array_replace($before, ['class_id' => $kindy10->id]), $unfinishedTuition->fresh()->getRawOriginal());
     }
 
     public function test_accepts_original_export_sheets_with_default_branch(): void
