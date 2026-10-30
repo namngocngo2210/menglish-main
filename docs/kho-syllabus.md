@@ -367,7 +367,10 @@ thu hồi tự động.
   - **Order in ấn** (`order_print`) → tạo `MaterialOrder` loại In ấn (vận hành cơ sở xử lý — có sẵn), ngày dùng = ngày dự kiến
     buổi test kế tiếp.
   - **Order mini test / Big Test** (`order_mini_test` / `order_big_test`) → tạo `BigTestOrder` (Học thuật duyệt — có sẵn), ngày
-    thi = ngày dự kiến buổi Mini test / Big test kế tiếp; **hạn xử lý = ngày của buổi thứ 3 trước buổi test**.
+    thi = ngày dự kiến buổi Mini test / Big test kế tiếp; **hạn xử lý = ngày của buổi thứ 3 trước buổi test**. Kèm 1 việc
+    "Chuẩn bị đề …" (`work_tasks.kind = test_order`, `big_test_order_id`) trong Danh sách đầu việc của Học thuật nhận chặng lớp
+    (cùng người nhận với việc cuối chặng §9.2), hạn = hạn xử lý của order, thông báo NHẬN VIỆC; HOÀN THÀNH không cần ảnh.
+    Việc tự đóng khi Admin duyệt (Hoàn thành) / từ chối (Hủy) order. Áp dụng như nhau cho mọi GV gửi (full-time / part-time).
 - Mốc đến hạn → thông báo GV "Đến hạn order in ấn mini test / big test lớp ABC." nút **ORDER** (lệnh mỗi giờ, 1 lần / mốc).
 
 ## 10. Giai đoạn 5 — Homework 3 giỏ (câu 7)

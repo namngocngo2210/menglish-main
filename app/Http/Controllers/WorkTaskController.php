@@ -967,8 +967,8 @@ class WorkTaskController extends Controller
         }
 
         // Quy tắc: Có ảnh đính kèm -> Hoàn thành ngay (completed); Không có ảnh -> Chờ xác nhận (pending_confirmation).
-        // Việc cuối chặng của Học thuật: HOÀN THÀNH là xong ngay (Bước 10 quy trình syllabus).
-        if ($hasImage || $task->kind === WorkTask::KIND_SYLLABUS_STAGE_END) {
+        // Việc cuối chặng / chuẩn bị đề order của Học thuật: HOÀN THÀNH là xong ngay (Bước 10 quy trình syllabus).
+        if ($hasImage || $task->isAcademicSyllabusTask()) {
             $task->update([
                 'status' => 'completed',
                 'completion_proof_image' => $imagePath,
@@ -1569,8 +1569,8 @@ class WorkTaskController extends Controller
 
         return array_values(array_filter($next, function (string $status) use ($isAssignee, $isApprover, $isAdmin, $isCreator, $task) {
             return match ($status) {
-                // Việc cuối chặng của Học thuật: người được giao bấm HOÀN THÀNH là xong (Bước 10 quy trình syllabus).
-                'completed' => $isApprover || ($isAssignee && $task->kind === WorkTask::KIND_SYLLABUS_STAGE_END),
+                // Việc cuối chặng / chuẩn bị đề order của Học thuật: người được giao bấm HOÀN THÀNH là xong (Bước 10 quy trình syllabus).
+                'completed' => $isApprover || ($isAssignee && $task->isAcademicSyllabusTask()),
                 'canceled' => $isCreator || $isAdmin,
                 'pending_confirmation' => $isAssignee,
                 'in_progress' => $isAssignee || ($isApprover && $task->status === 'pending_confirmation'),

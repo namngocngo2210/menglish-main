@@ -33,6 +33,7 @@ use App\Services\Syllabus\ConfirmDeadline;
 use App\Services\Syllabus\ConfirmReading;
 use App\Services\Syllabus\StageSchedule;
 use App\Services\Syllabus\SyllabusNotifier;
+use App\Services\Syllabus\TestOrderTasks;
 use App\Services\SyllabusProgressionService;
 use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\Audit;
@@ -2081,6 +2082,7 @@ class SyllabusController extends Controller
                 ]);
                 app(BigTestSlaService::class)->closeApprovalTasks(BigTest::find($order->big_test_id));
             }
+            app(TestOrderTasks::class)->close($order);
         });
 
         $createdNote = $created ? " Đã tạo đợt thi {$created->code} lúc ".$created->scheduled_at->format('H:i d/m/Y')." tại {$created->room}." : '';
@@ -2130,6 +2132,7 @@ class SyllabusController extends Controller
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
         ]);
+        app(TestOrderTasks::class)->close($order);
         $this->notifyUser($order->teacher_id, 'Order đề bị từ chối', "Order {$order->code} lớp {$order->classModel?->name} — Lý do: {$validated['rejection_reason']}", route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'rejected']));
 
         return redirect()->route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'rejected'])

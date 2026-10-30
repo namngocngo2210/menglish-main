@@ -3,10 +3,7 @@
 namespace App\Services\Syllabus;
 
 use App\Models\SyllabusAssignment;
-use App\Models\User;
 use App\Models\WorkTask;
-use App\Services\NotificationService;
-use App\Support\Rbac;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -18,7 +15,11 @@ class StageEndAlerts
 {
     private const DEFAULT_NOTICE = 6;
 
-    public function __construct(private readonly ClassSyllabus $syllabus, private readonly SyllabusNotifier $notifier) {}
+    public function __construct(
+        private readonly ClassSyllabus $syllabus,
+        private readonly SyllabusNotifier $notifier,
+        private readonly AcademicAssignee $assignees,
+    ) {}
 
     public function run(): int
     {
@@ -69,7 +70,7 @@ class StageEndAlerts
     private function createTask(SyllabusAssignment $assignment): ?WorkTask
     {
         $class = $assignment->classModel;
-        $assignee = $this->assignee($assignment);
+        $assignee = $this->assignees->for($assignment);
         if (! $class || ! $assignee) {
             return null;
         }
@@ -91,23 +92,5 @@ class StageEndAlerts
             'due_date' => $due->toDateString(),
             'status' => 'new',
         ]);
-    }
-
-    /**
-     * Người giao chặng (còn quyền), không thì người có quyền giao chặng gắn chi nhánh lớp (không tính Super Admin — ai cũng "phủ"
-     * mọi chi nhánh), không thì người có quyền bất kỳ ngoài Super Admin, cuối cùng mới tới Super Admin (câu 10).
-     */
-    private function assignee(SyllabusAssignment $assignment): ?User
-    {
-        $opener = $assignment->opened_by ? User::where('is_active', true)->find($assignment->opened_by) : null;
-        if ($opener?->can('syllabus.assign')) {
-            return $opener;
-        }
-        $candidates = User::whereIn('id', NotificationService::userIdsWithPermission('syllabus.assign'))->orderBy('id')->get();
-
-        [$admins, $others] = $candidates->partition(fn (User $u) => $u->hasRole(Rbac::SUPER_ADMIN));
-        $branchId = (int) $assignment->classModel?->branch_id;
-
-        return $others->first(fn (User $u) => in_array($branchId, $u->branchIds(), true)) ?? $others->first() ?? $admins->first();
     }
 }

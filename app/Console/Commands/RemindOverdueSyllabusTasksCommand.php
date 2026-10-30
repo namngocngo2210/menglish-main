@@ -19,7 +19,7 @@ class RemindOverdueSyllabusTasksCommand extends Command
     public function handle(SyllabusNotifier $notifier): int
     {
         $count = 0;
-        WorkTask::query()->where('kind', WorkTask::KIND_SYLLABUS_STAGE_END)
+        WorkTask::query()->whereIn('kind', WorkTask::ACADEMIC_SYLLABUS_KINDS)
             ->whereIn('status', [...WorkTask::OPEN_STATUSES, 'overdue'])
             ->whereDate('due_date', '<', today())
             ->where(fn ($q) => $q->whereNull('last_reminded_on')->orWhereDate('last_reminded_on', '<', today()))

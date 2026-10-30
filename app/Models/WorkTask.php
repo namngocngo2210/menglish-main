@@ -35,6 +35,7 @@ class WorkTask extends Model
         'task_type',
         'kind',
         'big_test_id',
+        'big_test_order_id',
         'merchandise_item_id',
         'frequency',
         'due_date',
@@ -168,6 +169,17 @@ class WorkTask extends Model
 
     /** Việc cuối chặng cho Học thuật (docs/kho-syllabus.md §9.2): NHẬN VIỆC → Đang làm, HOÀN THÀNH không cần ảnh / xác nhận. */
     public const KIND_SYLLABUS_STAGE_END = 'syllabus_stage_end';
+
+    /** Việc chuẩn bị đề cho Học thuật khi giáo viên order đề mini test / Big Test theo mốc syllabus (docs/kho-syllabus.md §9.3). */
+    public const KIND_TEST_ORDER = 'test_order';
+
+    /** Việc syllabus của Học thuật: người được giao bấm HOÀN THÀNH là xong, không cần ảnh / xác nhận. */
+    public const ACADEMIC_SYLLABUS_KINDS = [self::KIND_SYLLABUS_STAGE_END, self::KIND_TEST_ORDER];
+
+    public function isAcademicSyllabusTask(): bool
+    {
+        return in_array($this->kind, self::ACADEMIC_SYLLABUS_KINDS, true);
+    }
 
     /**
      * Tạo lượt kế tiếp của việc lặp (hạn + 1 ngày / 1 tuần / 1 tháng), cùng người giao / người nhận.
