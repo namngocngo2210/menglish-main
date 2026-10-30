@@ -23,7 +23,7 @@ final class UserGuide
         'hoc-thuat' => [Roles::ACADEMIC_LEAD],
         'hoc-vu' => [Roles::ACADEMIC_STAFF],
         'tu-van' => [Roles::SALES_CONSULTANT],
-        'giao-vien' => [Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME],
+        'giao-vien' => Roles::TEACHERS,
         'tro-giang' => [Roles::ASSISTANT],
         'hoc-vien' => [Roles::STUDENT],
     ];

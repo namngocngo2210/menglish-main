@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Support\Roles;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -159,7 +160,7 @@ class UserSeeder extends Seeder
                 'email' => 'gv.native1@menglish.edu.vn',
                 'phone' => '0900000016',
                 'branch' => 'CG',
-                'role' => 'teacher_parttime',
+                'role' => Roles::FOREIGN_TEACHER,
             ],
 
             // ============ TRỢ GIẢNG (TA) ============

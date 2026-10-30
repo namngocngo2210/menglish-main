@@ -234,15 +234,15 @@ class PayrollPeriod extends Model
 
         return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
             // Chỉ biên bản đã quyết phạt mới ảnh hưởng lương (ghi nhận / giải trình / khắc phục không bắt tính lại)
-            || Penalty::deductibleFor($this)->where('updated_at', '>', $this->calculated_at)->exists()
+            || $this->payrollPenalties()->deductibleFor($this)->where('updated_at', '>', $this->calculated_at)->exists()
             // Đơn giá dạy, cấu hình lương (BHXH, công đoàn, tái tục...) và tiêu chí KPI đổi sau lần tính
             || TeacherHourlyRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             || TeacherRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             || SystemSetting::where('key', 'like', 'payroll_%')->whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             || KpiCriterion::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             // Biên bản đổi trạng thái sau lần tính (quyết phạt/nộp) hoặc vừa quá hạn nộp mà chưa được trừ
-            || Penalty::whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
-            || Penalty::deductibleFor($this)->whereNull('payroll_record_id')
+            || $this->payrollPenalties()->whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
+            || $this->payrollPenalties()->deductibleFor($this)->whereNull('payroll_record_id')
                 ->whereIn('user_id', $this->records()->select('user_id'))->exists()
             // Biên bản đã trừ ở lần tính bị gỡ khỏi phiếu (chuyển kỳ / nộp trực tiếp / miễn phạt) — kể cả biên bản vi phạm từ kỳ trước
             || $this->penaltyDeductionOutOfSync()
@@ -278,10 +278,17 @@ class PayrollPeriod extends Model
                 ->where('updated_at', '>', $this->calculated_at)->exists();
     }
 
+    /** Phạt tự động không ảnh hưởng phiếu GVNN, kể cả kiểm tra dữ liệu đổi sau lần tính. */
+    private function payrollPenalties(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Penalty::query()->where(fn ($q) => $q->whereNull('auto_source')
+            ->orWhereNotIn('user_id', $this->records()->where('salary_role', Roles::FOREIGN_TEACHER)->select('user_id')));
+    }
+
     /** Tiền phạt đã trừ trên phiếu khác tổng các biên bản còn gắn với phiếu đó. */
     private function penaltyDeductionOutOfSync(): bool
     {
-        $linked = Penalty::whereIn('payroll_record_id', $this->records()->select('id'))
+        $linked = $this->payrollPenalties()->whereIn('payroll_record_id', $this->records()->select('id'))
             ->selectRaw('payroll_record_id, SUM(amount) as total')->groupBy('payroll_record_id')
             ->pluck('total', 'payroll_record_id');
 
@@ -438,6 +445,11 @@ class PayrollPeriod extends Model
         $validSessionKeys = TeacherTimesheet::whereBetween('teaching_date', [$this->start_date, $this->end_date])
             ->where('status', 'valid')->get(['class_id', 'teaching_date', 'user_id'])
             ->mapWithKeys(fn (TeacherTimesheet $ts) => [$ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$ts->user_id => true]);
+        // Nạp phân công GVNN từng buổi một lần; ca cũ chưa gắn class_session_id tra theo lớp + ngày.
+        $periodSessions = ClassSession::whereBetween('date', [$this->start_date, $this->end_date])
+            ->get(['id', 'class_id', 'date', 'foreign_teacher_id']);
+        $sessionsById = $periodSessions->keyBy('id');
+        $sessionsByClassDate = $periodSessions->groupBy(fn (ClassSession $session) => $session->class_id.'|'.$session->date?->toDateString());
         $producedUserIds = [];
         $commissionService = app(SalesCommissionService::class);
         $formula = app(PayrollFormulaService::class);
@@ -469,6 +481,7 @@ class PayrollPeriod extends Model
             $existing = $existingRecords->get($user->id);
             $profile = $formula->profile($user);
             $isPartTime = $profile['employee_type'] === PayrollRecord::TYPE_PARTTIME;
+            $isForeignTeacher = $profile['salary_role'] === Roles::FOREIGN_TEACHER;
 
             // 1. Chấm công hợp lệ trong kỳ: mỗi ca = 1 buổi dạy
             $timesheets = TeacherTimesheet::where('user_id', $user->id)
@@ -487,6 +500,7 @@ class PayrollPeriod extends Model
             $isAssistant = $profile['salary_role'] === Roles::ASSISTANT;
             $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => match (true) {
                 $share !== null => $share['outcomes'][$ts->id] ?? ['amount' => 0.0, 'counted' => false, 'late_rule' => null, 'unit' => null],
+                $isForeignTeacher => $ts->foreignTeacherPayOutcome(),
                 $isAssistant => $ts->assistantPayOutcome($settings),
                 default => $ts->payOutcome($user, $settings),
             });
@@ -507,12 +521,18 @@ class PayrollPeriod extends Model
                 'deduction' => $outcomes[$i]['late_deduction'],
             ] : null)->filter()->values()->all() : [];
 
-            // Buổi có GVNN cùng lớp (chỉ để Kế toán tham khảo khi nhập dòng "Buổi có GVNN" — chờ BA chốt cách tính)
-            $foreignSessions = $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $validSessionKeys) {
-                $foreignTeacherId = $ts->classModel?->foreign_teacher_id;
+            // Buổi có GVNN theo phân công từng buổi; Kế toán vẫn nhập tay tổng tiền cho GV Việt Nam.
+            $foreignSessions = $isForeignTeacher ? 0 : $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $validSessionKeys, $sessionsById, $sessionsByClassDate) {
+                $assigned = $ts->class_session_id
+                    ? collect([$sessionsById->get($ts->class_session_id)])->filter()
+                    : $sessionsByClassDate->get($ts->class_id.'|'.$ts->teaching_date?->toDateString(), collect());
 
-                return $foreignTeacherId && (int) $foreignTeacherId !== (int) $user->id
-                    && $validSessionKeys->has($ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$foreignTeacherId);
+                return $assigned->contains(function (ClassSession $session) use ($ts, $user, $validSessionKeys) {
+                    $foreignTeacherId = $session->foreign_teacher_id;
+
+                    return $foreignTeacherId && (int) $foreignTeacherId !== (int) $user->id
+                        && $validSessionKeys->has($ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$foreignTeacherId);
+                });
             })->count();
 
             // 2. Hoa hồng: khoản đạt gate kép trong kỳ (kể cả khoản hoãn từ kỳ trước); còn lại hoãn.
@@ -534,7 +554,8 @@ class PayrollPeriod extends Model
 
             // 3. Phạt: biên bản đã quyết phạt theo ngày trừ hiệu lực hoặc chuyển sang từ kỳ đã khóa
             // (Penalty::scopeDeductibleFor, TK-0014).
-            $penalties = Penalty::where('user_id', $user->id)->deductibleFor($this)->get(['id', 'amount']);
+            $penalties = Penalty::where('user_id', $user->id)->deductibleFor($this)
+                ->when($isForeignTeacher, fn ($q) => $q->whereNull('auto_source'))->get(['id', 'amount']);
             $penaltyDeduction = (float) $penalties->sum('amount');
 
             // 4. Công thức theo loại nhân sự
@@ -544,6 +565,13 @@ class PayrollPeriod extends Model
                 'sessions' => ['count' => $sessions, 'per_session' => $sessionPay->where('unit', 'session')->count(), 'per_hour' => $sessionPay->where('unit', 'hour')->count()],
                 'late' => ['threshold' => $settings['late_threshold_minutes'], 'per_minute' => $settings['late_deduction_per_minute'], 'total_deduction' => round((float) collect($lateLines)->sum('deduction'), 2), 'lines' => $lateLines],
             ];
+            if ($isForeignTeacher) {
+                $details['foreign_teacher'] = [
+                    'minutes' => (int) $outcomes->sum('minutes'),
+                    'rates' => $outcomes->pluck('rate')->filter()->unique()->values()->map(fn ($rate) => (float) $rate)->all(),
+                    'missing_rate_sessions' => $outcomes->filter(fn (array $outcome) => $outcome['missing_rate'])->count(),
+                ];
+            }
             $kpiSource = null;
             $kpiScore = null;
             $kpiAuto = 0.0;
@@ -601,8 +629,8 @@ class PayrollPeriod extends Model
 
             // Ngày công (TK-0012 / TK-0013): quên chấm vào / ra phạt mỗi lần (mọi nhân sự có chấm công hằng ngày).
             $workdays = $attendanceService->workdays($user, $start, $end);
-            $missingPunchDeduction = round($workdays['missing_punches'] * $settings['missing_punch_fine'], 0);
-            if ($workdays['missing_punches'] > 0) {
+            $missingPunchDeduction = $isForeignTeacher ? 0.0 : round($workdays['missing_punches'] * $settings['missing_punch_fine'], 0);
+            if (! $isForeignTeacher && $workdays['missing_punches'] > 0) {
                 $details['missing_punch'] = ['count' => $workdays['missing_punches'], 'check_in' => $workdays['missing_check_in'],
                     'check_out' => $workdays['missing_check_out'], 'fine' => $settings['missing_punch_fine'], 'deduction' => $missingPunchDeduction];
             }
@@ -724,9 +752,11 @@ class PayrollPeriod extends Model
         $money = fn ($v) => Money::format((float) $v);
         $parts = [$record->employee_type_label.' ('.$record->salary_role_label.')'];
         if ($record->isPartTime()) {
-            $parts[] = $record->isAssistant()
-                ? PayrollRecord::number($record->actual_hours).' giờ dạy = '.$money($record->teaching_salary)
-                : (int) $record->teaching_sessions.' buổi dạy = '.$money($record->teaching_salary);
+            $parts[] = match (true) {
+                $record->isForeignTeacher() => (int) data_get($record->calculation_details, 'foreign_teacher.minutes', 0).' phút dạy = '.$money($record->teaching_salary),
+                $record->isAssistant() => PayrollRecord::number($record->actual_hours).' giờ dạy = '.$money($record->teaching_salary),
+                default => (int) $record->teaching_sessions.' buổi dạy = '.$money($record->teaching_salary),
+            };
             if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
                 $parts[] = 'giữ '.(int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS';
             }

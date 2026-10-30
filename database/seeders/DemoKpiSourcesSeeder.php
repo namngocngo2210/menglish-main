@@ -47,8 +47,8 @@ use Illuminate\Support\Facades\DB;
  * - Học viên cho lớp K27 / K28: điểm danh từng buổi đã qua, mini test, bài tập về nhà + bài nộp (Học vụ nộp hộ). Lớp của GV
  *   "tốt" chuyên cần / BTVN cao, điểm test tăng; lớp của GV "kém" thấp, điểm giảm (chuyên cần, BTVN, kết quả / tiến bộ test).
  * - Báo cáo giảng dạy tháng của GV full-time / part-time cho các tháng trong kỳ KPI trước: nộp tối mùng 1, GV kém nộp mùng 4.
- * - Nghỉ dạy (DemoPayrollSeeder để trống giờ dạy buổi đó): buổi nghỉ sau cùng của GVNN mỗi tháng có đơn nghỉ được duyệt, các
- *   buổi nghỉ khác là nghỉ không phép.
+ * - Nghỉ dạy (DemoPayrollSeeder để trống giờ dạy buổi đó): GV part-time có nghỉ có phép / không phép ở cả hai tháng để đếm
+ *   KPI; GVNN giữ đơn nghỉ mỗi tháng để đối chiếu quy tắc không phạt tự động. Buổi nghỉ sau cùng có đơn được duyệt.
  * - Sale / Học vụ: lead mới quá hạn liên hệ lần đầu (mở / quá hạn mốc SLA như CrmSlaService), học phí đến hạn chưa có lần
  *   nhắc (Học vụ kém) / đã nhắc (Học vụ tốt), order in ấn xử lý trễ + kiểm kê sách lệch, phiếu thu bị trả về tháng trước.
  *
@@ -371,34 +371,44 @@ class DemoKpiSourcesSeeder extends Seeder
         }
     }
 
-    // ── Nghỉ dạy có phép (GVNN, buổi DemoPayrollSeeder để trống giờ dạy) ───────
+    // ── Nghỉ dạy có phép (buổi DemoPayrollSeeder để trống giờ dạy) ────────────
 
-    /** GVNN nghỉ buổi sau cùng không có giờ dạy của lớp K27 / K28: xin nghỉ 2 ngày trước, Quản lý duyệt sáng hôm trước. */
+    /** Buổi vắng sau cùng của từng lớp: xin nghỉ 2 ngày trước, người có quyền duyệt sáng hôm trước; buổi vắng trước vẫn không phép. */
     private function seedLeave(): void
     {
-        $teacher = $this->user('gv.native1@menglish.edu.vn');
-        $manager = $this->user('manager@menglish.edu.vn');
-        if (! $teacher || ! $manager) {
-            return;
-        }
-        foreach (ClassModel::whereIn('code', ['DEMO-CG-SPK27', 'DEMO-CG-SPK1'])->get() as $class) {
-            $session = ClassSession::where('class_id', $class->id)->where('teacher_id', $teacher->id)
-                ->whereDate('date', '<', $this->realNow->toDateString())
-                ->whereDoesntHave('timesheets', fn ($q) => $q->where('user_id', $teacher->id))
-                ->orderByDesc('date')->first();
-            if (! $session) {
+        foreach ([
+            ['gv.native1@menglish.edu.vn', ['DEMO-CG-SPK27', 'DEMO-CG-SPK1'], 'manager@menglish.edu.vn'],
+            ['gv.banthoigian1@menglish.edu.vn', ['DEMO-DD-GT27'], 'admin@menglish.edu.vn'],
+            ['gv.thaonguyen@menglish.edu.vn', ['DEMO-BD-GT1'], 'manager.bd@menglish.edu.vn'],
+        ] as [$email, $classCodes, $managerEmail]) {
+            $teacher = $this->user($email);
+            $manager = $this->user($managerEmail);
+            if (! $teacher || ! $manager) {
                 continue;
             }
-            $day = $session->date->copy();
-            $this->when($day->copy()->subDays(2)->setTime(21, 0), function () use ($teacher, $manager, $day) {
-                $request = StaffAttendanceRequest::create([
-                    'user_id' => $teacher->id, 'branch_id' => $teacher->branch_id, 'type' => StaffAttendanceRequest::TYPE_LEAVE,
-                    'date_from' => $day->toDateString(), 'date_to' => $day->toDateString(),
-                    'reason' => 'I have a visa appointment at the embassy that day, a substitute teacher is arranged.', 'status' => 'pending',
-                ]);
-                Carbon::setTestNow($day->copy()->subDay()->setTime(9, 10));
-                $request->update(['status' => 'approved', 'reviewed_by' => $manager->id, 'reviewed_at' => now()]);
-            });
+            foreach (ClassModel::whereIn('code', $classCodes)->get() as $class) {
+                // Ca chấm tay do quên check-in có thể chỉ gắn lớp / ngày; vẫn là đã dạy, không chọn để lập đơn nghỉ.
+                $taught = TeacherTimesheet::where('class_id', $class->id)->where('user_id', $teacher->id)
+                    ->where('status', '!=', 'invalid')->get();
+                $session = ClassSession::where('class_id', $class->id)->where('teacher_id', $teacher->id)
+                    ->where('status', '!=', 'cancelled')->whereDate('date', '<', $this->realNow->toDateString())
+                    ->whereNotIn('id', $taught->pluck('class_session_id')->filter())
+                    ->whereNotIn('date', $taught->whereNull('class_session_id')->pluck('teaching_date')->map(fn ($date) => $date->toDateString()))
+                    ->orderByDesc('date')->orderByDesc('start_time')->first();
+                if (! $session) {
+                    continue;
+                }
+                $day = $session->date->copy();
+                $this->when($day->copy()->subDays(2)->setTime(21, 0), function () use ($teacher, $manager, $day) {
+                    $request = StaffAttendanceRequest::create([
+                        'user_id' => $teacher->id, 'branch_id' => $teacher->branch_id, 'type' => StaffAttendanceRequest::TYPE_LEAVE,
+                        'date_from' => $day->toDateString(), 'date_to' => $day->toDateString(),
+                        'reason' => 'Xin nghỉ buổi dạy để giải quyết giấy tờ cá nhân, đã bố trí giáo viên dạy thay.', 'status' => 'pending',
+                    ]);
+                    Carbon::setTestNow($day->copy()->subDay()->setTime(9, 10));
+                    $request->update(['status' => 'approved', 'reviewed_by' => $manager->id, 'reviewed_at' => now()]);
+                });
+            }
         }
     }
 

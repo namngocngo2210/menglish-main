@@ -40,28 +40,40 @@ const detailUrl = (id) => route('payroll.config.teacher-rates', { teacher_id: id
 const detailOpen = ref(!!props.selectedTeacher);
 const rateOpen = ref(false);
 const rankOpen = ref(false);
-const unit = ref(props.selectedType === 'academic' ? 'tuition' : props.selectedType === 'assistant' ? 'hour' : 'session');
+const teacherId = ref(props.selectedTeacher ? String(props.selectedTeacher.id) : '');
+const rateTeacher = computed(() => props.teachers.find((teacher) => String(teacher.id) === teacherId.value));
+const isForeign = computed(() => !!rateTeacher.value?.is_foreign);
+const unit = ref(isForeign.value ? 'minute' : props.selectedType === 'academic' ? 'tuition' : props.selectedType === 'assistant' ? 'hour' : 'session');
 const type = ref(props.selectedType ?? 'parttime');
-const isAssistant = computed(() => type.value === 'assistant');
+const isAssistant = computed(() => !isForeign.value && type.value === 'assistant');
 const teacherOptions = computed(() => props.teachers.map((t) => ({ value: String(t.id), label: t.name + (t.employee_code ? ` — ${t.employee_code}` : '') })));
 const unitOptions = [
     { value: 'session', label: 'Theo buổi dạy (VNĐ / buổi)' },
     { value: 'hour', label: 'Theo giờ (VNĐ / giờ)' },
     { value: 'tuition', label: '% học phí theo buổi đã dạy' },
 ];
-const unitSuffix = { session: 'VNĐ / buổi', hour: 'VNĐ / giờ', tuition: '% học phí' };
+const unitSuffix = { session: 'VNĐ / buổi', hour: 'VNĐ / giờ', minute: 'VNĐ / phút', tuition: '% học phí' };
 // Chọn loại "Học thuật kiêm giảng dạy" → đơn vị mặc định là % học phí.
 // Trợ giảng → luôn theo giờ, chọn bậc đơn giá (TK-0010).
 watch(type, (value) => {
-    if (value === 'academic') unit.value = 'tuition';
+    if (isForeign.value) unit.value = 'minute';
+    else if (value === 'academic') unit.value = 'tuition';
     else if (value === 'assistant') unit.value = 'hour';
-    else if (unit.value === 'tuition') unit.value = 'session';
+    else if (unit.value === 'tuition' || unit.value === 'minute') unit.value = 'session';
 });
+// Theo người được chọn để GVNN không gửi nhầm đơn vị giờ / buổi hay bậc Trợ giảng.
+watch(rateTeacher, (teacher) => {
+    if (teacher) {
+        type.value = teacher.is_foreign ? 'foreign' : (String(teacher.id) === String(props.selectedTeacher?.id) ? props.selectedType ?? teacher.teacher_type : teacher.teacher_type);
+        if (teacher.is_foreign) unit.value = 'minute';
+        else if (unit.value === 'minute') unit.value = type.value === 'academic' ? 'tuition' : type.value === 'assistant' ? 'hour' : 'session';
+    }
+}, { immediate: true });
 </script>
 
 <template>
     <div>
-        <UiPageHeader title="Cấu hình đơn giá giáo viên" description="Quản lý và cập nhật định mức lương theo buổi / giờ cho từng giáo viên. Đổi giá = thêm phiên bản mới có ngày hiệu lực, buổi dạy cũ vẫn tính theo giá cũ.">
+        <UiPageHeader title="Cấu hình đơn giá giáo viên" description="Quản lý và cập nhật định mức lương theo buổi / giờ / phút cho từng giáo viên. Đổi giá = thêm phiên bản mới có ngày hiệu lực, buổi dạy cũ vẫn tính theo giá cũ.">
             <template #actions>
                 <UiButton variant="secondary" icon="percent" :href="route('payroll.config.commission-tiers')">Cấu hình hoa hồng</UiButton>
                 <UiButton icon="price_change" @click="rateOpen = true">Cập nhật đơn giá</UiButton>
@@ -99,7 +111,7 @@ watch(type, (value) => {
                                     <UiMoney :value="teacher.profile_rate" suffix="đ/giờ" />
                                     <span class="block text-right font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
                                 </template>
-                                <span v-else class="block text-right font-caption text-caption text-on-surface-variant">Mặc định</span>
+                                <span v-else class="block text-right font-caption text-caption text-on-surface-variant">{{ teacher.is_foreign ? 'Chưa có đơn giá phút' : 'Mặc định' }}</span>
                             </td>
                             <td class="font-code text-code">{{ teacher.current?.effective_from ?? '—' }}</td>
                             <td class="text-right"><UiButton variant="secondary" size="sm" icon="visibility" :href="detailUrl(teacher.id)">Xem</UiButton></td>
@@ -170,6 +182,7 @@ watch(type, (value) => {
                                 {{ selectedTeacher.profile_rate }} / giờ
                                 <span class="block font-caption text-caption text-on-surface-variant">theo hồ sơ nhân sự</span>
                             </template>
+                            <span v-else-if="selectedTeacher.is_foreign" class="font-body-medium text-body-medium text-on-surface-variant">Chưa có đơn giá phút — cần nhập</span>
                             <span v-else class="font-body-medium text-body-medium text-on-surface-variant">Chưa có đơn giá riêng (mặc định {{ defaultRate }} / giờ)</span>
                         </dd>
                     </div>
@@ -185,10 +198,11 @@ watch(type, (value) => {
         <UiModal :show="rateOpen" :title="'Cập nhật đơn giá mới' + (selectedTeacher ? ` — ${selectedTeacher.name}` : '')" max-width="2xl" data-modal="new-rate" @close="rateOpen = false">
             <UiForm id="new-rate-form" :action="route('payroll.config.teacher-rates.personal.store')" method="post" preserve-state="errors" class="space-y-md">
                 <input v-if="selectedTeacher" type="hidden" name="user_id" :value="selectedTeacher.id" />
-                <UiSelect v-else name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên --" :options="teacherOptions" />
+                <UiSelect v-else v-model="teacherId" name="user_id" label="Giáo viên" required placeholder="-- Chọn giáo viên --" :options="teacherOptions" />
 
                 <div class="grid grid-cols-1 gap-md md:grid-cols-2">
-                    <UiSelect v-model="type" name="teacher_type" label="Loại giáo viên" required :options="teacherTypes" />
+                    <input v-if="isForeign" type="hidden" name="teacher_type" value="foreign" />
+                    <UiSelect v-else v-model="type" name="teacher_type" label="Loại giáo viên" required :options="teacherTypes" />
                     <UiDate name="effective_from" label="Ngày hiệu lực từ" required :value="todayDate" hint="Áp dụng cho các ca dạy từ ngày này tới khi có đơn giá mới hơn." />
                     <template v-if="isAssistant">
                         <div>
@@ -198,10 +212,15 @@ watch(type, (value) => {
                         </div>
                         <UiSelect name="hourly_rate" label="Bậc đơn giá Trợ giảng" required placeholder="-- Chọn bậc --" :options="assistantTiers" hint="Lương TA = số giờ dạy hợp lệ × bậc đơn giá giờ." />
                     </template>
-                    <UiSelect v-if="!isAssistant" v-model="unit" name="rate_unit" label="Đơn vị tính" required :options="unitOptions" />
-                    <UiField v-if="!isAssistant" label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required :hint="unit === 'tuition' ? '* % × học phí theo buổi của các HS trong lớp, cho mỗi buổi dạy hợp lệ (VD: 40).' : '* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.'">
+                    <div v-if="isForeign">
+                        <input type="hidden" name="rate_unit" value="minute" />
+                        <p class="font-body-small text-body-small text-on-surface-variant">Đơn vị tính</p>
+                        <p class="font-body-medium text-body-medium">Theo phút (VNĐ / phút)</p>
+                    </div>
+                    <UiSelect v-else-if="!isAssistant" v-model="unit" name="rate_unit" label="Đơn vị tính" required :options="unitOptions" />
+                    <UiField v-if="!isAssistant" label="Mức đơn giá mới" name="hourly_rate" for="f_hourly_rate" required :hint="unit === 'tuition' ? '* % × học phí theo buổi của các HS trong lớp, cho mỗi buổi dạy hợp lệ (VD: 40).' : unit === 'minute' ? 'GVNN: số phút theo lịch buổi × đơn giá phút cá nhân; nhập số tiền thỏa thuận, không chọn bậc.' : '* Đơn vị tính theo loại giáo viên: Part-time tính theo buổi.'">
                         <div class="flex items-center gap-sm">
-                            <input id="f_hourly_rate" :key="unit === 'tuition' ? 'pct' : 'money'" type="number" name="hourly_rate" required :min="unit === 'tuition' ? 0.1 : 1000" :max="unit === 'tuition' ? 100 : null" :step="unit === 'tuition' ? 0.5 : 1000" :placeholder="unit === 'tuition' ? 'VD: 40' : 'Nhập số tiền...'" :class="['w-full rounded-lg border bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50', page.props.errors?.hourly_rate ? 'border-error' : 'border-outline-variant']" />
+                            <input id="f_hourly_rate" :key="unit === 'tuition' ? 'pct' : 'money'" type="number" name="hourly_rate" required :min="unit === 'tuition' ? 0.1 : unit === 'minute' ? 100 : 1000" :max="unit === 'tuition' ? 100 : null" :step="unit === 'tuition' ? 0.5 : unit === 'minute' ? 0.01 : 1000" :placeholder="unit === 'tuition' ? 'VD: 40' : 'Nhập số tiền...'" :class="['w-full rounded-lg border bg-surface-container-lowest px-md py-sm text-right font-mono text-body-base focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50', page.props.errors?.hourly_rate ? 'border-error' : 'border-outline-variant']" />
                             <span class="whitespace-nowrap font-body-medium text-body-medium text-on-surface-variant">{{ unitSuffix[unit] }}</span>
                         </div>
                     </UiField>
@@ -214,8 +233,8 @@ watch(type, (value) => {
                 <p v-show="type === 'academic'" class="rounded-lg bg-info-container px-md py-sm font-body-small text-body-small text-on-info-container">
                     Học thuật kiêm nhiệm giảng dạy: mỗi buổi chấm công hợp lệ được trả % × học phí theo buổi của các học sinh trong lớp (lớp thu theo khóa hay theo tháng đều quy về một buổi). Cần bật "Kiêm nhiệm giảng dạy" ở hồ sơ nhân sự.
                 </p>
-                <p v-show="type === 'foreign'" class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
-                    Lương buổi có GVNN đang chờ BA chốt cách tính — Kế toán nhập tay trên phiếu lương.
+                <p v-show="isForeign" class="rounded-lg bg-warning-container px-md py-sm font-body-small text-body-small text-on-warning-container">
+                    GVNN hưởng lương theo phút lịch buổi × đơn giá phút cá nhân. Không tính theo giờ check-in/out, không trừ đi muộn / về sớm.
                 </p>
             </UiForm>
             <template #footer>

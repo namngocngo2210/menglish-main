@@ -157,14 +157,14 @@ class StaffMultiBranchTest extends TestCase
         $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'sales_consultant'] + $form)
             ->assertSessionHasErrors('branch_id');
 
-        foreach (['teacher_fulltime', 'teacher_parttime'] as $i => $role) {
+        foreach (['teacher_fulltime', 'teacher_parttime', 'foreign_teacher'] as $i => $role) {
             $this->actingAs($this->admin)->post(route('users.store'), ['role' => $role, 'email' => "gv{$i}@gmail.com"] + $form)
                 ->assertRedirect(route('users.index'))->assertSessionHasNoErrors();
             $this->assertNull(User::where('email', "gv{$i}@gmail.com")->sole()->branch_id);
         }
 
         $this->actingAs($this->admin)->get(route('users.create'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('branchOptionalRoles', ['teacher_fulltime', 'teacher_parttime', 'assistant']));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('branchOptionalRoles', ['teacher_fulltime', 'teacher_parttime', 'foreign_teacher', 'assistant']));
 
         $this->actingAs($this->admin)->post(route('users.store'), ['role' => 'assistant'] + $form)
             ->assertRedirect(route('users.index'))->assertSessionHasNoErrors();

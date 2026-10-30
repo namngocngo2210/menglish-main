@@ -19,6 +19,7 @@ use App\Models\StaffReport;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
+use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
@@ -105,6 +106,22 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->status);
         $newTeacher = User::where('email', 'gv.minhduc@menglish.edu.vn')->firstOrFail();
         $this->assertTrue($period->records()->where('user_id', $newTeacher->id)->where('teaching_sessions', '>', 0)->exists());
+        // GVNN có vai trò riêng, hưởng phút theo lịch; đi muộn / vắng không tạo khoản phạt tự động.
+        $foreign = User::where('email', 'gv.native1@menglish.edu.vn')->firstOrFail();
+        $this->assertSame([Roles::FOREIGN_TEACHER], $foreign->getRoleNames()->all());
+        $foreignRate = TeacherHourlyRate::effectiveFor($foreign->id, $month);
+        $this->assertNotNull($foreignRate);
+        $this->assertSame(TeacherHourlyRate::UNIT_MINUTE, $foreignRate->rate_unit);
+        $this->assertSame(7500.0, (float) $foreignRate->hourly_rate);
+        $foreignRecord = $period->records()->where('user_id', $foreign->id)->firstOrFail();
+        $this->assertSame(Roles::FOREIGN_TEACHER, $foreignRecord->salary_role);
+        $this->assertGreaterThan(0, data_get($foreignRecord->calculation_details, 'foreign_teacher.minutes', 0));
+        $this->assertEqualsWithDelta(data_get($foreignRecord->calculation_details, 'foreign_teacher.minutes') * 7500,
+            (float) $foreignRecord->teaching_salary, 0.01);
+        $this->assertSame(0.0, (float) $foreignRecord->late_deduction);
+        $this->assertSame(0.0, (float) $foreignRecord->missing_punch_deduction);
+        $this->assertSame(0.0, (float) $foreignRecord->tax_deduction);
+        $this->assertSame(0.0, (float) $foreignRecord->foreign_session_pay);
         // Kỳ tháng trước: đã duyệt, từ ngày 10 (lịch trả lương) đã chi trả; có phiếu cho mọi vai trò nhân sự (lớp K27 cho GV / TA
         // chưa có lịch dạy), không có phiếu của người vào làm từ tháng này.
         $lastPeriod = PayrollPeriod::where('year', $last->year)->where('month', $last->month)->firstOrFail();
@@ -128,7 +145,7 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertFalse($lastPeriod->records()->where('user_id', $newTeacher->id)->exists());
         $staffRoles = [Roles::MANAGER, Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::ASSISTANT];
         foreach ([$lastPeriod, $period] as $p) {
-            foreach ($staffRoles as $role) {
+            foreach ([...$staffRoles, Roles::FOREIGN_TEACHER] as $role) {
                 $this->assertTrue($p->records()->whereHas('user.roles', fn ($q) => $q->where('name', $role))->exists(), "Kỳ {$p->code} thiếu phiếu {$role}.");
             }
         }
@@ -139,7 +156,7 @@ class DemoPayrollSeederTest extends TestCase
 
         // Biên bản lập tay (có bằng chứng) cho mọi vai trò, đủ các bước; biên bản quá hạn nộp tháng trước đã trừ lương rồi khắc phục.
         $manual = Penalty::whereNotNull('evidence_path');
-        foreach ($staffRoles as $role) {
+        foreach ([...$staffRoles, Roles::FOREIGN_TEACHER] as $role) {
             $this->assertTrue((clone $manual)->whereHas('user.roles', fn ($q) => $q->where('name', $role))->exists(), "Thiếu biên bản {$role}.");
         }
         foreach (['pending', 'explained', 'confirmed', 'fined', 'paid', 'deducted', 'resolved', 'cancelled'] as $status) {
@@ -161,15 +178,20 @@ class DemoPayrollSeederTest extends TestCase
 
         $this->assertKpiSourcesCovered($last, $month);
 
-        // Chạy lại không nhân bản.
+        // Dữ liệu demo cũ đã tồn tại: chạy lại vẫn sửa vai trò / đơn giá GVNN trước khi bỏ qua phần chính.
+        $foreign->syncRoles([Roles::TEACHER_PARTTIME]);
+        $foreignRate->update(['hourly_rate' => 450000, 'rate_unit' => TeacherHourlyRate::UNIT_SESSION]);
         $counts = fn () => [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count(),
             AcademicProject::count(), WorkTask::count(), MaterialOrder::count(), Student::count(), StudentAttendance::count(), MiniTestScore::count(),
-            StaffReport::count(), SlaEvent::count(), StudentTuition::count(), ClassEnrollment::count()];
+            StaffReport::count(), SlaEvent::count(), StudentTuition::count(), ClassEnrollment::count(), TeacherHourlyRate::count()];
         $before = $counts();
         $this->seed(DemoPayrollSeeder::class);
         $this->assertSame($before, $counts());
         $this->assertEquals($leadPayroll->teaching_salary, $leadPayroll->fresh()->teaching_salary);
         $this->assertSame($shareClasses->all(), $leadPayroll->fresh()->calculation_details['teaching_share']['classes']);
+        $this->assertSame([Roles::FOREIGN_TEACHER], $foreign->fresh()->getRoleNames()->all());
+        $this->assertSame(TeacherHourlyRate::UNIT_MINUTE, $foreignRate->fresh()->rate_unit);
+        $this->assertSame(7500.0, (float) $foreignRate->fresh()->hourly_rate);
     }
 
     /**
@@ -215,6 +237,13 @@ class DemoPayrollSeederTest extends TestCase
         }
         $this->assertSame(1, $measure('gv.cohuu1@menglish.edu.vn', 'teacher_absent_unexcused', $last));
         $this->assertSame(1, $measure('gv.native1@menglish.edu.vn', 'teacher_leave', $last));
+        // Nguồn KPI part-time vẫn đủ sau khi GVNN có vai trò riêng; ca quên check-in đã chấm tay không phải nghỉ.
+        foreach (['gv.banthoigian1@menglish.edu.vn' => $last, 'gv.thaonguyen@menglish.edu.vn' => $month] as $email => $m) {
+            $this->assertTrue(User::where('email', $email)->firstOrFail()->hasRole(Roles::TEACHER_PARTTIME));
+            $this->assertSame(1, $measure($email, 'teacher_absent_unexcused', $m));
+            $this->assertSame(1, $measure($email, 'teacher_leave', $m));
+            $this->assertGreaterThan(0, $measure($email, 'teacher_late', $m));
+        }
         $this->assertGreaterThan($measure('levanvu@menglish.edu.vn', 'crm_sla_late', $month), $measure('hoangthinh@menglish.edu.vn', 'crm_sla_late', $month));
         $this->assertGreaterThan($measure('nva@menglish.edu.vn', 'tuition_no_reminder', $last), $measure('giaovu2@menglish.edu.vn', 'tuition_no_reminder', $last));
 

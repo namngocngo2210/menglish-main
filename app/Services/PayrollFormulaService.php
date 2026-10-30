@@ -27,15 +27,15 @@ class PayrollFormulaService
 
     public const FULLTIME_CONTRACTS = ['toàn thời gian', 'fulltime', 'full-time'];
 
-    public const DEPARTMENTS = ['teacher', 'fulltime', 'assistant', 'academic', 'operations'];
+    public const DEPARTMENTS = ['teacher', 'fulltime', 'assistant', 'foreign', 'academic', 'operations'];
 
     /** Nhãn khối (department) trên bảng lương / file xuất. */
-    public const DEPARTMENT_LABELS = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'assistant' => 'Trợ giảng', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
+    public const DEPARTMENT_LABELS = ['teacher' => 'Giáo viên', 'fulltime' => 'GV Full-time', 'assistant' => 'Trợ giảng', 'foreign' => 'GVNN', 'academic' => 'Học thuật', 'operations' => 'Vận hành'];
 
     /**
      * Loại nhân sự trên phiếu lương, suy từ vai trò + loại hợp đồng:
      * - Học thuật (academic_lead) → Full-time, bảng "Khối Học thuật"; Học vụ (academic_staff) → Full-time, bảng "Học vụ & Vận hành".
-     * - teacher_parttime → Part-time; teacher_fulltime → Full-time.
+     * - foreign_teacher → Part-time, bảng GVNN; teacher_parttime → Part-time; teacher_fulltime → Full-time.
      * - assistant → nhóm "Trợ giảng" (salary_role / department assistant); Part-time / Full-time theo hợp đồng như dưới.
      * - Nhân sự chưa gán vai trò: HĐ "Bán thời gian"/"Cộng tác viên" → GV Part-time;
      *   "Toàn thời gian" → GV Full-time; chưa rõ (Thử việc / trống) → có lương cơ bản thì Full-time, không thì Part-time.
@@ -54,6 +54,9 @@ class PayrollFormulaService
         }
         if ($has(Roles::ACADEMIC_STAFF)) {
             return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => Roles::ACADEMIC_STAFF, 'department' => 'operations'];
+        }
+        if ($has(Roles::FOREIGN_TEACHER)) {
+            return ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => Roles::FOREIGN_TEACHER, 'department' => 'foreign'];
         }
         if ($has(Roles::TEACHER_PARTTIME)) {
             return ['employee_type' => PayrollRecord::TYPE_PARTTIME, 'salary_role' => Roles::TEACHER_PARTTIME, 'department' => 'teacher'];
@@ -190,17 +193,19 @@ class PayrollFormulaService
 
     /**
      * Lớp tính KPI giữ HS của GV part-time: lớp GV là GV chính, cộng lớp có ca dạy hợp lệ trong kỳ
-     * (config payroll.retention.class_scope = main_teacher_or_taught).
+     * (config payroll.retention.class_scope = main_teacher_or_taught). GVNN luôn lấy lớp được phân công GVNN
+     * cộng lớp có ca dạy hợp lệ trong kỳ.
      *
      * @param  array<int>  $taughtClassIds
      * @return array<int>
      */
     public function retentionClassIds(User $user, array $taughtClassIds): array
     {
-        $owned = ClassModel::where('teacher_id', $user->id)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $foreign = $this->profile($user)['salary_role'] === Roles::FOREIGN_TEACHER;
+        $owned = ClassModel::where($foreign ? 'foreign_teacher_id' : 'teacher_id', $user->id)->pluck('id')->map(fn ($id) => (int) $id)->all();
         $scope = config('payroll.retention.class_scope', 'main_teacher_or_taught');
 
-        return array_values(array_unique($scope === 'main_teacher' ? $owned : array_merge($owned, array_map('intval', $taughtClassIds))));
+        return array_values(array_unique(! $foreign && $scope === 'main_teacher' ? $owned : array_merge($owned, array_map('intval', $taughtClassIds))));
     }
 
     /** Bảng % thưởng tái tục theo số HS nghỉ: [số nghỉ => ['percent' => float, 'pending' => bool]]. */

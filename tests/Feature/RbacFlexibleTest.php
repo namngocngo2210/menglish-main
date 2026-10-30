@@ -281,8 +281,8 @@ class RbacFlexibleTest extends TestCase
     {
         $staff = $this->makeUser('academic_staff');
         // Vai trò tùy chỉnh (vd. "teacher" chỉ có trong test) không tự lan vào danh sách gán của Học vụ / Học thuật.
-        $this->assertEqualsCanonicalizing(['academic_lead', 'assistant', 'student', 'teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($staff));
-        $this->assertEqualsCanonicalizing(['teacher_fulltime', 'teacher_parttime'], Rbac::assignableRoles($this->makeUser('academic_lead')));
+        $this->assertEqualsCanonicalizing(['academic_lead', 'assistant', 'student', 'teacher_fulltime', 'teacher_parttime', 'foreign_teacher'], Rbac::assignableRoles($staff));
+        $this->assertEqualsCanonicalizing(['teacher_fulltime', 'teacher_parttime', 'foreign_teacher'], Rbac::assignableRoles($this->makeUser('academic_lead')));
         $this->assertNotContains('admin', Rbac::assignableRoles($this->makeUser('manager')));
         // Không quản lý người ngang cấp: Quản lý cơ sở không gán được vai trò Quản lý cơ sở.
         $this->assertNotContains('manager', Rbac::assignableRoles($this->makeUser('manager')));

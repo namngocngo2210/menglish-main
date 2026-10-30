@@ -329,7 +329,7 @@ class DemoPhase3Seeder extends Seeder
             'renewal_beyond_percent' => 0,
         ]);
 
-        // Đơn giá buổi riêng (Quản lý cơ sở — teacher_rate.manage): mỗi lần đổi giá là 1 phiên bản theo ngày hiệu lực.
+        // Đơn giá riêng (Quản lý cơ sở — teacher_rate.manage): mỗi lần đổi giá là 1 phiên bản theo ngày hiệu lực.
         // Quản lý chỉ đặt giá cho nhân sự chi nhánh mình → chọn Quản lý cùng chi nhánh người được đặt giá, không có thì Admin.
         $managers = collect([$this->staff['manager_cg'], $this->staff['manager_bd']]);
         $since = $this->lastMonth->copy()->subMonthNoOverflow()->startOfMonth();
@@ -338,15 +338,19 @@ class DemoPhase3Seeder extends Seeder
             ['teacher_cg', 250000, $this->thisMonth, 'Tăng đơn giá sau đánh giá thử việc '.self::MARKER],
             ['assistant_cg', 35000, $since, 'Bậc đơn giá giờ trợ giảng '.self::MARKER],
             ['assistant_bd', 30000, $since, 'Bậc đơn giá giờ trợ giảng '.self::MARKER],
-            ['foreign', 450000, $since, 'Đơn giá buổi GVNN '.self::MARKER],
+            ['foreign', 7500, $since, 'Đơn giá phút GVNN '.self::MARKER],
         ];
         foreach ($rates as [$key, $amount, $from, $note]) {
             $branchIds = $this->staff[$key]->branchIds();
             $manager = $managers->first(fn (User $m) => array_intersect($m->branchIds(), $branchIds) !== []) ?? $admin;
             $this->asUser($manager, PayrollController::class, 'storePersonalTeacherRate', [
                 'user_id' => $this->staff[$key]->id, 'hourly_rate' => $amount,
-                // Trợ giảng: bậc đơn giá GIỜ (TK-0010); GV: đơn giá buổi.
-                'rate_unit' => str_starts_with($key, 'assistant') ? TeacherHourlyRate::UNIT_HOUR : TeacherHourlyRate::UNIT_SESSION,
+                // GVNN: đơn giá phút (TK-0019); TA: bậc đơn giá giờ (TK-0010); GV Việt Nam: đơn giá buổi.
+                'rate_unit' => match (true) {
+                    $key === 'foreign' => TeacherHourlyRate::UNIT_MINUTE,
+                    str_starts_with($key, 'assistant') => TeacherHourlyRate::UNIT_HOUR,
+                    default => TeacherHourlyRate::UNIT_SESSION,
+                },
                 'effective_from' => $from->toDateString(), 'note' => $note,
             ]);
         }
@@ -738,7 +742,7 @@ class DemoPhase3Seeder extends Seeder
         $countBy = fn ($query, string $column) => $query->selectRaw("{$column} as k, count(*) as c")->groupBy($column)->pluck('c', 'k')
             ->map(fn ($c, $k) => "{$k}: {$c}")->implode(', ');
         $rows = [
-            ['teacher_hourly_rates (demo, đ/buổi)', TeacherHourlyRate::where('note', 'like', '%'.self::MARKER.'%')->count()],
+            ['teacher_hourly_rates (demo, buổi / giờ / phút)', TeacherHourlyRate::where('note', 'like', '%'.self::MARKER.'%')->count()],
             ['teacher_timesheets theo trạng thái', $countBy(TeacherTimesheet::query(), 'status')],
             ['teacher_timesheets theo nguồn', $countBy(TeacherTimesheet::query(), 'source')],
             ['penalties theo trạng thái', $countBy(Penalty::query(), 'status')],

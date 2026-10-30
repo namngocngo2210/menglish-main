@@ -78,7 +78,7 @@ return [
             // Cây vai trò (chủ dự án 06/10/2026): Học vụ CRU khách (học viên), giáo viên, trợ giảng, Học thuật.
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'user.assign_role.assistant', 'user.assign_role.teacher_fulltime',
-            'user.assign_role.teacher_parttime', 'user.assign_role.student', 'user.assign_role.academic_lead',
+            'user.assign_role.teacher_parttime', 'user.assign_role.foreign_teacher', 'user.assign_role.student', 'user.assign_role.academic_lead',
             // BA 26/09/2026: Học vụ là actor chính bên CRM → toàn quyền CRM / test đầu vào TRỪ xóa (lead.delete,
             // placement_test.delete). Vẫn giới hạn chi nhánh mình; lùi giai đoạn vẫn chỉ Admin (A6 Q1).
             'lead.view', 'lead.create', 'lead.update', 'lead.assign', 'lead.convert', 'lead.mark_lost',
@@ -118,7 +118,7 @@ return [
         'academic_lead' => [
             // Cây vai trò (chủ dự án 06/10/2026): Học thuật CRU giáo viên, mọi chi nhánh.
             'user.view', 'user.create', 'user.update', 'user.assign_role',
-            'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime',
+            'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime', 'user.assign_role.foreign_teacher',
             'lead.view',
             'student.view', 'student.manage_account', 'class.*', 'class.teach', 'attendance_student.*',
             'level.*', 'syllabus.*', 'big_test.*',
@@ -164,6 +164,19 @@ return [
         ],
 
         'teacher_parttime' => [
+            'payroll.view_own',
+            'class.view', 'class.teach',
+            'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
+            'work_task.view', 'work_task.request', 'support_ticket.create', 'support_ticket.view', 'notification.view',
+            'syllabus.view', 'syllabus.update', 'syllabus.propose_adjustment',
+            'practice.view_results',
+            'staff_report.submit', 'portal.teacher', 'portal.staff', 'academic_project.view',
+            'class.scope_own', 'student.scope_own', 'big_test.scope_own', 'payroll.scope_own', 'work_task.scope_own', 'support_ticket.scope_own',
+            // Order học liệu: giáo viên tạo order, chỉ thấy order của mình.
+            'material_order.create', 'material_order.scope_own',
+        ],
+
+        'foreign_teacher' => [
             'payroll.view_own',
             'class.view', 'class.teach',
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',

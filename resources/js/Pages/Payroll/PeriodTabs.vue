@@ -1,7 +1,7 @@
 <script setup>
 /**
- * Thanh chuyển khối / loại nhân sự của bảng lương một kỳ: Tất cả · GV Part-time · Trợ giảng · GV Full-time · Học thuật · Học vụ & Vận hành.
- * current: all | parttime | assistant | fulltime | academic | operations (nút đang chọn tô màu chính); `department`: nhãn viết hoa như trang khối.
+ * Thanh chuyển khối / loại nhân sự của bảng lương một kỳ: Tất cả · GV Part-time · Trợ giảng · GVNN · GV Full-time · Học thuật · Học vụ & Vận hành.
+ * current: all | parttime | assistant | foreign | fulltime | academic | operations (nút đang chọn tô màu chính); `department`: nhãn viết hoa như trang khối.
  */
 import { computed } from 'vue';
 import { route } from '@/lib/route';
@@ -16,6 +16,7 @@ const tabs = computed(() => [
     { key: 'all', icon: 'groups', label: 'Tất cả', href: route('payroll.periods.show', props.periodId) },
     { key: 'parttime', icon: 'schedule', label: 'GV Part-time', href: route('payroll.periods.show', { id: props.periodId, type: 'teacher_parttime' }) },
     { key: 'assistant', icon: 'support', label: 'Trợ giảng', href: route('payroll.periods.show', { id: props.periodId, type: 'assistant' }) },
+    { key: 'foreign', icon: 'language', label: 'GVNN', href: route('payroll.periods.show', { id: props.periodId, type: 'foreign_teacher' }) },
     { key: 'fulltime', icon: 'work', label: 'Giáo viên Full-time', href: route('payroll.periods.fulltime', props.periodId) },
     { key: 'academic', icon: 'school', label: props.department ? 'Khối Học Thuật' : 'Khối Học thuật', href: route('payroll.periods.academic', props.periodId) },
     { key: 'operations', icon: 'support_agent', label: props.department ? 'Khối Học Vụ & Vận Hành' : 'Khối Học vụ & Vận hành', href: route('payroll.periods.operations', props.periodId) },

@@ -389,8 +389,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_academic_lead_can_only_create_teachers(): void
     {
-        // 1. Cho phép: teacher_fulltime, teacher_parttime
-        $allowed = ['teacher_fulltime', 'teacher_parttime'];
+        // 1. Cho phép: giáo viên full-time, part-time và GVNN.
+        $allowed = ['teacher_fulltime', 'teacher_parttime', 'foreign_teacher'];
         foreach ($allowed as $idx => $role) {
             $email = "lead_created_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicLead)->post(route('users.store'), [
@@ -422,8 +422,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_academic_staff_can_only_create_underlings_assistant_teachers_student(): void
     {
-        // 1. Cho phép: assistant, teacher_fulltime, teacher_parttime, student
-        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'student', 'academic_lead'];
+        // 1. Cho phép: trợ giảng, giáo viên (gồm GVNN), học viên và Học thuật.
+        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'foreign_teacher', 'student', 'academic_lead'];
         foreach ($allowed as $idx => $role) {
             $email = "staff_created_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [

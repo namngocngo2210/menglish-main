@@ -11,7 +11,7 @@ import (
 	"github.com/namngocngo2210/menglish-main/v2/api/internal/iam/iamdb"
 )
 
-// SyncCatalog đồng bộ danh mục quyền và 9 vai trò xuống DB (chạy sau mỗi lần migrate):
+// SyncCatalog đồng bộ danh mục quyền và 10 vai trò xuống DB (chạy sau mỗi lần migrate):
 //   - thêm / cập nhật quyền có trong danh mục, xóa quyền đã bỏ (kéo theo gán quyền và phân quyền cá nhân);
 //   - tạo vai trò còn thiếu và cấp quyền mặc định CHỈ cho vai trò vừa tạo, không ghi đè cấu hình Admin đã chỉnh;
 //   - vai trò Admin luôn giữ mọi quyền thao tác, phạm vi và gán vai trò (kể cả quyền mới thêm).

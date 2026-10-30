@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
 use App\Models\Course;
@@ -308,10 +309,15 @@ class Phase3FormulaTest extends TestCase
         $foreign = $this->userWithRole('teacher_fulltime', ['name' => 'GVNN John', 'base_salary' => 20000000]);
         TeacherHourlyRate::create(['user_id' => $teacher->id, 'hourly_rate' => 300000, 'rate_unit' => 'session', 'effective_from' => '2026-01-01']);
         $class = $this->classFor(null, 'NN-01');
-        $class->update(['foreign_teacher_id' => $foreign->id]);
+        // GVNN được phân công theo từng buổi (class_sessions.foreign_teacher_id), không theo lớp.
         foreach (['2026-09-05', '2026-09-12'] as $date) {
-            $this->timesheet($teacher, $class, $date);
-            $this->timesheet($foreign, $class, $date);
+            $session = ClassSession::create([
+                'class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => $date,
+                'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $teacher->id,
+                'foreign_teacher_id' => $foreign->id, 'status' => 'scheduled',
+            ]);
+            $this->timesheet($teacher, $class, $date)->update(['class_session_id' => $session->id]);
+            $this->timesheet($foreign, $class, $date)->update(['class_session_id' => $session->id]);
         }
 
         $period = $this->calculate($this->period(9));

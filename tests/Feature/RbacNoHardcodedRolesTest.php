@@ -9,7 +9,7 @@ use Tests\TestCase;
  * Chốt chặn RBAC (docs/rbac.md): quyết định "được làm gì / thấy gì" dùng permission (`can()`, `@can`, middleware `can:`),
  * phạm vi dữ liệu (App\Support\DataScope) hoặc quan hệ (người lập phiếu, GV của lớp, người được giao…).
  *
- * Bộ 9 vai trò là CỐ ĐỊNH (App\Support\Roles). Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận
+ * Bộ 10 vai trò là CỐ ĐỊNH (App\Support\Roles). Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận
  * thông báo…) được phép kiểm tra vai trò, nhưng CHỈ qua hằng số `Roles::*` — không gõ tên vai trò bằng chuỗi.
  * Super Admin: User::isSuperAdmin() (Gate::before). Các chỗ dùng isSuperAdmin() bị giới hạn trong danh sách dưới đây.
  */

@@ -30,6 +30,9 @@ final class Roles
 
     public const TEACHER_PARTTIME = 'teacher_parttime';
 
+    /** Giáo viên nước ngoài. */
+    public const FOREIGN_TEACHER = 'foreign_teacher';
+
     /** Trợ giảng. */
     public const ASSISTANT = 'assistant';
 
@@ -44,15 +47,16 @@ final class Roles
         self::SALES_CONSULTANT,
         self::TEACHER_FULLTIME,
         self::TEACHER_PARTTIME,
+        self::FOREIGN_TEACHER,
         self::ASSISTANT,
         self::STUDENT,
     ];
 
-    /** Giáo viên (full-time + part-time). */
-    public const TEACHERS = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME];
+    /** Giáo viên (full-time, part-time và nước ngoài). */
+    public const TEACHERS = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::FOREIGN_TEACHER];
 
     /** Nhân sự trực tiếp đứng lớp: giáo viên + trợ giảng. */
-    public const TEACHING = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT];
+    public const TEACHING = [...self::TEACHERS, self::ASSISTANT];
 
     /**
      * Vai trò không bắt buộc cơ sở chính: giáo viên, trợ giảng dạy được ở mọi cơ sở. Chưa gắn cơ sở thì dùng chung
@@ -61,9 +65,9 @@ final class Roles
     public const BRANCH_OPTIONAL = self::TEACHING;
 
     /** Khối đào tạo: giáo viên, trợ giảng, Học vụ, Học thuật. */
-    public const ACADEMIC = [self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT, self::ACADEMIC_STAFF, self::ACADEMIC_LEAD];
+    public const ACADEMIC = [...self::TEACHING, self::ACADEMIC_STAFF, self::ACADEMIC_LEAD];
 
-    /** Vai trò có bộ tiêu chí KPI riêng (màn Tiêu chí KPI) và được chấm KPI tháng: mọi nhân sự, trừ Admin và Học viên. */
+    /** Vai trò có bộ tiêu chí KPI riêng (màn Tiêu chí KPI) và được chấm KPI tháng: mọi nhân sự, trừ Admin, Học viên và GVNN. */
     public const KPI_ROLES = [self::ACADEMIC_STAFF, self::ACADEMIC_LEAD, self::MANAGER, self::SALES_CONSULTANT, self::TEACHER_FULLTIME, self::TEACHER_PARTTIME, self::ASSISTANT];
 
     /** Vai trò mặc định nhận việc / thông báo vận hành của cơ sở. */
@@ -78,6 +82,7 @@ final class Roles
         self::SALES_CONSULTANT => 'Chuyên viên Tư vấn Tuyển sinh (Sales)',
         self::TEACHER_FULLTIME => 'Giáo viên Fulltime',
         self::TEACHER_PARTTIME => 'Giáo viên Parttime',
+        self::FOREIGN_TEACHER => 'Giáo viên nước ngoài (GVNN)',
         self::ASSISTANT => 'Trợ giảng (Teaching Assistant)',
         self::STUDENT => 'Học viên (Student)',
     ];
@@ -91,6 +96,7 @@ final class Roles
         self::SALES_CONSULTANT => 'Tư vấn viên',
         self::TEACHER_FULLTIME => 'Giáo viên Full-time',
         self::TEACHER_PARTTIME => 'Giáo viên Part-time',
+        self::FOREIGN_TEACHER => 'GVNN',
         self::ASSISTANT => 'Trợ giảng',
         self::STUDENT => 'Học viên',
     ];
@@ -98,6 +104,8 @@ final class Roles
     /**
      * Vai trò đã bỏ khỏi hệ thống → vai trò nhận lại người đang giữ (migration dọn dẹp trên hệ thống còn dữ liệu cũ).
      * Kế toán & Thu ngân → Quản lý cơ sở; Giáo viên giảng dạy → Giáo viên Full-time.
+     * Không thêm foreigner_teacher ở đây: migration 2026_12_04 đổi mã và giữ ID, quyền, phân quyền cá nhân;
+     * migration cũ duyệt RETIRED sẽ xóa dữ liệu đó trước khi đổi mã.
      */
     public const RETIRED = [
         'accountant' => self::MANAGER,

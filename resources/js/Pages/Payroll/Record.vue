@@ -122,8 +122,13 @@ function sessionNote(ts) {
         Chưa có đơn giá giờ – cần nhập lại. Đơn giá cũ theo buổi của Trợ giảng không được quy đổi: lương giờ dạy đang là 0đ. Chọn bậc đơn giá giờ ở màn Đơn giá giáo viên rồi bấm "Đồng bộ &amp; Tính lại".
     </UiAlert>
 
+    <UiAlert v-if="record.foreign_rate_missing" type="warning" class="mb-md" data-foreign-rate-missing>
+        Chưa có đơn giá phút — các buổi thiếu đơn giá được tính 0đ. Nhập đơn giá phút cá nhân ở màn Đơn giá giáo viên rồi bấm "Đồng bộ &amp; Tính lại".
+    </UiAlert>
+
     <UiAlert v-if="record.uses_q3" type="info" class="mb-md">
-        <template v-if="record.is_assistant">Công thức Trợ giảng: <strong>số giờ dạy hợp lệ × đơn giá giờ của TA − khoản trừ (phạt vẫn trừ)</strong>. Không KPI, không phụ cấp, không thưởng tái tục, không trừ BHXH / Công đoàn.</template>
+        <template v-if="record.is_foreign_teacher">Công thức GVNN: <strong>phút theo lịch buổi × đơn giá phút + KPI giữ HS + phụ cấp tự do − khoản trừ thủ công</strong>. Không trừ BHXH / Công đoàn / TNCN, đi muộn / vắng hay phạt tự động.</template>
+        <template v-else-if="record.is_assistant">Công thức Trợ giảng: <strong>số giờ dạy hợp lệ × đơn giá giờ của TA − khoản trừ (phạt vẫn trừ)</strong>. Không KPI, không phụ cấp, không thưởng tái tục, không trừ BHXH / Công đoàn.</template>
         <template v-else-if="isPT">Công thức Part-time: <strong>số buổi × đơn giá buổi riêng + KPI giữ HS + buổi có GVNN + phụ cấp tự do − khoản trừ</strong>. Không trừ BHXH / Công đoàn / TNCN.</template>
         <template v-else-if="record.insurance_base !== null">
             Công thức Full-time: <strong>lương cơ bản × công hưởng lương / công chuẩn + các khoản cộng − BHXH {{ pct(record.rate_insurance) }}% − Công đoàn {{ pct(record.rate_union) }}% (trên mức lương đóng BHXH {{ money(record.insurance_base) }}đ) − đi muộn (phút × lương phút) − thuế TNCN (nhập tay) − trừ vi phạm</strong>.
@@ -139,7 +144,7 @@ function sessionNote(ts) {
                     <section class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
                         <h3 class="mb-md flex items-center gap-xs font-h3 text-h3 text-on-surface"><span class="material-symbols-outlined text-primary-container" aria-hidden="true">account_balance_wallet</span>Tổng thu nhập <span class="ml-auto font-mono text-primary">{{ money(record.gross_income) }} đ</span></h3>
                         <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
-                            <div class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Số buổi dạy</p><p class="font-h3 text-h3">{{ record.teaching_sessions }} buổi</p></div>
+                            <div class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Số buổi dạy</p><p class="font-h3 text-h3">{{ record.teaching_sessions }} buổi</p><p v-if="record.is_foreign_teacher" class="font-caption text-caption text-on-surface-variant">{{ record.teaching_minutes }} phút theo lịch buổi</p></div>
                             <div class="rounded-lg bg-surface-container-low p-md">
                                 <p class="font-body-small text-body-small text-on-surface-variant">Đơn giá cơ bản</p>
                                 <p class="font-h3 text-h3">{{ currentRate ? money(currentRate.rate) + 'đ' : '—' }}</p>
@@ -170,8 +175,8 @@ function sessionNote(ts) {
 
                         <section v-if="!record.is_assistant" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
                             <h3 class="font-h3 text-h3 text-on-surface">Phụ cấp mở rộng</h3>
-                            <UiInput v-if="canEdit" type="number" name="foreign_session_pay" label="Lớp GVNN đan xen (đ) — chờ BA chốt" min="0" step="1000" :value="Math.trunc(record.foreign_session_pay)" :hint="`${record.foreign_teacher_sessions_count} buổi có GVNN cùng lớp trong kỳ. Kế toán nhập tổng tiền.`" />
-                            <p v-else class="flex justify-between font-body-medium text-body-medium"><span>Lớp GVNN đan xen</span><span class="font-mono">{{ money(record.foreign_session_pay) }} đ</span></p>
+                            <UiInput v-if="canEdit && !record.is_foreign_teacher" type="number" name="foreign_session_pay" label="Lớp GVNN đan xen (đ) — chờ BA chốt" min="0" step="1000" :value="Math.trunc(record.foreign_session_pay)" :hint="`${record.foreign_teacher_sessions_count} buổi có GVNN cùng lớp trong kỳ. Kế toán nhập tổng tiền.`" />
+                            <p v-else-if="!record.is_foreign_teacher" class="flex justify-between font-body-medium text-body-medium"><span>Lớp GVNN đan xen</span><span class="font-mono">{{ money(record.foreign_session_pay) }} đ</span></p>
                             <PayslipLines kind="earning" :lines="editLines" :saved="record.manual_lines" :can-edit="canEdit" add-label="Thêm phụ cấp" placeholder="VD: Hỗ trợ thỏa thuận, Gửi xe, Thưởng khác" />
                         </section>
                     </div>
@@ -184,9 +189,9 @@ function sessionNote(ts) {
                             <tbody>
                                 <tr v-for="(ts, i) in timesheets" v-show="showAllSessions || i < 10" :key="ts.id">
                                     <td class="font-code text-code">{{ formatDate(ts.date) }}</td>
-                                    <td>{{ sessionLabel(ts) }}</td>
+                                    <td>{{ sessionLabel(ts) }}<span v-if="ts.unit === 'minute'" class="block font-caption text-caption text-on-surface-variant">{{ ts.minutes }} phút theo lịch</span></td>
                                     <td>{{ ts.class_code ?? '—' }}</td>
-                                    <td class="text-right font-code text-code">{{ money(ts.rate) }}{{ ts.unit === 'session' ? 'đ/buổi' : 'đ/giờ' }}</td>
+                                    <td class="text-right font-code text-code">{{ money(ts.rate) }}{{ ts.unit === 'minute' ? 'đ/phút' : ts.unit === 'session' ? 'đ/buổi' : 'đ/giờ' }}</td>
                                     <td><UiMoney :value="ts.amount" suffix="đ" /></td>
                                     <td class="font-body-small text-body-small text-on-surface-variant">{{ sessionNote(ts) }}</td>
                                 </tr>

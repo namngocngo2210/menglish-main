@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\BranchStaff;
 use App\Support\Money;
+use App\Support\StaffType;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +74,7 @@ class SlaBreachService
     }
 
     /**
-     * Quá hạn → biên bản + thông báo (một lần). Chưa bật phạt cho SLA này thì chỉ báo Admin + người phụ trách.
+     * Quá hạn → biên bản + thông báo (một lần). Chưa bật phạt hoặc người phụ trách là GVNN thì chỉ báo Admin + người phụ trách.
      *
      * @param  array<string, string>  $facts  các dòng "nhãn => giá trị" in vào file chi tiết
      */
@@ -88,7 +89,7 @@ class SlaBreachService
         $penalty = null;
 
         DB::transaction(function () use ($event, $rule, $owner, $now, $subjectLabel, $facts, &$penalty) {
-            if ($rule['penalty'] && $owner) {
+            if ($rule['penalty'] && $owner && ! StaffType::isForeignTeacher($owner)) {
                 // Bậc phạt theo lần tái phạm cộng dồn trong N tháng (không tính biên bản đã hủy).
                 $occurrence = Penalty::withoutViewerScope()->where('user_id', $owner->id)->where('auto_source', $event->rule_key)->where('status', '!=', 'cancelled')
                     ->where('created_at', '>=', $now->copy()->subMonthsNoOverflow(Sla::ladderResetMonths()))->count() + 1;

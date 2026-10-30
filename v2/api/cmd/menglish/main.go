@@ -347,7 +347,7 @@ func openFiles(cfg config.Config, log *slog.Logger, pool *pgxpool.Pool) (*files.
 	return files.NewService(pool, store, log, fc.URLTTL), nil
 }
 
-// runMigrate chạy goose; sau "up" thì đồng bộ danh mục quyền và 9 vai trò, rồi bỏ cache quyền của mọi người.
+// runMigrate chạy goose; sau "up" thì đồng bộ danh mục quyền và 10 vai trò, rồi bỏ cache quyền của mọi người.
 func runMigrate(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		args = []string{"up"}

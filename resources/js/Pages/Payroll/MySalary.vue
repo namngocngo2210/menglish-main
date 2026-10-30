@@ -129,13 +129,13 @@ const printPayslip = () => window.print();
                 <tbody>
                     <tr v-for="(ts, i) in timesheets" v-show="(showAll || i < 10) && (!cls || cls === ts.class)" :key="ts.id">
                         <td class="font-code text-code">{{ ts.date }}</td>
-                        <td class="font-mono">{{ ts.time }}</td>
+                        <td class="font-mono">{{ ts.time }}<span v-if="ts.unit === 'minute'" class="block font-caption text-caption text-on-surface-variant">{{ ts.minutes }} phút theo lịch</span></td>
                         <td>
                             {{ ts.class ?? '—' }}
                             <UiBadge v-if="ts.type === 'sub'" color="info">Cover</UiBadge>
                             <span v-else-if="ts.type !== 'regular'" class="font-caption text-caption text-on-surface-variant">{{ ts.type_label }}</span>
                         </td>
-                        <td class="text-right font-mono">{{ money(ts.rate) }}<span class="font-caption text-caption text-on-surface-variant">/{{ ts.unit === 'session' ? 'buổi' : 'giờ' }}</span></td>
+                        <td class="text-right font-mono">{{ money(ts.rate) }}<span class="font-caption text-caption text-on-surface-variant">/{{ ts.unit === 'minute' ? 'phút' : ts.unit === 'session' ? 'buổi' : 'giờ' }}</span></td>
                         <td class="text-right font-mono">
                             <span v-if="record.is_full_time" class="font-caption text-caption text-on-surface-variant">Trong lương cơ bản</span>
                             <template v-else>{{ money(ts.amount) }}</template>

@@ -216,7 +216,7 @@ func importUsers(ctx context.Context, r *legacy.Run) error {
 				role = to
 			}
 			if !GetCatalog().HasRole(role) {
-				r.Note("tài khoản #%d: bỏ vai trò %q (không có trong 9 vai trò)", uid, role)
+				r.Note("tài khoản #%d: bỏ vai trò %q (không có trong 10 vai trò)", uid, role)
 				continue
 			}
 			if !slices.Contains(u.roles, role) {

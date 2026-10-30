@@ -43,6 +43,13 @@ class DemoPhase3SeederTest extends TestCase
         // Đơn giá buổi riêng có phiên bản; chấm công chỉ tính buổi thật; chấm tay có lý do + giờ vào/ra; ca không có buổi bị từ chối.
         $teacher = User::where('email', 'nguyenvanan@menglish.edu.vn')->firstOrFail();
         $this->assertSame(2, TeacherHourlyRate::where('user_id', $teacher->id)->where('rate_unit', 'session')->count());
+        // GVNN luôn dùng phút ngay ở Phase 3, trước khi DemoPayrollSeeder bổ sung dữ liệu.
+        $foreign = User::where('email', 'gv.native1@menglish.edu.vn')->firstOrFail();
+        $this->assertSame([Roles::FOREIGN_TEACHER], $foreign->getRoleNames()->all());
+        $foreignRate = TeacherHourlyRate::effectiveFor($foreign->id, today());
+        $this->assertNotNull($foreignRate);
+        $this->assertSame(TeacherHourlyRate::UNIT_MINUTE, $foreignRate->rate_unit);
+        $this->assertSame(7500.0, (float) $foreignRate->hourly_rate);
         $this->assertSame(0, TeacherTimesheet::where('status', 'valid')->whereIn('source', ['checkin', 'manual'])->whereNull('class_session_id')->count());
         $manual = TeacherTimesheet::where('source', 'manual')->where('status', 'valid')->firstOrFail();
         $this->assertNotNull($manual->checkin_time);

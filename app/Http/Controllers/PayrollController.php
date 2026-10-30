@@ -29,6 +29,7 @@ use App\Support\Money;
 use App\Support\PayrollAdjustScope;
 use App\Support\ReportPeriod;
 use App\Support\Roles;
+use App\Support\StaffType;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -229,6 +230,8 @@ class PayrollController extends Controller
             // Trợ giảng chưa có đơn giá giờ (TK-0010): lương giờ dạy 0đ → cần nhập lại đơn giá ở Đơn giá giáo viên.
             'assistantRateMissing' => $period->records->filter(fn (PayrollRecord $r) => $r->assistantRateMissing())
                 ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
+            'foreignRateMissing' => $period->records->filter(fn (PayrollRecord $r) => $r->foreignRateMissing())
+                ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
             'negativeNet' => $negativeRecords
                 ->sortBy(fn (PayrollRecord $r) => $r->user?->name)
                 ->map(fn (PayrollRecord $r) => [
@@ -279,6 +282,7 @@ class PayrollController extends Controller
                 'name' => $staff->name,
                 'email' => $staff->email,
                 'reason' => match (true) {
+                    $formula->profile($staff)['salary_role'] === Roles::FOREIGN_TEACHER => 'GVNN: chưa có buổi dạy hợp lệ trong kỳ',
                     $formula->profile($staff)['employee_type'] === PayrollRecord::TYPE_PARTTIME => 'Part-time: chưa có buổi dạy hợp lệ trong kỳ',
                     (float) $staff->base_salary <= 0 => 'Chưa nhập lương cơ bản',
                     default => 'Đã có lương cơ bản: bấm Đồng bộ & Tính lại',
@@ -365,7 +369,7 @@ class PayrollController extends Controller
             'bang-luong-'.\Illuminate\Support\Str::slug($period->code ?: $period->id).($department ? '-'.$department : '').($type ? '-'.$type : ''),
             [
                 'Nhân sự', 'Mã NV', 'Email', 'Khối', 'Loại', 'Vai trò lương', 'Lương cơ bản (hợp đồng)', 'Công chuẩn', 'Công hưởng lương', 'Ngày quên chấm ra (0,5 công)',
-                'Lương cơ bản theo công', 'Phụ cấp hợp đồng theo công', 'Số buổi', 'Số giờ', 'Lương buổi / giờ dạy',
+                'Lương cơ bản theo công', 'Phụ cấp hợp đồng theo công', 'Số buổi', 'Số giờ', 'Lương buổi / giờ / phút dạy',
                 'Nguồn KPI', 'Trạng thái KPI', 'HS giữ được / đầu kỳ', 'Bậc KPI giữ HS (đ/HS)', 'Điểm KPI Học vụ (%)', 'KPI', 'KPI kiêm nhiệm giảng dạy',
                 'Số buổi có GVNN', 'Buổi có GVNN (chờ BA)', 'Số HS chốt (hoa hồng)', '% hoa hồng', 'Căn cứ thực thu', 'Hoa hồng', 'Hoa hồng hoãn',
                 'Thưởng tái tục', 'Chi tiết cộng tự do', 'Phụ cấp / cộng khác', 'Tổng thu nhập',
@@ -513,6 +517,9 @@ class PayrollController extends Controller
         // Mẫu phiếu theo loại nhân sự (4 mockup chi tiết lương): GV Part-time, GV Full-time, Học vụ, Học thuật; Sale / khác dùng mẫu Full-time.
         $variant = self::payslipVariant($record);
         $currentRate = TeacherHourlyRate::effectiveFor((int) $record->user_id, $period->end_date);
+        if ($record->isForeignTeacher() && ! $currentRate?->isPerMinute()) {
+            $currentRate = null;
+        }
         // Mốc hoa hồng hiệu lực tại ngày cuối kỳ ("Chi tiết mốc áp dụng").
         $commissionTiers = ($record->salary_role === 'sales' || (float) $record->commission_bonus > 0 || (float) $record->commission_deferred > 0)
             ? CommissionTier::byStudents()->effectiveAt($period->end_date)->orderBy('min_students')->get()
@@ -593,7 +600,11 @@ class PayrollController extends Controller
             ] : null,
             'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($record) {
                 // Trợ giảng: số giờ × đơn giá giờ (TK-0010), cùng cách tính với bảng lương.
-                $pay = $record->isAssistant() && $record->isPartTime() ? $ts->assistantPayOutcome() : $ts->sessionPay($record->user);
+                $pay = match (true) {
+                    $record->isForeignTeacher() => $ts->foreignTeacherPayOutcome(),
+                    $record->isAssistant() && $record->isPartTime() => $ts->assistantPayOutcome(),
+                    default => $ts->sessionPay($record->user),
+                };
 
                 return [
                     'id' => $ts->id,
@@ -609,6 +620,7 @@ class PayrollController extends Controller
                     'hours' => (float) $ts->hours,
                     'rate' => $pay['rate'],
                     'unit' => $pay['unit'],
+                    'minutes' => $pay['minutes'] ?? null,
                     'amount' => $pay['amount'],
                 ];
             })->values(),
@@ -688,6 +700,7 @@ class PayrollController extends Controller
     {
         return match (true) {
             ! $record->usesQ3Formula() => ['key' => 'legacy', 'title' => 'Chi tiết bảng lương', 'type' => 'Phiếu trước Q3'],
+            $record->isForeignTeacher() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương GVNN', 'type' => 'GVNN (Part-time)'],
             $record->isAssistant() && $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương Trợ giảng', 'type' => 'Trợ giảng (Part-time)'],
             $record->isAssistant() => ['key' => 'fulltime', 'title' => 'Chi tiết bảng lương Trợ giảng', 'type' => 'Trợ giảng (Full-time)'],
             $record->isPartTime() => ['key' => 'parttime', 'title' => 'Chi tiết bảng lương GV Part-time', 'type' => 'Giáo viên (Part-time)'],
@@ -745,7 +758,7 @@ class PayrollController extends Controller
             if ($record->usesQ3Formula()) {
                 if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
                     $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
-                    $record->foreign_session_pay = (float) ($validated['foreign_session_pay'] ?? 0);
+                    $record->foreign_session_pay = $record->isForeignTeacher() ? 0 : (float) ($validated['foreign_session_pay'] ?? 0);
                 } elseif ($record->teaching_concurrent) {
                     // Học thuật kiêm nhiệm giảng dạy: bậc KPI kiêm nhiệm (giữ HS) như GV part-time.
                     $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
@@ -1708,11 +1721,11 @@ class PayrollController extends Controller
             ->keyBy('user_id');
 
         $selectedTeacher = $teacherId ? $teachers->firstWhere('id', $teacherId) : null;
-        $selectedType = $selectedTeacher
+        $selectedType = $selectedTeacher && StaffType::isForeignTeacher($selectedTeacher) ? 'foreign' : ($selectedTeacher
             ? ($currentRates->get($selectedTeacher->id)?->teacher_type ?? TeacherHourlyRate::defaultTeacherType($selectedTeacher))
-            : null;
+            : null);
 
-        $unitSuffix = ['session' => 'VNĐ / buổi', 'hour' => 'VNĐ / giờ', TeacherHourlyRate::UNIT_TUITION => '% học phí / buổi'];
+        $unitSuffix = ['session' => 'VNĐ / buổi', 'hour' => 'VNĐ / giờ', TeacherHourlyRate::UNIT_MINUTE => 'VNĐ / phút', TeacherHourlyRate::UNIT_TUITION => '% học phí / buổi'];
         $historyRow = function (TeacherHourlyRate $row) use ($endDates, $unitSuffix) {
             $end = $endDates[$row->id] ?? null;
             [$stateLabel, $stateColor] = $row->effective_from->isFuture()
@@ -1760,7 +1773,9 @@ class PayrollController extends Controller
                         'unit_label' => $current->unit_label,
                         'effective_from' => $current->effective_from?->format('d/m/Y'),
                     ] : null,
-                    'profile_rate' => (float) $t->hourly_rate,
+                    'profile_rate' => StaffType::isForeignTeacher($t) ? 0 : (float) $t->hourly_rate,
+                    'is_foreign' => StaffType::isForeignTeacher($t),
+                    'teacher_type' => TeacherHourlyRate::defaultTeacherType($t),
                 ];
             })->values(),
             'history' => $history->through($historyRow),
@@ -1770,11 +1785,12 @@ class PayrollController extends Controller
                 'name' => $selectedTeacher->name,
                 'employee_code' => $selectedTeacher->employee_code,
                 'type_label' => TeacherHourlyRate::TEACHER_TYPES[$selectedType] ?? '—',
+                'is_foreign' => StaffType::isForeignTeacher($selectedTeacher),
                 'current' => $selectedCurrent ? [
                     'rate' => Money::format($selectedCurrent->hourly_rate, '').' '.($unitSuffix[$selectedCurrent->rate_unit] ?? 'VNĐ / giờ'),
                     'effective_from' => $selectedCurrent->effective_from->format('d/m/Y'),
                 ] : null,
-                'profile_rate' => (float) $selectedTeacher->hourly_rate > 0 ? Money::format((float) $selectedTeacher->hourly_rate) : null,
+                'profile_rate' => ! StaffType::isForeignTeacher($selectedTeacher) && (float) $selectedTeacher->hourly_rate > 0 ? Money::format((float) $selectedTeacher->hourly_rate) : null,
             ] : null,
             'selectedType' => $selectedType,
             'teacherTypes' => Ui::options(TeacherHourlyRate::TEACHER_TYPES),
@@ -1800,12 +1816,23 @@ class PayrollController extends Controller
                 && ! $this->staffInScope(User::query(), $request->user())->whereKey((int) $request->input('user_id'))->exists(),
             404
         );
+        $rateUser = User::with('roles')->find((int) $request->input('user_id'));
+        if ($rateUser && StaffType::isForeignTeacher($rateUser)) {
+            // GVNN luôn dùng đơn giá phút cá nhân, không chọn bậc Trợ giảng hay đơn giá buổi.
+            $request->merge(['rate_unit' => TeacherHourlyRate::UNIT_MINUTE, 'teacher_type' => 'foreign']);
+        }
         $validated = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
-            // Tiền (đ/buổi, đ/giờ) từ 1.000đ; "% học phí" (Học thuật kiêm nhiệm giảng dạy) từ 0,1 tới 100.
-            'hourly_rate' => ['required', 'numeric', $request->input('rate_unit') === TeacherHourlyRate::UNIT_TUITION ? 'between:0.1,100' : 'min:1000'],
+            // Tiền đ/phút từ 100đ, đ/buổi hoặc đ/giờ từ 1.000đ; "% học phí" (Học thuật kiêm nhiệm giảng dạy) từ 0,1 tới 100.
+            'hourly_rate' => ['required', 'numeric', $request->input('rate_unit') === TeacherHourlyRate::UNIT_TUITION ? 'between:0.1,100'
+                : ($request->input('rate_unit') === TeacherHourlyRate::UNIT_MINUTE ? 'min:100' : 'min:1000')],
             // Q3 Part-time: mặc định đơn giá theo BUỔI; 'hour' giữ cho trường hợp cũ; 'tuition' = % học phí theo buổi đã dạy.
-            'rate_unit' => ['nullable', 'in:session,hour,'.TeacherHourlyRate::UNIT_TUITION],
+            'rate_unit' => ['nullable', 'in:session,hour,'.TeacherHourlyRate::UNIT_MINUTE.','.TeacherHourlyRate::UNIT_TUITION,
+                function ($attribute, $value, $fail) use ($rateUser) {
+                    if ($value === TeacherHourlyRate::UNIT_MINUTE && (! $rateUser || ! StaffType::isForeignTeacher($rateUser))) {
+                        $fail('Đơn giá phút chỉ áp dụng cho giáo viên có vai trò GVNN.');
+                    }
+                }],
             'teacher_type' => ['nullable', 'in:'.implode(',', array_keys(TeacherHourlyRate::TEACHER_TYPES))],
             'effective_from' => [
                 'required', 'date',
@@ -1826,11 +1853,11 @@ class PayrollController extends Controller
         ]);
 
         $validated['rate_unit'] ??= TeacherHourlyRate::UNIT_HOUR;
-        $rateUser = User::findOrFail($validated['user_id']);
+        $rateUser ??= User::findOrFail($validated['user_id']);
         $validated['teacher_type'] ??= TeacherHourlyRate::defaultTeacherType($rateUser);
         // Trợ giảng (TK-0010): luôn tính theo GIỜ, mức đơn giá là một trong các bậc ở Tham số tính lương. Nhân sự lên bảng
         // lương là Trợ giảng thì đơn giá luôn theo luật TA, dù chọn loại giáo viên nào.
-        if (app(PayrollFormulaService::class)->profile($rateUser)['salary_role'] === Roles::ASSISTANT) {
+        if (! StaffType::isForeignTeacher($rateUser) && app(PayrollFormulaService::class)->profile($rateUser)['salary_role'] === Roles::ASSISTANT) {
             $validated['teacher_type'] = 'assistant';
         }
         if ($validated['teacher_type'] === 'assistant') {
@@ -1858,7 +1885,7 @@ class PayrollController extends Controller
         return $this->staffInScope(User::query(), Auth::user())
             ->where('is_active', true)
             ->whereHas('roles', fn ($query) => $query->whereIn('name', [...Roles::TEACHING, Roles::ACADEMIC_LEAD, Roles::MANAGER]))
-            ->orderBy('name')->get();
+            ->with('roles')->orderBy('name')->get();
     }
 
     /**
@@ -2137,8 +2164,8 @@ class PayrollController extends Controller
                 'class' => $pen->classModel ? ($pen->classModel->code ?? $pen->classModel->name) : null,
                 'amount' => (float) $pen->amount,
             ])->values(),
-            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($user) {
-                $pay = $ts->sessionPay($user);
+            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($user, $record) {
+                $pay = $record->isForeignTeacher() ? $ts->foreignTeacherPayOutcome() : $ts->sessionPay($user);
 
                 return [
                     'id' => $ts->id,
@@ -2149,6 +2176,7 @@ class PayrollController extends Controller
                     'type_label' => $ts->type_label,
                     'rate' => (float) $pay['rate'],
                     'unit' => $pay['unit'],
+                    'minutes' => $pay['minutes'] ?? null,
                     'amount' => (float) $pay['amount'],
                 ];
             })->values(),
@@ -2209,7 +2237,7 @@ class PayrollController extends Controller
             ? round(($incomeTotal - (float) $previous->gross_income) / (float) $previous->gross_income * 100)
             : null;
         $quantity = fn (array $line) => match ($line['key']) {
-            'teaching_salary' => $record->usesQ3Formula() ? (int) $record->teaching_sessions.' buổi' : rtrim(rtrim(number_format((float) $record->actual_hours, 2, '.', ''), '0'), '.').' giờ',
+            'teaching_salary' => $record->isForeignTeacher() ? (int) data_get($record->calculation_details, 'foreign_teacher.minutes', 0).' phút' : ($record->usesQ3Formula() ? (int) $record->teaching_sessions.' buổi' : rtrim(rtrim(number_format((float) $record->actual_hours, 2, '.', ''), '0'), '.').' giờ'),
             'kpi_bonus' => $record->kpi_source === 'retention'
                 ? (int) $record->retention_students.'/'.(int) $record->retention_base_students.' HS'
                 : ($record->kpi_score !== null ? rtrim(rtrim(number_format((float) $record->kpi_score, 2), '0'), '.').'%' : '-'),
@@ -2301,6 +2329,7 @@ class PayrollController extends Controller
             // Lương cơ bản thực trả theo ngày công (phiếu cũ: = lương cơ bản).
             'base_salary_earned' => $r->base_salary_earned,
             'is_assistant' => $r->isAssistant(),
+            'is_foreign_teacher' => $r->isForeignTeacher(),
             'late_deduction' => (float) $r->late_deduction,
             'teaching_salary' => (float) $r->teaching_salary,
             'teaching_sessions' => (int) $r->teaching_sessions,
@@ -2317,6 +2346,8 @@ class PayrollController extends Controller
             'union_deduction' => (float) $r->union_deduction,
             'tax_deduction' => (float) $r->tax_deduction,
             'assistant_rate_missing' => $r->assistantRateMissing(),
+            'foreign_rate_missing' => $r->foreignRateMissing(),
+            'teaching_minutes' => (int) data_get($r->calculation_details, 'foreign_teacher.minutes', 0),
             'other_deductions' => (float) $r->penalty_deduction + (float) $r->late_deduction + (float) $r->missing_punch_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
             'net_salary' => (float) $r->net_salary,
             'shortfall' => $r->netShortfall(),
