@@ -20,8 +20,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class KpiBoardService
 {
-    /** Vai trò được theo dõi trên bảng KPI. */
-    public const ROLES = [...Roles::TEACHING, Roles::ACADEMIC_STAFF];
+    /** Vai trò được theo dõi trên bảng KPI; GVNN không chấm KPI. */
+    public const ROLES = [Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::ASSISTANT, Roles::ACADEMIC_STAFF];
 
     /** Trang "Học tập của tôi" nơi học viên nộp bài tập (AcademicRecord). */
     public const HOMEWORK_SUBMISSION_SCREEN = '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap';

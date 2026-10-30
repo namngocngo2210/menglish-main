@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * - Part-time (GV part-time): số buổi × đơn giá buổi riêng + KPI giữ HS (số HS giữ được × bậc Admin chọn)
  *   + lương buổi có GVNN (nhập tay, chờ BA) + phụ cấp tự do − phạt quá hạn − khấu trừ tự do. Không BHXH/Công đoàn.
+ * - GVNN (Part-time): phút lịch buổi × đơn giá phút cá nhân + KPI giữ HS; không phạt tự động / đi muộn / vắng.
+ *   Biên bản thủ công đã quyết phạt vẫn khấu trừ.
  * - Full-time (GV full-time, Học vụ, Học thuật, Sale, nhân sự khác): lương cơ bản + KPI + hoa hồng + thưởng tái tục
  *   + phụ cấp tự do − BHXH − Công đoàn (tự động trên lương cơ bản) − thuế TNCN (nhập tay) − phạt − khấu trừ tự do.
  *   Học thuật có ca lớp hợp lệ (teaching_concurrent, không cần bật cờ): cộng lương đứng lớp = % × tổng giá niêm yết
@@ -41,6 +43,7 @@ class PayrollRecord extends Model
         Roles::TEACHER_PARTTIME => 'GV Part-time',
         Roles::TEACHER_FULLTIME => 'GV Full-time',
         Roles::ASSISTANT => 'Trợ giảng',
+        Roles::FOREIGN_TEACHER => 'GVNN',
         Roles::ACADEMIC_STAFF => 'Học vụ',
         Roles::ACADEMIC_LEAD => 'Học thuật',
         'sales' => 'Tư vấn tuyển sinh',
@@ -263,6 +266,12 @@ class PayrollRecord extends Model
         return $this->salary_role === Roles::ASSISTANT;
     }
 
+    /** GVNN: Part-time, lương phút theo lịch buổi và KPI giữ HS. */
+    public function isForeignTeacher(): bool
+    {
+        return $this->salary_role === Roles::FOREIGN_TEACHER;
+    }
+
     /**
      * Lương cơ bản được trả trong kỳ: Full-time trả theo ngày công (base_salary_paid = lương cơ bản × công hưởng lương /
      * công chuẩn, chủ dự án chốt 30/10/2026). Phiếu tính trước thay đổi này (base_salary_paid NULL) giữ lương cơ bản đủ.
@@ -321,8 +330,17 @@ class PayrollRecord extends Model
                 'hint' => trim('Số giờ dạy hợp lệ × đơn giá giờ của TA'.($rates !== '' ? ' ('.$rates.')' : '')
                     .($missing > 0 ? ' · '.$missing.' buổi chưa có đơn giá giờ – cần nhập lại' : ''))];
         } elseif ($this->isPartTime()) {
-            $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương buổi dạy ('.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
-                'hint' => 'Số buổi chấm công hợp lệ × đơn giá buổi riêng của GV hiệu lực tại ngày dạy'];
+            if ($this->isForeignTeacher()) {
+                $minutes = (int) data_get($this->calculation_details, 'foreign_teacher.minutes', 0);
+                $rates = collect((array) data_get($this->calculation_details, 'foreign_teacher.rates', []))->map(fn ($r) => $money($r).'/phút')->implode(', ');
+                $missing = (int) data_get($this->calculation_details, 'foreign_teacher.missing_rate_sessions', 0);
+                $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương phút dạy ('.$minutes.' phút, '.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
+                    'hint' => 'Số phút dạy theo lịch buổi × đơn giá phút của GVNN'.($rates !== '' ? ' ('.$rates.')' : '')
+                        .($missing > 0 ? ' · '.$missing.' buổi chưa có đơn giá phút – cần nhập' : '')];
+            } else {
+                $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương buổi dạy ('.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
+                    'hint' => 'Số buổi chấm công hợp lệ × đơn giá buổi riêng của GV hiệu lực tại ngày dạy'];
+            }
             // Trợ giảng: không KPI giữ HS (chủ dự án chốt 30/10/2026).
             if ($this->kpi_source === self::KPI_RETENTION) {
                 $lines[] = ['key' => 'kpi_bonus', 'label' => 'KPI giữ học sinh', 'amount' => (float) $this->kpi_bonus,
@@ -330,8 +348,10 @@ class PayrollRecord extends Model
                         ? (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được × '.$money($this->retention_tier).'/HS'
                         : (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được — chưa chọn bậc KPI'];
             }
-            $lines[] = ['key' => 'foreign_session_pay', 'label' => 'Buổi có GVNN (chờ BA chốt)', 'amount' => (float) $this->foreign_session_pay,
-                'hint' => 'Kế toán nhập tay'.((int) $this->foreign_teacher_sessions_count > 0 ? ' · '.(int) $this->foreign_teacher_sessions_count.' buổi có GVNN cùng lớp trong kỳ' : '')];
+            if (! $this->isForeignTeacher()) {
+                $lines[] = ['key' => 'foreign_session_pay', 'label' => 'Buổi có GVNN (chờ BA chốt)', 'amount' => (float) $this->foreign_session_pay,
+                    'hint' => 'Kế toán nhập tay'.((int) $this->foreign_teacher_sessions_count > 0 ? ' · '.(int) $this->foreign_teacher_sessions_count.' buổi có GVNN cùng lớp trong kỳ' : '')];
+            }
         } else {
             $lines[] = ['key' => 'base_salary', 'label' => 'Lương cơ bản', 'amount' => $this->base_salary_earned, 'hint' => $this->workdayHint()];
             if ((float) $this->contract_allowance != 0.0 || (float) data_get($this->calculation_details, 'workdays.allowance_full', 0) > 0) {
@@ -487,6 +507,12 @@ class PayrollRecord extends Model
         return (int) data_get($this->calculation_details, 'assistant.missing_rate_sessions', 0) > 0;
     }
 
+    /** GVNN có buổi chưa nhập đơn giá phút: không quy đổi đơn giá giờ / buổi. */
+    public function foreignRateMissing(): bool
+    {
+        return (int) data_get($this->calculation_details, 'foreign_teacher.missing_rate_sessions', 0) > 0;
+    }
+
     /** "15.000.000đ × 25/26 công (24 ngày đủ công, 1 ngày chấm công bù, …)". */
     public function workdayHint(): ?string
     {
@@ -577,6 +603,10 @@ class PayrollRecord extends Model
         if ($this->isAssistant()) {
             $this->foreign_session_pay = 0;
             $this->kpi_manual_amount = null;
+        }
+        if ($this->isForeignTeacher()) {
+            $this->foreign_session_pay = 0;
+            $this->foreign_teacher_sessions_count = 0;
         }
         $this->other_deduction = round(collect($this->manualLines('deduction'))->sum('amount'), 2);
 

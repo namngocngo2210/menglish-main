@@ -46,7 +46,7 @@ use RuntimeException;
 /**
  * Dữ liệu demo phần lương (Phase 5): chấm công điện thoại, đơn xin duyệt, giờ dạy, KPI mọi vai trò, bảng lương kỳ đang tính.
  * Dựng trên tài khoản UserSeeder và dữ liệu DemoPhase1–4 (chạy sau DemoPhase4Seeder), chỉ THÊM dữ liệu, không sửa / xóa
- * bản ghi đã có (trừ điền hồ sơ lương còn trống và toạ độ chấm công của cơ sở chưa cài).
+ * bản ghi đã có (trừ điền hồ sơ lương còn trống, toạ độ chấm công của cơ sở chưa cài và sửa vai trò / đơn giá GVNN demo cũ).
  *
  * Mốc thời gian tương đối với hôm nay: L = tháng trước (kỳ lương đã gửi GV xem, khóa), C = tháng này (kỳ đang tính).
  * - Cài chấm công cho cơ sở Cầu Giấy / Ba Đình / Đống Đa chưa có toạ độ (bán kính 150 m, giờ làm 08:00–17:30, cho muộn 10').
@@ -223,11 +223,11 @@ class DemoPayrollSeeder extends Seeder
 
     /**
      * Sự cố buổi dạy lớp K27 (tháng trước): email => [buổi thứ n của người đó => [late | forgot | absent, số phút muộn]]. Buổi vắng
-     * sau cùng của GVNN có đơn nghỉ được duyệt (DemoKpiSourcesSeeder), các buổi vắng khác là nghỉ không phép (gv.cohuu1: loại trừ
-     * KPI tháng).
+     * sau cùng của GV part-time và GVNN có đơn nghỉ được duyệt (DemoKpiSourcesSeeder), các buổi vắng khác là nghỉ không phép
+     * (gv.cohuu1: loại trừ KPI tháng). GVNN không thuộc vai trò chấm KPI tự đếm.
      */
     private const LAST_MONTH_TEACHING_ISSUES = [
-        'gv.banthoigian1@menglish.edu.vn' => [3 => ['late', 8], 7 => ['late', 12], 10 => ['forgot', null]],
+        'gv.banthoigian1@menglish.edu.vn' => [2 => ['absent', null], 3 => ['late', 8], 5 => ['absent', null], 7 => ['late', 12], 10 => ['forgot', null]],
         'gv.native1@menglish.edu.vn' => [2 => ['absent', null], 5 => ['late', 22], 8 => ['absent', null], 11 => ['late', 5]],
         'gv.cohuu1@menglish.edu.vn' => [4 => ['late', 18], 9 => ['absent', null]],
         'ta.tram@menglish.edu.vn' => [6 => ['late', 6]],
@@ -236,12 +236,12 @@ class DemoPayrollSeeder extends Seeder
 
     /**
      * Sự cố buổi dạy lớp K28 (tháng này, ngoài đi muộn ngẫu nhiên): email / khóa nhân sự mới => [buổi thứ n => [late | absent, số
-     * phút muộn]]. Buổi vắng của GVNN có đơn nghỉ được duyệt (DemoKpiSourcesSeeder), còn lại nghỉ không phép.
+     * phút muộn]]. Buổi vắng sau cùng của pt_bd và GVNN có đơn nghỉ được duyệt (DemoKpiSourcesSeeder), còn lại nghỉ không phép.
      */
     private const TEACHING_ISSUES = [
         'pt_cg' => [2 => ['late', 15]],
         'ft_dd' => [2 => ['late', 12], 3 => ['absent', null]],
-        'pt_bd' => [3 => ['absent', null]],
+        'pt_bd' => [1 => ['late', 12], 3 => ['absent', null], 4 => ['absent', null]],
         'gv.native1@menglish.edu.vn' => [4 => ['absent', null]],
     ];
 
@@ -339,6 +339,9 @@ class DemoPayrollSeeder extends Seeder
         $this->realNow = now()->copy();
         $this->thisMonth = $this->realNow->copy()->startOfMonth();
         $this->lastMonth = $this->thisMonth->copy()->subMonthNoOverflow()->startOfMonth();
+
+        // Luôn nâng cấp tài khoản GVNN mẫu, kể cả khi các lớp đánh dấu demo đã có từ lần chạy trước.
+        DB::transaction(fn () => $this->setupForeignTeacher());
 
         if (ClassModel::withTrashed()->where('code', self::FIRST_CLASS)->exists()) {
             $this->command?->info('DemoPayrollSeeder: đã có dữ liệu demo lương — chỉ bổ sung phần còn thiếu.');
@@ -448,6 +451,31 @@ class DemoPayrollSeeder extends Seeder
     }
 
     // ── Cài đặt ────────────────────────────────────────────────────────────────
+
+    /** TK-0019: sửa duy nhất tài khoản GVNN mẫu và đơn giá demo cũ, giữ nguyên đơn giá do người dùng nhập. */
+    private function setupForeignTeacher(): void
+    {
+        $user = $this->user('gv.native1@menglish.edu.vn');
+        if (! $user) {
+            return;
+        }
+        $user->syncRoles([Roles::FOREIGN_TEACHER]);
+        $legacyRates = TeacherHourlyRate::where('user_id', $user->id)
+            ->where('rate_unit', TeacherHourlyRate::UNIT_SESSION)->where('hourly_rate', 450000)
+            ->where(fn ($q) => $q->where('note', 'like', '%[demo-p3]%')->orWhere('note', 'like', '%'.self::MARKER.'%'))->get();
+        foreach ($legacyRates as $rate) {
+            // Sửa dữ liệu mẫu sai đơn vị, không thêm phiên bản để tránh trùng ngày hiệu lực khi chạy lại.
+            $rate->update(['hourly_rate' => 7500, 'rate_unit' => TeacherHourlyRate::UNIT_MINUTE,
+                'teacher_type' => 'foreign', 'note' => 'Đơn giá phút GVNN '.self::MARKER]);
+        }
+        if (! TeacherHourlyRate::where('user_id', $user->id)->exists()) {
+            TeacherHourlyRate::create([
+                'user_id' => $user->id, 'hourly_rate' => 7500, 'rate_unit' => TeacherHourlyRate::UNIT_MINUTE,
+                'teacher_type' => 'foreign', 'effective_from' => $this->lastMonth->copy()->subMonthNoOverflow()->toDateString(),
+                'note' => 'Đơn giá phút GVNN '.self::MARKER, 'created_by' => $this->staff['admin']->id,
+            ]);
+        }
+    }
 
     private function setupBranches(): void
     {

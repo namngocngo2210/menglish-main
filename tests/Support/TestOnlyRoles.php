@@ -8,7 +8,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 /**
- * Vai trò TÙY CHỈNH chỉ dùng trong test. Hệ thống chỉ có 9 vai trò cố định (App\Support\Roles); "Kế toán & Thu ngân" và
+ * Vai trò TÙY CHỈNH chỉ dùng trong test. Hệ thống chỉ có 10 vai trò cố định (App\Support\Roles); "Kế toán & Thu ngân" và
  * "Giáo viên giảng dạy" đã bỏ khỏi cấu hình mặc định. Hai vai trò này giữ lại ở đây với đúng tập quyền cũ để các test kiểm tra
  * phân quyền linh hoạt (Admin tạo vai trò riêng ở màn Vai trò, phạm vi dữ liệu theo người…) vẫn có một "vai trò tài chính" /
  * "vai trò giáo viên chung" làm mẫu — logic nghiệp vụ không phụ thuộc tên vai trò.

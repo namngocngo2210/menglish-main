@@ -20,8 +20,8 @@ Tệp chính:
 
 ## 1. Nguyên tắc
 
-0. **Bộ 9 vai trò cố định** (`App\Support\Roles`): Admin, Quản lý cơ sở, Học thuật, Học vụ, Sales, GV Full-time, GV Part-time,
-   Trợ giảng, Học viên. Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận thông báo…) dùng hằng
+0. **Bộ 10 vai trò cố định** (`App\Support\Roles`): Admin, Quản lý cơ sở, Học thuật, Học vụ, Sales, GV Full-time, GV Part-time,
+   GVNN (`foreign_teacher`), Trợ giảng, Học viên. Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận thông báo…) dùng hằng
    `Roles::ADMIN`, `Roles::MANAGER`, `Roles::ACADEMIC_LEAD`… và nhóm `Roles::TEACHERS` / `TEACHING` / `ACADEMIC` / `KPI_STAFF`,
    **không gõ tên vai trò bằng chuỗi** (test chốt chặn kiểm tra). "Kế toán & Thu ngân" và "Giáo viên giảng dạy" đã bỏ;
    việc tài chính do Admin / Quản lý cơ sở làm (Admin vẫn cấp / thu hồi quyền theo vai trò hoặc theo người như dưới đây).
@@ -54,8 +54,8 @@ Tệp chính:
 | Đối tượng | `portal.student`, `portal.teacher`, `portal.assistant`, `portal.staff`, `class.teach`, `class.assist`, `lead.be_assigned`, `entrance_test.examine` | Người dùng **là ai** (cổng nào, có được xếp dạy lớp / nhận phụ trách khách / làm người chấm test). Super Admin **không** tự có (nếu không Admin lọt vào cổng học viên, danh sách giáo viên…). |
 | Động | `user.assign_role.<vai trò>` | Được tạo tài khoản / gán vai trò đó. Tạo / đổi mã / xóa cùng vai trò (`App\Support\Rbac`). Không có `user.assign_role.admin`: chỉ Super Admin gán Super Admin. |
 
-**Quy mô** (cài mới, 9 vai trò cố định): 42 module · 144 quyền thao tác · 8 quyền đối tượng · 39 quyền phạm vi
-(14 module có phạm vi) · 10 quyền gán vai trò = **201 permission**.
+**Quy mô** (cài mới, 10 vai trò cố định): 53 module · 176 quyền thao tác · 8 quyền đối tượng · 51 quyền phạm vi
+(19 module có phạm vi) · 9 quyền gán vai trò = **244 permission** (không tạo quyền gán Super Admin).
 
 | Nhóm hiển thị | Module (mã) |
 |---|---|
@@ -180,10 +180,10 @@ chi nhánh B (props Inertia, JSON, HTML) thì test đỏ. Route mới tự đư�
 |---|---|---|
 | Super Admin `admin` | Mọi quyền (bất biến) + đối tượng `lead.be_assigned`, `entrance_test.examine`, `portal.staff` | Toàn hệ thống mọi module |
 | Quản lý cơ sở `manager` | Nhân sự (xem / khóa / reset MK / gán mọi vai trò trừ Admin); CRM mọi thao tác **trừ lùi bước**; học viên, lớp, điểm danh, giáo trình (không duyệt đề xuất); học phí (tạo / duyệt / từ chối), yêu cầu hủy HĐ, hoàn phí (khất nợ / bảo lưu, duyệt chuyển nhượng, từ chối — **không** duyệt hoàn tiền); lương **chỉ xem**; KPI; chấm công tay; biên bản lỗi vận hành; việc, ticket, thông báo, báo cáo | Chi nhánh (chỉ chi nhánh của mình): CRM, học viên, lớp, phòng, Big Test, học phí, thu chi, chấm công, KPI, việc, ticket, nhân sự, nhật ký, biên bản, dashboard · Của tôi: lương |
-| Học vụ `academic_staff` | **BA 26/09: toàn quyền CRM / test đầu vào / đề test trừ xóa**, chuyển bước tiến (không lùi); học viên, lớp; giáo trình (không duyệt); KPI xem / xác nhận; biên bản lỗi vận hành; học phí (tạo phiếu, liên hệ, báo quá hạn); việc; gán TA / GV (3 loại) / học viên | Chi nhánh: CRM, học viên, học phí, lớp, Big Test, chấm công, KPI, việc, biên bản, nhân sự · Của tôi: ticket |
-| Học thuật `academic_lead` | CRM xem; lớp, giáo trình **gồm duyệt đề xuất**, **Big Test gồm duyệt**; test / đề test; KPI; biên bản lỗi chuyên môn; dashboard học thuật; gán GV (3 loại) | Chi nhánh: CRM (xem), học viên · Toàn hệ thống: lớp, Big Test, KPI, việc, nhân sự, biên bản (chốt lỗi chuyên môn mọi chi nhánh) · Của tôi: ticket |
+| Học vụ `academic_staff` | **BA 26/09: toàn quyền CRM / test đầu vào / đề test trừ xóa**, chuyển bước tiến (không lùi); học viên, lớp; giáo trình (không duyệt); KPI xem / xác nhận; biên bản lỗi vận hành; học phí (tạo phiếu, liên hệ, báo quá hạn); việc; gán TA / GV (Full-time, Part-time, GVNN) / học viên | Chi nhánh: CRM, học viên, học phí, lớp, Big Test, chấm công, KPI, việc, biên bản, nhân sự · Của tôi: ticket |
+| Học thuật `academic_lead` | CRM xem; lớp, giáo trình **gồm duyệt đề xuất**, **Big Test gồm duyệt**; test / đề test; KPI; biên bản lỗi chuyên môn; dashboard học thuật; gán GV (Full-time, Part-time, GVNN) | Chi nhánh: CRM (xem), học viên · Toàn hệ thống: lớp, Big Test, KPI, việc, nhân sự, biên bản (chốt lỗi chuyên môn mọi chi nhánh) · Của tôi: ticket |
 | Sale `sales_consultant` | CRM xem / thêm / sửa / chốt / thất bại, gửi test, báo cáo | Của tôi |
-| Giáo viên (Full-time / Part-time), Trợ giảng | Lớp mình, điểm danh, chấm bài nộp, giáo trình (xem / sửa / đề xuất), lương của mình; `portal.teacher` / `portal.assistant` | Của tôi |
+| Giáo viên (Full-time / Part-time / GVNN), Trợ giảng | Lớp mình, điểm danh, chấm bài nộp, giáo trình (xem / sửa / đề xuất), lương của mình; `portal.teacher` / `portal.assistant` | Của tôi |
 | Học viên `student` | Cổng học viên, ticket | Của tôi (`portal.student`) |
 
 Quyết định BA / A6 phản ánh trong mặc định: quyền kế toán cấu hình được (duyệt hoàn tiền, duyệt hủy HĐ, dải số mặc định,
@@ -191,6 +191,39 @@ phạm vi mọi chi nhánh mặc định chỉ Admin); Học vụ toàn quyền 
 duyệt Big Test (`big_test.approve`) và duyệt đề xuất giáo trình (`syllabus.approve_adjustment`) chỉ Học thuật + Admin;
 duyệt lương (`payroll.approve`) chỉ Admin; **không chốt được bảng lương khi còn nhân sự chưa chốt KPI** (luật nghiệp vụ
 trong `PayrollController`, áp dụng cả Admin).
+
+### 4.1. Giáo viên nước ngoài (GVNN)
+
+- Mã chuẩn duy nhất: `Roles::FOREIGN_TEACHER = foreign_teacher`; nhãn đầy đủ **Giáo viên nước ngoài (GVNN)**,
+  nhãn ngắn **GVNN**. Quyền mặc định giống GV Part-time, gồm `portal.teacher`, `class.teach`, `payroll.view_own`,
+  `payroll.scope_own`; không có quyền quản trị hay xem lương người khác. Mọi vai trò mặc định gán được GV Part-time cũng
+  gán được GVNN (Quản lý cơ sở qua mẫu `user.assign_role.*`; Học vụ / Học thuật có quyền riêng).
+- GVNN thuộc `TEACHERS`, `TEACHING`, `ACADEMIC`; `BRANCH_OPTIONAL` kế thừa `TEACHING` nên không bắt buộc cơ sở chính.
+  GVNN vào cổng giáo viên sau đăng nhập, được chọn trong danh sách giáo viên / nhập danh sách lớp / màn giáo trình,
+  báo cáo giảng dạy tháng và nhận nhắc báo cáo tháng. Các nơi dùng `Roles::ALL` (đổi vai trò, ô chọn chức danh) tự có GVNN.
+  Hồ sơ và dashboard phân loại GVNN là giáo viên. Các quyền truy cập vẫn do permission và phạm vi dữ liệu quyết định.
+- GVNN không thuộc `KPI_ROLES`; `KpiBoardService::ROLES` liệt kê riêng GV Full-time, GV Part-time, trợ giảng, Học vụ để
+  không kéo GVNN vào bảng KPI khi mở rộng nhóm đứng lớp. Người kiêm vai trò khác vẫn theo quy tắc KPI của vai trò đó.
+- `StaffType::isForeignTeacher()` dùng hằng chuẩn; GVNN kiêm trợ giảng không bị nhận nhầm thành chỉ trợ giảng. Chu kỳ báo
+  cáo và báo cáo có cấu trúc kế thừa nhóm giáo viên; cách tính đơn giá / lương xử lý riêng theo chức danh GVNN.
+- Không đưa mã cũ `foreigner_teacher` vào `Roles::RETIRED`: migration `2026_10_30_090000` duyệt danh sách này để chuyển
+  người rồi xóa vai trò, và `2026_10_31_090000` dọn quyền / phân quyền cá nhân. Đưa mã vào đó sẽ phá khả năng giữ ID và
+  quyền khi nâng cấp. Migration chuyên biệt `2026_12_04_090000_unify_foreign_teacher_role` xử lý mã cũ thay cho alias.
+
+Migration GVNN chạy lại an toàn: database chưa có vai trò thì để seeder xử lý; chỉ có mã cũ thì đổi tên tại chỗ, giữ ID,
+người dùng (kể cả đã xóa mềm), quyền và nhãn tùy chỉnh, đổi quyền gán vai trò cùng phân quyền cá nhân `module=user`,
+`action=assign_role.foreigner_teacher`. Nếu quyền gán mã mới đã tồn tại, gộp các gán theo vai trò / trực tiếp vào ID quyền
+cũ trước khi đổi tên. Phân quyền cá nhân mã cũ trùng người / loại phạm vi / ID phạm vi (kể cả NULL) với mã chuẩn thì
+xóa dòng cũ, giữ nguyên dòng mã chuẩn, để lệnh chặn đã cấu hình không bị dòng cho phép cũ vượt qua; dòng không trùng
+được đổi mã và giữ nguyên giá trị. Có cả hai vai trò thì chuyển người về mã chuẩn, giữ nguyên quyền tùy chỉnh của vai trò chuẩn và
+xóa vai trò / quyền gán / phân quyền cá nhân mã cũ qua `Rbac::forgetRole(string $name)`.
+
+Khi hệ thống đã có vai trò nhưng thiếu GVNN, migration tạo vai trò chuẩn; chỉ vai trò GVNN chưa có quyền mới nhận mặc
+định qua `RoleSeeder::resolvePatterns`, không ghi đè vai trò đã tùy chỉnh. Migration đăng ký quyền gán bằng
+`Rbac::registerRole`, bổ sung quyền gán GVNN cho mọi vai trò đang có quyền gán GV Part-time (gồm vai trò tùy chỉnh), điền
+nhãn khi cột `roles.label` tồn tại và đang NULL, rồi xóa cache quyền. `down()` không đổi lại mã vì không thể suy ra nguồn
+người dùng / quyền sau khi gộp. `PermissionSeeder` và `RoleSeeder` vẫn đọc cấu hình chung, chỉ thêm, không có nhánh riêng
+cho GVNN.
 
 ## 5. Admin tùy chỉnh quyền như thế nào
 

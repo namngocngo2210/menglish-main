@@ -37,8 +37,8 @@ func accessFor(t *testing.T, branches []uuid.UUID, roles ...string) *Access {
 
 func TestCatalogDefaultsExpand(t *testing.T) {
 	c := GetCatalog()
-	if len(c.Roles) != 9 {
-		t.Fatalf("có %d vai trò, muốn 9", len(c.Roles))
+	if len(c.Roles) != 10 {
+		t.Fatalf("có %d vai trò, muốn 10", len(c.Roles))
 	}
 	for _, r := range c.Roles {
 		if _, err := c.Expand(r.Name, r.Defaults); err != nil {
@@ -65,7 +65,7 @@ func TestCatalogDefaultsExpand(t *testing.T) {
 func TestManagerAssignsEveryRoleButAdminAndManager(t *testing.T) {
 	m := accessFor(t, nil, RoleManager)
 	got := m.AssignableRoles()
-	want := []string{RoleAcademicLead, RoleAcademicStaff, RoleSalesConsultant, RoleTeacherFulltime, RoleTeacherParttime, RoleAssistant, RoleStudent}
+	want := []string{RoleAcademicLead, RoleAcademicStaff, RoleSalesConsultant, RoleTeacherFulltime, RoleTeacherParttime, "foreign_teacher", RoleAssistant, RoleStudent}
 	if !slices.Equal(got, want) {
 		t.Fatalf("Quản lý cơ sở gán được %v, muốn %v", got, want)
 	}
@@ -201,7 +201,7 @@ func TestCanManage(t *testing.T) {
 	}
 }
 
-// TestTruthTable là bảng chân lý quyền của các thao tác quản trị cho 9 vai trò mặc định (theo config/access.php).
+// TestTruthTable là bảng chân lý quyền của các thao tác quản trị cho 10 vai trò mặc định (theo config/access.php).
 // Thêm thao tác mới thì thêm cột ở đây.
 func TestTruthTable(t *testing.T) {
 	perms := []string{"user.view", "user.create", "user.update", "user.assign_role", "user.lock", "user.reset_password",
@@ -214,6 +214,7 @@ func TestTruthTable(t *testing.T) {
 		RoleSalesConsultant: "00000000000",
 		RoleTeacherFulltime: "00000000000",
 		RoleTeacherParttime: "00000000000",
+		"foreign_teacher":   "00000000000",
 		RoleAssistant:       "00000000000",
 		RoleStudent:         "00000000000",
 	}

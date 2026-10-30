@@ -46,6 +46,31 @@ chưa bật cờ nhưng đã dạy. **Phiếu KPI giảng dạy riêng** vẫn p
 và không có ca lớp hợp lệ giữ phiếu lương cũ; đã bật cờ nhưng chưa có ca vẫn có phần kiêm nhiệm với lương đứng lớp 0đ.
 Kỳ đã khóa không tự tính lại khi đổi dữ liệu học phí / lớp.
 
+## Lương giáo viên nước ngoài (GVNN — TK-0019)
+
+GVNN có vai trò riêng `foreign_teacher` (`Roles::FOREIGN_TEACHER`), thuộc nhóm giáo viên và cổng GV, được xếp dạy / giao buổi
+như giáo viên. Bảng lương tách nhóm **GVNN** để không lẫn với GV Việt Nam part-time. Việc xem / sửa / duyệt vẫn theo permission
+và phạm vi dữ liệu; vai trò chỉ xác định công thức lương.
+
+Mỗi GVNN có **đơn giá cá nhân theo phút** (`minute`), lấy phiên bản có ngày hiệu lực gần nhất không sau ngày dạy. Tiền dạy của
+mỗi ca hợp lệ = số phút × đơn giá phút. Ca gắn buổi trên lịch lấy khoảng thời gian bắt đầu đến kết thúc **theo lịch**, kể cả
+check-in muộn; ca nhập tay không có buổi trên lịch lấy số giờ công × 60. Thiếu đơn giá phút hiệu lực thì ca có tiền bằng 0 và
+cảnh báo thiếu đơn giá; không tự đổi đơn giá theo giờ / buổi hay dùng mức chung.
+
+GVNN không tính thuế TNCN, phạt đi muộn, quên chấm công, vắng hoặc các phạt tự động. Ca vắng không có công hợp lệ không phát
+sinh tiền dạy và không cộng thêm tiền phạt. **Biên bản lập tay đã được người có thẩm quyền quyết phạt vẫn được trừ lương** khi
+đủ điều kiện; các khoản nhập tay khác vẫn đi theo luồng hiện tại. KPI giữ học sinh dùng bậc do người tính lương chọn tay; nếu
+cần bậc mà chưa chọn thì KPI còn chờ chốt, chặn chốt kỳ theo quy tắc chung.
+
+Khoản **Buổi có GVNN** trên phiếu GV Việt Nam đếm **theo từng buổi** của chính GV Việt Nam: buổi đó phải có
+`class_sessions.foreign_teacher_id` và GVNN được gán có ca công hợp lệ cùng lớp / ngày. Không suy ra từ GVNN mặc định của lớp,
+không đếm cả ngày chỉ vì ngày đó có GVNN. Số buổi là căn cứ để Kế toán nhập tiền tay; hệ thống chưa tự chốt đơn giá khoản này.
+Phiếu của chính GVNN luôn có khoản Buổi có GVNN bằng 0. Đổi GVNN của buổi sau lần tính không tự bật cảnh báo "dữ liệu đã
+đổi" (buổi học cập nhật quá thường xuyên): Kế toán bấm **Đồng bộ & Tính lại** để đếm lại.
+
+Dữ liệu demo dùng `gv.native1@menglish.edu.vn`, **7.500đ/phút**. `demo:luong` đồng bộ vai trò và sửa đơn giá mẫu cũ khi chạy lại,
+không sửa đơn giá tự nhập hoặc tự tính lại kỳ đã khóa. Xem [chi tiết dữ liệu demo](demo-luong-kpi-seed.md).
+
 ## Bối cảnh (rà soát 26/10/2026 trên staging)
 
 - **GV không có lối vào lớp của mình.** `/classes` và Trang lớp chạy đúng phạm vi (GV chỉ thấy lớp mình dạy), nhưng nhóm sidebar

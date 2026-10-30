@@ -11,6 +11,7 @@ use App\Models\StudentAttendance;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,13 +52,13 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cầu Giấy', 'code' => 'CG-FX', 'is_active' => true]);
         $this->admin = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
-        $this->admin->assignRole('admin');
+        $this->admin->assignRole(Roles::ADMIN);
         foreach (['teacher', 'gvnnA', 'gvnnB'] as $prop) {
             $this->{$prop} = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
-            $this->{$prop}->assignRole('teacher');
+            $this->{$prop}->assignRole($prop === 'teacher' ? Roles::TEACHER_PARTTIME : Roles::FOREIGN_TEACHER);
         }
         $this->assistant = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
-        $this->assistant->assignRole('assistant');
+        $this->assistant->assignRole(Roles::ASSISTANT);
 
         $this->course = Course::create(['name' => 'IELTS FX', 'code' => 'IELTS-FX', 'total_lessons' => 24, 'is_active' => true]);
         $this->classModel = $this->makeClass('FX-01', ['teacher_id' => $this->teacher->id]);
@@ -182,7 +183,7 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
         $default = $this->makeSession($class, '2026-10-06');
         $override = $this->makeSession($class, '2026-10-08', ['foreign_teacher_id' => $this->gvnnB->id]);
         $newDefault = User::factory()->create(['is_active' => true]);
-        $newDefault->assignRole('teacher');
+        $newDefault->assignRole(Roles::FOREIGN_TEACHER);
 
         $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->classPayload(['giao_vien_nn' => $newDefault->id]))
             ->assertSessionHasNoErrors();

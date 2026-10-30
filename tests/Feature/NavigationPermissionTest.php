@@ -59,6 +59,11 @@ class NavigationPermissionTest extends TestCase
 
     public function test_teacher_only_sees_permitted_navigation_modules(): void
     {
+        $this->assertTeacherNavigation();
+    }
+
+    private function assertTeacherNavigation(): void
+    {
         $response = $this->actingAs($this->teacher)->get(route('dashboard'));
 
         $response->assertStatus(200);
@@ -74,6 +79,13 @@ class NavigationPermissionTest extends TestCase
         $response->assertDontSee('data-menu-item="tuition"', false);
         $response->assertDontSee('data-menu-item="hr"', false);
         $response->assertDontSee('Mockup Hub');
+    }
+
+    public function test_foreign_teacher_sees_teaching_and_own_payroll_navigation(): void
+    {
+        $this->teacher->syncRoles([\App\Support\Roles::FOREIGN_TEACHER]);
+
+        $this->assertTeacherNavigation();
     }
 
     public function test_permission_override_dynamically_shows_module_for_teacher(): void

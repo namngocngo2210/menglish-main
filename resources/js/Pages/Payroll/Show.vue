@@ -26,6 +26,7 @@ const props = defineProps({
     // Chỉ người xem mọi phiếu lương (Admin): nhân sự đang làm việc mà kỳ chưa có phiếu lương và lý do.
     missingStaff: { type: Object, default: null },
     assistantRateMissing: { type: Array, default: () => [] },
+    foreignRateMissing: { type: Array, default: () => [] },
     backgroundTasks: { type: Array, default: () => [] },
 });
 
@@ -122,6 +123,12 @@ function filter(event) {
             rồi bấm "Đồng bộ &amp; Tính lại".
         </UiAlert>
 
+        <UiAlert v-if="foreignRateMissing.length && !period.frozen" type="warning" :title="`${foreignRateMissing.length} GVNN chưa có đơn giá phút – cần nhập`" data-foreign-rate-missing>
+            {{ foreignRateMissing.join(', ') }}. Các buổi chưa có đơn giá phút được tính 0đ. Nhập đơn giá cá nhân ở
+            <Link v-if="can('teacher_rate.manage')" :href="route('payroll.config.teacher-rates')" class="font-semibold underline">Đơn giá giáo viên</Link><span v-else>màn Đơn giá giáo viên</span>
+            rồi bấm "Đồng bộ &amp; Tính lại".
+        </UiAlert>
+
         <UiAlert v-if="missingStaff?.count" type="info" dismissible :title="`${missingStaff.count} nhân sự chưa có phiếu lương kỳ này`" data-missing-staff>
             Kỳ lương chỉ tạo phiếu cho người có khoản phát sinh (lương cơ bản, buổi dạy hợp lệ, hoa hồng). Nhập lương cơ bản ở hồ sơ nhân sự rồi bấm "Đồng bộ &amp; Tính lại".
             <ul class="mt-xs space-y-xs">
@@ -135,7 +142,7 @@ function filter(event) {
         </UiAlert>
 
         <!-- Khối / loại nhân sự -->
-        <PeriodTabs :period-id="period.id" :current="type === 'teacher_parttime' ? 'parttime' : type === 'assistant' ? 'assistant' : type ? null : 'all'" />
+        <PeriodTabs :period-id="period.id" :current="type === 'teacher_parttime' ? 'parttime' : type === 'assistant' ? 'assistant' : type === 'foreign_teacher' ? 'foreign' : type ? null : 'all'" />
 
         <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
             <UiStatCard label="Tổng chi quỹ lương" :value="formatMoney(stats.total_amount)" tone="primary" icon="account_balance_wallet" :hint="`${stats.records} nhân sự nhận lương`" />
@@ -166,7 +173,7 @@ function filter(event) {
                         <th class="text-center">Loại</th>
                         <th>Trạng thái bảng lương</th>
                         <th>Trạng thái KPI</th>
-                        <th class="text-right">Lương CB / Buổi dạy</th>
+                        <th class="text-right">Lương CB / Dạy học</th>
                         <th class="text-right">KPI</th>
                         <th class="text-right">Buổi GVNN</th>
                         <th class="text-right">Hoa hồng</th>
@@ -210,7 +217,7 @@ function filter(event) {
                         <td class="text-right font-mono">
                             <template v-if="r.is_part_time">
                                 <span class="text-tertiary">{{ formatMoney(r.teaching_salary) }}</span>
-                                <p class="font-caption text-caption text-on-surface-variant">{{ r.teaching_sessions }} buổi</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ r.teaching_sessions }} buổi<span v-if="r.is_foreign_teacher"> · {{ r.teaching_minutes }} phút</span></p>
                             </template>
                             <template v-else>{{ formatMoney(r.base_salary_earned + r.teaching_salary) }}</template>
                         </td>
@@ -223,8 +230,8 @@ function filter(event) {
                         <td class="text-right">
                             <!-- Nút sửa đặt ngay cạnh con số nó sửa, để cột thao tác chỉ còn "Chi tiết" -->
                             <div class="flex items-center justify-end gap-xs">
-                                <span>{{ r.is_part_time ? formatMoney(r.foreign_session_pay) : '—' }}</span>
-                                <template v-if="!period.frozen && r.is_part_time && can('payroll.edit')">
+                                <span>{{ r.is_part_time && !r.is_foreign_teacher ? formatMoney(r.foreign_session_pay) : '—' }}</span>
+                                <template v-if="!period.frozen && r.is_part_time && !r.is_foreign_teacher && can('payroll.edit')">
                                     <UiButton variant="ghost" size="sm" icon="edit" title="Sửa lương buổi GVNN" aria-label="Sửa lương buổi GVNN" @click="foreignOpen = r.id" />
                                     <UiModal :show="foreignOpen === r.id" title="Lương buổi có GVNN" max-width="md" class="text-left" @close="foreignOpen = null">
                                         <UiForm :id="`foreign-form-${r.id}`" :action="route('payroll.records.update', r.id)" method="post" preserve-state="errors" class="space-y-md text-left">

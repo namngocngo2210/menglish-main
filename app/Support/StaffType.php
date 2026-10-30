@@ -23,7 +23,7 @@ final class StaffType
     /** Giáo viên nước ngoài (chức danh foreign_teacher) — đơn giá GVNN. */
     public static function isForeignTeacher(User $user): bool
     {
-        return self::roles($user)->contains('foreign_teacher');
+        return self::roles($user)->contains(Roles::FOREIGN_TEACHER);
     }
 
     /** Chỉ là trợ giảng (không kiêm giáo viên) — đơn giá trợ giảng. */

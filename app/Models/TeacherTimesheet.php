@@ -137,7 +137,7 @@ class TeacherTimesheet extends Model
             return (float) $this->hourly_rate;
         }
 
-        // Phiên bản hiệu lực tính theo buổi → rateFor trả null, rơi về đơn giá giờ của hồ sơ / mặc định.
+        // Phiên bản theo buổi / phút / % học phí → rateFor trả null, rơi về đơn giá giờ của hồ sơ / mặc định.
         $personalRate = TeacherHourlyRate::rateFor((int) $this->user_id, $this->teaching_date ?? now());
         if ($personalRate !== null && $personalRate > 0) {
             return $personalRate;
@@ -247,6 +247,36 @@ class TeacherTimesheet extends Model
         return array_merge($base, $this->applyLateRules($base['amount'], $settings));
     }
 
+    /**
+     * Tiền công GVNN (TK-0019): số phút theo lịch × đơn giá PHÚT riêng hiệu lực tại ngày dạy.
+     * Đây là phút theo scheduled_time (ca tay thiếu lịch thì hours × 60), không phải phút thực tế vào / ra:
+     * chưa có trường phút thực dạy; GVNN không bị trừ tiền hoặc hủy công vì đi muộn / về sớm.
+     * Không quy đổi đơn giá giờ / buổi / % học phí, không dùng đơn giá ca, hồ sơ hoặc mặc định.
+     * Chưa có đơn giá phút hợp lệ → 0đ, missing_rate = true để cảnh báo trên phiếu lương.
+     *
+     * @return array{amount: float, base_amount: float, counted: bool, late_minutes: int, late_rule: null, late_deduction: float, unit: string, rate: float, minutes: int, missing_rate: bool}
+     */
+    public function foreignTeacherPayOutcome(): array
+    {
+        $personal = TeacherHourlyRate::effectiveFor((int) $this->user_id, $this->teaching_date ?? now());
+        $rate = $personal?->isPerMinute() ? max(0.0, (float) $personal->hourly_rate) : 0.0;
+        $minutes = $this->scheduledMinutes();
+        $amount = round($minutes * $rate, 2);
+
+        return [
+            'amount' => $amount,
+            'base_amount' => $amount,
+            'counted' => true,
+            'late_minutes' => $this->late_total_minutes,
+            'late_rule' => null,
+            'late_deduction' => 0.0,
+            'unit' => TeacherHourlyRate::UNIT_MINUTE,
+            'rate' => $rate,
+            'minutes' => $minutes,
+            'missing_rate' => $rate <= 0,
+        ];
+    }
+
     /** Tiền công cơ bản (chưa áp quy tắc đi muộn / về sớm). */
     private function basePay(?User $user = null): array
     {
@@ -276,7 +306,7 @@ class TeacherTimesheet extends Model
 
     /**
      * Buổi học thật (ClassSession) ứng với một nhân sự dạy lớp vào một ngày.
-     * Ưu tiên buổi phân công đúng người (GV/TA); nếu không có thì chọn buổi
+     * Ưu tiên buổi phân công đúng người (GV/GVNN/TA); nếu không có thì chọn buổi
      * trùng khung giờ vào/ra; cuối cùng là buổi duy nhất trong ngày.
      */
     public static function matchSession(int $userId, int $classId, string $date, ?string $timeIn = null, ?string $timeOut = null): ?ClassSession
@@ -286,7 +316,7 @@ class TeacherTimesheet extends Model
             return null;
         }
 
-        $assigned = $sessions->first(fn (ClassSession $s) => in_array($userId, [(int) $s->teacher_id, (int) $s->assistant_id], true));
+        $assigned = $sessions->first(fn (ClassSession $s) => in_array($userId, [(int) $s->teacher_id, (int) $s->foreign_teacher_id, (int) $s->assistant_id], true));
         if ($assigned) {
             return $assigned;
         }

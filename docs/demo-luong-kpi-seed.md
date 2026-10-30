@@ -27,8 +27,12 @@
      tăng; lớp của GV "kém" thấp, điểm giảm.
    - Báo cáo giảng dạy tháng (`teacherMonthlyStore`) cho GV full-time / part-time các tháng trong kỳ KPI trước: đa số nộp trước
      12h mùng 2, người kém nộp trễ.
-   - Nghỉ dạy: GVNN nghỉ 1 buổi K27 có đơn nghỉ được duyệt (nghỉ có phép); GV full-time kém vắng 1 buổi K27 không đơn (nghỉ
-     không phép → loại trừ KPI tháng).
+   - Nghỉ dạy: GV part-time `gv.banthoigian1@menglish.edu.vn` ở lớp `DEMO-DD-GT27` (tháng trước) và
+     `gv.thaonguyen@menglish.edu.vn` ở lớp `DEMO-BD-GT1` (tháng này) mỗi người vắng 2 buổi: buổi vắng sau có đơn đã duyệt,
+     buổi trước không phép; cả hai có buổi đi muộn để đủ nguồn KPI part-time. Ca quên check-in đã được Học vụ chấm tay vẫn
+     tính là đã dạy, không chọn làm ngày nghỉ. GV full-time kém vắng 1 buổi K27 không đơn (loại trừ KPI tháng).
+     GVNN giữ các buổi đi muộn / vắng và 1 đơn nghỉ được duyệt mỗi tháng để minh họa không phạt tự động; GVNN không thuộc
+     vai trò chấm KPI tự đếm.
    - Sale / Học vụ: lead mới quá hạn liên hệ lần đầu (`SlaBreachService`, như `CrmSlaService`), học phí đến hạn chưa có lần
      nhắc (người kém) / đã nhắc (người tốt), order in ấn xử lý trễ + kiểm kê sách lệch, phiếu thu bị trả về tháng trước.
    - Sự cố buổi dạy K28 cố định (`TEACHING_ISSUES`: đi muộn, nghỉ có / không phép) để số liệu tháng này không phụ thuộc lịch.
@@ -38,13 +42,32 @@
 4. Không làm: chăm sóc tháng đầu quá hạn tháng trước (`FirstMonthCareService::run` quét mọi học viên, tác dụng phụ lớn).
 5. Sale **không có quyền `staff_report.submit`** (`config/access.php`) nên không nộp báo cáo ngày trên hệ thống: tiêu chí
    "Báo cáo ngày nộp muộn" của bộ KPI mẫu Sale chuyển sang điền tay (không giả lập luồng hệ thống không cho phép).
-6. Lớp K27 / K28 có học viên → phiếu lương GV part-time / TA tính KPI giữ học sinh; Admin chọn bậc khi nhập tay
+6. Lớp K27 / K28 có học viên → phiếu lương GV part-time / GVNN / TA tính KPI giữ học sinh; Admin chọn bậc khi nhập tay
    (`retentionTier`: người tốt bậc cao, người kém bậc thấp) để kỳ tháng trước duyệt được.
+
+## GVNN — TK-0019
+
+- Tài khoản `gv.native1@menglish.edu.vn` dùng vai trò riêng `foreign_teacher` (`Roles::FOREIGN_TEACHER`), hiển thị trong nhóm
+  bảng lương **GVNN**. `UserSeeder` và mọi lần chạy `DemoPayrollSeeder` đồng bộ vai trò này, kể cả khi các lớp demo đã có.
+- Đơn giá cá nhân mẫu **7.500đ/phút**, loại `foreign`, có ngày hiệu lực từ tháng trước nữa. `DemoPhase3Seeder` tạo đúng đơn vị
+  phút; `DemoPayrollSeeder` sửa duy nhất dòng demo cũ 450.000đ/buổi có dấu `[demo-p3]` / `[demo-luong]`. Giữ đơn giá người dùng
+  nhập và không tự tính lại phiếu đã khóa.
+- Lớp Speaking Club K27 / K28 có ca đi muộn và ca vắng. Lương chỉ cộng ca hợp lệ: **phút theo giờ bắt đầu / kết thúc của lịch ×
+  đơn giá phút hiệu lực ngày dạy**. Ca nhập tay không có buổi trên lịch lấy số giờ công × 60. Đến muộn không rút ngắn phút theo
+  lịch; vắng không có ca hợp lệ thì không có lương ca đó, không thêm phạt.
+- Không tính thuế TNCN, phạt đi muộn / quên chấm công / vắng hoặc biên bản tự động cho GVNN. Biên bản chuyên môn lập tay cho
+  `gv.native1` vẫn qua giải trình / quyết phạt và được trừ khi đủ điều kiện. KPI giữ học sinh vẫn chọn bậc tay; chưa chọn bậc
+  cần thiết thì phiếu chờ chốt KPI.
+- Khoản **Buổi có GVNN** thuộc phiếu GV Việt Nam, đếm theo từng buổi được gán `class_sessions.foreign_teacher_id` và có ca công
+  GVNN hợp lệ cùng lớp / ngày; Kế toán nhập tiền tay. Phiếu của chính GVNN có khoản này bằng 0. Thiếu đơn giá phút hiệu lực
+  thì tiền ca bằng 0 và có cảnh báo; không quy đổi đơn giá giờ / buổi hoặc lấy đơn giá chung.
 
 ## Kiểm thử
 
 `DemoPayrollSeederTest`: mỗi tiêu chí tự đếm có ít nhất 1 người có số (khác rỗng / khác 0) ở tháng trước và tháng này (trừ
 nguồn chưa tới hạn), người tốt cao hơn người kém, chạy lại không nhân bản. `DatabaseSeeder` không gọi demo lương khi test.
+Kiểm tra thêm vai trò và đơn giá phút của GVNN, các khoản thuế / phạt tự động bằng 0, khoản Buổi có GVNN trên phiếu GVNN bằng 0;
+giả lập dữ liệu demo cũ rồi chạy lại vẫn sửa vai trò / đơn giá và không thêm bản ghi.
 
 ## Sprint
 

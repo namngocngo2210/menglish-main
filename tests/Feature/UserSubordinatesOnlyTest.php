@@ -78,7 +78,7 @@ class UserSubordinatesOnlyTest extends TestCase
         $manager = $this->people[Roles::MANAGER];
 
         $this->assertSame($this->sorted([
-            Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME,
+            Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::FOREIGN_TEACHER,
             Roles::ASSISTANT, Roles::STUDENT, 'other_staff', 'lead_teaching',
         ]), $this->visibleKeys($manager));
 
@@ -86,7 +86,7 @@ class UserSubordinatesOnlyTest extends TestCase
         $roleFilter = collect($page['props']['roles'])->pluck('value')->all();
         $this->assertNotContains(Roles::ADMIN, $roleFilter);
         $this->assertNotContains(Roles::MANAGER, $roleFilter);
-        $this->assertSame(9, $page['props']['stats']['total']);
+        $this->assertSame(10, $page['props']['stats']['total']);
 
         // Lọc theo vai trò ngoài cây cũng không lộ ra ai.
         $this->assertSame([], $this->visibleKeys($manager, ['role' => Roles::MANAGER]));
@@ -102,7 +102,7 @@ class UserSubordinatesOnlyTest extends TestCase
         $staff = $this->people[Roles::ACADEMIC_STAFF];
 
         $this->assertSame($this->sorted([
-            Roles::ACADEMIC_LEAD, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::ASSISTANT, Roles::STUDENT, 'lead_teaching',
+            Roles::ACADEMIC_LEAD, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::FOREIGN_TEACHER, Roles::ASSISTANT, Roles::STUDENT, 'lead_teaching',
         ]), $this->visibleKeys($staff));
 
         // Sửa Học thuật được (CRU); Học vụ khác, Quản lý cơ sở, Tư vấn, giáo viên chi nhánh khác thì không.
@@ -121,7 +121,7 @@ class UserSubordinatesOnlyTest extends TestCase
     {
         $lead = $this->people[Roles::ACADEMIC_LEAD];
 
-        $this->assertSame($this->sorted([Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, 'far_teacher']), $this->visibleKeys($lead));
+        $this->assertSame($this->sorted([Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::FOREIGN_TEACHER, 'far_teacher']), $this->visibleKeys($lead));
 
         $this->actingAs($lead)->get(route('users.edit', $this->people['far_teacher']))->assertOk();
         foreach ([Roles::ASSISTANT, Roles::STUDENT, Roles::ACADEMIC_STAFF, 'lead_teaching'] as $key) {
@@ -131,7 +131,7 @@ class UserSubordinatesOnlyTest extends TestCase
 
     public function test_roles_without_user_view_see_nothing(): void
     {
-        foreach ([Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::ASSISTANT, Roles::STUDENT] as $role) {
+        foreach ([Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::FOREIGN_TEACHER, Roles::ASSISTANT, Roles::STUDENT] as $role) {
             $this->actingAs($this->people[$role])->get(route('users.index'))->assertForbidden();
         }
     }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\CommissionTier;
 use App\Models\Course;
 use App\Models\PayrollPeriod;
@@ -11,6 +12,7 @@ use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -621,12 +623,20 @@ class PayrollBusinessTest extends TestCase
         $foreignTeacher = User::factory()->create([
             'branch_id' => $this->branch->id, 'name' => 'GVNN David', 'is_active' => true,
         ]);
-        $foreignTeacher->assignRole('teacher_parttime');
+        $foreignTeacher->assignRole(Roles::FOREIGN_TEACHER);
         $this->classModel->update(['foreign_teacher_id' => $foreignTeacher->id]);
 
-        foreach (['2026-10-05', '2026-10-12'] as $date) {
+        foreach (['2026-10-05', '2026-10-12'] as $index => $date) {
+            $session = ClassSession::create([
+                'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id,
+                'date' => $date, 'start_time' => '08:00', 'end_time' => '10:00',
+                'teacher_id' => $this->teacherUser->id, 'foreign_teacher_id' => $foreignTeacher->id,
+                'status' => 'completed',
+            ]);
             TeacherTimesheet::create([
                 'user_id' => $this->teacherUser->id, 'class_id' => $this->classModel->id,
+                // Một ca gắn buổi trực tiếp, ca còn lại đối chiếu theo lớp / ngày.
+                'class_session_id' => $index === 0 ? $session->id : null,
                 'teaching_date' => $date, 'hours' => 2, 'hourly_rate' => 300000,
                 'type' => 'regular', 'status' => 'valid',
             ]);
