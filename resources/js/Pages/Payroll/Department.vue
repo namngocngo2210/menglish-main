@@ -7,6 +7,8 @@ import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { trimNumber } from './format';
 import PeriodTabs from './PeriodTabs.vue';
+import LifecycleActions from './LifecycleActions.vue';
+import PeriodLifecycle from './PeriodLifecycle.vue';
 
 defineOptions({ layout: { title: 'Bảng lương theo khối' } });
 
@@ -103,11 +105,13 @@ const initial = (name) => Array.from(name ?? 'N')[0] ?? '';
         </template>
         <template #meta>Kỳ tính lương: {{ period.title }} ({{ period.code }})</template>
         <template #actions>
+            <LifecycleActions :period="period" />
             <UiButton variant="secondary" icon="download" :href="route('payroll.periods.export', { id: period.id, department })" native>Xuất Excel</UiButton>
         </template>
     </UiPageHeader>
 
     <div class="space-y-6">
+        <PeriodLifecycle :period="period" />
         <PeriodTabs :period-id="period.id" :current="department" department />
 
         <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">

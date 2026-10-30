@@ -141,7 +141,7 @@ class Phase3PayslipTest extends TestCase
 
         $this->actingAs($this->manager)->post(route('payroll.records.adjust', $record->id), ['other_bonus' => 1])->assertForbidden();
 
-        $period->update(['status' => 'approved']);
+        $period->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
         $this->actingAs($this->accountant)->post(route('payroll.records.adjust', $record->id), ['other_bonus' => 100000, 'adjustment_notes' => 'x'])
             ->assertStatus(422);
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
@@ -159,7 +159,7 @@ class Phase3PayslipTest extends TestCase
             ->assertOk()
             ->assertDontSee('Thưởng nóng');
 
-        $period->update(['status' => 'approved']);
+        $period->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
         $this->actingAs($this->teacher)->get(route('portal.my-salary'))
             ->assertOk()
             ->assertSee('Thưởng / cộng khác')

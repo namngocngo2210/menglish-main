@@ -278,7 +278,7 @@ class Phase3TimesheetTest extends TestCase
         $future = $this->classSession('2026-10-25');
         PayrollPeriod::create([
             'code' => 'PR-2026-08', 'title' => 'Bảng lương Tháng 8/2026', 'month' => 8, 'year' => 2026,
-            'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'status' => 'approved',
+            'start_date' => '2026-08-01', 'end_date' => '2026-08-31', 'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
         $locked = $this->classSession('2026-08-20');
         $notMine = $this->classSession('2026-10-22', teacherId: $this->manager->id);

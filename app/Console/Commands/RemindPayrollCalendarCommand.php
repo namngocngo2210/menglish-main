@@ -32,7 +32,7 @@ class RemindPayrollCalendarCommand extends Command
             $label = 'tháng '.str_pad((string) $period->month, 2, '0', STR_PAD_LEFT).'/'.$period->year;
             $link = route('payroll.periods.show', $period->id);
 
-            if ($today->isSameDay($end) && ! $period->isLocked()) {
+            if ($today->isSameDay($end) && ! $period->isFrozen()) {
                 $pending = $period->records()->get()->filter(fn ($r) => $r->kpi_state[0] === 'pending')->count();
                 $created += $this->notify($period, 'kpi_close', ['kpi.confirm'], "Hôm nay chốt KPI {$label}",
                     'Chốt đánh giá KPI tháng'.($pending ? " — còn {$pending} nhân sự chưa chốt KPI trên bảng lương" : '').'.',
@@ -40,7 +40,7 @@ class RemindPayrollCalendarCommand extends Command
             }
 
             $afterEnd = (int) $end->diffInDays($today, false);
-            if ($afterEnd >= 1 && $afterEnd <= PayrollPeriod::closeAfterDays() && ! $period->isLocked()) {
+            if ($afterEnd >= 1 && $afterEnd <= PayrollPeriod::closeAfterDays() && ! $period->isFrozen()) {
                 $closeOn = $period->attendanceCloseAt()->format('d/m');
                 $created += $this->notify($period, 'close_d'.$afterEnd,
                     ['attendance_staff.view', 'violation.confirm_fine', 'payroll.approve'],
@@ -51,7 +51,7 @@ class RemindPayrollCalendarCommand extends Command
             if ($today->day === PayrollPeriod::PAY_DAY_FROM && $today->isSameMonth($period->payWindow()[0])) {
                 $created += $this->notify($period, 'pay_window', ['payroll.approve', 'payroll.mark_paid'],
                     "Trả lương {$label}: ".PayrollPeriod::PAY_DAY_FROM.'–'.PayrollPeriod::PAY_DAY_TO.' tháng này',
-                    $period->isLocked() ? 'Bảng lương đã chốt — chi trả từ hôm nay đến ngày '.PayrollPeriod::PAY_DAY_TO.'.'
+                    $period->isFrozen() ? 'Bảng lương đã chốt — chi trả từ hôm nay đến ngày '.PayrollPeriod::PAY_DAY_TO.'.'
                         : 'Bảng lương chưa chốt — hoàn tất chốt lương để kịp trả trong khung '.PayrollPeriod::PAY_DAY_FROM.'–'.PayrollPeriod::PAY_DAY_TO.'.', $link);
             }
         });

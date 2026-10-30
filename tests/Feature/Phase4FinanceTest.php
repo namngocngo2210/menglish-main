@@ -10,6 +10,8 @@ use App\Models\ClassModel;
 use App\Models\Course;
 use App\Models\DebtReminderRule;
 use App\Models\InvoiceConfiguration;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollRecord;
 use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentAttendance;
@@ -230,6 +232,42 @@ class Phase4FinanceTest extends TestCase
 
         $this->actingAs($this->accountant)->get(route('finance.reports.revenue'))->assertOk();
         $this->actingAs($this->admin)->get(route('finance.expenses.index'))->assertOk();
+    }
+
+    public function test_finance_reports_include_only_published_or_paid_payroll_periods(): void
+    {
+        $periods = collect([8 => 1172839, 9 => 2345678])->map(function (int $amount, int $month) {
+            $period = PayrollPeriod::create([
+                'code' => 'PR-P4-TK16-'.$month, 'title' => 'Bảng lương tài chính TK-0016',
+                'month' => $month, 'year' => 2026, 'start_date' => "2026-{$month}-01",
+                'end_date' => $month === 8 ? '2026-08-31' : '2026-09-30',
+                'status' => PayrollPeriod::STATUS_DRAFT, 'total_staff' => 1, 'total_amount' => $amount,
+            ]);
+            PayrollRecord::create(['payroll_period_id' => $period->id, 'user_id' => $this->staff->id, 'net_salary' => $amount]);
+
+            return $period;
+        });
+        foreach (array_keys(PayrollPeriod::STATUS_LABELS) as $status) {
+            foreach ($periods as $period) {
+                $period->update(['status' => $status]);
+            }
+            $visible = in_array($status, PayrollPeriod::LOCKED_STATUSES, true);
+            $expected = $visible ? 2345678.0 : 0.0;
+            $this->actingAs($this->admin)->get(route('finance.expenses.index', ['month' => '2026-09']))
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->where('autoSalaryAmount', fn ($amount) => (float) $amount === $expected)
+                    ->where('percentDiff', fn ($diff) => (float) $diff === ($visible ? 100.0 : 0.0)));
+            $this->get(route('finance.reports.revenue', ['month' => '2026-09']))
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->where('salaryTotal', fn ($amount) => (float) $amount === $expected)
+                    ->where('branchMatrix.0.expense', fn ($amount) => (float) $amount === $expected));
+            $csv = $this->get(route('finance.reports.revenue.export', ['month' => '2026-09']))->assertOk()->streamedContent();
+            if ($visible) {
+                $this->assertStringContainsString('2.345.678', $csv);
+            } else {
+                $this->assertStringNotContainsString('2.345.678', $csv);
+            }
+        }
     }
 
     public function test_manager_only_sees_own_branch_in_finance_reports(): void

@@ -444,6 +444,7 @@ class Phase3CommissionTest extends TestCase
         $this->assertEquals(300000, $this->salesRecord($august)->commission_bonus);
         $this->finalizeKpi($august);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $august->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $august->id))->assertSessionHasNoErrors();
 
         $this->travelTo(Carbon::parse('2026-09-05 10:00:00'));
         $refund = $this->refundRequest($student, 4000000);
@@ -480,6 +481,7 @@ class Phase3CommissionTest extends TestCase
         $september->calculatePayrollForPeriod(); // qua mốc chốt: tính lại lần cuối trước khi duyệt
         $this->finalizeKpi($september);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $september->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $september->id))->assertSessionHasNoErrors();
         $this->assertNotNull(CommissionAdjustment::firstOrFail()->settled_at);
 
         // Kỳ sau không trừ lại

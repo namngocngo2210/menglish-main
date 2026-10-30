@@ -41,11 +41,11 @@ use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Dữ liệu demo phần lương (Phase 5): chấm công điện thoại, đơn xin duyệt, giờ dạy, KPI mọi vai trò, bảng lương kỳ đang soát.
+ * Dữ liệu demo phần lương (Phase 5): chấm công điện thoại, đơn xin duyệt, giờ dạy, KPI mọi vai trò, bảng lương kỳ đang tính.
  * Dựng trên tài khoản UserSeeder và dữ liệu DemoPhase1–4 (chạy sau DemoPhase4Seeder), chỉ THÊM dữ liệu, không sửa / xóa
  * bản ghi đã có (trừ điền hồ sơ lương còn trống và toạ độ chấm công của cơ sở chưa cài).
  *
- * Mốc thời gian tương đối với hôm nay: L = tháng trước (kỳ lương đã chốt, khóa), C = tháng này (kỳ đang soát).
+ * Mốc thời gian tương đối với hôm nay: L = tháng trước (kỳ lương đã gửi GV xem, khóa), C = tháng này (kỳ đang tính).
  * - Cài chấm công cho cơ sở Cầu Giấy / Ba Đình / Đống Đa chưa có toạ độ (bán kính 150 m, giờ làm 08:00–17:30, cho muộn 10').
  * - 7 nhân sự mới vào làm từ đầu tháng này (GV part-time / full-time, trợ giảng, Học vụ Đống Đa, Sale), điền hồ sơ lương còn
  *   trống của nhân sự cũ (Quản lý cơ sở, Sale, loại hợp đồng GV / TA), đơn giá buổi riêng cho GV / TA chưa có.
@@ -60,11 +60,11 @@ use RuntimeException;
  *   không duyệt), phiếu tháng này chờ duyệt, phần lớn đã điền số liệu.
  * - Nguồn số liệu KPI tự đếm (DemoKpiSourcesSeeder): học viên lớp K27 / K28 (điểm danh, mini test, BTVN), báo cáo tháng GV, nghỉ
  *   dạy có / không phép, SLA CRM, học phí chưa nhắc, order in ấn trễ, kiểm kê lệch, phiếu thu bị trả về.
- * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang soát).
+ * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang tính).
  * - KPI Học thuật (Trưởng Học thuật): DemoAcademicKpiSeeder (dự án học thuật, việc giao, order học liệu, phiếu tháng trước / này).
  * - Kỳ lương tháng trước đủ mọi vai trò (completeLastMonth): lớp K27 cho GV / TA chưa có lịch tháng trước (có buổi đi muộn, quên
  *   check-in, vắng, ca bị từ chối), biên bản vi phạm lập tay cho mọi vai trò ở đủ các bước, KPI bộ mẫu Quản lý cơ sở và mỗi vai trò
- *   1 người tốt / 1 người kém; chốt phiếu KPI tháng trước ngày 3 (sau khi đủ nguồn tự đếm); mở lại kỳ demo, tính lại, duyệt, từ
+ *   1 người tốt / 1 người kém; chốt phiếu KPI tháng trước ngày 3 (sau khi đủ nguồn tự đếm); mở lại kỳ demo, tính lại, chốt và gửi GV xem, từ
  *   ngày 10 ghi nhận đã chi trả.
  *
  * DatabaseSeeder gọi ở môi trường demo (trừ production và unit test); chạy tay bằng `php artisan demo:luong` sau `db:seed`.
@@ -1212,7 +1212,7 @@ class DemoPayrollSeeder extends Seeder
         $admin = $this->staff['admin'];
         $this->at($this->realNow->copy()->subMinutes(20));
         $period = PayrollPeriod::where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)->first();
-        if ($period?->isLocked()) {
+        if ($period?->isFrozen()) {
             return;
         }
         if ($period) {
@@ -1288,10 +1288,10 @@ class DemoPayrollSeeder extends Seeder
     // ── Kỳ lương tháng trước đủ mọi vai trò ───────────────────────────────────
 
     /**
-     * Kỳ tháng trước do DemoPhase3 duyệt từ khi Quản lý cơ sở, 1 Sale, GV part-time, GVNN, phần lớn trợ giảng chưa có hồ sơ lương /
+     * Kỳ tháng trước do DemoPhase3 chốt và gửi GV xem từ khi Quản lý cơ sở, 1 Sale, GV part-time, GVNN, phần lớn trợ giảng chưa có hồ sơ lương /
      * lịch dạy, nên thiếu phiếu của họ. Bổ sung: lớp K27 dạy cả tháng trước (GV / TA check-in từng buổi, Học vụ duyệt ca, chấm công
-     * điện thoại các ngày dạy), mở lại kỳ (đảo đúng các bước của Duyệt), Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu
-     * mới, duyệt lại; từ ngày 10 (lịch trả lương) đánh dấu đã chi trả. Nhân sự vào làm từ tháng này không có phiếu tháng trước.
+     * điện thoại các ngày dạy), mở lại kỳ (hoàn tác tất toán khi gửi GV xem), Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu
+     * mới, chốt và gửi GV xem lại; từ ngày 10 (lịch trả lương) đánh dấu đã chi trả. Nhân sự vào làm từ tháng này không có phiếu tháng trước.
      * Idempotent theo lớp K27 đầu tiên; kỳ đã chi trả hoặc không phải kỳ demo thì không đụng tới.
      */
     private function completeLastMonth(): void
@@ -1300,7 +1300,7 @@ class DemoPayrollSeeder extends Seeder
             return;
         }
         $period = PayrollPeriod::where('year', $this->lastMonth->year)->where('month', $this->lastMonth->month)->first();
-        // Giờ thật lúc bắt đầu phần này (sau các seeder trước): tính lại / duyệt kỳ sau mọi thay đổi đã ghi, để "Duyệt" không
+        // Giờ thật lúc bắt đầu phần này (sau các seeder trước): tính lại / chốt kỳ sau mọi thay đổi đã ghi, để "Chốt bảng lương" không
         // báo dữ liệu đổi sau lần tính.
         $now = Carbon::now();
         // Chốt phiếu KPI tháng trước ngày 3 tháng này (sau hạn nộp báo cáo tháng 12h mùng 2), 1 phiếu trợ giảng không duyệt.
@@ -1309,7 +1309,7 @@ class DemoPayrollSeeder extends Seeder
             $this->freezeLastMonthSheets(true);
             $this->at($now);
         };
-        if ($period && ($period->status === 'paid' || ($period->isLocked() && ! $period->records()->where('adjustment_notes', 'like', '%demo%')->exists()))) {
+        if ($period && ($period->status === PayrollPeriod::STATUS_PAID || ($period->isFrozen() && ! $period->records()->where('adjustment_notes', 'like', '%demo%')->exists()))) {
             $this->command?->warn('DemoPayrollSeeder: kỳ lương tháng trước đã chi trả hoặc không phải kỳ demo — không bổ sung, chỉ chốt phiếu KPI.');
             $this->call(DemoKpiSourcesSeeder::class);
             $freeze();
@@ -1319,7 +1319,7 @@ class DemoPayrollSeeder extends Seeder
 
         $sessions = $this->setupLastMonthClasses();
         $hadRecord = $period ? $period->records()->pluck('user_id')->all() : [];
-        if ($period?->isLocked()) {
+        if ($period?->isFrozen()) {
             $this->at($now);
             $this->reopenPeriod($period);
         }
@@ -1400,7 +1400,7 @@ class DemoPayrollSeeder extends Seeder
                 }
             });
 
-        // Admin tính lại kỳ (hôm nay), nhập tay phiếu mới, tính lại, duyệt; từ ngày 10 ghi nhận chi trả.
+        // Admin tính lại kỳ (hôm nay), nhập tay phiếu mới, tính lại, chốt và gửi GV xem; từ ngày 10 ghi nhận chi trả.
         $admin = $this->staff['admin'];
         $this->at($now);
         if (! $period) {
@@ -1414,11 +1414,12 @@ class DemoPayrollSeeder extends Seeder
         $this->at($now);
         $this->calculateExcludingNewStaff($period);
         $this->at($now);
-        // Nhân sự sẵn có trên hệ thống (ngoài demo) chưa chốt KPI… thì không duyệt được: để kỳ "Đang soát", không chốt hộ.
+        // Nhân sự sẵn có trên hệ thống (ngoài demo) chưa chốt KPI… thì không chốt được: để kỳ "Đang tính", không chốt hộ.
         try {
             $this->asUser($admin, PayrollController::class, 'approvePeriod', [], ['id' => $period->id]);
+            $this->asUser($admin, PayrollController::class, 'publishPeriod', [], ['id' => $period->id]);
         } catch (RuntimeException $e) {
-            $this->command?->warn("{$e->getMessage()} → kỳ {$period->code} để ở \"Đang soát\".");
+            $this->command?->warn("{$e->getMessage()} → kỳ {$period->code} để ở \"Đang tính\".");
         }
         // Biên bản tháng trước đã trừ lương → nhân sự khắc phục; kỳ tháng này tính lại để trừ biên bản quá hạn nộp.
         foreach ($this->deductedPenalties as $penalty) {
@@ -1427,10 +1428,10 @@ class DemoPayrollSeeder extends Seeder
             }
         }
         $current = PayrollPeriod::where('year', $this->thisMonth->year)->where('month', $this->thisMonth->month)->first();
-        if ($current && ! $current->isLocked()) {
+        if ($current && ! $current->isFrozen()) {
             $this->asUser($admin, PayrollController::class, 'calculatePeriod', [], ['id' => $current->id]);
         }
-        if ($period->refresh()->status === 'approved' && $now->day >= 10) {
+        if ($period->refresh()->status === PayrollPeriod::STATUS_PUBLISHED && $now->day >= 10) {
             $this->at($now);
             $this->asUser($admin, PayrollController::class, 'markPaid', [], ['id' => $period->id]);
         }
@@ -1544,17 +1545,37 @@ class DemoPayrollSeeder extends Seeder
         return $sessions;
     }
 
-    /** Đảo đúng các bước của "Duyệt bảng lương" (PayrollController::approvePeriod) để kỳ demo tính lại được. */
+    /** Hoàn tác tất toán khi gửi GV xem để bổ sung dữ liệu kỳ demo; không phải thao tác mở lại của ứng dụng. */
     private function reopenPeriod(PayrollPeriod $period): void
     {
-        $recordIds = $period->records()->pluck('id');
-        Penalty::whereIn('payroll_record_id', $recordIds)->where('status', 'deducted')->update(['status' => 'fined']);
-        CommissionAdjustment::whereIn('payroll_record_id', $recordIds)->update(['settled_at' => null]);
-        CommissionItem::whereIn('payroll_record_id', $recordIds)->where('status', CommissionItem::STATUS_PAID)
-            ->update(['settled_at' => null, 'status' => CommissionItem::STATUS_PAYABLE]);
-        AdminNotification::where('type', 'payroll_approved')->where('data', 'like', '%"payroll_period_id":'.$period->id.',%')->delete();
-        $period->records()->update(['status' => 'pending']);
-        $period->update(['status' => 'reviewing']);
+        DB::transaction(function () use ($period) {
+            $locked = PayrollPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status === PayrollPeriod::STATUS_PAID) {
+                throw new RuntimeException('Không thể đặt lại kỳ demo đã chi trả.');
+            }
+            if ($locked->status === PayrollPeriod::STATUS_DRAFT) {
+                return;
+            }
+
+            $fromStatus = $locked->status;
+            $recordIds = $locked->records()->pluck('id');
+            Penalty::withoutViewerScope()->whereIn('payroll_record_id', $recordIds)->where('status', 'deducted')->update(['status' => 'fined']);
+            CommissionAdjustment::whereIn('payroll_record_id', $recordIds)->update(['settled_at' => null]);
+            CommissionItem::whereIn('payroll_record_id', $recordIds)->where('status', CommissionItem::STATUS_PAID)
+                ->update(['settled_at' => null, 'status' => CommissionItem::STATUS_PAYABLE]);
+            AdminNotification::whereIn('type', ['payroll_published', 'payroll_approved'])
+                ->where('data->payroll_period_id', $locked->id)->delete();
+            $locked->records()->update(['status' => 'pending']);
+            $locked->update(['status' => PayrollPeriod::STATUS_DRAFT]);
+            $locked->transitions()->create([
+                'from_status' => $fromStatus,
+                'to_status' => PayrollPeriod::STATUS_DRAFT,
+                'user_id' => Auth::id(),
+                'note' => 'Đặt lại kỳ demo để bổ sung dữ liệu (hoàn tác tất toán; chỉ dành cho seeder demo).',
+                'created_at' => now(),
+            ]);
+        });
+        $period->refresh();
     }
 
     /**

@@ -289,7 +289,7 @@ class MyAttendanceTest extends TestCase
     {
         PayrollPeriod::create([
             'code' => 'PR-LOCK', 'title' => 'Kỳ đã chốt', 'month' => 10, 'year' => 2026,
-            'start_date' => '2026-10-01', 'end_date' => '2026-10-31', 'status' => 'approved',
+            'start_date' => '2026-10-01', 'end_date' => '2026-10-31', 'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
 
         $this->punch($this->staff)->assertSessionHasErrors('kind');

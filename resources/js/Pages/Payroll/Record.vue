@@ -13,6 +13,8 @@ import { useBackLink } from '@/lib/backLink';
 import { route } from '@/lib/route';
 import { money, trimNumber } from './format';
 import PayslipLines from './PayslipLines.vue';
+import LifecycleActions from './LifecycleActions.vue';
+import PeriodLifecycle from './PeriodLifecycle.vue';
 
 defineOptions({ layout: { title: 'Phiếu lương' } });
 
@@ -52,7 +54,8 @@ const pad = (n) => String(n).padStart(2, '0');
 const isPT = computed(() => props.record.is_part_time);
 const isFT = computed(() => props.record.is_full_time);
 const key = computed(() => props.variant.key);
-const [statusColor, statusText] = props.period.status === 'paid' ? ['secondary', 'Đã trả'] : props.period.status === 'approved' ? ['success', 'Đã chốt'] : ['info', 'Đang tính'];
+const statusColor = computed(() => ({ draft: 'info', closed: 'warning', published: 'success', paid: 'secondary' })[props.period.status] ?? 'neutral');
+const statusText = computed(() => props.period.status_label ?? props.period.status);
 const [kpiStateKey, kpiStateLabel] = props.record.kpi_state;
 const editLines = ref(props.lines.map((line) => ({ ...line })));
 const tierOptions = computed(() => props.settings.retention_tiers.map((t) => ({ value: String(Math.trunc(t)), label: `${money(t)}đ / HS` })));
@@ -86,14 +89,11 @@ function sessionNote(ts) {
         </template>
         <template #actions>
             <UiButton variant="secondary" icon="picture_as_pdf" @click="printPayslip">In phiếu lương / Xuất PDF</UiButton>
-            <UiForm v-if="can('payroll.mark_paid') && period.status === 'approved'" :action="route('payroll.periods.mark-paid', period.id)" method="post">
-                <UiButton type="submit" variant="secondary" icon="payments">Đánh dấu đã trả</UiButton>
-            </UiForm>
-            <UiForm v-if="can('payroll.approve') && !period.locked" :action="route('payroll.periods.approve', period.id)" method="post" :confirm="`Chốt toàn bộ bảng lương ${period.title}? Dữ liệu kỳ sẽ bị khóa và nhân sự nhận thông báo.`">
-                <UiButton type="submit" icon="check_circle">Chốt bảng lương</UiButton>
-            </UiForm>
+            <LifecycleActions :period="period" />
         </template>
     </UiPageHeader>
+
+    <PeriodLifecycle :period="period" class="mb-lg" />
 
     <!-- Người nhận + kỳ + loại + trạng thái -->
     <div class="mb-lg flex flex-wrap items-center gap-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
@@ -501,11 +501,11 @@ function sessionNote(ts) {
                     <template v-if="canEdit">
                         <UiTextarea name="adjustment_notes" label="Ghi chú" rows="2" :value="record.adjustment_notes" hint="Các khoản nhập tay được giữ khi bấm Đồng bộ & Tính lại." />
                         <UiButton type="submit" icon="save" class="w-full">Lưu điều chỉnh</UiButton>
-                        <UiAlert type="info">Bảng lương này đang ở trạng thái tính toán. Chốt bảng lương để khóa dữ liệu và gửi thông báo cho nhân sự.</UiAlert>
+                        <UiAlert type="info">Bảng lương này đang ở trạng thái tính toán. Chốt bảng lương để đóng băng phiếu, sau đó Gửi GV xem để khóa dữ liệu và gửi thông báo cho nhân sự.</UiAlert>
                     </template>
                     <p v-else class="font-body-small text-body-small text-on-surface-variant">
                         {{ record.adjustment_notes || 'Không có ghi chú điều chỉnh.' }}
-                        <span v-if="period.locked" class="block font-caption text-caption">Kỳ lương đã {{ period.status_label.toLocaleLowerCase('vi') }} — phiếu lương đã khoá.</span>
+                        <span v-if="period.frozen" class="block font-caption text-caption">Kỳ lương {{ period.status_label.toLocaleLowerCase('vi') }} — phiếu lương đã khoá.</span>
                     </p>
                     <p class="font-caption text-caption text-on-surface-variant">Diễn giải tự động: {{ record.notes }}</p>
                 </section>

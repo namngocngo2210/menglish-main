@@ -222,6 +222,7 @@ class Phase3PenaltyTest extends TestCase
 
         $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
         $this->assertSame('deducted', $overdue->fresh()->status);
         $this->assertSame('deducted', $notDueYet->fresh()->status);
         $this->assertSame('paid', $paid->fresh()->status);
@@ -254,7 +255,7 @@ class Phase3PenaltyTest extends TestCase
 
     public function test_status_changes_are_blocked_once_deducted_in_locked_period(): void
     {
-        $period = $this->period(9, 2026, 'approved');
+        $period = $this->period(9, 2026, PayrollPeriod::STATUS_PUBLISHED);
         $record = PayrollRecord::create(['payroll_period_id' => $period->id, 'user_id' => $this->teacher->id, 'net_salary' => 1000000]);
         $penalty = Penalty::create([
             'code' => 'BB-LOCK', 'user_id' => $this->teacher->id, 'violation_type' => 'Đi muộn', 'error_category' => 'operations',
@@ -391,7 +392,7 @@ class Phase3PenaltyTest extends TestCase
     public function test_violation_in_locked_period_can_still_be_recorded(): void
     {
         $this->travelTo(Carbon::parse('2026-10-01 09:00:00'));
-        $this->period(9, 2026, 'approved');
+        $this->period(9, 2026, PayrollPeriod::STATUS_PUBLISHED);
 
         $this->actingAs($this->academicStaff)->post(route('penalties.store'), $this->storePayload([
             'violation_at' => '2026-09-30T20:00',

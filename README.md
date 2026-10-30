@@ -73,15 +73,15 @@ Có gì trong dữ liệu (L = tháng trước, C = tháng này):
 - **Kỷ luật** (màn Danh sách vi phạm): đủ các bước chờ giải trình / đã giải trình / xác nhận lỗi / quyết phạt (chưa tới hạn) / đã nộp trực tiếp / **đã trừ lương** (quá hạn, kỳ L) / đã hủy; 1 biên bản quá hạn trừ ở kỳ C.
 - **KPI Học vụ** 15 mục / 6 nhóm tháng L và C cho `nva`, `giaovu2` (Quản lý chi nhánh chấm).
 - **Hoa hồng** (Sale `tranmaia`): 4 khách mới SĐT `0377…` chốt vào `DEMO-CG-FAM1`. Khách chốt tháng L−1, đủ 3/3 mốc → **trả ở kỳ L**; 3 khách chốt đầu tháng L → **hoãn** ở kỳ L (chưa đủ 30 ngày); tháng C 2 khách đủ 3/3 mốc → **trả kỳ C**, 1 khách 2/3 mốc → vẫn hoãn. Khách đã được trả hoa hồng **hoàn phí**, Admin chọn **thu hồi** → trừ ở kỳ C.
-- **Kỳ lương**: kỳ L **Đã duyệt** (khóa; Kế toán đã nhập bậc KPI giữ HS, KPI tự do, thuế TNCN, phụ cấp / khấu trừ tự do rồi tính lại); kỳ C **Đang soát** (đã tính + nhập tay, chờ Admin duyệt).
+- **Kỳ lương**: kỳ L **Đã gửi GV xem** (từ ngày 10: **Đã trả**; khóa; Kế toán đã nhập bậc KPI giữ HS, KPI tự do, thuế TNCN, phụ cấp / khấu trừ tự do rồi tính lại); kỳ C **Đang tính** (đã tính + nhập tay, chờ Admin chốt rồi gửi GV xem). Vòng đời kỳ lương: `docs/vong-doi-ky-luong.md`.
 
 Đăng nhập để xem (mật khẩu như trên):
 
 | Vai trò | Email | Xem gì |
 |---|---|---|
-| Kế toán | `ketoan2@menglish.edu.vn` | Lương → Danh sách bảng lương: kỳ C "Đang soát" → phiếu lương từng người (nhập bậc KPI / TNCN / dòng tự do, "Đồng bộ & Tính lại"); không có nút duyệt |
-| Admin | `admin@menglish.edu.vn` | Duyệt kỳ C; kỳ L đã khóa; Đơn giá GV, Mốc hoa hồng, Tham số tính lương, Danh sách vi phạm |
-| Giáo viên part-time | `nguyenvanan@menglish.edu.vn` | "Lương của tôi": chỉ thấy kỳ L (đã duyệt), kỳ C chưa hiện; biên bản của mình để giải trình |
+| Kế toán | `ketoan2@menglish.edu.vn` | Lương → Danh sách bảng lương: kỳ C "Đang tính" → phiếu lương từng người (nhập bậc KPI / TNCN / dòng tự do, "Đồng bộ & Tính lại"); không có nút chốt / gửi GV xem |
+| Admin | `admin@menglish.edu.vn` | Chốt rồi gửi GV xem kỳ C; kỳ L đã khóa; Đơn giá GV, Mốc hoa hồng, Tham số tính lương, Danh sách vi phạm |
+| Giáo viên part-time | `nguyenvanan@menglish.edu.vn` | "Lương của tôi": chỉ thấy kỳ L (đã gửi GV xem), kỳ C chưa hiện; biên bản của mình để giải trình |
 | GV full-time / TA | `gv.cohuu2@menglish.edu.vn` · `ta.tuan@menglish.edu.vn` | "Lương của tôi" kỳ L (GV full-time: BHXH 10,5% + Công đoàn 0,5% trên mức lương đóng BHXH 5,4 triệu × ngày công; TA: số giờ × đơn giá giờ, không BHXH) |
 | Học vụ | `nva@menglish.edu.vn` | Chấm công tay, duyệt chấm công, ghi nhận vi phạm, đánh giá KPI (không tự chấm mình) |
 | Quản lý cơ sở | `manager@menglish.edu.vn` | Chốt lỗi vận hành + quyết phạt, ghi nhận nộp phạt, tick mốc chăm sóc tháng đầu, đơn giá GV |
@@ -126,7 +126,7 @@ Mật khẩu chung các tài khoản demo = `SEED_DEFAULT_PASSWORD` (mặc đị
 | 1–4 | Khách → test → học thử → chốt | Sale `tranmaia@…`, Học vụ `nva@…`, Quản lý `manager@…`, GV `nguyenvanan@…` | CRM → Pipeline (Sale nhập, Học vụ chuyển bước), Test đầu vào (Học vụ chấm), Học thử (GV nhận xét), Chốt & Xếp lớp / Chờ xếp lớp / Xác nhận chính thức |
 | 5–8, 21 | Lớp, lịch, giáo trình, dạy & điểm danh, chăm sóc | Học vụ `nva@…`, Học thuật `academiclead@…`, GV `nguyenvanan@…` | Dashboard lớp, TKB, Giao chặng, Điểm danh theo buổi, Bổ trợ, việc chăm sóc tháng đầu |
 | 10–14 | Big Test → PH nhận kết quả; cổng học viên | Học thuật `academiclead@…`, học viên `hocvien1@…` | Duyệt kết quả & gửi PH; Cổng học viên: lịch, điểm danh, kết quả |
-| 9, 9b, 16, 17 | Chấm công → phạt / hoa hồng / KPI → lương | Học vụ `nva@…`, Kế toán `ketoan2@…`, Admin `admin@…`, GV `nguyenvanan@…` | Chấm công GV, Danh sách vi phạm, Bảng lương (kỳ tháng này Đang soát → Admin duyệt), Lương của tôi |
+| 9, 9b, 16, 17 | Chấm công → phạt / hoa hồng / KPI → lương | Học vụ `nva@…`, Kế toán `ketoan2@…`, Admin `admin@…`, GV `nguyenvanan@…` | Chấm công GV, Danh sách vi phạm, Bảng lương (kỳ tháng này Đang tính → Admin chốt → gửi GV xem), Lương của tôi |
 | 15 | Phiếu thu → duyệt → HĐ → công nợ | Học vụ `nva@…` (lập), Kế toán `ketoan2@…` (duyệt, CG) / `ttb@…` (BD) | Học phí → Lập phiếu thu / Duyệt phiếu thu / Lịch sử thu; khách `# Đinh Khánh Linh` (nợ 0), `# Hồ Minh Châu` (chờ duyệt) |
 | 15b | Hủy HĐ, hoàn phí, chuyển nhượng, bảo lưu, khất nợ, quá hạn | Kế toán `ketoan2@…` / `ttb@…`, Quản lý `manager.bd@…`, Admin | Duyệt hủy HĐ, Hoàn tiền & khất nợ, Thu phí quá hạn (nhóm ≥ 7 / 1–6 ngày, Đã liên hệ, Báo cáo Admin), Cấu hình nhắc nợ, Dải số HĐ, Tài khoản NH |
 | 18–20 | Giao việc, trợ giảng 3 ca, trực lớp, ticket, thu chi | Admin, Quản lý `manager@…`, TA `ta.tuan@…` / `ta.yen@…`, GV `gv.cohuu2@…`, Kế toán `ketoan2@…` | Phân công công việc, Nhiệm vụ hôm nay (TA), Xác nhận hoàn thành (GV chính duyệt báo cáo không ảnh), Ticket, Báo cáo doanh thu tạm tính, Khoản chi |

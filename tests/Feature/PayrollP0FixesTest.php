@@ -165,7 +165,7 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_period_views_show_commission_column_that_reconciles_with_net(): void
     {
-        $period = $this->period(8, 2026, 'reviewing');
+        $period = $this->period(8, 2026, PayrollPeriod::STATUS_DRAFT);
         foreach (['fulltime', 'academic', 'operations'] as $department) {
             $user = User::factory()->create(['name' => "NV {$department}", 'is_active' => true]);
             PayrollRecord::create([
@@ -266,8 +266,9 @@ class PayrollP0FixesTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
             ->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
 
-        $this->assertSame('approved', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_PUBLISHED, $period->fresh()->status);
         $this->assertSame('deducted', $included->fresh()->status);
         $this->assertSame('fined', $excluded->fresh()->status);
     }
@@ -287,7 +288,7 @@ class PayrollP0FixesTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
             ->assertSessionHasErrors('period');
-        $this->assertSame('reviewing', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->fresh()->status);
         $this->assertSame('fined', $late->fresh()->status);
 
         $this->travelTo(Carbon::parse('2026-09-03 11:00:00'));
@@ -304,8 +305,9 @@ class PayrollP0FixesTest extends TestCase
         $period->calculatePayrollForPeriod();
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))
             ->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
 
-        $this->assertSame('approved', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_PUBLISHED, $period->fresh()->status);
         $this->assertSame('deducted', $late->fresh()->status);
     }
 
@@ -313,9 +315,9 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_is_locked_for_covers_only_approved_and_paid_periods(): void
     {
-        $this->period(7, 2026, 'approved');
+        $this->period(7, 2026, PayrollPeriod::STATUS_PUBLISHED);
         $this->period(8, 2026, 'paid');
-        $this->period(9, 2026, 'reviewing');
+        $this->period(9, 2026, PayrollPeriod::STATUS_DRAFT);
 
         $this->assertTrue(PayrollPeriod::isLockedFor(Carbon::parse('2026-07-31')));
         $this->assertTrue(PayrollPeriod::isLockedFor(Carbon::parse('2026-08-01')));
@@ -325,7 +327,7 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_timesheet_and_penalty_writes_are_rejected_in_locked_period(): void
     {
-        $this->period(8, 2026, 'approved');
+        $this->period(8, 2026, PayrollPeriod::STATUS_PUBLISHED);
 
         $this->actingAs($this->admin)->post(route('payroll.timesheets.manual.store'), [
             'user_id' => $this->teacher->id, 'class_id' => $this->classModel->id,
@@ -362,7 +364,7 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_checkin_is_rejected_when_today_is_in_locked_period(): void
     {
-        $this->period(now()->month, now()->year, 'approved');
+        $this->period(now()->month, now()->year, PayrollPeriod::STATUS_PUBLISHED);
         // Có buổi hôm nay (kỳ khóa tính theo ngày của buổi): vẫn bị từ chối.
         \App\Models\ClassSession::create([
             'class_id' => $this->classModel->id, 'branch_id' => $this->branch->id, 'date' => now()->toDateString(),
@@ -384,7 +386,7 @@ class PayrollP0FixesTest extends TestCase
             ->assertSee('Đã trả')
             ->assertDontSee('Lương buổi có GVNN');
 
-        $period->update(['status' => 'reviewing']);
+        $period->update(['status' => PayrollPeriod::STATUS_DRAFT]);
         $this->actingAs($this->admin)->get(route('payroll.periods.show', $period->id))
             ->assertOk()
             ->assertSee('Lương buổi có GVNN');
@@ -421,7 +423,7 @@ class PayrollP0FixesTest extends TestCase
         $period = $this->period();
 
         $this->actingAs($this->accountant)->post(route('payroll.periods.calculate', $period->id))->assertRedirect();
-        $this->assertSame('reviewing', $period->fresh()->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->fresh()->status);
         $this->actingAs($this->accountant)->get(route('payroll.periods.show', $period->id))->assertOk();
 
         $this->actingAs($this->accountant)->post(route('payroll.periods.approve', $period->id))->assertForbidden();
@@ -431,6 +433,7 @@ class PayrollP0FixesTest extends TestCase
         $this->actingAs($this->manager)->get(route('payroll.periods.show', $period->id))->assertForbidden();
 
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('payroll.periods.publish', $period->id))->assertSessionHasNoErrors();
         $this->actingAs($this->accountant)->post(route('payroll.periods.mark-paid', $period->id))->assertForbidden();
         $this->actingAs($this->admin)->post(route('payroll.periods.mark-paid', $period->id))->assertRedirect();
         $this->assertSame('paid', $period->fresh()->status);
@@ -440,7 +443,7 @@ class PayrollP0FixesTest extends TestCase
 
     public function test_my_salary_shows_only_approved_or_paid_periods_and_reconciles(): void
     {
-        $draft = $this->period(9, 2026, 'reviewing');
+        $draft = $this->period(9, 2026, PayrollPeriod::STATUS_DRAFT);
         PayrollRecord::create(['payroll_period_id' => $draft->id, 'user_id' => $this->teacher->id, 'net_salary' => 9999000]);
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary'))
@@ -448,7 +451,7 @@ class PayrollP0FixesTest extends TestCase
             ->assertDontSee('9.999.000')
             ->assertDontSee('Đã xác thực dữ liệu');
 
-        $approved = $this->period(8, 2026, 'approved');
+        $approved = $this->period(8, 2026, PayrollPeriod::STATUS_PUBLISHED);
         PayrollRecord::create([
             'payroll_period_id' => $approved->id, 'user_id' => $this->teacher->id,
             'teaching_salary' => 3000000, 'commission_bonus' => 700000,
@@ -465,7 +468,7 @@ class PayrollP0FixesTest extends TestCase
             ->assertSee('3.700.000')  // tổng thu nhập gồm hoa hồng
             ->assertSee('150.000')    // tổng trừ gồm GVNN
             ->assertSee('3.550.000')
-            ->assertSee('Đã duyệt')
+            ->assertSee('Đã gửi GV xem')
             ->assertDontSee('9.999.000');
 
         $this->actingAs($this->teacher)->get(route('portal.my-salary', ['period_id' => $paid->id]))

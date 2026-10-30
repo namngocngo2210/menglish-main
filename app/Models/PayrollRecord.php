@@ -553,10 +553,10 @@ class PayrollRecord extends Model
         ];
     }
 
-    /** Kỳ lương của bản ghi đã duyệt/đã chi trả → không được sửa. */
+    /** Kỳ lương của bản ghi đã chốt / gửi GV xem / trả → không được sửa. */
     public function isLocked(): bool
     {
-        return in_array($this->period?->status, PayrollPeriod::LOCKED_STATUSES, true);
+        return in_array($this->period?->status, PayrollPeriod::FROZEN_STATUSES, true);
     }
 
     /**

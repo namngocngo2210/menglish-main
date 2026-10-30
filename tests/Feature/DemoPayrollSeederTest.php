@@ -98,9 +98,9 @@ class DemoPayrollSeederTest extends TestCase
         $this->assertTrue($currentSheet['lines']->contains(fn ($l) => $l['na']));
         $this->assertTrue($currentSheet['lines']->contains(fn ($l) => $l['cap']));
 
-        // Bảng lương tháng này đang soát, có phiếu cho nhân sự mới; kỳ tháng trước vẫn khóa, không thêm phiếu.
+        // Bảng lương tháng này đang tính, có phiếu cho nhân sự mới; kỳ tháng trước vẫn khóa, không thêm phiếu.
         $period = PayrollPeriod::where('year', $month->year)->where('month', $month->month)->firstOrFail();
-        $this->assertSame('reviewing', $period->status);
+        $this->assertSame(PayrollPeriod::STATUS_DRAFT, $period->status);
         $newTeacher = User::where('email', 'gv.minhduc@menglish.edu.vn')->firstOrFail();
         $this->assertTrue($period->records()->where('user_id', $newTeacher->id)->where('teaching_sessions', '>', 0)->exists());
         // Kỳ tháng trước: đã duyệt, từ ngày 10 (lịch trả lương) đã chi trả; có phiếu cho mọi vai trò nhân sự (lớp K27 cho GV / TA

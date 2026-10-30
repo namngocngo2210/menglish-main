@@ -426,6 +426,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/periods', [PayrollController::class, 'storePeriod'])->middleware('can:payroll.create')->name('periods.store');
         Route::get('/periods/{id}', [PayrollController::class, 'showPeriod'])->middleware('can:payroll.view')->name('periods.show');
         Route::post('/periods/{id}/approve', [PayrollController::class, 'approvePeriod'])->middleware('can:payroll.approve')->name('periods.approve');
+        Route::post('/periods/{id}/reopen', [PayrollController::class, 'reopenPeriod'])->middleware('can:payroll.approve')->name('periods.reopen');
+        Route::post('/periods/{id}/publish', [PayrollController::class, 'publishPeriod'])->middleware('can:payroll.approve')->name('periods.publish');
         Route::post('/periods/{id}/mark-paid', [PayrollController::class, 'markPaid'])->middleware('can:payroll.mark_paid')->name('periods.mark-paid');
         Route::post('/periods/{id}/calculate', [PayrollController::class, 'calculatePeriod'])->middleware('can:payroll.calculate')->name('periods.calculate');
         Route::get('/periods/{id}/export', [PayrollController::class, 'exportPeriod'])->middleware('can:payroll.view')->name('periods.export');

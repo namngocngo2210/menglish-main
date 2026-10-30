@@ -134,7 +134,7 @@ class SlaTeacherRulesTest extends TestCase
         Carbon::setTestNow('2026-10-01 08:00:00');
         PayrollPeriod::create([
             'code' => 'PR-2026-09', 'title' => 'Bảng lương T9', 'month' => 9, 'year' => 2026,
-            'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => 'approved',
+            'start_date' => '2026-09-01', 'end_date' => '2026-09-30', 'status' => PayrollPeriod::STATUS_PUBLISHED,
         ]);
         $session = $this->makeSession('2026-09-30', '18:00', '19:30');
 

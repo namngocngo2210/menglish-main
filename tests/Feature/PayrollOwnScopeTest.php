@@ -111,7 +111,7 @@ class PayrollOwnScopeTest extends TestCase
         $this->assertContains('portal.my-salary', $menu);
 
         // "Lương của tôi" hiện đúng phiếu của QLCS khi kỳ đã chốt.
-        $this->period->update(['status' => 'approved']);
+        $this->period->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
         $this->actingAs($this->manager)->get(route('portal.my-salary'))
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('record.id', $this->recordOf($this->manager)->id));
@@ -123,6 +123,7 @@ class PayrollOwnScopeTest extends TestCase
         Role::findByName(Roles::MANAGER, 'web')->givePermissionTo('payroll.view');
         Rbac::flushCache();
         $manager = $this->manager->fresh();
+        $this->period->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
 
         $this->actingAs($manager)->get(route('payroll.periods.show', $this->period->id))
             ->assertOk()

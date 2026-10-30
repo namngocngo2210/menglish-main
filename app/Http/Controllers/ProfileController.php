@@ -131,7 +131,7 @@ class ProfileController extends Controller
 
         $teaches = in_array($portal, ['teacher', 'assistant'], true) || $user->can('portal.teacher') || $user->can('portal.assistant');
 
-        // Lương: chỉ phiếu của kỳ đã chốt — cùng nguồn với "Lương của tôi", không lộ số liệu bảng lương đang tính (nháp).
+        // Lương: chỉ phiếu của kỳ đã gửi GV xem / đã trả — cùng nguồn với "Lương của tôi", không lộ số liệu bảng lương đang tính (nháp).
         $lockedPayrolls = PayrollRecord::with('period')
             ->where('user_id', $user->id)
             ->whereHas('period', fn ($q) => $q->whereIn('status', PayrollPeriod::LOCKED_STATUSES))
@@ -303,7 +303,7 @@ class ProfileController extends Controller
                 'tax_deduction' => Money::format($latestPayroll->tax_deduction),
                 'penalty_deduction' => Money::format($latestPayroll->penalty_deduction),
                 'net_salary' => Money::format($latestPayroll->net_salary),
-                'status_label' => $latestPayroll->status === 'paid' ? 'Đã thanh toán' : ($latestPayroll->status === 'approved' ? 'Đã duyệt chi' : 'Dự thảo'),
+                'status_label' => $latestPayroll->period?->status_label,
             ] : null,
             'recentPayrolls' => $recentPayrolls->map(fn (PayrollRecord $p) => [
                 'id' => $p->id,

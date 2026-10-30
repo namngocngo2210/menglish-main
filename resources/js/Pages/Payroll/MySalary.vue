@@ -72,7 +72,7 @@ const printPayslip = () => window.print();
             <div class="rounded-xl bg-primary-container p-lg text-white">
                 <div class="flex items-start justify-between"><h3 class="font-body-semibold text-body-semibold">Thực nhận</h3><span class="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span></div>
                 <p class="mt-sm font-h2 text-h2 font-mono">{{ money(record.net_salary) }} đ</p>
-                <p class="mt-xs font-body-small text-body-small text-white/80">{{ record.period_status === 'paid' ? 'Đã chi trả qua tài khoản ngân hàng' : 'Đã duyệt — chờ chi trả qua tài khoản ngân hàng' }}</p>
+                <p class="mt-xs font-body-small text-body-small text-white/80">{{ record.period_status === 'paid' ? 'Đã chi trả qua tài khoản ngân hàng' : 'Đã gửi GV xem — chờ chi trả qua tài khoản ngân hàng' }}</p>
             </div>
         </div>
 

@@ -409,7 +409,7 @@ final class MyWorkBoard
         }
 
         if (($this->user->can('payroll.calculate') || $this->user->can('payroll.approve')) && ($this->canOpen)('payroll.periods.index')) {
-            $queues[] = ['label' => 'Kỳ lương chưa chốt', 'value' => PayrollPeriod::query()->whereNotIn('status', PayrollPeriod::LOCKED_STATUSES)->count(), 'icon' => 'payments', 'href' => route('payroll.periods.index')];
+            $queues[] = ['label' => 'Kỳ lương chưa chốt', 'value' => PayrollPeriod::query()->where('status', PayrollPeriod::STATUS_DRAFT)->count(), 'icon' => 'payments', 'href' => route('payroll.periods.index')];
         }
 
         // Mục còn việc lên trước.

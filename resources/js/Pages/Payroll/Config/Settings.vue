@@ -33,7 +33,7 @@ const renewalRowError = computed(() => {
         <div class="max-w-3xl space-y-5">
             <UiAlert type="info">
                 <div class="space-y-1 text-xs leading-relaxed text-on-surface-variant">
-                    <p>Thay đổi chỉ áp dụng khi <strong>tính/tính lại</strong> các kỳ lương về sau. Kỳ lương <strong>Đã duyệt / Đã chi trả</strong> không bị ảnh hưởng.</p>
+                    <p>Thay đổi chỉ áp dụng khi <strong>tính/tính lại</strong> các kỳ lương về sau. Kỳ lương <strong>Đã chốt / Đã gửi GV xem / Đã trả</strong> không bị ảnh hưởng.</p>
                     <p><strong>Part-time</strong> = số buổi × đơn giá buổi riêng (màn Đơn giá GV) + KPI giữ HS (bậc {{ settings.retention_tiers }}đ, chọn trên phiếu lương) + buổi có GVNN (chờ BA) + phụ cấp tự do − khoản trừ. Không BHXH / Công đoàn.</p>
                     <p><strong>Full-time</strong> = (lương cơ bản + phụ cấp hợp đồng) ÷ công chuẩn × công hưởng lương + KPI / hoa hồng / thưởng tái tục (chỉ Học vụ) / phụ cấp − BHXH − Công đoàn (trên mức lương đóng BHXH, chỉ GV full-time / Học vụ / Học thuật) − đi muộn − quên chấm công − thuế TNCN (nhập tay) − trừ vi phạm.</p>
                     <p><strong>Trợ giảng</strong> = số giờ dạy hợp lệ × đơn giá giờ (bậc {{ settings.assistant_hourly_tiers }}đ, chọn ở màn Đơn giá GV) − khoản trừ. Không KPI, không phụ cấp, không thưởng tái tục.</p>

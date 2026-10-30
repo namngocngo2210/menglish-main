@@ -334,7 +334,7 @@ class Round2LeftoversTest extends TestCase
             'start_date' => '2026-09-01', 'end_date' => '2026-09-30',
         ]);
         $september->calculatePayrollForPeriod();
-        $september->update(['status' => 'approved']);
+        $september->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
 
         $cancel = fn (TuitionReceipt $receipt) => InvoiceCancellation::create([
             'invoice_number' => $receipt->invoice_number, 'tuition_receipt_id' => $receipt->id, 'student_id' => $student->id,

@@ -617,7 +617,7 @@ class PayrollWorkdayRulesTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-02 09:00:00'));
         $period = $this->calculate($this->period(9));
         $before = $this->record($period, $staff)->only(['base_salary_paid', 'insurance_deduction', 'net_salary']);
-        $period->update(['status' => 'approved']);
+        $period->update(['status' => PayrollPeriod::STATUS_PUBLISHED]);
 
         SystemSetting::set('payroll_insurance_salary_base', 9000000, 'test');
         try {
