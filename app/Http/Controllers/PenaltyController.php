@@ -5,17 +5,21 @@ namespace App\Http\Controllers;
 use App\Helpers\AclHelper;
 use App\Models\AdminNotification;
 use App\Models\ClassModel;
+use App\Models\PayrollPeriod;
 use App\Models\Penalty;
 use App\Models\User;
 use App\Services\SafeUploadService;
+use App\Support\DataScopeGuard;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\PayrollAdjustScope;
 use App\Support\Ui;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -45,7 +49,7 @@ class PenaltyController extends Controller
         ]);
 
         // Không có violation.view → chỉ biên bản của mình; có → theo phạm vi violation.scope_* (Penalty::scopeVisibleTo).
-        $penalties = Penalty::visibleTo($user)->with(['user', 'classModel', 'reporter', 'decider', 'remedier', 'payrollRecord.period'])
+        $penalties = Penalty::visibleTo($user)->with(['user', 'classModel', 'reporter', 'decider', 'remedier', 'deferredBy', 'payrollRecord.period'])
             ->when($validated['search'] ?? null, function ($query, string $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('code', 'like', "%{$search}%")
@@ -68,6 +72,7 @@ class PenaltyController extends Controller
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
+        $adjustableStaffIds = PayrollAdjustScope::adjustableStaffIds($user, $penalties->getCollection()->pluck('user_id'));
 
         // Ô chọn nhân sự / lớp khi lập biên bản: chỉ trong chi nhánh của người lập (trừ mức Toàn hệ thống).
         $users = $canViewAll
@@ -83,7 +88,7 @@ class PenaltyController extends Controller
         // Ngày thuộc kỳ lương đã khóa: nút "Chốt mức phạt" bị khóa trên dòng tương ứng.
 
         return Inertia::render('Penalties/Index', [
-            'penalties' => $penalties->through(function (Penalty $pen) use ($user) {
+            'penalties' => $penalties->through(function (Penalty $pen) use ($user, $adjustableStaffIds) {
                 [$employeeState, $employeeColor] = $pen->employee_state;
 
                 return [
@@ -107,6 +112,12 @@ class PenaltyController extends Controller
                     'amount' => (float) $pen->amount,
                     'due_date' => $pen->due_date?->format('d/m/Y'),
                     'paid_at' => $pen->paid_at?->format('d/m/Y'),
+                    'deduct_from_date' => $pen->deduct_from_date?->toDateString(),
+                    'deferred_at' => $pen->deferred_at?->toIso8601String(),
+                    'deferred_by' => $pen->deferredBy?->name,
+                    'defer_reason' => $pen->defer_reason,
+                    'can_defer' => $pen->status === 'fined' && $user->can('payroll.edit')
+                        && in_array((int) $pen->user_id, $adjustableStaffIds, true),
                     'employee_state' => $employeeState,
                     'employee_color' => $employeeColor,
                     'remedied' => (bool) $pen->remedied_at,
@@ -363,6 +374,70 @@ class PenaltyController extends Controller
         $penalty->update(['status' => 'resolved', 'payroll_record_id' => null]);
 
         return redirect()->back()->with('status', "Đã xử lý (miễn phạt) biên bản {$penalty->code}.");
+    }
+
+    /** Chuyển kỳ trừ phạt, giữ nguyên quyết định phạt và lưu người / lý do chuyển. */
+    public function deferPenalty(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ], [
+            'reason.required' => 'Vui lòng nhập lý do chuyển phạt sang kỳ sau.',
+            'reason.max' => 'Lý do chuyển phạt tối đa 500 ký tự.',
+        ]);
+
+        // Như tính lương: kỳ nguồn / đích xét toàn bộ dữ liệu, không theo phạm vi người thao tác.
+        return DataScopeGuard::bypass(fn () => DB::transaction(function () use ($request, $id, $validated) {
+            $penalty = Penalty::withoutViewerScope()->lockForUpdate()->findOrFail($id);
+            if (! PayrollAdjustScope::canAdjust($request->user(), $penalty->user_id)) {
+                abort(403, 'Bạn không có quyền chuyển phạt của nhân sự này (ngoài phạm vi bảng lương hoặc là phiếu của chính bạn).');
+            }
+
+            $refuse = fn (string $message) => redirect()->back()->withErrors(['penalty' => $message])->with('error', $message);
+            if ($penalty->status !== 'fined') {
+                return $refuse('Chỉ biên bản đã quyết phạt, chưa nộp / chưa trừ lương mới được chuyển sang kỳ sau. Trạng thái hiện tại: '.$penalty->status_label.'.');
+            }
+
+            $source = $penalty->payrollRecord?->period;
+            if (! $source) {
+                // Kỳ Đã chốt vẫn giữ biên bản chờ tính lại; phải Mở lại trước khi chuyển.
+                $source = PayrollPeriod::whereNotIn('status', PayrollPeriod::LOCKED_STATUSES)
+                    ->orderBy('start_date')->orderBy('id')->get()
+                    ->first(fn (PayrollPeriod $period) => Penalty::withoutViewerScope()->deductibleFor($period)->whereKey($penalty->id)->exists());
+            }
+            if (! $source) {
+                return $refuse('Biên bản chưa thuộc kỳ lương đang tính nào');
+            }
+            // Cùng khóa dòng kỳ với tính lại / chốt để không gỡ khoản phạt khỏi kỳ vừa bị đóng băng.
+            $source = PayrollPeriod::whereKey($source->id)->lockForUpdate()->firstOrFail();
+            if ($source->isFrozen()) {
+                return $refuse($source->status === PayrollPeriod::STATUS_CLOSED
+                    ? 'Kỳ lương '.$source->title.' đã chốt — bấm Mở lại trước khi chuyển khoản phạt.'
+                    : 'Kỳ lương '.$source->title.' đã gửi GV xem / đã trả và bị khóa — không thể chuyển khoản phạt.');
+            }
+
+            $deductFrom = $source->end_date->copy()->addDay();
+            $target = PayrollPeriod::whereDate('start_date', '<=', $deductFrom->toDateString())
+                ->whereDate('end_date', '>=', $deductFrom->toDateString())->lockForUpdate()->first();
+            if ($target && $target->status !== PayrollPeriod::STATUS_DRAFT) {
+                return $refuse('Kỳ lương '.$target->title.' đã chốt — không thể chuyển khoản phạt vào kỳ này.');
+            }
+
+            $penalty->update([
+                'deduct_from_date' => $deductFrom->toDateString(),
+                'deferred_at' => now(),
+                'deferred_by' => $request->user()->id,
+                'defer_reason' => $validated['reason'],
+                'payroll_record_id' => null,
+                'notes' => trim(($penalty->notes ? $penalty->notes."\n" : '').'Chuyển trừ sang kỳ '
+                    .($target?->title ?? 'từ '.$deductFrom->format('d/m/Y')).' ngày '.now()->format('d/m/Y')
+                    .' bởi '.$request->user()->name.': '.$validated['reason']),
+            ]);
+
+            return redirect()->back()->with('status', 'Đã chuyển khoản phạt '.$penalty->code.' sang kỳ '
+                .($target?->title ?? 'bắt đầu '.$deductFrom->format('d/m/Y'))
+                .'. Bấm "Đồng bộ & Tính lại" ở kỳ hiện tại để cập nhật phiếu lương.');
+        }, 3));
     }
 
     /**

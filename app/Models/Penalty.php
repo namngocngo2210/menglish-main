@@ -195,6 +195,10 @@ class Penalty extends Model
         'violation_type',
         'error_category',
         'violation_date',
+        'deduct_from_date',
+        'deferred_at',
+        'deferred_by',
+        'defer_reason',
         'violation_at',
         'amount',
         'reporter_id',
@@ -216,6 +220,9 @@ class Penalty extends Model
 
     protected $casts = [
         'violation_date' => 'date',
+        'deduct_from_date' => 'date',
+        'deferred_at' => 'datetime',
+        'deferred_by' => 'integer',
         'violation_at' => 'datetime',
         'amount' => 'decimal:2',
         'explained_at' => 'datetime',
@@ -245,6 +252,11 @@ class Penalty extends Model
     public function payrollRecord(): BelongsTo
     {
         return $this->belongsTo(PayrollRecord::class, 'payroll_record_id');
+    }
+
+    public function deferredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deferred_by');
     }
 
     public function reporter(): BelongsTo
@@ -468,9 +480,9 @@ class Penalty extends Model
 
     /**
      * Biên bản phải trừ vào kỳ lương [start, end] tại thời điểm tính (TK-0014, 30/10/2026):
-     * - đã quyết phạt (fined) trước lần tính, chưa nộp trực tiếp, ngày vi phạm trong kỳ → gắn và trừ ở CHÍNH kỳ đó
-     *   (không chờ hết hạn nộp, không đẩy sang kỳ sau);
-     * - ngày vi phạm thuộc kỳ trước mà kỳ đó đã khóa (đã duyệt / đã trả) hoặc chưa có kỳ lương → trừ ở kỳ đang mở được tính
+     * - đã quyết phạt (fined) trước lần tính, chưa nộp trực tiếp, ngày trừ hiệu lực trong kỳ → gắn và trừ ở CHÍNH kỳ đó
+     *   (deduct_from_date nếu đã chuyển kỳ, nếu không dùng violation_date; không chờ hết hạn nộp);
+     * - ngày trừ hiệu lực thuộc kỳ trước mà kỳ đó đã khóa (đã duyệt / đã trả) hoặc chưa có kỳ lương → trừ ở kỳ đang mở được tính
      *   (vd. vi phạm 30/09, chốt 01/10, T9 đã trả → trừ ở T10). Kỳ trước còn mở thì biên bản thuộc kỳ đó, chờ tính lại kỳ đó.
      * "paid" = nhân sự đã nộp tiền mặt trực tiếp (markPaidPenalty) → không trừ lương nữa; "deducted" = đã trừ ở kỳ đã duyệt.
      * Biên bản đã gắn vào bản ghi lương của kỳ khác thì không trừ lại.
@@ -482,14 +494,15 @@ class Penalty extends Model
 
         return $query->whereIn('status', self::payableStatuses())
             ->where(function ($q) use ($period, $start, $end) {
-                $q->where(fn ($in) => $in->whereDate('violation_date', '>=', $start)->whereDate('violation_date', '<=', $end))
-                    // Biên bản trước kỳ: chỉ trừ ở kỳ mở ĐẦU TIÊN kể từ ngày vi phạm — loại nếu còn kỳ mở khác chứa
-                    // ngày vi phạm hoặc bắt đầu giữa ngày vi phạm và đầu kỳ này (end_date >= vi phạm, start_date < đầu kỳ này).
-                    ->orWhere(fn ($carried) => $carried->whereDate('violation_date', '<', $start)
+                $q->where(fn ($in) => $in->whereRaw('DATE(COALESCE(penalties.deduct_from_date, penalties.violation_date)) >= ?', [$start])
+                    ->whereRaw('DATE(COALESCE(penalties.deduct_from_date, penalties.violation_date)) <= ?', [$end]))
+                    // Biên bản trước kỳ: chỉ trừ ở kỳ mở ĐẦU TIÊN kể từ ngày trừ hiệu lực.
+                    // Kỳ mở trước còn chứa / tiếp nhận ngày này thì chờ tính lại kỳ đó.
+                    ->orWhere(fn ($carried) => $carried->whereRaw('DATE(COALESCE(penalties.deduct_from_date, penalties.violation_date)) < ?', [$start])
                         ->whereNotExists(fn ($open) => $open->selectRaw('1')->from('payroll_periods as earlier_open')
                             ->where('earlier_open.id', '!=', $period->id)
                             ->whereNotIn('earlier_open.status', PayrollPeriod::LOCKED_STATUSES)
-                            ->whereColumn('earlier_open.end_date', '>=', 'penalties.violation_date')
+                            ->whereRaw('DATE(earlier_open.end_date) >= DATE(COALESCE(penalties.deduct_from_date, penalties.violation_date))')
                             ->whereDate('earlier_open.start_date', '<', $start)));
             })
             ->where(fn ($q) => $q->whereNull('payroll_record_id')

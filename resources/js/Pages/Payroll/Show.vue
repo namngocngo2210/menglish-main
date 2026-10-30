@@ -12,6 +12,7 @@ import PeriodTabs from './PeriodTabs.vue';
 import LifecycleActions from './LifecycleActions.vue';
 import PeriodLifecycle from './PeriodLifecycle.vue';
 import BackgroundTasks from '@/Components/BackgroundTasks/BackgroundTasks.vue';
+import PenaltyDeferModal from '@/Components/Payroll/PenaltyDeferModal.vue';
 
 defineOptions({ layout: { title: 'Bảng lương' } });
 
@@ -26,6 +27,7 @@ const props = defineProps({
     // Chỉ người xem mọi phiếu lương (Admin): nhân sự đang làm việc mà kỳ chưa có phiếu lương và lý do.
     missingStaff: { type: Object, default: null },
     assistantRateMissing: { type: Array, default: () => [] },
+    negativeNet: { type: Array, default: () => [] },
     backgroundTasks: { type: Array, default: () => [] },
 });
 
@@ -41,6 +43,7 @@ const kpiIcons = { done: 'check', pending: 'close', na: 'remove', self: 'insight
 const kpiOptions = [{ value: 'pending', label: 'Chưa chốt KPI' }, { value: 'done', label: 'Đã chốt KPI' }];
 const pad = (n) => String(n).padStart(2, '0');
 const foreignOpen = ref(null);
+const deferPenalty = ref(null);
 
 function changePeriod(event) {
     router.visit(route('payroll.periods.show', event.target.value));
@@ -122,6 +125,25 @@ function filter(event) {
             rồi bấm "Đồng bộ &amp; Tính lại".
         </UiAlert>
 
+        <UiAlert v-if="negativeNet.length" type="error" :title="`Khấu trừ vượt thu nhập: ${negativeNet.length} nhân sự có thực lĩnh âm`" data-negative-net>
+            <ul class="space-y-xs">
+                <li v-for="staff in negativeNet" :key="staff.id">
+                    <Link :href="route('payroll.records.show', staff.id)" class="font-semibold underline">{{ staff.name }}</Link>
+                    – thiếu {{ formatMoney(staff.shortfall) }}.
+                    <ul v-if="staff.penalties.length" class="mt-xs space-y-xs">
+                        <li v-for="pen in staff.penalties" :key="pen.id" class="flex flex-wrap items-center gap-sm">
+                            <span>{{ pen.code }} · {{ formatMoney(pen.amount) }} · vi phạm {{ formatDate(pen.violation_date) }}</span>
+                            <UiButton v-if="pen.can_defer" variant="secondary" size="sm" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <p class="mt-xs">Thực lĩnh tạm tính giữ ở 0 đ.</p>
+            <p v-if="period.status === 'published' || period.status === 'paid'" class="mt-xs">Kỳ đã gửi GV xem / đã trả nên phiếu lương đã khóa. Liên hệ Kế toán để đối soát phần thiếu.</p>
+            <p v-else-if="can('payroll.edit')" class="mt-xs">Chuyển phạt sang kỳ sau (nút cạnh biên bản trên bảng lương / phiếu lương / màn Biên bản), hoặc thêm khoản cộng / giảm khoản trừ nhập tay trên phiếu (không áp dụng khoản cộng cho Trợ giảng). Kỳ đã chốt cần người có quyền chốt bấm Mở lại trước khi xử lý. Đồng bộ &amp; Tính lại rồi chốt lại.</p>
+            <p v-else class="mt-xs">Chờ Kế toán chuyển phạt sang kỳ sau hoặc điều chỉnh phiếu, Đồng bộ &amp; Tính lại rồi chốt lại.</p>
+        </UiAlert>
+
         <UiAlert v-if="missingStaff?.count" type="info" dismissible :title="`${missingStaff.count} nhân sự chưa có phiếu lương kỳ này`" data-missing-staff>
             Kỳ lương chỉ tạo phiếu cho người có khoản phát sinh (lương cơ bản, buổi dạy hợp lệ, hoa hồng). Nhập lương cơ bản ở hồ sơ nhân sự rồi bấm "Đồng bộ &amp; Tính lại".
             <ul class="mt-xs space-y-xs">
@@ -180,8 +202,8 @@ function filter(event) {
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="r in records.data" :key="r.id">
-                        <td class="sticky left-0 z-10 border-r border-surface-container bg-surface-container-lowest">
+                    <tr v-for="r in records.data" :key="r.id" :class="{ 'bg-error-container': r.shortfall > 0 }">
+                        <td class="sticky left-0 z-10 border-r border-surface-container" :class="r.shortfall > 0 ? 'bg-error-container' : 'bg-surface-container-lowest'">
                             <div class="flex items-center gap-sm">
                                 <UiAvatar :name="r.name ?? 'U'" size="sm" />
                                 <div>
@@ -250,11 +272,15 @@ function filter(event) {
                         <td class="text-right font-mono text-error">-{{ formatMoney(r.insurance_deduction + r.union_deduction) }}</td>
                         <td class="text-right font-mono text-error">-{{ formatMoney(r.tax_deduction) }}</td>
                         <td class="text-right font-mono text-error">-{{ formatMoney(r.other_deductions) }}</td>
-                        <td class="sticky right-0 z-10 border-l border-surface-container bg-surface-container-lowest text-right">
+                        <td class="sticky right-0 z-10 border-l border-surface-container text-right" :class="r.shortfall > 0 ? 'bg-error-container' : 'bg-surface-container-lowest'">
                             <div class="flex items-center justify-end gap-xs">
                                 <span class="font-bold text-primary">{{ formatMoney(r.net_salary) }}</span>
                                 <UiButton variant="ghost" size="sm" icon="visibility" :href="route('payroll.records.show', r.id)">Chi tiết</UiButton>
                             </div>
+                            <p v-if="r.shortfall > 0" class="mt-xs inline-flex items-center gap-xs font-body-small text-body-small font-semibold text-on-error-container">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>
+                                <span><span class="sr-only">Khấu trừ vượt thu nhập: </span>Thiếu {{ formatMoney(r.shortfall) }}</span>
+                            </p>
                         </td>
                     </tr>
                     <tr v-if="!records.data.length">
@@ -265,4 +291,5 @@ function filter(event) {
             <template #footer><UiPagination :paginator="records" unit="nhân sự" /></template>
         </UiDataTable>
     </div>
+    <PenaltyDeferModal :penalty="deferPenalty" @close="deferPenalty = null" />
 </template>

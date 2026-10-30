@@ -92,3 +92,13 @@ Kỳ đã khóa không tự tính lại khi đổi dữ liệu học phí / lớ
 | 3 | Chặn "Đã dạy" + SLA `gv.syllabus_confirm` | Xong |
 | 4 | Test xanh, guard-rail (Navigation*, Ziggy, AllRoutesSmoke), cập nhật `docs/kho-syllabus.md` | Xong |
 | 5 | Deploy staging, kiểm tra bằng tài khoản GV (`gv.cohuu2`): `?mine=1` đúng 3 lớp, tab Cổng GV theo thứ tự, thẻ chặng có XÁC NHẬN + hạn | Xong (26/10/2026) |
+
+## Biên bản phạt trên phiếu lương
+
+Biên bản đã quyết phạt (`fined`) và chưa nộp trực tiếp được trừ theo `deduct_from_date` nếu đã chuyển kỳ, hoặc `violation_date` nếu chưa chuyển (`Penalty::scopeDeductibleFor`). Không cần chờ hết hạn nộp mới xuất hiện trên phiếu. Ngày vi phạm và quyết định phạt không thay đổi khi chuyển kỳ.
+
+Kế toán có quyền `payroll.edit` dùng **Chuyển sang kỳ sau** cạnh biên bản trên bảng lương, phiếu lương hoặc màn Biên bản, nhập lý do bắt buộc tối đa 500 ký tự. Hệ thống chuyển ngày trừ sang ngày sau cuối kỳ nguồn, ghi người / thời gian / lý do và gỡ liên kết phiếu nguồn. Kỳ đích có thể chưa được tạo; khi có kỳ phù hợp, khoản phạt sẽ được nhận lúc tính lương. Có thể chuyển tiếp ở kỳ sau nếu vẫn chưa trừ lương.
+
+Không chuyển biên bản chưa quyết phạt, đã nộp, đã trừ, đã hủy hoặc đã đóng vụ. Kỳ nguồn Đã chốt phải **Mở lại** trước (quyền `payroll.approve`); Đã gửi GV xem / Đã trả thì khóa. Kỳ đích đã tồn tại phải là Đang tính; không có kỳ nguồn đang nhận biên bản cũng bị từ chối.
+
+**Phải Đồng bộ & Tính lại kỳ nguồn** (`payroll.calculate`) để cập nhật số khấu trừ trước khi chốt lại; kỳ đích đã tính cũng phải tính lại để nhận khoản phạt. Trợ giảng không được thêm khoản cộng nhập tay, lương buổi có GVNN hay KPI nhập tay để bù thiếu; có thể chuyển phạt hoặc giảm khoản trừ nhập tay đã nhập. Xem [Khấu trừ vượt thu nhập (TK-0017)](vong-doi-ky-luong.md#khấu-trừ-vượt-thu-nhập-tk-0017) về điều kiện chốt và quyền từng bước.
