@@ -371,6 +371,7 @@ thu hồi tự động.
     "Chuẩn bị đề …" (`work_tasks.kind = test_order`, `big_test_order_id`) trong Danh sách đầu việc của Học thuật nhận chặng lớp
     (cùng người nhận với việc cuối chặng §9.2), hạn = hạn xử lý của order, thông báo NHẬN VIỆC; HOÀN THÀNH không cần ảnh.
     Việc tự đóng khi Admin duyệt (Hoàn thành) / từ chối (Hủy) order. Áp dụng như nhau cho mọi GV gửi (full-time / part-time).
+    Order cũ còn chờ duyệt chưa có việc: chạy `php artisan academic-orders:backfill-tasks --dry-run` để kiểm tra, rồi bỏ `--dry-run` để bổ sung (chạy lại không tạo trùng).
 - Mốc đến hạn → thông báo GV "Đến hạn order in ấn mini test / big test lớp ABC." nút **ORDER** (lệnh mỗi giờ, 1 lần / mốc).
 
 ## 10. Giai đoạn 5 — Homework 3 giỏ (câu 7)
