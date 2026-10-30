@@ -13,9 +13,9 @@
 	reverse_proxy menglish-staging:8080
 }
 
-# Bản beta hệ thống mới (v2: React + Go), chạy bằng v2/deploy/beta.sh. Container chưa chạy thì trang trả 502.
+# beta.meducation.vn phục vụ menglish-learning (repo namngocngo2210/menglish-learning, Next.js).
+# Trang cần được máy tìm kiếm index nên không đặt noindex. Container chưa chạy thì trang trả 502.
 {$BETA_SITE::8082} {
 	encode zstd gzip
-	header X-Robots-Tag "noindex, nofollow"
-	reverse_proxy menglish-beta:8080
+	reverse_proxy menglish-learning:3000
 }
