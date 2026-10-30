@@ -65,7 +65,7 @@ class DemoPhase3SeederTest extends TestCase
         $deducted = Penalty::where('status', 'deducted')->firstOrFail();
         $this->assertSame($last->id, $deducted->payrollRecord->payroll_period_id);
 
-        // KPI Học vụ, hoa hồng trả / hoãn, thu hồi khi hoàn phí.
+        // KPI Học vụ, hoa hồng trả / hoãn, không thu hồi khi hoàn phí.
         // KPI chỉ chốt từ ngày cuối tháng: tháng trước đã chốt (2 Học vụ), tháng này (giữa tháng) mới lưu nháp.
         $this->assertSame(2, KpiEvaluation::where('status', 'confirmed')->count());
         $this->assertSame(2, KpiEvaluation::where('status', 'draft')->count());
@@ -73,9 +73,9 @@ class DemoPhase3SeederTest extends TestCase
         $this->assertTrue(CommissionItem::where('status', CommissionItem::STATUS_PAID)->whereNotNull('settled_at')->exists());
         $this->assertTrue(CommissionItem::where('status', CommissionItem::STATUS_DEFERRED)->whereNotNull('deferred_reason')->exists());
         $this->assertTrue(CommissionItem::where('status', CommissionItem::STATUS_PAYABLE)->where('payroll_record_id', '>', 0)->exists());
-        $this->assertLessThan(0, (float) CommissionAdjustment::sum('amount'));
+        $this->assertSame(0, CommissionAdjustment::count());
         $sale = User::where('email', 'tranmaia@menglish.edu.vn')->firstOrFail();
-        $this->assertGreaterThan(0, (float) PayrollRecord::where('payroll_period_id', $current->id)->where('user_id', $sale->id)->value('commission_clawback'));
+        $this->assertEquals(0, (float) PayrollRecord::where('payroll_period_id', $current->id)->where('user_id', $sale->id)->value('commission_clawback'));
 
         // Nhập tay của Kế toán giữ sau khi tính lại: bậc KPI giữ HS, TNCN, dòng tự do; Full-time có BHXH / Công đoàn.
         $pt = PayrollRecord::where('payroll_period_id', $current->id)->where('user_id', $teacher->id)->firstOrFail();

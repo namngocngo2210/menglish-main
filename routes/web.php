@@ -473,6 +473,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/penalties/{id}/explain', [PenaltyController::class, 'explain'])->name('penalties.explain');
     Route::post('/penalties', [PenaltyController::class, 'storePenalty'])->middleware('can:violation.create')->name('penalties.store');
     Route::post('/penalties/{id}/confirm', [PenaltyController::class, 'confirmPenalty'])->name('penalties.confirm');
+    Route::post('/penalties/{id}/defer', [PenaltyController::class, 'deferPenalty'])->whereNumber('id')->middleware('can:payroll.edit')->name('penalties.defer');
     Route::post('/penalties/{id}/mark-paid', [PenaltyController::class, 'markPaidPenalty'])->middleware('can:violation.mark_paid')->name('penalties.mark-paid');
     Route::post('/penalties/{id}/resolve', [PenaltyController::class, 'resolvePenalty'])->middleware('can:violation.mark_resolved')->name('penalties.resolve');
     Route::post('/penalties/{id}/cancel', [PenaltyController::class, 'cancelPenalty'])->middleware('can:violation.cancel')->name('penalties.cancel');

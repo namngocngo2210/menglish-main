@@ -26,6 +26,7 @@ use App\Services\SalesCommissionService;
 use App\Services\TeachingShifts\ScheduleConfirmation;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\PayrollAdjustScope;
 use App\Support\ReportPeriod;
 use App\Support\Roles;
 use App\Support\StaffType;
@@ -181,6 +182,13 @@ class PayrollController extends Controller
         );
 
         $kpiPending = $period->records->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === 'pending')->values();
+        $negativeRecords = $period->records->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0);
+        $adjustableStaffIds = PayrollAdjustScope::adjustableStaffIds($request->user(), $negativeRecords->pluck('user_id'));
+        // Chỉ trả biên bản của các phiếu người xem được thấy; quyền xử lý vẫn kiểm tra ở route.
+        $negativePenalties = Penalty::withoutViewerScope()->whereIn('payroll_record_id', $negativeRecords->modelKeys())
+            ->where('status', 'fined')->get(['id', 'code', 'amount', 'status', 'violation_date', 'payroll_record_id'])->groupBy('payroll_record_id');
+        // Bước tiếp của kỳ phải xét mọi phiếu, kể cả phiếu ngoài phạm vi người xem hoặc bộ lọc hiện tại.
+        $negativeCount = $period->records()->get()->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0)->count();
         $allPeriods = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['id', 'code', 'title', 'month', 'year']);
 
         // Bước tiếp theo của kỳ và ai đang giữ: chỉ Admin có quyền chốt / đánh dấu đã trả nên Kế toán, Quản lý cần biết kỳ đang chờ ai.
@@ -192,6 +200,9 @@ class PayrollController extends Controller
             $period->status === PayrollPeriod::STATUS_CLOSED => [$user->can('payroll.approve') ? 'Bước tiếp: bạn bấm Gửi GV xem' : 'Chờ Admin gửi GV xem', 'info'],
             $kpiPending->isNotEmpty() => ['Còn '.$kpiPending->count().' nhân sự chưa chốt KPI', 'error'],
             $period->hasChangesSinceCalculation() => [$user->can('payroll.calculate') ? 'Bước tiếp: bạn bấm Đồng bộ & Tính lại (dữ liệu đã đổi)' : 'Chờ Kế toán Đồng bộ & Tính lại', 'warning'],
+            $period->status === PayrollPeriod::STATUS_DRAFT && $negativeCount > 0 => [$user->can('payroll.edit')
+                ? 'Còn '.$negativeCount.' nhân sự thực lĩnh âm — chuyển phạt sang kỳ sau hoặc điều chỉnh phiếu trước khi chốt'
+                : 'Chờ Kế toán xử lý '.$negativeCount.' nhân sự thực lĩnh âm', 'error'],
             default => [$user->can('payroll.approve') ? 'Bước tiếp: bạn chốt bảng lương' : 'Chờ Admin chốt bảng lương', 'warning'],
         };
         // Đang xem một nhóm (VD tab GV Part-time / Trợ giảng): thẻ tổng tính riêng cho nhóm đó.
@@ -221,6 +232,22 @@ class PayrollController extends Controller
                 ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
             'foreignRateMissing' => $period->records->filter(fn (PayrollRecord $r) => $r->foreignRateMissing())
                 ->map(fn (PayrollRecord $r) => $r->user?->name)->filter()->values()->all(),
+            'negativeNet' => $negativeRecords
+                ->sortBy(fn (PayrollRecord $r) => $r->user?->name)
+                ->map(fn (PayrollRecord $r) => [
+                    'id' => $r->id,
+                    'name' => $r->user?->name ?? 'Chưa cập nhật',
+                    'shortfall' => $r->netShortfall(),
+                    'raw_net' => $r->rawNetSalary(),
+                    'penalties' => $negativePenalties->get($r->id, collect())->map(fn (Penalty $pen) => [
+                        'id' => $pen->id,
+                        'code' => $pen->code,
+                        'amount' => (float) $pen->amount,
+                        'violation_date' => $pen->violation_date?->toDateString(),
+                        'can_defer' => $pen->status === 'fined' && $period->status === PayrollPeriod::STATUS_DRAFT && $user->can('payroll.edit')
+                            && in_array((int) $r->user_id, $adjustableStaffIds, true),
+                    ])->values()->all(),
+                ])->values()->all(),
             'records' => $records->through(fn (PayrollRecord $r) => $this->recordRow($r)),
             'periodOptions' => Ui::options($allPeriods, fn (PayrollPeriod $p) => 'Tháng '.str_pad($p->month, 2, '0', STR_PAD_LEFT).'/'.$p->year.' ('.$p->code.')'),
             'typeOptions' => Ui::options(PayrollRecord::SALARY_ROLE_LABELS),
@@ -473,6 +500,8 @@ class PayrollController extends Controller
             ->get();
         // Phiếu lương đã qua kiểm tra phạm vi bảng lương: hiện đủ các biên bản đã trừ trên phiếu.
         $penalties = Penalty::withoutViewerScope()->where('payroll_record_id', $record->id)->orderBy('due_date')->get();
+        $canDefer = $period->status === PayrollPeriod::STATUS_DRAFT && $request->user()->can('payroll.edit')
+            && PayrollAdjustScope::canAdjust($request->user(), $record->user_id);
         $clawbacks = CommissionAdjustment::with('student')->where('payroll_record_id', $record->id)->get();
         $paidCommission = CommissionItem::with(['student', 'receipt'])->where('payroll_record_id', $record->id)->orderBy('id')->get();
         $deferredCommission = CommissionItem::with(['student', 'receipt'])
@@ -633,6 +662,7 @@ class PayrollController extends Controller
                 'violation_date' => $pen->violation_date?->toDateString(),
                 'due_date' => $pen->due_date?->toDateString(),
                 'amount' => (float) $pen->amount,
+                'can_defer' => $pen->status === 'fined' && $canDefer,
             ])->values(),
             'clawbacks' => $clawbacks->map(fn (CommissionAdjustment $adj) => ['id' => $adj->id, 'reason' => $adj->reason, 'amount' => (float) $adj->amount])->values(),
             'paidCommission' => $paidCommission->map(fn (CommissionItem $item) => $this->commissionItemRow($item))->values(),
@@ -2320,6 +2350,8 @@ class PayrollController extends Controller
             'teaching_minutes' => (int) data_get($r->calculation_details, 'foreign_teacher.minutes', 0),
             'other_deductions' => (float) $r->penalty_deduction + (float) $r->late_deduction + (float) $r->missing_punch_deduction + (float) $r->commission_clawback + (float) $r->other_deduction + (float) $r->foreign_teacher_deduction,
             'net_salary' => (float) $r->net_salary,
+            'shortfall' => $r->netShortfall(),
+            'raw_net' => $r->rawNetSalary(),
         ];
     }
 }

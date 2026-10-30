@@ -191,7 +191,7 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                             <UiBadge color="warning" pill>Tạm tính</UiBadge>
                         </h2>
                         <p class="text-xs text-on-surface-variant">
-                            Mỗi HS mang % của mốc ứng với thứ tự chốt trong tháng (theo lúc chốt, không theo lúc đóng tiền). Hoa hồng chỉ ghi nhận khi hệ thống nhận tiền về (phiếu thu được duyệt), tính trên học phí không gồm sách / Thu khác.
+                            Ngày chốt là ngày đóng học phí thành công đầu tiên (phiếu thu được duyệt). Mỗi HS mang % theo thứ tự chốt trong tháng; mọi đợt đóng dùng bảng mốc hiệu lực tại ngày chốt. Hoa hồng chỉ ghi nhận khi hệ thống nhận tiền về (phiếu thu được duyệt), tính trên học phí không gồm sách / Thu khác.
                             Hoa hồng thực xem ở bảng lương.
                         </p>
                     </div>
@@ -262,7 +262,7 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                                 </td>
                                 <td class="py-2 text-on-surface-variant">
                                     #{{ row.rank }}
-                                    <span v-if="row.closed_at">· chốt {{ row.closed_at }}</span>
+                                    <span v-if="row.closed_at">· đóng học phí lần đầu {{ row.closed_at }}</span>
                                 </td>
                                 <td class="py-2 text-right font-mono">{{ pct(row.percent) }}</td>
                                 <td class="py-2 text-right">
@@ -285,7 +285,7 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                 </div>
                 <p class="text-xs text-on-surface-variant">
                     Tiền về trong tháng {{ commission.month_label }}: học phí <span class="font-mono">{{ formatMoney(commission.base) }}</span> → hoa hồng
-                    <span class="font-mono">{{ formatMoney(commission.amount) }}</span>, ghi vào sổ hoa hồng kỳ lương tháng này; chi trả khi khách đủ 30 ngày từ ngày chốt và đủ 3/3 mốc chăm sóc.
+                    <span class="font-mono">{{ formatMoney(commission.amount) }}</span>, ghi vào sổ hoa hồng kỳ lương tháng này; chi trả khi đủ 30 ngày từ ngày đóng học phí thành công đầu tiên và đủ 3/3 mốc chăm sóc. Không thu hồi hoa hồng đã trả khi hoàn phí / hủy hóa đơn; khoản chưa trả liên quan không được chi.
                 </p>
             </section>
 

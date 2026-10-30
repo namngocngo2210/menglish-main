@@ -234,7 +234,7 @@ class PayrollPeriod extends Model
 
         return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
             // Chỉ biên bản đã quyết phạt mới ảnh hưởng lương (ghi nhận / giải trình / khắc phục không bắt tính lại)
-            || $this->payrollPenalties()->whereBetween('violation_date', $range)->whereIn('status', Penalty::payableStatuses())->where('updated_at', '>', $this->calculated_at)->exists()
+            || $this->payrollPenalties()->deductibleFor($this)->where('updated_at', '>', $this->calculated_at)->exists()
             // Đơn giá dạy, cấu hình lương (BHXH, công đoàn, tái tục...) và tiêu chí KPI đổi sau lần tính
             || TeacherHourlyRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             || TeacherRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
@@ -244,7 +244,7 @@ class PayrollPeriod extends Model
             || $this->payrollPenalties()->whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
             || $this->payrollPenalties()->deductibleFor($this)->whereNull('payroll_record_id')
                 ->whereIn('user_id', $this->records()->select('user_id'))->exists()
-            // Biên bản đã trừ ở lần tính bị gỡ khỏi phiếu (nộp trực tiếp / miễn phạt) — kể cả biên bản vi phạm từ kỳ trước
+            // Biên bản đã trừ ở lần tính bị gỡ khỏi phiếu (chuyển kỳ / nộp trực tiếp / miễn phạt) — kể cả biên bản vi phạm từ kỳ trước
             || $this->penaltyDeductionOutOfSync()
             // Lương cơ bản / ngày bắt đầu hợp đồng ở hồ sơ nhân sự đổi sau lần tính (vd. vừa nhập hợp đồng cho người mới)
             || $this->baseSalaryOutOfSync()
@@ -544,6 +544,7 @@ class PayrollPeriod extends Model
             // Mốc hiện tại (% của HS chốt gần nhất trong kỳ); từng khoản mang % theo thứ tự chốt của học viên.
             $currentPercent = $closedCount > 0 ? $commissionService->milestoneFor($closedCount, $end)['percent'] : null;
 
+            // Tiếp tục quyết toán điều chỉnh lịch sử / thủ công; hoàn phí và hủy hóa đơn không tạo khoản mới.
             $adjustments = CommissionAdjustment::where('user_id', $user->id)
                 ->whereNull('settled_at')
                 ->whereNull('payroll_record_id')
@@ -551,7 +552,7 @@ class PayrollPeriod extends Model
                 ->get(['id', 'amount']);
             $commissionClawback = (float) max(0, -$adjustments->sum('amount'));
 
-            // 3. Phạt: biên bản đã quyết phạt thuộc kỳ (ngày vi phạm trong kỳ) hoặc chuyển sang từ kỳ đã khóa / quá hạn nộp
+            // 3. Phạt: biên bản đã quyết phạt theo ngày trừ hiệu lực hoặc chuyển sang từ kỳ đã khóa
             // (Penalty::scopeDeductibleFor, TK-0014).
             $penalties = Penalty::where('user_id', $user->id)->deductibleFor($this)
                 ->when($isForeignTeacher, fn ($q) => $q->whereNull('auto_source'))->get(['id', 'amount']);

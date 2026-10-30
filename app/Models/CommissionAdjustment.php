@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Điều chỉnh hoa hồng của sale (âm = thu hồi khi hoàn phí). Chưa tất toán
+ * Điều chỉnh hoa hồng lịch sử / thủ công của sale (âm = khấu trừ). Hoàn phí / hủy hóa đơn
+ * không tạo điều chỉnh mới. Chưa tất toán
  * (settled_at NULL) thì được trừ ở lần tính lương kế tiếp; khi kỳ lương chứa nó
  * được duyệt thì đóng dấu settled_at để không trừ lại.
  */

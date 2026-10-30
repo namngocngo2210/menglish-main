@@ -640,4 +640,15 @@ class PayrollRecord extends Model
     {
         $this->net_salary = max(0, $this->gross_income - $this->total_deductions);
     }
+
+    /** Thực lĩnh trước khi giới hạn tối thiểu 0, tính từ các khoản hiện tại của phiếu. */
+    public function rawNetSalary(): float
+    {
+        return round($this->gross_income - $this->total_deductions, 2);
+    }
+
+    public function netShortfall(): float
+    {
+        return max(0, -$this->rawNetSalary());
+    }
 }

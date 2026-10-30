@@ -26,6 +26,7 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Services\CrmStageService;
+use App\Services\SalesCommissionService;
 use App\Services\Tuition\SessionLedger;
 use App\Support\Roles;
 use Closure;
@@ -55,8 +56,8 @@ use RuntimeException;
  * - KPI Học vụ (6 nhóm / 15 mục) cho 2 Học vụ × 2 tháng, do Quản lý chi nhánh chấm.
  * - Hoa hồng: bậc mặc định 3/4/5% theo số HS chốt; 4 khách mới do Sale chốt qua Chốt & Xếp lớp: 1 khách chốt từ tháng
  *   trước nữa, đủ 3/3 mốc chăm sóc → trả trong kỳ tháng trước; 3 khách chốt đầu tháng trước → hoãn (chưa đủ 30 ngày),
- *   tháng này 2 khách đủ 3/3 mốc → trả, 1 khách 2/3 mốc → tiếp tục hoãn. Khách đã trả hoa hồng hoàn phí → Admin chọn thu
- *   hồi → trừ vào kỳ tháng này của Sale.
+ *   tháng này 2 khách đủ 3/3 mốc → trả, 1 khách 2/3 mốc → tiếp tục hoãn. Khách đã trả hoa hồng hoàn phí → giữ nguyên khoản đã trả,
+ *   không tạo thu hồi trong kỳ tháng này của Sale.
  * - Bảng % thưởng tái tục (BA chốt 0 nghỉ → 1%, 1 nghỉ → 0,7%; các mốc khác chờ BA).
  * - Kỳ tháng trước: Kế toán tính → nhập bậc KPI giữ HS / KPI tự do / thuế TNCN / phụ cấp → tính lại → Admin chốt và gửi GV xem (khóa).
  *   Kỳ tháng này: Kế toán tính + nhập tay + tính lại, để ở "Đang tính". Hệ thống đã có dữ liệu ghi ở thời điểm thật (sau
@@ -243,7 +244,7 @@ class DemoPhase3Seeder extends Seeder
         // Cấu hình: bậc hoa hồng mặc định, bảng % thưởng tái tục, đơn giá buổi riêng (có phiên bản cũ / mới).
         $this->event($L->copy()->subMonthNoOverflow()->setTime(8, 0), fn () => $this->seedPayrollConfig());
 
-        // Hoa hồng: khách chốt tháng trước nữa (chưa đóng phí) → đóng phí đầu tháng trước.
+        // Hoa hồng: K4 đóng phí từ tháng trước nữa để đủ 30 ngày và được trả trong kỳ tháng trước.
         $this->event($L->copy()->subDays(12)->setTime(10, 0), fn () => $this->closeCustomer('K4', paid: false));
         $this->event($L->copy()->addDays(2)->setTime(10, 0), function () {
             foreach (['K1', 'K2', 'K3'] as $key) {
@@ -255,8 +256,13 @@ class DemoPhase3Seeder extends Seeder
                 $this->approvePendingReceipts($this->customers[$key], $this->staff['admin']);
             }
         });
-        $this->event($L->copy()->addDays(4)->setTime(10, 0), fn () => $this->collectFee('K4'));
-        $this->event($L->copy()->addDays(4)->setTime(15, 0), fn () => $this->approvePendingReceipts($this->customers['K4'], $this->staff['admin']));
+        $this->event($L->copy()->subDays(11)->setTime(10, 0), fn () => $this->collectFee('K4'));
+        $this->event($L->copy()->subDays(11)->setTime(15, 0), fn () => $this->approvePendingReceipts($this->customers['K4'], $this->staff['admin']));
+        // Ghi sổ khoản phát sinh từ tháng trước nữa để kỳ tháng trước xét gate và trả khoản hoãn.
+        $this->event($L->copy()->subDay()->setTime(18, 0), fn () => app(SalesCommissionService::class)
+            ->syncItemsForPeriod(new PayrollPeriod([
+                'start_date' => $L->copy()->subMonthNoOverflow(), 'end_date' => $L->copy()->subDay(),
+            ])));
         $this->event($L->copy()->addDays(20)->setTime(11, 0), fn () => $this->tickCare('K4', 3));
 
         // Chấm công từ buổi học thật + duyệt hằng ngày.
@@ -288,13 +294,13 @@ class DemoPhase3Seeder extends Seeder
             $this->approveLastMonth($period);
         });
 
-        // Tháng này: tick mốc chăm sóc, hoàn phí có thu hồi hoa hồng.
+        // Tháng này: tick mốc chăm sóc, hoàn phí không thu hồi hoa hồng đã trả.
         $this->event($C->copy()->addDays(4)->setTime(10, 0), function () {
             $this->tickCare('K1', 3);
             $this->tickCare('K2', 3);
             $this->tickCare('K3', 2);
         });
-        $this->event($C->copy()->addDays(9)->setTime(9, 30), fn () => $this->refundWithClawback('K4'));
+        $this->event($C->copy()->addDays(9)->setTime(9, 30), fn () => $this->refundAfterCommission('K4'));
 
         // Kỳ lương tháng này: Kế toán tính + nhập tay + tính lại (để "Đang tính", chưa chốt). Luôn là sự kiện cuối.
         $this->event($this->realNow, fn () => $this->calculatePeriod($this->thisMonth));
@@ -631,8 +637,8 @@ class DemoPhase3Seeder extends Seeder
         ], ['id' => $this->customers[$key]->id]);
     }
 
-    /** Kế toán lập hồ sơ hoàn phí; Admin duyệt và chọn THU HỒI hoa hồng (khách đã được trả hoa hồng kỳ trước). */
-    private function refundWithClawback(string $key): void
+    /** Kế toán lập hồ sơ hoàn phí; Admin duyệt, giữ nguyên hoa hồng đã trả kỳ trước. */
+    private function refundAfterCommission(string $key): void
     {
         $studentId = $this->customers[$key]->converted_student_id;
         $this->asUser($this->staff['accountant_cg'], TuitionController::class, 'storeRefundRequest', [
@@ -643,7 +649,7 @@ class DemoPhase3Seeder extends Seeder
         ]);
         $refund = TuitionRefundRequest::where('student_id', $studentId)->where('status', 'pending')->latest('id')->firstOrFail();
         // Admin duyệt kèm ảnh bằng chứng chi tiền (bắt buộc từ Phase 4).
-        $this->withRefundProof(fn () => $this->asUser($this->staff['admin'], TuitionController::class, 'approveRefundRequest', ['clawback_commission' => 1], ['id' => $refund->id]));
+        $this->withRefundProof(fn () => $this->asUser($this->staff['admin'], TuitionController::class, 'approveRefundRequest', [], ['id' => $refund->id]));
     }
 
     /**
@@ -745,7 +751,7 @@ class DemoPhase3Seeder extends Seeder
                 ->map(fn ($t) => $t->new_sale_percent.'%')->implode(' / ')],
             ['commission_items theo trạng thái', $countBy(CommissionItem::query(), 'status')],
             ['commission_adjustments (thu hồi)', CommissionAdjustment::count().' ('.number_format((float) CommissionAdjustment::sum('amount'), 0, ',', '.').'đ)'],
-            ['tuition_refund_requests (có thu hồi)', TuitionRefundRequest::where('clawback_commission', true)->count()],
+            ['tuition_refund_requests (đã duyệt)', TuitionRefundRequest::where('status', 'approved')->count()],
             ['payroll_periods', PayrollPeriod::orderBy('start_date')->get()->map(fn ($p) => "{$p->code} {$p->status} (".$p->records()->count().' phiếu)')->implode(', ')],
         ];
         $this->command->table(['Phase 3', 'Số dòng'], $rows);

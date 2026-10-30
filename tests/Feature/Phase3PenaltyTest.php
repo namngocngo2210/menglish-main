@@ -216,9 +216,15 @@ class Phase3PenaltyTest extends TestCase
         $this->assertNull($pending->fresh()->payroll_record_id);
 
         // Duyệt chỉ được sau chốt công / lỗi (02/10); tính lại không đổi khoản phạt.
+        // Fixture không có ngày công → thu nhập 0; thêm khoản cộng nhập tay để thực lĩnh không âm (TK-0017 chặn chốt khi âm).
+        $record->manual_lines = [['kind' => 'earning', 'label' => 'Phụ cấp đối soát', 'amount' => 500000]];
+        $record->applyManualInputs();
+        $record->save();
+
         $this->travelTo(Carbon::parse('2026-10-03 10:00:00'));
         $period->calculatePayrollForPeriod();
         $this->assertEquals(170000, $record->fresh()->penalty_deduction);
+        $this->assertSame(0.0, $record->fresh()->netShortfall());
 
         $this->finalizeKpi($period);
         $this->actingAs($this->admin)->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();

@@ -22,7 +22,6 @@ const props = defineProps({
     typeOptions: { type: Object, default: () => ({}) },
     approvableTypes: { type: Array, default: () => [] },
     canRejectAny: { type: Boolean, default: false },
-    clawbackHints: { type: [Object, Array], default: () => ({}) },
     studentFinance: { type: [Object, Array], default: () => ({}) },
     adminFeePercent: { type: Number, default: 10 },
     targets: { type: Array, default: () => [] },
@@ -58,18 +57,15 @@ const requestOpen = ref(false);
 const requestKey = ref(0);
 const approving = ref(null);
 const rejecting = ref(null);
-const claw = ref('0');
 
 function openExtension() {
     extensionKey.value++;
     extensionOpen.value = true;
 }
 function openApprove(rq) {
-    claw.value = props.clawbackHints[rq.id]?.suggest ? '1' : '0';
     approving.value = rq;
 }
 const canApprove = (rq) => props.approvableTypes.includes(rq.type);
-const hint = computed(() => (approving.value ? props.clawbackHints[approving.value.id] ?? null : null));
 
 // ── Bảng tính hoàn phí / chuyển nhượng (refundTransferManager) ──────────
 const empty = { has_tuition: false, paid: 0, contract: 0, debt: 0, total_sessions: null, attended_sessions: 0, remaining_sessions: null, unit_price: 0 };
@@ -468,35 +464,6 @@ const inputClass =
                     </template>
                 </dl>
                 <template v-if="rq.type === 'refund'">
-                    <!-- A6: người duyệt chọn thu hồi hoa hồng; gợi ý "Có" nếu học viên học chưa tới 1 tháng -->
-                    <div v-if="clawbackHints[rq.id]" class="space-y-xs rounded-lg border border-outline-variant p-sm">
-                        <span class="block font-label text-label uppercase text-on-surface-variant">Thu hồi hoa hồng{{ clawbackHints[rq.id].owner ? ' (' + clawbackHints[rq.id].owner + ')' : '' }}</span>
-                        <div class="flex flex-wrap items-center gap-sm">
-                            <UiSelect
-                                :id="'clawback_commission_' + rq.id"
-                                v-model="claw"
-                                name="clawback_commission"
-                                aria-label="Thu hồi hoa hồng"
-                                :options="[
-                                    { value: '1', label: 'Có thu hồi' },
-                                    { value: '0', label: 'Không thu hồi' },
-                                ]"
-                            />
-                            <input
-                                v-show="claw === '1'"
-                                type="number"
-                                name="clawback_amount"
-                                min="0"
-                                step="1000"
-                                :value="clawbackHints[rq.id].amount"
-                                aria-label="Số hoa hồng thu hồi (VNĐ)"
-                                class="w-32 rounded-lg border border-outline-variant bg-surface-container-lowest px-sm py-xs font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50"
-                            />
-                        </div>
-                        <span class="block font-caption text-caption text-on-surface-variant">
-                            {{ clawbackHints[rq.id].start ? 'Bắt đầu học ' + clawbackHints[rq.id].start : 'Chưa bắt đầu học' }} · gợi ý: {{ clawbackHints[rq.id].suggest ? 'có' : 'không' }} thu hồi
-                        </span>
-                    </div>
                     <UiField label="Ảnh bằng chứng chi tiền" name="proof_image" :for="'proof_image_' + rq.id" required hint="Ủy nhiệm chi / biên nhận đã ký (JPG, PNG, WEBP, tối đa 10MB).">
                         <input
                             :id="'proof_image_' + rq.id"
@@ -591,11 +558,10 @@ const inputClass =
                         <td class="font-body-small text-body-small">
                             {{ rq.approver_name ?? '—' }}
                             <div
-                                v-if="rq.status === 'approved' && rq.type === 'refund' && rq.clawback_commission !== null"
-                                class="font-caption text-caption"
-                                :class="rq.clawback_commission ? 'text-error' : 'text-on-surface-variant'"
+                                v-if="rq.status === 'approved' && rq.type === 'refund' && rq.clawback_commission"
+                                class="font-caption text-caption text-error"
                             >
-                                {{ rq.clawback_commission ? 'Thu hồi HH ' + money(rq.clawback_amount) + (rq.clawback_user_name ? ' (' + rq.clawback_user_name + ')' : '') : 'Không thu hồi HH' }}
+                                {{ 'Thu hồi HH ' + money(rq.clawback_amount) + (rq.clawback_user_name ? ' (' + rq.clawback_user_name + ')' : '') }}
                             </div>
                             <a
                                 v-if="rq.has_proof"
