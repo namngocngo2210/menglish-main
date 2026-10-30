@@ -12,6 +12,7 @@ use App\Services\SafeUploadService;
 use App\Support\DataScopeGuard;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\PayrollAdjustScope;
 use App\Support\Ui;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -71,6 +72,7 @@ class PenaltyController extends Controller
             ->latest()
             ->paginate($request->perPage(15))
             ->withQueryString();
+        $adjustableStaffIds = PayrollAdjustScope::adjustableStaffIds($user, $penalties->getCollection()->pluck('user_id'));
 
         // Ô chọn nhân sự / lớp khi lập biên bản: chỉ trong chi nhánh của người lập (trừ mức Toàn hệ thống).
         $users = $canViewAll
@@ -86,7 +88,7 @@ class PenaltyController extends Controller
         // Ngày thuộc kỳ lương đã khóa: nút "Chốt mức phạt" bị khóa trên dòng tương ứng.
 
         return Inertia::render('Penalties/Index', [
-            'penalties' => $penalties->through(function (Penalty $pen) use ($user) {
+            'penalties' => $penalties->through(function (Penalty $pen) use ($user, $adjustableStaffIds) {
                 [$employeeState, $employeeColor] = $pen->employee_state;
 
                 return [
@@ -114,6 +116,8 @@ class PenaltyController extends Controller
                     'deferred_at' => $pen->deferred_at?->toIso8601String(),
                     'deferred_by' => $pen->deferredBy?->name,
                     'defer_reason' => $pen->defer_reason,
+                    'can_defer' => $pen->status === 'fined' && $user->can('payroll.edit')
+                        && in_array((int) $pen->user_id, $adjustableStaffIds, true),
                     'employee_state' => $employeeState,
                     'employee_color' => $employeeColor,
                     'remedied' => (bool) $pen->remedied_at,
@@ -385,6 +389,10 @@ class PenaltyController extends Controller
         // Như tính lương: kỳ nguồn / đích xét toàn bộ dữ liệu, không theo phạm vi người thao tác.
         return DataScopeGuard::bypass(fn () => DB::transaction(function () use ($request, $id, $validated) {
             $penalty = Penalty::withoutViewerScope()->lockForUpdate()->findOrFail($id);
+            if (! PayrollAdjustScope::canAdjust($request->user(), $penalty->user_id)) {
+                abort(403, 'Bạn không có quyền chuyển phạt của nhân sự này (ngoài phạm vi bảng lương hoặc là phiếu của chính bạn).');
+            }
+
             $refuse = fn (string $message) => redirect()->back()->withErrors(['penalty' => $message])->with('error', $message);
             if ($penalty->status !== 'fined') {
                 return $refuse('Chỉ biên bản đã quyết phạt, chưa nộp / chưa trừ lương mới được chuyển sang kỳ sau. Trạng thái hiện tại: '.$penalty->status_label.'.');

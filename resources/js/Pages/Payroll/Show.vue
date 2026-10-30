@@ -133,7 +133,7 @@ function filter(event) {
                     <ul v-if="staff.penalties.length" class="mt-xs space-y-xs">
                         <li v-for="pen in staff.penalties" :key="pen.id" class="flex flex-wrap items-center gap-sm">
                             <span>{{ pen.code }} · {{ formatMoney(pen.amount) }} · vi phạm {{ formatDate(pen.violation_date) }}</span>
-                            <UiButton v-if="can('payroll.edit') && period.status === 'draft'" variant="secondary" size="sm" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
+                            <UiButton v-if="pen.can_defer" variant="secondary" size="sm" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
                         </li>
                     </ul>
                 </li>

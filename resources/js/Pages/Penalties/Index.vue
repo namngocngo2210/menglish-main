@@ -180,7 +180,7 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                                 <UiForm v-if="can('violation.mark_paid') && pen.status === 'fined' && !pen.overdue" :action="route('penalties.mark-paid', pen.id)" method="post">
                                     <UiButton type="submit" size="sm" variant="secondary" icon="payments">Đánh dấu đã nộp</UiButton>
                                 </UiForm>
-                                <UiButton v-if="can('payroll.edit') && pen.status === 'fined'" size="sm" variant="secondary" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
+                                <UiButton v-if="pen.can_defer" size="sm" variant="secondary" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
                                 <UiButton v-if="can('violation.mark_resolved') && pen.step === 'paid'" size="sm" variant="secondary" icon="build" @click="open = `remedy-${pen.id}`">Ghi nhận khắc phục</UiButton>
                                 <!-- Mỗi dòng chỉ giữ nút của bước tiếp theo; Đóng - không phạt / Hủy vi phạm nằm trong "⋯" (xem chi tiết) -->
                                 <UiButton size="sm" variant="ghost" icon="more_horiz" title="Xem chi tiết & thao tác khác" :aria-label="`Xem chi tiết & thao tác khác ${pen.code}`" @click="open = `view-${pen.id}`" />

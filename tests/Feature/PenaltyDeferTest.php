@@ -9,6 +9,7 @@ use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Support\PayrollAdjustScope;
 use App\Support\Rbac;
 use App\Support\Roles;
 use Carbon\Carbon;
@@ -219,10 +220,144 @@ class PenaltyDeferTest extends TestCase
         $penalty = $this->penalty();
         $editor = User::factory()->create(['is_active' => true]);
         $this->actingAs($editor)->post(route('penalties.defer', $penalty->id), ['reason' => 'Chuyển kỳ'])->assertForbidden();
-        $editor->givePermissionTo('payroll.edit');
+        $editor->givePermissionTo(['payroll.edit', 'payroll.scope_all']);
         Rbac::flushCache();
         $this->actingAs($editor->fresh())->post(route('penalties.defer', $penalty->id), ['reason' => 'Kế toán đối soát'])->assertSessionHasNoErrors();
         $this->assertSame($editor->id, $penalty->fresh()->deferred_by);
+    }
+
+    public function test_own_scope_editor_cannot_defer_own_penalty(): void
+    {
+        $this->period();
+        $this->teacher->givePermissionTo(['payroll.edit', 'payroll.scope_own']);
+        Rbac::flushCache();
+        $penalty = $this->penalty(['deduct_from_date' => '2026-09-01']);
+
+        $this->actingAs($this->teacher->fresh())->post(route('penalties.defer', $penalty->id), ['reason' => 'Chuyển kỳ'])
+            ->assertForbidden();
+
+        $penalty->refresh();
+        $this->assertNull($penalty->deferred_at);
+        $this->assertNull($penalty->deferred_by);
+        $this->assertSame('2026-09-01', $penalty->deduct_from_date->toDateString());
+        $this->assertSame('fined', $penalty->status);
+    }
+
+    public function test_branch_scope_editor_cannot_defer_penalty_of_another_branch(): void
+    {
+        $this->period();
+        $branch = Branch::create(['code' => 'DEFER-B', 'name' => 'Cơ sở khác', 'is_active' => true]);
+        $editor = User::factory()->create(['branch_id' => $branch->id, 'is_active' => true]);
+        $editor->givePermissionTo(['payroll.edit', 'payroll.scope_branch']);
+        Rbac::flushCache();
+        $penalty = $this->penalty(['deduct_from_date' => '2026-09-01']);
+
+        $this->actingAs($editor->fresh())->post(route('penalties.defer', $penalty->id), ['reason' => 'Chuyển kỳ'])
+            ->assertForbidden();
+
+        $penalty->refresh();
+        $this->assertNull($penalty->deferred_at);
+        $this->assertNull($penalty->deferred_by);
+        $this->assertSame('2026-09-01', $penalty->deduct_from_date->toDateString());
+        $this->assertSame('fined', $penalty->status);
+    }
+
+    public function test_branch_scope_editor_can_defer_penalty_of_same_branch_staff(): void
+    {
+        $this->period();
+        $editor = User::factory()->create(['branch_id' => $this->teacher->branch_id, 'is_active' => true]);
+        $editor->givePermissionTo(['payroll.edit', 'payroll.scope_branch']);
+        Rbac::flushCache();
+        $penalty = $this->penalty();
+
+        $this->actingAs($editor->fresh())->post(route('penalties.defer', $penalty->id), ['reason' => 'Chuyển kỳ'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame($editor->id, $penalty->fresh()->deferred_by);
+        $this->assertSame('2026-10-01', $penalty->fresh()->deduct_from_date->toDateString());
+    }
+
+    public function test_branch_scope_editor_cannot_defer_own_penalty(): void
+    {
+        $this->period();
+        $editor = User::factory()->create(['branch_id' => $this->teacher->branch_id, 'is_active' => true]);
+        $editor->givePermissionTo(['payroll.edit', 'payroll.scope_branch']);
+        Rbac::flushCache();
+        $penalty = $this->penalty(['user_id' => $editor->id, 'deduct_from_date' => '2026-09-01']);
+
+        $this->actingAs($editor->fresh())->post(route('penalties.defer', $penalty->id), ['reason' => 'Chuyển kỳ'])
+            ->assertForbidden();
+
+        $penalty->refresh();
+        $this->assertNull($penalty->deferred_at);
+        $this->assertNull($penalty->deferred_by);
+        $this->assertSame('2026-09-01', $penalty->deduct_from_date->toDateString());
+        $this->assertSame('fined', $penalty->status);
+    }
+
+    public function test_penalty_index_deferral_flags_follow_payroll_scope(): void
+    {
+        $branch = Branch::create(['code' => 'DEFER-B', 'name' => 'Cơ sở khác', 'is_active' => true]);
+        $otherTeacher = User::factory()->create(['branch_id' => $branch->id, 'is_active' => true]);
+        $editor = User::factory()->create(['branch_id' => $this->teacher->branch_id, 'is_active' => true]);
+        $editor->givePermissionTo(['payroll.edit', 'payroll.scope_branch', 'violation.view', 'violation.scope_all']);
+        Rbac::flushCache();
+        $sameBranch = $this->penalty();
+        $otherBranch = $this->penalty(['user_id' => $otherTeacher->id]);
+        $own = $this->penalty(['user_id' => $editor->id]);
+        $paid = $this->penalty(['status' => 'paid']);
+
+        $this->actingAs($editor->fresh())->get(route('penalties.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Penalties/Index')
+                ->has('penalties.data', 4)
+                ->where('penalties.data', function ($rows) use ($sameBranch, $otherBranch, $own, $paid) {
+                    $rows = collect($rows)->keyBy('id');
+
+                    return $rows->get($sameBranch->id)['can_defer'] === true
+                        && $rows->get($otherBranch->id)['can_defer'] === false
+                        && $rows->get($own->id)['can_defer'] === false
+                        && $rows->get($paid->id)['can_defer'] === false;
+                }));
+    }
+
+    public function test_adjustable_staff_ids_include_main_and_extra_branches_but_exclude_self_and_deleted_staff(): void
+    {
+        $branch = Branch::create(['code' => 'DEFER-B', 'name' => 'Cơ sở khác', 'is_active' => true]);
+        $editor = User::factory()->create(['branch_id' => $this->teacher->branch_id, 'is_active' => true]);
+        $editor->givePermissionTo(['payroll.edit', 'payroll.scope_branch']);
+        Rbac::flushCache();
+        $extraBranchStaff = User::factory()->create(['branch_id' => $branch->id]);
+        $extraBranchStaff->branches()->attach($this->teacher->branch_id);
+        $otherStaff = User::factory()->create(['branch_id' => $branch->id]);
+        $deletedStaff = User::factory()->create(['branch_id' => $this->teacher->branch_id]);
+        $deletedStaff->delete();
+
+        $this->assertEqualsCanonicalizing([$this->teacher->id, $extraBranchStaff->id], PayrollAdjustScope::adjustableStaffIds(
+            $editor->fresh(), [$this->teacher->id, $extraBranchStaff->id, $otherStaff->id, $editor->id, $deletedStaff->id, $this->teacher->id, null],
+        ));
+
+        $editor->branches()->attach($branch->id);
+        $this->assertTrue(PayrollAdjustScope::canAdjust($editor->fresh(), $otherStaff->id));
+        $this->assertFalse(PayrollAdjustScope::canAdjust($editor->fresh(), null));
+    }
+
+    public function test_branch_scope_without_branches_and_own_scope_cannot_adjust_any_staff_but_all_scope_can_adjust_self(): void
+    {
+        $viewer = User::factory()->create(['branch_id' => null]);
+        $viewer->givePermissionTo(['payroll.edit', 'payroll.scope_branch']);
+        Rbac::flushCache();
+        $this->assertSame([], PayrollAdjustScope::adjustableStaffIds($viewer->fresh(), [$this->teacher->id, $viewer->id]));
+
+        $viewer->revokePermissionTo('payroll.scope_branch');
+        $viewer->givePermissionTo('payroll.scope_own');
+        Rbac::flushCache();
+        $this->assertSame([], PayrollAdjustScope::adjustableStaffIds($viewer->fresh(), [$this->teacher->id, $viewer->id]));
+
+        $viewer->givePermissionTo('payroll.scope_all');
+        Rbac::flushCache();
+        $this->assertSame([$this->teacher->id, $viewer->id], PayrollAdjustScope::adjustableStaffIds($viewer->fresh(), [$this->teacher->id, $viewer->id]));
+        $this->assertTrue(PayrollAdjustScope::canAdjust($viewer->fresh(), $viewer->id));
     }
 
     public function test_reason_is_required_and_limited_to_500_characters(): void
@@ -253,7 +388,8 @@ class PenaltyDeferTest extends TestCase
                 ->where('period.next_step', 'Còn 1 nhân sự thực lĩnh âm — chuyển phạt sang kỳ sau hoặc điều chỉnh phiếu trước khi chốt')
                 ->where('period.next_color', 'error')
                 ->has('negativeNet.0.penalties', 1)->where('negativeNet.0.penalties.0.id', $penalty->id)
-                ->where('negativeNet.0.penalties.0.violation_date', '2026-09-10'));
+                ->where('negativeNet.0.penalties.0.violation_date', '2026-09-10')
+                ->where('negativeNet.0.penalties.0.can_defer', true));
         $this->get(route('payroll.records.show', $record->id))->assertOk()->assertSee('Chuyển sang kỳ sau')
             ->assertInertia(fn (AssertableInertia $page) => $page->where('penalties.0.can_defer', true));
         $this->post(route('penalties.defer', $penalty->id), ['reason' => 'Trợ giảng chưa đủ thu nhập'])->assertSessionHasNoErrors();

@@ -26,6 +26,7 @@ use App\Services\SalesCommissionService;
 use App\Services\TeachingShifts\ScheduleConfirmation;
 use App\Support\DataScope;
 use App\Support\Money;
+use App\Support\PayrollAdjustScope;
 use App\Support\ReportPeriod;
 use App\Support\Roles;
 use App\Support\Ui;
@@ -181,9 +182,10 @@ class PayrollController extends Controller
 
         $kpiPending = $period->records->filter(fn (PayrollRecord $r) => $r->kpi_state[0] === 'pending')->values();
         $negativeRecords = $period->records->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0);
+        $adjustableStaffIds = PayrollAdjustScope::adjustableStaffIds($request->user(), $negativeRecords->pluck('user_id'));
         // Chỉ trả biên bản của các phiếu người xem được thấy; quyền xử lý vẫn kiểm tra ở route.
         $negativePenalties = Penalty::withoutViewerScope()->whereIn('payroll_record_id', $negativeRecords->modelKeys())
-            ->where('status', 'fined')->get(['id', 'code', 'amount', 'violation_date', 'payroll_record_id'])->groupBy('payroll_record_id');
+            ->where('status', 'fined')->get(['id', 'code', 'amount', 'status', 'violation_date', 'payroll_record_id'])->groupBy('payroll_record_id');
         // Bước tiếp của kỳ phải xét mọi phiếu, kể cả phiếu ngoài phạm vi người xem hoặc bộ lọc hiện tại.
         $negativeCount = $period->records()->get()->filter(fn (PayrollRecord $r) => $r->netShortfall() > 0)->count();
         $allPeriods = PayrollPeriod::orderByDesc('year')->orderByDesc('month')->get(['id', 'code', 'title', 'month', 'year']);
@@ -239,6 +241,8 @@ class PayrollController extends Controller
                         'code' => $pen->code,
                         'amount' => (float) $pen->amount,
                         'violation_date' => $pen->violation_date?->toDateString(),
+                        'can_defer' => $pen->status === 'fined' && $period->status === PayrollPeriod::STATUS_DRAFT && $user->can('payroll.edit')
+                            && in_array((int) $r->user_id, $adjustableStaffIds, true),
                     ])->values()->all(),
                 ])->values()->all(),
             'records' => $records->through(fn (PayrollRecord $r) => $this->recordRow($r)),
@@ -492,6 +496,8 @@ class PayrollController extends Controller
             ->get();
         // Phiếu lương đã qua kiểm tra phạm vi bảng lương: hiện đủ các biên bản đã trừ trên phiếu.
         $penalties = Penalty::withoutViewerScope()->where('payroll_record_id', $record->id)->orderBy('due_date')->get();
+        $canDefer = $period->status === PayrollPeriod::STATUS_DRAFT && $request->user()->can('payroll.edit')
+            && PayrollAdjustScope::canAdjust($request->user(), $record->user_id);
         $clawbacks = CommissionAdjustment::with('student')->where('payroll_record_id', $record->id)->get();
         $paidCommission = CommissionItem::with(['student', 'receipt'])->where('payroll_record_id', $record->id)->orderBy('id')->get();
         $deferredCommission = CommissionItem::with(['student', 'receipt'])
@@ -644,7 +650,7 @@ class PayrollController extends Controller
                 'violation_date' => $pen->violation_date?->toDateString(),
                 'due_date' => $pen->due_date?->toDateString(),
                 'amount' => (float) $pen->amount,
-                'can_defer' => $pen->status === 'fined' && $period->status === PayrollPeriod::STATUS_DRAFT && $request->user()->can('payroll.edit'),
+                'can_defer' => $pen->status === 'fined' && $canDefer,
             ])->values(),
             'clawbacks' => $clawbacks->map(fn (CommissionAdjustment $adj) => ['id' => $adj->id, 'reason' => $adj->reason, 'amount' => (float) $adj->amount])->values(),
             'paidCommission' => $paidCommission->map(fn (CommissionItem $item) => $this->commissionItemRow($item))->values(),

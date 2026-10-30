@@ -30,6 +30,8 @@ Sau khi xử lý, người có quyền `payroll.calculate` bấm **Đồng bộ 
 
 `POST /penalties/{id}/defer` (`penalties.defer`) yêu cầu `payroll.edit`, cùng quyền điều chỉnh phiếu lương; không yêu cầu quyền chốt lỗi / quyết phạt. Chỉ biên bản `fined` được chuyển. Biên bản đã nộp trực tiếp (`paid`), đã trừ lương (`deducted`), đã hủy, đã đóng vụ hoặc chưa quyết phạt đều bị từ chối.
 
+Phạm vi dữ liệu giống khi điều chỉnh phiếu lương: **Toàn hệ thống** được chuyển mọi khoản phạt; **Chi nhánh** chỉ được chuyển phạt của nhân sự thuộc các chi nhánh của mình (chi nhánh chính hoặc bổ sung), không được chuyển phạt của chính mình; **Của tôi** không được chuyển phạt vì phiếu lương của chính mình không được điều chỉnh khi kỳ chưa khóa. Các nút chuyển kỳ chỉ hiển thị khi người xem được phép.
+
 Kỳ nguồn là kỳ của phiếu đang gắn biên bản; nếu chưa gắn thì lấy kỳ chưa khóa đầu tiên đang nhận biên bản theo `Penalty::scopeDeductibleFor`. Không có kỳ nhận thì báo “Biên bản chưa thuộc kỳ lương đang tính nào”. Kỳ nguồn **Đã chốt** cần người có quyền `payroll.approve` bấm **Mở lại**; kỳ **Đã gửi GV xem / Đã trả** đã khóa, không chuyển được. Nếu kỳ đích đã tồn tại thì phải ở trạng thái **Đang tính** (`draft`); kỳ đích đã chốt / gửi GV xem / trả đều bị từ chối.
 
 Ngày trừ mới (`deduct_from_date`) là ngày ngay sau cuối kỳ nguồn, không thay đổi `violation_date`. Kỳ đích chứa ngày đó có thể chưa được tạo: biên bản sẽ được nhận khi kỳ được tạo / tính; nếu không có kỳ chứa ngày thì chuyển tiếp vào kỳ mở đầu tiên sau ngày này. Khi kỳ đích còn mở thì các kỳ mở muộn hơn không lấy khoản phạt trước. Có thể chuyển tiếp từ kỳ đó sang kỳ sau nữa.
