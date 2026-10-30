@@ -476,9 +476,12 @@ class PayrollPeriod extends Model
                 ->where('status', 'valid')
                 ->with('classModel')
                 ->get();
-            // Học thuật kiêm nhiệm giảng dạy: chấm công như Part-time, mỗi buổi = % học phí theo buổi của lớp (TeachingShareService).
-            $teachesAsLead = ! $isPartTime && $profile['salary_role'] === Roles::ACADEMIC_LEAD && StaffType::isTeachingAcademicLead($user);
-            $share = $teachesAsLead ? $teachingShare->forTimesheets($timesheets, $settings) : null;
+            // Học thuật có ca lớp hợp lệ được tính đứng lớp dù chưa bật cờ; đã bật cờ vẫn giữ phiếu kiêm nhiệm khi chưa có ca.
+            $hasClassTeaching = $timesheets->contains(fn (TeacherTimesheet $ts) => $ts->class_id
+                && in_array($ts->type ?? 'regular', TeachingShareService::SHARED_TYPES, true));
+            $teachesAsLead = ! $isPartTime && $profile['salary_role'] === Roles::ACADEMIC_LEAD
+                && (StaffType::isTeachingAcademicLead($user) || $hasClassTeaching);
+            $share = $teachesAsLead ? $teachingShare->forTimesheets($timesheets, $settings, $end) : null;
             $paysSessions = $isPartTime || $share !== null;
             // Trợ giảng (TK-0010): số giờ hợp lệ × đơn giá giờ của TA; không có đơn giá giờ → 0đ + cảnh báo.
             $isAssistant = $profile['salary_role'] === Roles::ASSISTANT;

@@ -7,6 +7,45 @@ Xếp lớp gắn các khoản NULL chưa dùng hết vào lớp chính; chuyể
 chuyển sang lớp mới, giữ lớp cũ cho khoản đã dùng hết. Không tự tính lại lương, kỳ đã khóa giữ nguyên.
 Xem [quy tắc gắn lớp học phí và lệnh bù dữ liệu](hoc-phi-gan-lop.md).
 
+## Lương đứng lớp Học thuật (TK-2026-0018)
+
+Học thuật (`academic_lead`, vai trò tính lương `Roles::ACADEMIC_LEAD`) có ca dạy lớp hợp lệ trong kỳ được cộng
+**Lương đứng lớp**, kể cả khi chưa bật cờ **Kiêm nhiệm giảng dạy**. Ca gồm chính khóa (`regular`) và dạy thay (`sub`)
+có `class_id`, trạng thái `valid`. Ca bị loại bởi quy tắc đi muộn / về sớm không tính buổi. Kèm 1-1, chấm bài,
+workshop không tính phần trăm học phí.
+
+**Công thức:** cộng qua từng buổi được tính: `P% × Σ (giá niêm yết trên học phí của từng HS được tính ÷ số buổi học phí)`.
+Giá niêm yết là `StudentTuition.total_amount`, trước `discount_amount` / khuyến mãi; số buổi là `session_count > 0`.
+Ưu tiên khoản gắn đúng lớp (`student_tuitions.class_id`), mới nhất theo id; nếu thiếu thì khoản mới nhất có số buổi
+hợp lệ của HS; chưa có khoản học phí thì lấy giá niêm yết một buổi của lớp (`SessionLedger::classUnitPrice`).
+**Không xét thanh toán, số tiền đã thu, công nợ hay trạng thái học phí**: chưa đóng phí vẫn được tính theo giá niêm yết.
+
+Chỉ tính HS **còn giữ ở lớp cuối kỳ**: đã vào lớp không muộn hơn ngày cuối kỳ, chưa rời / chuyển / thôi học ở hoặc
+trước ngày đó, không mang trạng thái thôi học (`dropped`) / bảo lưu (`deferred`), không có đơn bảo lưu đã duyệt
+bao phủ ngày cuối kỳ (tính cả `defer_from` và `defer_to`). HS bảo lưu hoặc thôi học cuối kỳ đóng góp **0 cho mọi
+buổi của kỳ**, kể cả buổi trước khi nghỉ. Hồ sơ cũ có `current_class_id` nhưng chưa có lượt xếp lớp vẫn tính từ
+ngày tạo hồ sơ. Trạng thái tại cuối kỳ được khôi phục từ nhật ký thay đổi trạng thái nếu HS đổi trạng thái sau kỳ;
+hồ sơ cũ không có nhật ký (hoặc nhật ký đã được dọn theo thời hạn lưu) dùng trạng thái hiện có. Trong tập HS còn giữ, chỉ tính các buổi từ ngày vào lớp và ngoài
+cửa sổ bảo lưu đã duyệt từng ngày.
+
+`P` mặc định **40%**, lấy từ tham số `payroll_teaching_share_percent`. Đơn giá riêng **% học phí** của Học thuật
+(`TeacherHourlyRate::UNIT_TUITION`) có hiệu lực tại ngày dạy **thay thế** mức mặc định (ví dụ 50%). Thay đơn giá
+giữa kỳ sẽ tính từng buổi theo mức hiệu lực; hàng lớp hiển thị nhiều mức %. Màn **Đơn giá giáo viên** mặc định
+loại **Học thuật kiêm giảng dạy** cho mọi Học thuật, không phụ thuộc cờ kiêm nhiệm.
+
+**Ví dụ:** lớp giữ 10 HS, mỗi HS có học phí niêm yết 12.000.000đ / 24 buổi = 500.000đ/HS/buổi, tất cả đã vào lớp
+trước các buổi dạy và không bảo lưu. Giá trị một buổi = 10 × 500.000 = 5.000.000đ. Học thuật dạy 8 buổi:
+**40% × 8 × 5.000.000 = 16.000.000đ** lương đứng lớp.
+
+Phiếu lương có bảng theo lớp: **Lớp | Số buổi dạy | HS còn giữ cuối tháng | Giá trị 1 buổi | % | Thành tiền**, kèm tổng.
+Giá trị một buổi là tổng giá niêm yết theo buổi của HS giữ cuối kỳ; tổng giá trị các buổi thực tính còn phụ thuộc
+ngày vào lớp và bảo lưu từng ngày. Tiền được làm tròn đến đồng theo lớp rồi cộng tổng.
+
+KPI giữ HS của phần đứng lớp vẫn theo khối tính cũ (`HS giữ được × bậc chọn trên phiếu lương`), áp dụng cả Học thuật
+chưa bật cờ nhưng đã dạy. **Phiếu KPI giảng dạy riêng** vẫn phụ thuộc cờ kiêm nhiệm như trước. Học thuật chưa bật cờ
+và không có ca lớp hợp lệ giữ phiếu lương cũ; đã bật cờ nhưng chưa có ca vẫn có phần kiêm nhiệm với lương đứng lớp 0đ.
+Kỳ đã khóa không tự tính lại khi đổi dữ liệu học phí / lớp.
+
 ## Bối cảnh (rà soát 26/10/2026 trên staging)
 
 - **GV không có lối vào lớp của mình.** `/classes` và Trang lớp chạy đúng phạm vi (GV chỉ thấy lớp mình dạy), nhưng nhóm sidebar

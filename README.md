@@ -85,10 +85,16 @@ Có gì trong dữ liệu (L = tháng trước, C = tháng này):
 | GV full-time / TA | `gv.cohuu2@menglish.edu.vn` · `ta.tuan@menglish.edu.vn` | "Lương của tôi" kỳ L (GV full-time: BHXH 10,5% + Công đoàn 0,5% trên mức lương đóng BHXH 5,4 triệu × ngày công; TA: số giờ × đơn giá giờ, không BHXH) |
 | Học vụ | `nva@menglish.edu.vn` | Chấm công tay, duyệt chấm công, ghi nhận vi phạm, đánh giá KPI (không tự chấm mình) |
 | Quản lý cơ sở | `manager@menglish.edu.vn` | Chốt lỗi vận hành + quyết phạt, ghi nhận nộp phạt, tick mốc chăm sóc tháng đầu, đơn giá GV |
-| Học thuật | `academiclead@menglish.edu.vn` | Chốt lỗi chuyên môn + quyết phạt |
+| Học thuật | `academiclead@menglish.edu.vn` | Chốt lỗi chuyên môn + quyết phạt; khi seed demo lương: phiếu kỳ L có Lương đứng lớp và bảng chi tiết lớp |
 | Sale | `tranmaia@menglish.edu.vn` | "Lương của tôi" kỳ L: hoa hồng trả / hoãn |
 
 Kiểm thử nghiệm thu Phase 3: `php artisan test --filter='Phase3AcceptanceTest|DemoPhase3SeederTest'`.
+
+`DemoPayrollSeeder` (`php artisan demo:luong`, được gọi trong khối demo của `DatabaseSeeder`, trừ unit test)
+bổ sung lương / KPI các vai trò. Học thuật `academiclead@menglish.edu.vn` dạy chính khóa ở `DEMO-CG-HT27` và một ca
+dạy thay ở `DEMO-CG-SPK27` tháng trước; học phí gắn lớp có ưu đãi và chưa thanh toán. Phiếu kỳ L có **Lương đứng lớp > 0**,
+tính theo **40% × giá niêm yết / buổi của HS giữ cuối kỳ**, không cần bật cờ kiêm nhiệm. Chạy lại không nhân bản;
+phần K27 đã có và kỳ đã chi trả giữ nguyên. Xem [dữ liệu demo lương / KPI](docs/demo-luong-kpi-seed.md).
 
 ## MEnglish — Dữ liệu demo (Phase 4: học phí, hỗ trợ, vận hành)
 

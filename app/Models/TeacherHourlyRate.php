@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\PayrollFormulaService;
 use App\Support\RequestMemo;
+use App\Support\Roles;
 use App\Support\StaffType;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -55,14 +56,14 @@ class TeacherHourlyRate extends Model
     /** Loại giáo viên mặc định theo vai trò / hợp đồng (Q3). */
     public static function defaultTeacherType(User $user): string
     {
+        if ($user->hasRole(Roles::ACADEMIC_LEAD)) {
+            return 'academic';
+        }
         if (StaffType::isForeignTeacher($user)) {
             return 'foreign';
         }
         if (StaffType::isAssistantOnly($user)) {
             return 'assistant';
-        }
-        if (StaffType::isTeachingAcademicLead($user)) {
-            return 'academic';
         }
 
         return app(PayrollFormulaService::class)->profile($user)['employee_type'] === PayrollRecord::TYPE_PARTTIME

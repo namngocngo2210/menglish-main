@@ -7,6 +7,7 @@ use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\TeacherPortalController;
 use App\Models\AdminNotification;
 use App\Models\Branch;
+use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CommissionAdjustment;
@@ -21,6 +22,8 @@ use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\StaffAttendance;
 use App\Models\StaffAttendanceRequest;
+use App\Models\Student;
+use App\Models\StudentTuition;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
@@ -62,6 +65,8 @@ use RuntimeException;
  *   dạy có / không phép, SLA CRM, học phí chưa nhắc, order in ấn trễ, kiểm kê lệch, phiếu thu bị trả về.
  * - Kỳ lương tháng này: Admin "Đồng bộ & Tính lại", nhập KPI / phụ cấp cho phiếu mới, tính lại (để Đang tính).
  * - KPI Học thuật (Trưởng Học thuật): DemoAcademicKpiSeeder (dự án học thuật, việc giao, order học liệu, phiếu tháng trước / này).
+ * - Học thuật tháng trước: lớp DEMO-CG-HT27 có ca chính khóa và một ca dạy thay tại DEMO-CG-SPK27, học phí gắn lớp,
+ *   chưa thanh toán và có ưu đãi; lương đứng lớp vẫn tính trên giá niêm yết, không cần bật cờ kiêm nhiệm.
  * - Kỳ lương tháng trước đủ mọi vai trò (completeLastMonth): lớp K27 cho GV / TA chưa có lịch tháng trước (có buổi đi muộn, quên
  *   check-in, vắng, ca bị từ chối), biên bản vi phạm lập tay cho mọi vai trò ở đủ các bước, KPI bộ mẫu Quản lý cơ sở và mỗi vai trò
  *   1 người tốt / 1 người kém; chốt phiếu KPI tháng trước ngày 3 (sau khi đủ nguồn tự đếm); mở lại kỳ demo, tính lại, chốt và gửi GV xem, từ
@@ -202,6 +207,8 @@ class DemoPayrollSeeder extends Seeder
             [[2, '19:30', '21:00', 'Ca 2'], [4, '19:30', '21:00', 'Ca 2'], [6, '15:00', '16:30', 'Ca chiều']]],
         'DEMO-DD-GT27' => ['# Giao tiếp Teens A2 · K27 (ĐĐ)', 'DD', 'Giao tiếp Pro B1', 'gv.banthoigian1@menglish.edu.vn', [], 'Phòng 101',
             [[1, '18:00', '19:30', 'Ca 1'], [3, '18:00', '19:30', 'Ca 1'], [5, '18:00', '19:30', 'Ca 1']]],
+        'DEMO-CG-HT27' => ['# Tiếng Anh Học thuật · K27 (CG)', 'CG', 'IELTS 6.5', 'academiclead@menglish.edu.vn', [], 'Phòng 201',
+            [[3, '09:00', '10:30', 'Ca sáng']]],
     ];
 
     /** Mức KPI điền tay theo người (mỗi vai trò 1 người tốt, 1 người kém); người khác điền ngẫu nhiên phần lớn đạt. */
@@ -1324,6 +1331,19 @@ class DemoPayrollSeeder extends Seeder
             $this->reopenPeriod($period);
         }
 
+        // Học thuật dạy thay một buổi sáng tại lớp khác; GV chính của lớp vẫn giữ nguyên.
+        $lead = $this->user('academiclead@menglish.edu.vn');
+        $subClass = ClassModel::where('code', 'DEMO-CG-SPK27')->first();
+        if ($lead && $subClass) {
+            $subDay = $this->lastMonth->copy()->addDays(7)->next(Carbon::SUNDAY);
+            $this->at($this->lastMonth->copy()->subDays(2)->setTime(9, 0));
+            $sessions->push(ClassSession::create([
+                'class_id' => $subClass->id, 'branch_id' => $subClass->branch_id, 'date' => $subDay->toDateString(),
+                'shift_name' => 'Ca sáng', 'type' => ClassSession::TYPE_REGULAR, 'start_time' => '09:00', 'end_time' => '10:30',
+                'teacher_id' => $lead->id, 'room' => $subClass->room, 'status' => 'completed',
+            ]));
+        }
+
         // GV / TA check-in từng buổi (đến sớm 8–25 phút), chấm công điện thoại theo giờ dạy, Học vụ duyệt ca sáng hôm sau; trừ các
         // buổi có sự cố trong LAST_MONTH_TEACHING_ISSUES (đi muộn, quên check-in, vắng).
         $reviewers = ['CG' => $this->staff['academic_cg'], 'BD' => $this->staff['academic_bd'], 'DD' => $this->staff['admin']];
@@ -1341,11 +1361,14 @@ class DemoPayrollSeeder extends Seeder
                     continue;
                 }
                 $arrive = $issue === 'late' ? $start->copy()->addMinutes($minutes) : $start->copy()->subMinutes($this->between($uid, $date, 'k27', 8, 25));
-                if ($issue === 'forgot') {
+                if ($issue === 'forgot' || $user->hasRole(Roles::ACADEMIC_LEAD)) {
                     $this->event($start->copy()->setTime(21, 15), fn () => $this->asUser($reviewer, PayrollController::class, 'storeTimesheet', [
                         'user_id' => $uid, 'class_id' => $session->class_id, 'teaching_date' => $date,
-                        'time_in' => $session->start_time->format('H:i'), 'time_out' => $session->end_time->format('H:i'), 'type' => 'regular',
-                        'notes' => 'GV quên check-in — đối chiếu sổ điểm danh và camera lớp, xác nhận có dạy.',
+                        'time_in' => $session->start_time->format('H:i'), 'time_out' => $session->end_time->format('H:i'),
+                        'type' => $user->hasRole(Roles::ACADEMIC_LEAD) && (int) $session->classModel->teacher_id !== (int) $uid ? 'sub' : 'regular',
+                        'notes' => $user->hasRole(Roles::ACADEMIC_LEAD)
+                            ? 'Học thuật đứng lớp / dạy thay theo lịch, Học vụ xác nhận có dạy '.self::MARKER.'.'
+                            : 'GV quên check-in — đối chiếu sổ điểm danh và camera lớp, xác nhận có dạy.',
                     ]));
                 } else {
                     $this->event($arrive->copy()->addMinute(), fn () => $this->asUser($user, TeacherPortalController::class, 'checkin', ['session_ids' => [$session->id]]));
@@ -1387,6 +1410,7 @@ class DemoPayrollSeeder extends Seeder
         // vai trò còn thiếu (Quản lý cơ sở), chốt phiếu tháng trước còn thiếu; phiếu tháng này của người tốt / kém điền lại theo
         // mức của họ, phiếu còn trống thì điền.
         $this->call(DemoKpiSourcesSeeder::class);
+        $this->seedAcademicTeachingTuitions();
         $this->setupKpiCriteria();
         $freeze();
         app(KpiSheetService::class)->ensureSheets($this->thisMonth->month, $this->thisMonth->year);
@@ -1409,7 +1433,10 @@ class DemoPayrollSeeder extends Seeder
         }
         $this->calculateExcludingNewStaff($period);
         $this->at($now);
-        $period->records()->with('user.roles')->whereNotIn('user_id', $hadRecord)->whereNull('adjustment_notes')->orderBy('id')->get()
+        $period->records()->with('user.roles')
+            ->where(fn ($q) => $q->where(fn ($new) => $new->whereNotIn('user_id', $hadRecord)->whereNull('adjustment_notes'))
+                ->orWhere(fn ($teaching) => $teaching->where('teaching_concurrent', true)->where('retention_base_students', '>', 0)->whereNull('retention_tier')))
+            ->orderBy('id')->get()
             ->each(fn (PayrollRecord $record) => $this->adjustManual($record, $this->lastMonth));
         $this->at($now);
         $this->calculateExcludingNewStaff($period);
@@ -1436,6 +1463,38 @@ class DemoPayrollSeeder extends Seeder
             $this->asUser($admin, PayrollController::class, 'markPaid', [], ['id' => $period->id]);
         }
         $this->at($this->realNow);
+    }
+
+    /** HS lớp Học thuật và học phí niêm yết gắn hai lớp đã dạy; dữ liệu mẫu có ưu đãi và còn nợ toàn bộ. */
+    private function seedAcademicTeachingTuitions(): void
+    {
+        $class = ClassModel::where('code', 'DEMO-CG-HT27')->first();
+        if (! $class) {
+            return;
+        }
+        $restore = now()->copy();
+        $this->at($this->lastMonth->copy()->subDays(2)->setTime(10, 0));
+        for ($i = 1; $i <= 6; $i++) {
+            $student = Student::firstOrCreate(['code' => 'HV-DEMO-HT27-'.$i], [
+                'name' => '# Học viên Học thuật '.$i, 'phone' => '039918000'.$i,
+                'branch_id' => $class->branch_id, 'current_class_id' => $class->id, 'status' => 'studying',
+                'study_started_on' => $this->lastMonth->toDateString(), 'total_lessons' => 24,
+                'notes' => 'Học viên mẫu lương đứng lớp '.self::MARKER.'.',
+            ]);
+            ClassEnrollment::firstOrCreate(['student_id' => $student->id, 'class_id' => $class->id], [
+                'enrolled_at' => $this->lastMonth->toDateString(), 'status' => 'completed',
+            ]);
+        }
+        $classIds = ClassModel::whereIn('code', ['DEMO-CG-HT27', 'DEMO-CG-SPK27'])->pluck('id');
+        foreach (Student::whereIn('current_class_id', $classIds)->get() as $student) {
+            StudentTuition::firstOrCreate(['student_id' => $student->id, 'class_id' => $student->current_class_id], [
+                'branch_id' => $student->branch_id, 'total_amount' => 12000000, 'session_count' => 24,
+                'discount_amount' => 1200000, 'final_amount' => 10800000,
+                'paid_amount' => 0, 'debt_amount' => 10800000, 'status' => 'unpaid',
+                'notes' => 'Học phí mẫu lương đứng lớp theo giá niêm yết '.self::MARKER.'.',
+            ]);
+        }
+        $this->at($restore);
     }
 
     /**

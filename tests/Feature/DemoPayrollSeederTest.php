@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AcademicProject;
 use App\Models\Branch;
+use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
@@ -17,6 +18,7 @@ use App\Models\StaffAttendanceRequest;
 use App\Models\StaffReport;
 use App\Models\Student;
 use App\Models\StudentAttendance;
+use App\Models\StudentTuition;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Models\WorkTask;
@@ -107,6 +109,22 @@ class DemoPayrollSeederTest extends TestCase
         // chưa có lịch dạy), không có phiếu của người vào làm từ tháng này.
         $lastPeriod = PayrollPeriod::where('year', $last->year)->where('month', $last->month)->firstOrFail();
         $this->assertSame('paid', $lastPeriod->status);
+        $leadPayroll = $lastPeriod->records()->where('user_id', $lead->id)->firstOrFail();
+        $this->assertTrue($leadPayroll->teaching_concurrent);
+        $this->assertGreaterThan(0, (float) $leadPayroll->teaching_salary);
+        $shareClasses = collect($leadPayroll->calculation_details['teaching_share']['classes']);
+        $this->assertCount(2, $shareClasses);
+        foreach ($shareClasses as $row) {
+            $this->assertGreaterThan(0, $row['sessions']);
+            $this->assertGreaterThan(0, $row['students']);
+            $this->assertGreaterThan(0, $row['session_value']);
+            $this->assertGreaterThan(0, $row['amount']);
+            $this->assertTrue(StudentTuition::where('class_id', $row['class_id'])->exists());
+        }
+        foreach (['regular', 'sub'] as $type) {
+            $this->assertTrue(TeacherTimesheet::where('user_id', $lead->id)->where('status', 'valid')->where('type', $type)
+                ->whereBetween('teaching_date', [$last->toDateString(), $month->copy()->subDay()->toDateString()])->exists());
+        }
         $this->assertFalse($lastPeriod->records()->where('user_id', $newTeacher->id)->exists());
         $staffRoles = [Roles::MANAGER, Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::ASSISTANT];
         foreach ([$lastPeriod, $period] as $p) {
@@ -146,10 +164,12 @@ class DemoPayrollSeederTest extends TestCase
         // Chạy lại không nhân bản.
         $counts = fn () => [StaffAttendance::count(), StaffAttendanceRequest::count(), TeacherTimesheet::count(), KpiEvaluation::count(), User::count(),
             AcademicProject::count(), WorkTask::count(), MaterialOrder::count(), Student::count(), StudentAttendance::count(), MiniTestScore::count(),
-            StaffReport::count(), SlaEvent::count()];
+            StaffReport::count(), SlaEvent::count(), StudentTuition::count(), ClassEnrollment::count()];
         $before = $counts();
         $this->seed(DemoPayrollSeeder::class);
         $this->assertSame($before, $counts());
+        $this->assertEquals($leadPayroll->teaching_salary, $leadPayroll->fresh()->teaching_salary);
+        $this->assertSame($shareClasses->all(), $leadPayroll->fresh()->calculation_details['teaching_share']['classes']);
     }
 
     /**
