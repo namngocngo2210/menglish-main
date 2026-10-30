@@ -425,6 +425,30 @@ class PayrollWorkdayRulesTest extends TestCase
         $this->assertEquals(283500, $record->insurance_deduction);
     }
 
+    public function test_changing_contract_start_to_mid_period_marks_period_changed(): void
+    {
+        $staff = $this->fulltime('teacher_fulltime', 13000000);
+        $this->travelTo(Carbon::parse('2026-10-02 09:00:00'));
+        $this->attendFullMonth($staff, 9);
+        $period = $this->calculate($this->period(9));
+        $this->assertEquals(13000000, $this->record($period, $staff)->base_salary_paid);
+        $this->assertFalse($period->hasChangesSinceCalculation());
+
+        // Ngày bắt đầu hợp đồng trước kỳ → công vẫn tính từ đầu kỳ, không đổi.
+        $this->travelTo(Carbon::parse('2026-10-02 10:00:00'));
+        $staff->update(['contract_start_date' => '2026-08-01']);
+        $this->assertFalse($period->fresh()->hasChangesSinceCalculation());
+
+        // Vào giữa kỳ 16/09 → công hưởng lương chỉ từ 16/09: kỳ phải báo đã thay đổi.
+        $staff->update(['contract_start_date' => '2026-09-16']);
+        $this->assertTrue($period->fresh()->hasChangesSinceCalculation());
+
+        $this->travelTo(Carbon::parse('2026-10-02 11:00:00'));
+        $period = $this->calculate($period->fresh());
+        $this->assertEquals(6500000, $this->record($period, $staff)->base_salary_paid);
+        $this->assertFalse($period->hasChangesSinceCalculation());
+    }
+
     // ───────────── R4 Đi muộn / quên chấm công (TK-0013) ─────────────
 
     public function test_daily_late_minutes_summed_times_hourly_wage_without_per_day_penalty(): void
@@ -544,6 +568,33 @@ class PayrollWorkdayRulesTest extends TestCase
         $this->calculate($oct);
         $this->assertEquals(100000, $this->record($oct->fresh(), $staff)->penalty_deduction);
         $this->assertSame($this->record($oct->fresh(), $staff)->id, $late->fresh()->payroll_record_id);
+    }
+
+    public function test_penalty_of_locked_period_goes_to_earliest_open_period_regardless_of_calc_order(): void
+    {
+        $staff = $this->fulltime('sales_consultant', 10000000);
+        $this->attendFullMonth($staff, 10);
+        $this->attendFullMonth($staff, 11);
+        $this->period(9, 'paid');
+        $oct = $this->period(10);
+        $nov = $this->period(11);
+        $late = Penalty::create(['code' => 'BB-WD-L2', 'user_id' => $staff->id, 'violation_type' => 'Vi phạm nội quy', 'violation_date' => '2026-09-30',
+            'amount' => 100000, 'status' => 'fined', 'decided_at' => '2026-10-01 09:00:00']);
+
+        // Tính T11 trước: T10 vẫn mở → biên bản T9 chưa thuộc T11.
+        $this->travelTo(Carbon::parse('2026-12-02 09:00:00'));
+        $this->calculate($nov);
+        $this->assertEquals(0, $this->record($nov->fresh(), $staff)->penalty_deduction);
+        $this->assertNull($late->fresh()->payroll_record_id);
+
+        $this->calculate($oct);
+        $this->assertEquals(100000, $this->record($oct->fresh(), $staff)->penalty_deduction);
+        $this->assertSame($this->record($oct->fresh(), $staff)->id, $late->fresh()->payroll_record_id);
+
+        // T10 khóa → T11 tính lại không trừ lại biên bản đã gắn phiếu T10.
+        $oct->update(['status' => 'paid']);
+        $this->calculate($nov->fresh());
+        $this->assertEquals(0, $this->record($nov->fresh(), $staff)->penalty_deduction);
     }
 
     // ───────────── R6 Thưởng tái tục chỉ Học vụ (TK-0015) ─────────────

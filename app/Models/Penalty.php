@@ -483,12 +483,14 @@ class Penalty extends Model
         return $query->whereIn('status', self::payableStatuses())
             ->where(function ($q) use ($period, $start, $end) {
                 $q->where(fn ($in) => $in->whereDate('violation_date', '>=', $start)->whereDate('violation_date', '<=', $end))
+                    // Biên bản trước kỳ: chỉ trừ ở kỳ mở ĐẦU TIÊN kể từ ngày vi phạm — loại nếu còn kỳ mở khác chứa
+                    // ngày vi phạm hoặc bắt đầu giữa ngày vi phạm và đầu kỳ này (end_date >= vi phạm, start_date < đầu kỳ này).
                     ->orWhere(fn ($carried) => $carried->whereDate('violation_date', '<', $start)
-                        ->whereNotExists(fn ($open) => $open->selectRaw('1')->from('payroll_periods as own_period')
-                            ->where('own_period.id', '!=', $period->id)
-                            ->whereNotIn('own_period.status', PayrollPeriod::LOCKED_STATUSES)
-                            ->whereColumn('own_period.start_date', '<=', 'penalties.violation_date')
-                            ->whereColumn('own_period.end_date', '>=', 'penalties.violation_date')));
+                        ->whereNotExists(fn ($open) => $open->selectRaw('1')->from('payroll_periods as earlier_open')
+                            ->where('earlier_open.id', '!=', $period->id)
+                            ->whereNotIn('earlier_open.status', PayrollPeriod::LOCKED_STATUSES)
+                            ->whereColumn('earlier_open.end_date', '>=', 'penalties.violation_date')
+                            ->whereDate('earlier_open.start_date', '<', $start)));
             })
             ->where(fn ($q) => $q->whereNull('payroll_record_id')
                 ->orWhereIn('payroll_record_id', $period->records()->select('id')))

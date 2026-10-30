@@ -256,9 +256,17 @@ class PayrollPeriod extends Model
             || $records->contains(fn (PayrollRecord $r) => (float) $r->base_salary > 0 && $r->base_salary_paid === null)) {
             return true;
         }
-        // Lịch nghỉ trong tuần / phụ cấp hợp đồng ở hồ sơ đổi sau lần tính (đổi công chuẩn, phụ cấp theo ngày công).
+        // Lịch nghỉ trong tuần / phụ cấp hợp đồng / ngày bắt đầu hợp đồng ở hồ sơ đổi sau lần tính (đổi công chuẩn,
+        // công hưởng lương tính từ ngày vào giữa kỳ, phụ cấp theo ngày công).
+        $periodStart = $this->start_date->copy()->startOfDay();
+        $workdaysFrom = function (User $user) use ($periodStart): string {
+            $contractStart = $user->contract_start_date?->copy()->startOfDay();
+
+            return ($contractStart && $contractStart->gt($periodStart) ? $contractStart : $periodStart)->toDateString();
+        };
         $profileChanged = fn (PayrollRecord $r) => $r->user && is_array(data_get($r->calculation_details, 'workdays')) && (
             data_get($r->calculation_details, 'workdays.weekly_days_off', []) !== $r->user->payrollDaysOff()
+            || (string) data_get($r->calculation_details, 'workdays.from', '') !== $workdaysFrom($r->user)
             || abs((float) data_get($r->calculation_details, 'workdays.allowance_full', 0) - ($r->isAssistant() ? 0.0 : (float) $r->user->monthly_allowance)) > 0.5);
         if ($records->contains($profileChanged)) {
             return true;
