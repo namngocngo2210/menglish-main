@@ -34,8 +34,12 @@ Test: `go test -p 1 ./...` (đặt `TEST_DATABASE_URL` và `TEST_REDIS_URL`, vd.
 ```
 Caddy chung (docker/proxy) ─┬─▶ menglish-production   portal.meducation.vn   (Laravel)
                             ├─▶ menglish-staging      dungthu.meducation.vn  (Laravel)
-                            └─▶ menglish-beta: web ─▶ api ─▶ postgres, redis   beta.meducation.vn
+                            └─▶ menglish-learning    beta.meducation.vn     (Next.js, repo menglish-learning)
+
+Mạng Docker / SSH ─▶ menglish-beta: web ─▶ api ─▶ postgres, redis   (không có domain công khai)
 ```
+
+Bản v2 beta hiện không có domain công khai: `beta.meducation.vn` đã chuyển sang site riêng `menglish-learning`. Chỉ truy cập v2 beta trong mạng Docker / qua SSH.
 
 Giới hạn RAM của cụm beta khoảng 1 GB (postgres 512 MB, api 256 MB, redis 128 MB, web 64 MB); đo thử lúc vừa khởi động dùng khoảng 60 MB. Postgres chỉ mở `127.0.0.1:5433` cho SSH tunnel.
 
@@ -47,11 +51,11 @@ Giới hạn RAM của cụm beta khoảng 1 GB (postgres 512 MB, api 256 MB, re
    cp v2/deploy/.env.beta.example v2/deploy/.env.beta && chmod 600 v2/deploy/.env.beta
    # đổi POSTGRES_PASSWORD, vd. openssl rand -hex 24
    ```
-3. Thêm `BETA_SITE=beta.meducation.vn` vào `docker/proxy/.env`, rồi tạo lại Caddy để nhận Caddyfile và domain mới (portal / dungthu gián đoạn vài giây):
+3. `BETA_SITE` trong `docker/proxy/.env` phục vụ `menglish-learning`, không trỏ tới v2 beta. Nếu cập nhật Caddyfile chung, tạo lại Caddy để nhận cấu hình mới (portal / dungthu gián đoạn vài giây):
    ```bash
    docker compose -f docker/proxy/docker-compose.yml up -d --force-recreate
    ```
-4. Cloudflare: bản ghi `beta` giống `portal` / `dungthu` (Full strict). Caddy tự lấy chứng chỉ.
+4. V2 beta không cần cấu hình DNS / chứng chỉ công khai; chỉ truy cập trong mạng Docker / qua SSH. Bản ghi Cloudflare `beta` hiện dành cho `menglish-learning`.
 5. Deploy lần đầu: `v2/deploy/beta.sh deploy origin/main`. Lần deploy đầu tự thêm `APP_ENCRYPTION_KEY` vào `.env.beta`; hãy sao lưu file này, mất khóa thì mọi người phải bật lại 2FA.
 6. Tạo tài khoản Admin đầu tiên, lệnh in ra mật khẩu tạm (bắt đổi ở lần đăng nhập đầu):
    ```bash

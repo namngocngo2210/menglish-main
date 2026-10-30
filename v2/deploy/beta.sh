@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Vận hành bản beta của hệ thống mới (React + Go + PostgreSQL) trên máy chủ Docker hiện tại.
+# V2 beta hiện không có domain công khai (beta.meducation.vn phục vụ menglish-learning).
 #   v2/deploy/beta.sh deploy [ref]   build 2 image (từ commit/nhánh ref nếu có), migrate, khởi động
 #   v2/deploy/beta.sh version        commit đang chạy
 #   v2/deploy/beta.sh migrate [lệnh] chạy migration (mặc định up; vd. status, down)

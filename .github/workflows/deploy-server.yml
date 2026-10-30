@@ -1,7 +1,7 @@
 # Deploy MEnglish lên máy chủ Docker (docs/deploy-docker.md).
 #
 # Chỉ deploy tay: Actions → Deploy server → Run workflow, chọn staging (mọi nhánh), production (chỉ main)
-# hoặc beta (bản thử hệ thống mới trong v2/, mọi nhánh; test của v2 chạy ở workflow "v2 CI").
+# hoặc beta (bản thử hệ thống mới trong v2/, mọi nhánh, không có domain công khai; test của v2 chạy ở workflow "v2 CI").
 # Push / merge vào main KHÔNG tự deploy.
 #
 # CI SSH vào máy chủ bằng khóa riêng, bị ép chạy docker/ci-deploy.sh (forced command) với "<môi trường> <sha>";
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}
-      url: ${{ inputs.environment == 'production' && 'https://portal.meducation.vn' || inputs.environment == 'beta' && 'https://beta.meducation.vn' || 'https://dungthu.meducation.vn' }}
+      url: ${{ inputs.environment == 'production' && 'https://portal.meducation.vn' || inputs.environment == 'staging' && 'https://dungthu.meducation.vn' || '' }}
     steps:
       - name: Cấu hình SSH
         run: |
@@ -83,7 +83,10 @@ jobs:
         run: |
           case "$TARGET" in
             production) url=https://portal.meducation.vn/login ;;
-            beta) url=https://beta.meducation.vn/readyz ;;
+            beta)
+              echo "V2 beta không có domain công khai; bỏ qua kiểm tra HTTP công khai. beta.sh deploy đã báo lỗi nếu API không khỏe."
+              exit 0
+              ;;
             *) url=https://dungthu.meducation.vn/login ;;
           esac
           for i in 1 2 3 4 5; do
