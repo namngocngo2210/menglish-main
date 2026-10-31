@@ -202,6 +202,7 @@ class ApprovalInboxTest extends TestCase
         $this->assertMatchesRegularExpression('/data-approval-badge>5</', $response->getContent());
         $this->actingAs($admin)->get(route('approvals.index'))
             ->assertSee('data-approval-group="hoc-phi"', false)
+            ->assertSee('data-approval-preview', false)
             ->assertSeeInOrder(['Tất cả', '5', 'Học phí', '4']);
     }
 
