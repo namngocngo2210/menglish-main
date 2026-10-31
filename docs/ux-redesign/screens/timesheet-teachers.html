@@ -1,0 +1,2253 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Bản thiết kế giao diện MEnglish — Chi tiết chấm công giáo viên.">
+    <title>
+      Chi tiết chấm công giáo viên · MEnglish
+    </title>
+    <link rel="stylesheet" href="../assets/mockup.css">
+  </head>
+  <body class="min-h-screen font-sans text-sm desktop:flex desktop:items-start">
+    <a href="#main" class="sr-only z-50 rounded-lg bg-primary-container p-3 text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+      Đến nội dung chính
+    </a>
+    <aside class="sticky top-0 z-40 hidden h-screen w-sidebar-width shrink-0 flex-col bg-sidebar desktop:flex">
+      <div class="flex-1 overflow-y-auto px-3 pt-7">
+        <div class="mb-8 flex items-center gap-3 px-3">
+          <span class="h-9 w-1.5 rounded-full bg-brand">
+          </span>
+          <div>
+            <p class="text-2xl font-bold tracking-wide text-on-primary">
+              MENGLISH
+            </p>
+            <p class="mt-1 text-xs tracking-wide text-inverse-on-surface">
+              HỆ THỐNG QUẢN TRỊ
+            </p>
+          </div>
+        </div>
+        <nav aria-label="Điều hướng chính">
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TỔNG QUAN
+            </p>
+            <a href="dashboard.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                space_dashboard
+              </span>
+              <span>
+                Tổng quan
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              PHÊ DUYỆT
+            </p>
+            <a href="approvals.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                fact_check
+              </span>
+              <span>
+                Cần duyệt
+              </span>
+              <span class="ml-auto rounded-full bg-surface-container-lowest px-1.5 text-xs text-primary">
+                21
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                outgoing_mail
+              </span>
+              <span>
+                Xin duyệt
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              GIAO VIỆC
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                add_task
+              </span>
+              <span>
+                Tạo đầu việc
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                task_alt
+              </span>
+              <span>
+                Danh sách đầu việc
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TUYỂN SINH
+            </p>
+            <a href="crm-customers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                group
+              </span>
+              <span>
+                Khách hàng (CRM)
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                quiz
+              </span>
+              <span>
+                Test đầu vào
+                &
+                học thử
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              ĐÀO TẠO
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                school
+              </span>
+              <span>
+                Học viên
+              </span>
+            </a>
+            <a href="teacher-today.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                calendar_month
+              </span>
+              <span>
+                Lớp học
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                menu_book
+              </span>
+              <span>
+                Giáo trình
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                laptop_chromebook
+              </span>
+              <span>
+                E-learning
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                assignment
+              </span>
+              <span>
+                Big Test
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                poll
+              </span>
+              <span>
+                Khảo sát
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TÀI CHÍNH
+            </p>
+            <a href="receipt-create.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                payments
+              </span>
+              <span>
+                Học phí
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                account_balance_wallet
+              </span>
+              <span>
+                Thu - Chi
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                inventory_2
+              </span>
+              <span>
+                Kho vật phẩm
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              NHÂN SỰ
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                badge
+              </span>
+              <span>
+                Người dùng
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                support_agent
+              </span>
+              <span>
+                Ticket hỗ trợ
+              </span>
+            </a>
+            <a href="timesheet-teachers.html" aria-current="page" class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm bg-primary-container font-semibold text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                schedule
+              </span>
+              <span>
+                Chấm công
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                account_balance
+              </span>
+              <span>
+                Lương
+                &
+                Phạt
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              BÁO CÁO
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                monitoring
+              </span>
+              <span>
+                Doanh thu
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                analytics
+              </span>
+              <span>
+                Đào tạo
+                &
+                Chất lượng
+              </span>
+            </a>
+          </div>
+        </nav>
+      </div>
+      <div class="border-t border-navy-lighter p-4 text-xs text-inverse-on-surface">
+        <p>
+          Vai trò:
+          <strong class="text-on-primary">
+            Admin
+          </strong>
+        </p>
+        <a href="#" class="mt-2 flex min-h-11 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+            logout
+          </span>
+          Đăng xuất
+        </a>
+      </div>
+    </aside>
+    <div class="min-w-0 flex-1">
+      <header class="sticky top-0 z-30 flex h-16 items-center gap-1 border-b border-surface-dim/60 bg-background px-3 md:gap-4 md:px-8">
+        <details class="group desktop:hidden">
+          <summary aria-label="Mở trình đơn" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              menu
+            </span>
+          </summary>
+          <div class="fixed inset-y-16 left-0 z-50 w-72 overflow-y-auto bg-sidebar p-4 text-on-primary shadow-level-3">
+            <div class="mb-8 flex items-center gap-3 px-3">
+              <span class="h-9 w-1.5 rounded-full bg-brand">
+              </span>
+              <div>
+                <p class="text-2xl font-bold tracking-wide text-on-primary">
+                  MENGLISH
+                </p>
+                <p class="mt-1 text-xs tracking-wide text-inverse-on-surface">
+                  HỆ THỐNG QUẢN TRỊ
+                </p>
+              </div>
+            </div>
+            <nav aria-label="Điều hướng chính">
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TỔNG QUAN
+                </p>
+                <a href="dashboard.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    space_dashboard
+                  </span>
+                  <span>
+                    Tổng quan
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  PHÊ DUYỆT
+                </p>
+                <a href="approvals.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    fact_check
+                  </span>
+                  <span>
+                    Cần duyệt
+                  </span>
+                  <span class="ml-auto rounded-full bg-surface-container-lowest px-1.5 text-xs text-primary">
+                    21
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    outgoing_mail
+                  </span>
+                  <span>
+                    Xin duyệt
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  GIAO VIỆC
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    add_task
+                  </span>
+                  <span>
+                    Tạo đầu việc
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    task_alt
+                  </span>
+                  <span>
+                    Danh sách đầu việc
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TUYỂN SINH
+                </p>
+                <a href="crm-customers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    group
+                  </span>
+                  <span>
+                    Khách hàng (CRM)
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    quiz
+                  </span>
+                  <span>
+                    Test đầu vào
+                    &
+                    học thử
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  ĐÀO TẠO
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    school
+                  </span>
+                  <span>
+                    Học viên
+                  </span>
+                </a>
+                <a href="teacher-today.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    calendar_month
+                  </span>
+                  <span>
+                    Lớp học
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    menu_book
+                  </span>
+                  <span>
+                    Giáo trình
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    laptop_chromebook
+                  </span>
+                  <span>
+                    E-learning
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    assignment
+                  </span>
+                  <span>
+                    Big Test
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    poll
+                  </span>
+                  <span>
+                    Khảo sát
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TÀI CHÍNH
+                </p>
+                <a href="receipt-create.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    payments
+                  </span>
+                  <span>
+                    Học phí
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    account_balance_wallet
+                  </span>
+                  <span>
+                    Thu - Chi
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    inventory_2
+                  </span>
+                  <span>
+                    Kho vật phẩm
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  NHÂN SỰ
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    badge
+                  </span>
+                  <span>
+                    Người dùng
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    support_agent
+                  </span>
+                  <span>
+                    Ticket hỗ trợ
+                  </span>
+                </a>
+                <a href="timesheet-teachers.html" aria-current="page" class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm bg-primary-container font-semibold text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  <span>
+                    Chấm công
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    account_balance
+                  </span>
+                  <span>
+                    Lương
+                    &
+                    Phạt
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  BÁO CÁO
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    monitoring
+                  </span>
+                  <span>
+                    Doanh thu
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    analytics
+                  </span>
+                  <span>
+                    Đào tạo
+                    &
+                    Chất lượng
+                  </span>
+                </a>
+              </div>
+            </nav>
+          </div>
+        </details>
+        <span class="min-w-0 flex-1 text-sm font-semibold md:flex-none md:text-h3">
+          Chi tiết chấm công giáo viên
+        </span>
+        <label class="ml-4 hidden min-w-0 max-w-sm flex-1 items-center gap-2 rounded-full border border-surface-dim bg-surface-container-lowest px-3 md:flex">
+          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+            search
+          </span>
+          <input aria-label="Tìm màn hình, khách, học viên, lớp" placeholder="Tìm màn hình, khách, học viên, lớp…" class="min-h-11 w-full border-0 bg-transparent text-sm focus-visible:ring-2 focus-visible:ring-primary-container">
+        </label>
+        <div class="ml-auto flex items-center gap-1 md:gap-3">
+          <span class="md:hidden">
+            <button type="button" aria-label="Tìm kiếm" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                search
+              </span>
+            </button>
+          </span>
+          <button aria-label="Thông báo, 9 thông báo chưa đọc" class="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              notifications
+            </span>
+            <span class="absolute right-1 top-0 rounded-full bg-error px-1 text-xs font-semibold text-on-error">
+              9+
+            </span>
+          </button>
+          <div class="hidden items-center gap-3 border-l border-surface-dim pl-4 md:flex">
+            <div class="text-right">
+              <p class="font-semibold">
+                Admin Hệ thống
+              </p>
+              <p class="text-xs text-on-surface-subtle">
+                Quản trị hệ thống
+              </p>
+            </div>
+            <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+              AH
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main id="main" class="min-w-0 px-4 pb-12 pt-4 md:pt-16 md:px-8 ">
+        <nav aria-label="Điều hướng mục" class="-mx-4 mb-6 flex gap-5 overflow-x-auto border-b border-surface-dim/60 px-4 md:mx-0 md:px-0">
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Chấm công của tôi
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Lịch sử công của tôi
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Chấm công hàng ngày
+          </a>
+          <a href="#" aria-current="page" class="flex min-h-12 shrink-0 items-center border-b-2 border-primary-container font-semibold text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Giờ dạy giáo viên
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Chấm công đơn lẻ
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            AppSheet
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Lịch sử đồng bộ
+          </a>
+        </nav>
+        <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+      <span class="inline-flex self-start lg:order-last md:fixed md:right-8 md:top-20 md:z-20 rounded-full border border-surface-dim bg-surface-container-lowest px-3 py-1.5 text-xs text-on-surface-subtle shadow-2xs">
+        Dữ liệu mẫu — bản thiết kế
+      </span>
+          <div>
+            <h1 class="text-h1 md:text-4xl">
+              Chi tiết chấm công giáo viên
+            </h1>
+            <p class="mt-2 text-sm text-on-surface-subtle">
+              Đối soát ca dạy thực tế (check-in / chấm tay) trước khi chốt bảng công và tính lương.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                sync
+              </span>
+              Lịch sử đồng bộ
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                more_time
+              </span>
+              Chấm công thủ công
+            </button>
+          </div>
+        </div>
+        <div class="mb-5">
+          <span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              calendar_month
+            </span>
+            Tháng 10/2026 · Đang tính
+          </span>
+        </div>
+        <div class="mb-5 flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-3">
+          <button type="button" aria-pressed="false" class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs  flex min-h-24 min-w-48 flex-1 items-center gap-4 p-4 text-left hover:border-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warning-container text-warning">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                pending_actions
+              </span>
+            </span>
+            <div>
+              <p class="text-xs text-on-surface-subtle">
+                Chờ đối soát
+              </p>
+              <p class="mt-1 font-mono text-3xl text-warning">
+                0
+              </p>
+            </div>
+          </button>
+          <button type="button" aria-pressed="true" class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs border-primary-container ring-1 ring-primary-container flex min-h-24 min-w-48 flex-1 items-center gap-4 p-4 text-left hover:border-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-tertiary/10 text-tertiary">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                verified
+              </span>
+            </span>
+            <div>
+              <p class="text-xs text-on-surface-subtle">
+                Hợp lệ (tính lương)
+              </p>
+              <p class="mt-1 font-mono text-3xl text-tertiary">
+                64
+              </p>
+            </div>
+          </button>
+          <button type="button" aria-pressed="false" class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs  flex min-h-24 min-w-48 flex-1 items-center gap-4 p-4 text-left hover:border-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-error-container text-error">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                block
+              </span>
+            </span>
+            <div>
+              <p class="text-xs text-on-surface-subtle">
+                Từ chối
+              </p>
+              <p class="mt-1 font-mono text-3xl text-error">
+                1
+              </p>
+            </div>
+          </button>
+        </div>
+        <section class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs mb-5 p-4">
+          <details class="group" open data-responsive-filters>
+            <summary class="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg border border-outline/50 px-4 font-semibold lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">tune</span>Bộ lọc (1)</summary>
+            <div class="mt-3 lg:mt-0">
+          <div class="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div class="min-w-0 ">
+              <label for="field-25" class="mb-2 block text-sm font-medium">
+                Tìm giáo viên
+              </label>
+              <input id="field-25" type="search" value="" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            </div>
+            <div class="min-w-0 ">
+              <label for="field-26" class="mb-2 block text-sm font-medium">
+                Kỳ lương
+              </label>
+              <select id="field-26" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                <option>
+                  Tháng 10/2026
+                </option>
+              </select>
+            </div>
+            <div class="min-w-0 ">
+              <label for="field-27" class="mb-2 block text-sm font-medium">
+                Chi nhánh
+              </label>
+              <select id="field-27" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                <option>
+                  Tất cả chi nhánh
+                </option>
+              </select>
+            </div>
+            <div class="min-w-0 ">
+              <label for="field-28" class="mb-2 block text-sm font-medium">
+                Lớp học
+              </label>
+              <select id="field-28" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                <option>
+                  Tất cả lớp học
+                </option>
+              </select>
+            </div>
+            <div class="min-w-0 ">
+              <label for="field-29" class="mb-2 block text-sm font-medium">
+                Giáo viên
+              </label>
+              <select id="field-29" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                <option>
+                  Tất cả giáo viên
+                </option>
+              </select>
+            </div>
+            <div>
+              <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 w-full">
+                <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                  filter_list
+                </span>
+                Lọc
+              </button>
+            </div>
+          </div>
+          <details class="mt-3">
+            <summary class="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                tune
+              </span>
+              Trạng thái
+              &
+              loại ca
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                expand_more
+              </span>
+            </summary>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <div class="min-w-0 ">
+                <label for="field-30" class="mb-2 block text-sm font-medium">
+                  Trạng thái
+                </label>
+                <select id="field-30" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <option>
+                    Tất cả trạng thái
+                  </option>
+                </select>
+              </div>
+              <div class="min-w-0 ">
+                <label for="field-31" class="mb-2 block text-sm font-medium">
+                  Loại ca
+                </label>
+                <select id="field-31" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <option>
+                    Mọi loại ca
+                  </option>
+                </select>
+              </div>
+            </div>
+          </details>
+            </div>
+          </details>
+          <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-surface-dim/60 pt-3">
+            <span class="text-xs text-on-surface-subtle">
+              Đang lọc:
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                calendar_month
+              </span>
+              Tháng 10/2026
+            </span>
+            <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              Xóa bộ lọc
+            </a>
+          </div>
+        </section>
+        <details class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs mb-6 group">
+          <summary class="flex min-h-16 cursor-pointer list-none items-center gap-3 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="text-primary">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                event_available
+              </span>
+            </span>
+            <div class="flex-1">
+              <h2 class="font-semibold">
+                Chấm công theo lịch
+              </h2>
+              <p class="mt-1 text-xs text-on-surface-subtle">
+                Thứ Bảy, 31/10/2026 · 2 buổi học dự kiến
+              </p>
+            </div>
+            <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                warning
+              </span>
+              2 cần xác nhận
+            </span>
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              expand_more
+            </span>
+          </summary>
+          <div class="border-t border-surface-dim/60 p-4">
+            <div class="mb-4 max-w-xs">
+              <div class="min-w-0 ">
+                <label for="field-32" class="mb-2 block text-sm font-medium">
+                  Ngày
+                </label>
+                <input id="field-32" type="date" value="2026-10-31" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-dim/60 py-3">
+              <div>
+                <p class="font-semibold">
+                  # Pre Starters FAM 0 · K25 (CG)
+                </p>
+                <p class="mt-1 text-xs text-on-surface-subtle">
+                  08:00–09:30 · # Nguyễn Văn An · Tự động (pre-fill theo lịch)
+                </p>
+              </div>
+              <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                  check
+                </span>
+                Xác nhận
+              </button>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-dim/60 py-3">
+              <div>
+                <p class="font-semibold">
+                  # Pre Starters FAM 0 · K25 (BD)
+                </p>
+                <p class="mt-1 text-xs text-on-surface-subtle">
+                  08:00–09:30 · # Trần Bảo Ngọc · Tự động (pre-fill theo lịch)
+                </p>
+              </div>
+              <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                  check
+                </span>
+                Xác nhận
+              </button>
+            </div>
+            <p class="mt-2 rounded-lg bg-info-container/40 p-3 text-xs text-on-info-container">
+              Xác nhận = tính công theo giờ lịch cho GV dự kiến (cả ca đã check-in / chấm tay thì duyệt ca đó).
+            </p>
+          </div>
+        </details>
+        <section class="min-w-0">
+          <div class="mb-4 flex items-center justify-between gap-2">
+            <h2 class="text-h2">
+              Ca dạy trong kỳ
+            </h2>
+            <span class="text-xs text-on-surface-subtle">
+              65 bản ghi
+            </span>
+          </div>
+          <div class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs hidden lg:block">
+          <div class="hidden flex-wrap lg:flex items-center justify-between gap-3 rounded-xl border border-surface-dim bg-surface-container-lowest p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-level-2">
+            <div>
+              <p class="font-semibold">
+                Tháng 10/2026
+              </p>
+              <p class="mt-1 text-xs text-on-surface-subtle">
+                64 hợp lệ · 1 từ chối · 0 chờ đối soát
+              </p>
+            </div>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                task_alt
+              </span>
+              Chốt bảng công
+            </button>
+          </div>
+            <table class="w-full text-left text-xs">
+              <caption class="sr-only">
+                Ca dạy nhóm theo ngày, giờ vào ra và tình trạng duyệt
+              </caption>
+              <thead class="sticky top-16 z-10 bg-surface-container-low">
+                <tr>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Chọn
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Ca
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Lớp
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Giáo viên
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Vào / Ra (vs lịch)
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Số giờ
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Tình trạng
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Trạng thái duyệt
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle">
+                    Sửa
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="bg-surface-container-low">
+                  <th colspan="9" scope="rowgroup" class="px-4 py-3 text-left font-semibold">
+                    30/10/2026
+                    <span class="ml-2 text-xs font-normal text-on-surface-subtle">
+                      4 ca dạy
+                    </span>
+                  </th>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 30/10/2026 của # Lê Hải Yến" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-BD-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HY
+                      </span>
+                      <span>
+                        # Lê Hải Yến
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:25 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −5p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Bùi Khánh Chi">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 30/10/2026 của # Trần Anh Tuấn" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-CG-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        AT
+                      </span>
+                      <span>
+                        # Trần Anh Tuấn
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:25 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −5p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Nguyễn Văn A">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 30/10/2026 của # Trần Bảo Ngọc" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-BD-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        BN
+                      </span>
+                      <span>
+                        # Trần Bảo Ngọc
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:20 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −10p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Bùi Khánh Chi">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Trần Bảo Ngọc" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 30/10/2026 của # Nguyễn Văn An" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-CG-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        VA
+                      </span>
+                      <span>
+                        # Nguyễn Văn An
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:20 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −10p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Nguyễn Văn A">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Nguyễn Văn An" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="bg-surface-container-low">
+                  <th colspan="9" scope="rowgroup" class="px-4 py-3 text-left font-semibold">
+                    29/10/2026
+                    <span class="ml-2 text-xs font-normal text-on-surface-subtle">
+                      4 ca dạy
+                    </span>
+                  </th>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 10:00–11:00 ngày 29/10/2026 của # Lê Hải Yến" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      10:00–11:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-BD-FAM0
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HY
+                      </span>
+                      <span>
+                        # Lê Hải Yến
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      — / —
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      Chấm tay
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        warning
+                      </span>
+                      Thiếu vào
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Bùi Khánh Chi">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 15:30–16:30 ngày 29/10/2026 của # Lê Hải Yến" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      15:30–16:30
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-CG-FAM0
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HY
+                      </span>
+                      <span>
+                        # Lê Hải Yến
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      — / —
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      Chấm tay
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        warning
+                      </span>
+                      Thiếu vào
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Nguyễn Văn A">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 10:00–11:00 ngày 29/10/2026 của # Trần Anh Tuấn" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      10:00–11:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-BD-FAM0
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        AT
+                      </span>
+                      <span>
+                        # Trần Anh Tuấn
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      — / —
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      Chấm tay
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        warning
+                      </span>
+                      Thiếu vào
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Bùi Khánh Chi">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 15:30–16:30 ngày 29/10/2026 của # Trần Anh Tuấn" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      15:30–16:30
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-CG-FAM0
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        AT
+                      </span>
+                      <span>
+                        # Trần Anh Tuấn
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      — / —
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      Chấm tay
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        warning
+                      </span>
+                      Thiếu vào
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Nguyễn Văn A">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="bg-surface-container-low">
+                  <th colspan="9" scope="rowgroup" class="px-4 py-3 text-left font-semibold">
+                    28/10/2026
+                    <span class="ml-2 text-xs font-normal text-on-surface-subtle">
+                      4 ca dạy
+                    </span>
+                  </th>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 28/10/2026 của # Lê Hải Yến" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-BD-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HY
+                      </span>
+                      <span>
+                        # Lê Hải Yến
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:25 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −5p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Bùi Khánh Chi">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 28/10/2026 của # Trần Anh Tuấn" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-CG-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        AT
+                      </span>
+                      <span>
+                        # Trần Anh Tuấn
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:25 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −5p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Nguyễn Văn A">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 28/10/2026 của # Trần Bảo Ngọc" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-BD-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        BN
+                      </span>
+                      <span>
+                        # Trần Bảo Ngọc
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:20 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −10p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Bùi Khánh Chi">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Trần Bảo Ngọc" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="px-2">
+                    <label class="flex h-11 w-8 items-center justify-center">
+                      <input type="checkbox" aria-label="Chọn ca 17:30–19:00 ngày 28/10/2026 của # Nguyễn Văn An" class="h-4 w-4 rounded text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                    </label>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="flex items-center gap-1">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      17:30–19:00
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-medium">
+                    DEMO-CG-FAM1
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        VA
+                      </span>
+                      <span>
+                        # Nguyễn Văn An
+                      </span>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-2 py-4">
+                    <span class="font-mono">
+                      17:20 / 19:00
+                    </span>
+                    <span class="ml-2 rounded bg-surface-container-low px-1 py-1 text-xs text-on-surface-subtle">
+                      −10p
+                    </span>
+                  </td>
+                  <td class="px-2 py-4 font-mono">
+                    1,5h
+                  </td>
+                  <td class="px-2 py-4">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đầy đủ
+                    </span>
+                  </td>
+                  <td class="px-2 py-4">
+                    <span title="Đã duyệt bởi # Nguyễn Văn A">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          verified
+                        </span>
+                        Hợp lệ
+                      </span>
+                    </span>
+                  </td>
+                  <td class="px-1">
+                    <button type="button" aria-label="Sửa ca của # Nguyễn Văn An" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        edit
+                      </span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="lg:hidden">
+            <h3 class="sticky top-16 z-10 bg-background py-3 font-semibold">
+              30/10/2026
+              <span class="text-xs font-normal text-on-surface-subtle">
+                · 6 ca dạy hiển thị
+              </span>
+            </h3>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:25 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:25 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Bảo Ngọc" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Bảo Ngọc"># Trần Bảo Ngọc</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Nguyễn Văn An" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Nguyễn Văn An"># Nguyễn Văn An</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">19:30–21:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Lịch 19:30–21:00 · Sớm 5p">Vào 19:25 / Ra 21:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">15:30–17:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Lịch 15:30–17:00 · Sớm 5p">Vào 15:25 / Ra 17:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<details class="my-2"><summary class="flex min-h-11 cursor-pointer items-center gap-2 font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">Xem thêm ca dạy</summary><article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Bảo Ngọc" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Bảo Ngọc"># Trần Bảo Ngọc</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article><article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Nguyễn Văn An" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Nguyễn Văn An"># Nguyễn Văn An</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article></details>
+            <h3 class="sticky top-16 z-10 bg-background py-3 font-semibold">
+              29/10/2026
+              <span class="text-xs font-normal text-on-surface-subtle">
+                · 6 ca dạy hiển thị
+              </span>
+            </h3>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">10:00–11:00 · 1h</span> · <strong>DEMO-BD-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">15:30–16:30 · 1h</span> · <strong>DEMO-CG-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">10:00–11:00 · 1h</span> · <strong>DEMO-BD-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">15:30–16:30 · 1h</span> · <strong>DEMO-CG-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">08:00–09:00 · 1h</span> · <strong>DEMO-BD-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">13:30–14:30 · 1h</span> · <strong>DEMO-CG-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<details class="my-2"><summary class="flex min-h-11 cursor-pointer items-center gap-2 font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">Xem thêm ca dạy</summary><article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">10:00–11:00 · 1h</span> · <strong>DEMO-BD-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article><article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">15:30–16:30 · 1h</span> · <strong>DEMO-CG-FAM0</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Chấm tay">Vào — / Ra —</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-0.5 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    warning
+                  </span>
+                  Thiếu vào
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article></details>
+            <h3 class="sticky top-16 z-10 bg-background py-3 font-semibold">
+              28/10/2026
+              <span class="text-xs font-normal text-on-surface-subtle">
+                · 6 ca dạy hiển thị
+              </span>
+            </h3>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:25 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:25 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Bảo Ngọc" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Bảo Ngọc"># Trần Bảo Ngọc</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+            <article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Nguyễn Văn An" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Nguyễn Văn An"># Nguyễn Văn An</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Lê Hải Yến" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">19:30–21:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Lê Hải Yến"># Lê Hải Yến</span><span class="shrink-0 font-mono" title="Lịch 19:30–21:00 · Sớm 5p">Vào 19:25 / Ra 21:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Anh Tuấn" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">15:30–17:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Anh Tuấn"># Trần Anh Tuấn</span><span class="shrink-0 font-mono" title="Lịch 15:30–17:00 · Sớm 5p">Vào 15:25 / Ra 17:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article>
+<details class="my-2"><summary class="flex min-h-11 cursor-pointer items-center gap-2 font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">Xem thêm ca dạy</summary><article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Trần Bảo Ngọc" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-BD-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Trần Bảo Ngọc"># Trần Bảo Ngọc</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article><article class="relative mb-2 rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-2 shadow-2xs">
+              <button type="button" aria-label="Sửa ca của # Nguyễn Văn An" class="absolute right-1 top-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                  <span class="absolute right-1 top-1 material-symbols-outlined shrink-0" aria-hidden="true">
+                    edit
+                  </span>
+                </button>
+              <div class="pr-11"><p class="truncate text-xs"><span class="font-mono">17:30–19:00 · 1,5h</span> · <strong>DEMO-CG-FAM1</strong></p>
+              </div><p class="mt-1 flex items-center justify-between gap-2 text-xs"><span class="min-w-0 truncate" title="# Nguyễn Văn An"># Nguyễn Văn An</span><span class="shrink-0 font-mono" title="Lịch 17:30–19:00 · Sớm 5p">Vào 17:20 / Ra 19:00</span></p>
+              <div class="mt-2 flex flex-wrap gap-2"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đầy đủ
+                </span><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-0.5 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    verified
+                  </span>
+                  Hợp lệ
+                </span></div>
+            </article></details>
+          </div>
+          <div class="my-4 hidden flex-wrap lg:flex items-center justify-between gap-3 text-xs text-on-surface-subtle">
+            <span>
+              Hiển thị 12 / 65 bản ghi
+            </span>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                expand_more
+              </span>
+              Xem thêm ca dạy
+            </button>
+          </div>
+          <div class="flex flex-wrap lg:hidden items-center justify-between gap-3 rounded-xl border border-surface-dim bg-surface-container-lowest p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-level-2">
+            <div>
+              <p class="font-semibold">
+                Tháng 10/2026
+              </p>
+              <p class="mt-1 text-xs text-on-surface-subtle">
+                64 hợp lệ · 1 từ chối · 0 chờ đối soát
+              </p>
+            </div>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                task_alt
+              </span>
+              Chốt bảng công
+            </button>
+          </div>
+        </section>
+      </main>
+      <footer class="border-t border-surface-dim/60 px-4 py-5 text-center text-xs text-on-surface-subtle ">
+        <strong>
+          MENGLISH
+        </strong>
+        · Hệ thống quản trị giáo dục
+        &
+        học vụ
+      </footer>
+    </div>
+  <script>
+      const filterDetails = document.querySelector('[data-responsive-filters]');
+      const desktopFilters = matchMedia('(min-width: 1024px)');
+      function syncFilters() { filterDetails.open = desktopFilters.matches; }
+      syncFilters();
+      desktopFilters.addEventListener('change', syncFilters);
+    </script>
+  </body>
+</html>

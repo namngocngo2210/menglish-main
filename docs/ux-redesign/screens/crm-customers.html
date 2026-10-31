@@ -1,0 +1,2461 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Bản thiết kế giao diện MEnglish — Danh sách khách hàng.">
+    <title>
+      Danh sách khách hàng · MEnglish
+    </title>
+    <link rel="stylesheet" href="../assets/mockup.css">
+  </head>
+  <body class="min-h-screen font-sans text-sm desktop:flex desktop:items-start">
+    <a href="#main" class="sr-only z-50 rounded-lg bg-primary-container p-3 text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+      Đến nội dung chính
+    </a>
+    <aside class="sticky top-0 z-40 hidden h-screen w-sidebar-width shrink-0 flex-col bg-sidebar desktop:flex">
+      <div class="flex-1 overflow-y-auto px-3 pt-7">
+        <div class="mb-8 flex items-center gap-3 px-3">
+          <span class="h-9 w-1.5 rounded-full bg-brand">
+          </span>
+          <div>
+            <p class="text-2xl font-bold tracking-wide text-on-primary">
+              MENGLISH
+            </p>
+            <p class="mt-1 text-xs tracking-wide text-inverse-on-surface">
+              HỆ THỐNG QUẢN TRỊ
+            </p>
+          </div>
+        </div>
+        <nav aria-label="Điều hướng chính">
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TỔNG QUAN
+            </p>
+            <a href="dashboard.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                space_dashboard
+              </span>
+              <span>
+                Tổng quan
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              PHÊ DUYỆT
+            </p>
+            <a href="approvals.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                fact_check
+              </span>
+              <span>
+                Cần duyệt
+              </span>
+              <span class="ml-auto rounded-full bg-surface-container-lowest px-1.5 text-xs text-primary">
+                21
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                outgoing_mail
+              </span>
+              <span>
+                Xin duyệt
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              GIAO VIỆC
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                add_task
+              </span>
+              <span>
+                Tạo đầu việc
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                task_alt
+              </span>
+              <span>
+                Danh sách đầu việc
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TUYỂN SINH
+            </p>
+            <a href="crm-customers.html" aria-current="page" class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm bg-primary-container font-semibold text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                group
+              </span>
+              <span>
+                Khách hàng (CRM)
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                quiz
+              </span>
+              <span>
+                Test đầu vào
+                &
+                học thử
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              ĐÀO TẠO
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                school
+              </span>
+              <span>
+                Học viên
+              </span>
+            </a>
+            <a href="teacher-today.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                calendar_month
+              </span>
+              <span>
+                Lớp học
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                menu_book
+              </span>
+              <span>
+                Giáo trình
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                laptop_chromebook
+              </span>
+              <span>
+                E-learning
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                assignment
+              </span>
+              <span>
+                Big Test
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                poll
+              </span>
+              <span>
+                Khảo sát
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TÀI CHÍNH
+            </p>
+            <a href="receipt-create.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                payments
+              </span>
+              <span>
+                Học phí
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                account_balance_wallet
+              </span>
+              <span>
+                Thu - Chi
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                inventory_2
+              </span>
+              <span>
+                Kho vật phẩm
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              NHÂN SỰ
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                badge
+              </span>
+              <span>
+                Người dùng
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                support_agent
+              </span>
+              <span>
+                Ticket hỗ trợ
+              </span>
+            </a>
+            <a href="timesheet-teachers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                schedule
+              </span>
+              <span>
+                Chấm công
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                account_balance
+              </span>
+              <span>
+                Lương
+                &
+                Phạt
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              BÁO CÁO
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                monitoring
+              </span>
+              <span>
+                Doanh thu
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                analytics
+              </span>
+              <span>
+                Đào tạo
+                &
+                Chất lượng
+              </span>
+            </a>
+          </div>
+        </nav>
+      </div>
+      <div class="border-t border-navy-lighter p-4 text-xs text-inverse-on-surface">
+        <p>
+          Vai trò:
+          <strong class="text-on-primary">
+            Admin
+          </strong>
+        </p>
+        <a href="#" class="mt-2 flex min-h-11 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+            logout
+          </span>
+          Đăng xuất
+        </a>
+      </div>
+    </aside>
+    <div class="min-w-0 flex-1">
+      <header class="sticky top-0 z-30 flex h-16 items-center gap-1 border-b border-surface-dim/60 bg-background px-3 md:gap-4 md:px-8">
+        <details class="group desktop:hidden">
+          <summary aria-label="Mở trình đơn" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              menu
+            </span>
+          </summary>
+          <div class="fixed inset-y-16 left-0 z-50 w-72 overflow-y-auto bg-sidebar p-4 text-on-primary shadow-level-3">
+            <div class="mb-8 flex items-center gap-3 px-3">
+              <span class="h-9 w-1.5 rounded-full bg-brand">
+              </span>
+              <div>
+                <p class="text-2xl font-bold tracking-wide text-on-primary">
+                  MENGLISH
+                </p>
+                <p class="mt-1 text-xs tracking-wide text-inverse-on-surface">
+                  HỆ THỐNG QUẢN TRỊ
+                </p>
+              </div>
+            </div>
+            <nav aria-label="Điều hướng chính">
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TỔNG QUAN
+                </p>
+                <a href="dashboard.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    space_dashboard
+                  </span>
+                  <span>
+                    Tổng quan
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  PHÊ DUYỆT
+                </p>
+                <a href="approvals.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    fact_check
+                  </span>
+                  <span>
+                    Cần duyệt
+                  </span>
+                  <span class="ml-auto rounded-full bg-surface-container-lowest px-1.5 text-xs text-primary">
+                    21
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    outgoing_mail
+                  </span>
+                  <span>
+                    Xin duyệt
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  GIAO VIỆC
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    add_task
+                  </span>
+                  <span>
+                    Tạo đầu việc
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    task_alt
+                  </span>
+                  <span>
+                    Danh sách đầu việc
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TUYỂN SINH
+                </p>
+                <a href="crm-customers.html" aria-current="page" class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm bg-primary-container font-semibold text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    group
+                  </span>
+                  <span>
+                    Khách hàng (CRM)
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    quiz
+                  </span>
+                  <span>
+                    Test đầu vào
+                    &
+                    học thử
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  ĐÀO TẠO
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    school
+                  </span>
+                  <span>
+                    Học viên
+                  </span>
+                </a>
+                <a href="teacher-today.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    calendar_month
+                  </span>
+                  <span>
+                    Lớp học
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    menu_book
+                  </span>
+                  <span>
+                    Giáo trình
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    laptop_chromebook
+                  </span>
+                  <span>
+                    E-learning
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    assignment
+                  </span>
+                  <span>
+                    Big Test
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    poll
+                  </span>
+                  <span>
+                    Khảo sát
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TÀI CHÍNH
+                </p>
+                <a href="receipt-create.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    payments
+                  </span>
+                  <span>
+                    Học phí
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    account_balance_wallet
+                  </span>
+                  <span>
+                    Thu - Chi
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    inventory_2
+                  </span>
+                  <span>
+                    Kho vật phẩm
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  NHÂN SỰ
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    badge
+                  </span>
+                  <span>
+                    Người dùng
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    support_agent
+                  </span>
+                  <span>
+                    Ticket hỗ trợ
+                  </span>
+                </a>
+                <a href="timesheet-teachers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  <span>
+                    Chấm công
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    account_balance
+                  </span>
+                  <span>
+                    Lương
+                    &
+                    Phạt
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  BÁO CÁO
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    monitoring
+                  </span>
+                  <span>
+                    Doanh thu
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    analytics
+                  </span>
+                  <span>
+                    Đào tạo
+                    &
+                    Chất lượng
+                  </span>
+                </a>
+              </div>
+            </nav>
+          </div>
+        </details>
+        <span class="min-w-0 flex-1 text-sm font-semibold md:flex-none md:text-h3">
+          Danh sách khách hàng
+        </span>
+        <label class="ml-4 hidden min-w-0 max-w-sm flex-1 items-center gap-2 rounded-full border border-surface-dim bg-surface-container-lowest px-3 md:flex">
+          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+            search
+          </span>
+          <input aria-label="Tìm màn hình, khách, học viên, lớp" placeholder="Tìm màn hình, khách, học viên, lớp…" class="min-h-11 w-full border-0 bg-transparent text-sm focus-visible:ring-2 focus-visible:ring-primary-container">
+        </label>
+        <div class="ml-auto flex items-center gap-1 md:gap-3">
+          <span class="md:hidden">
+            <button type="button" aria-label="Tìm kiếm" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                search
+              </span>
+            </button>
+          </span>
+          <button aria-label="Thông báo, 9 thông báo chưa đọc" class="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              notifications
+            </span>
+            <span class="absolute right-1 top-0 rounded-full bg-error px-1 text-xs font-semibold text-on-error">
+              9+
+            </span>
+          </button>
+          <div class="hidden items-center gap-3 border-l border-surface-dim pl-4 md:flex">
+            <div class="text-right">
+              <p class="font-semibold">
+                Admin Hệ thống
+              </p>
+              <p class="text-xs text-on-surface-subtle">
+                Quản trị hệ thống
+              </p>
+            </div>
+            <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+              AH
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main id="main" class="min-w-0 px-4 pb-12 pt-4 md:pt-16 md:px-8 ">
+        <nav aria-label="Điều hướng mục" class="-mx-4 mb-6 flex gap-5 overflow-x-auto border-b border-surface-dim/60 px-4 md:mx-0 md:px-0">
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Kanban
+          </a>
+          <a href="#" aria-current="page" class="flex min-h-12 shrink-0 items-center border-b-2 border-primary-container font-semibold text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Danh sách
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Báo cáo
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Ưu đãi
+          </a>
+        </nav>
+        <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+      <span class="inline-flex self-start lg:order-last md:fixed md:right-8 md:top-20 md:z-20 rounded-full border border-surface-dim bg-surface-container-lowest px-3 py-1.5 text-xs text-on-surface-subtle shadow-2xs">
+        Dữ liệu mẫu — bản thiết kế
+      </span>
+          <div>
+            <h1 class="text-h1 md:text-4xl">
+              Danh sách khách hàng
+            </h1>
+            <p class="mt-2 text-sm text-on-surface-subtle">
+              Theo dõi tuyển sinh và không bỏ lỡ lần liên hệ tiếp theo.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                upload_file
+              </span>
+              Nhập Excel
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                add
+              </span>
+              Thêm khách mới
+            </button>
+          </div>
+        </div>
+        <section class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs mb-6 p-4">
+          <div class="flex gap-2 overflow-x-auto pb-2" aria-label="Lọc theo giai đoạn">
+            <button type="button" aria-pressed="true" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-primary-container bg-primary-container text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              Tất cả
+              <span>
+                50
+              </span>
+            </button>
+            <button type="button" aria-pressed="false" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-error/40 bg-error-container/30 text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                warning
+              </span>
+              Chưa liên hệ >24h
+              <span>
+                4
+              </span>
+            </button>
+            <button type="button" aria-pressed="false" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-surface-dim bg-surface-container-lowest text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              Hẹn test hôm nay
+              <span>
+                0
+              </span>
+            </button>
+            <button type="button" aria-pressed="false" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-surface-dim bg-surface-container-lowest text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              Cần gọi lại
+              <span>
+                8
+              </span>
+            </button>
+            <button type="button" aria-pressed="false" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-surface-dim bg-surface-container-lowest text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              Chờ xếp lớp
+              <span>
+                2
+              </span>
+            </button>
+            <button type="button" aria-pressed="false" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-surface-dim bg-surface-container-lowest text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              Đã nhập học
+              <span>
+                15
+              </span>
+            </button>
+            <button type="button" aria-pressed="false" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold border-surface-dim bg-surface-container-lowest text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              Thất bại
+              <span>
+                6
+              </span>
+            </button>
+          </div>
+          <div class="mt-4 flex flex-wrap items-end gap-3 border-t border-surface-dim/60 pt-4">
+            <div class="w-full min-w-0 lg:w-auto lg:flex-1">
+              <div class="min-w-0 ">
+                <label for="field-22" class="mb-2 block text-sm font-medium">
+                  Tìm khách hàng
+                </label>
+                <div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-on-surface-subtle"><span class="material-symbols-outlined shrink-0" aria-hidden="true">search</span></span><input id="field-22" type="search" value="" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest pl-10 pr-3 py-2 text-base md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2" placeholder="Tìm tên hoặc SĐT…"></div>
+              </div>
+            </div>
+            <div class="hidden w-44 lg:block">
+              <div class="min-w-0 ">
+                <label for="field-23" class="mb-2 block text-sm font-medium">
+                  Nguồn
+                </label>
+                <select id="field-23" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <option>
+                    Tất cả nguồn
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="hidden w-52 lg:block">
+              <div class="min-w-0 ">
+                <label for="field-24" class="mb-2 block text-sm font-medium">
+                  Người phụ trách
+                </label>
+                <select id="field-24" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <option>
+                    Tất cả người phụ trách
+                  </option>
+                </select>
+              </div>
+            </div>
+            <details class="group relative">
+              <summary class="inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg border border-outline/50 bg-surface-container-lowest px-4 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                  tune
+                </span>
+                Bộ lọc (0)
+                <span class="fixed right-4 top-[21dvh] z-[60] hidden h-11 w-11 items-center justify-center rounded-lg bg-surface-container-lowest group-open:flex md:group-open:hidden" aria-label="Đóng bộ lọc">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    close
+                  </span>
+                </span>
+              </summary>
+              <div class="fixed inset-x-0 bottom-0 top-[20dvh] z-50 overflow-y-auto rounded-t-2xl border border-surface-dim bg-surface-container-lowest p-5 shadow-level-3 md:absolute md:inset-auto md:max-h-[70dvh] md:right-0 md:top-14 md:w-80 md:rounded-xl">
+                <h2 class="mb-4 pr-12 text-h3">
+                  Bộ lọc khách hàng
+                </h2>
+                <div class="space-y-4">
+                  <div class="min-w-0 ">
+                    <label for="field-18" class="mb-2 block text-sm font-medium">
+                      Nguồn
+                    </label>
+                    <select id="field-18" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                      <option>
+                        Tất cả nguồn
+                      </option>
+                    </select>
+                  </div>
+                  <div class="min-w-0 ">
+                    <label for="field-19" class="mb-2 block text-sm font-medium">
+                      Người phụ trách
+                    </label>
+                    <select id="field-19" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                      <option>
+                        Tất cả người phụ trách
+                      </option>
+                    </select>
+                  </div>
+                  <div class="min-w-0 ">
+                    <label for="field-20" class="mb-2 block text-sm font-medium">
+                      Giai đoạn
+                    </label>
+                    <select id="field-20" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                      <option>
+                        Tất cả giai đoạn
+                      </option>
+                    </select>
+                  </div>
+                  <div class="min-w-0 ">
+                    <label for="field-21" class="mb-2 block text-sm font-medium">
+                      Chi nhánh
+                    </label>
+                    <select id="field-21" class="min-h-11 w-full min-w-0 rounded-lg border-outline/70 bg-surface-container-lowest px-3 py-2 text-lg md:text-sm focus:border-primary-container focus:ring-primary-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                      <option>
+                        Tất cả chi nhánh
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mt-5 flex gap-2">
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    Đặt lại
+                  </button>
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      filter_list
+                    </span>
+                    Lọc
+                  </button>
+                </div>
+                <p class="mt-3 text-xs text-on-surface-subtle">
+                  Nhấn lại Bộ lọc để đóng.
+                </p>
+              </div>
+            </details>
+          </div>
+        </section>
+        <section class="group min-w-0">
+          <div class="sticky top-16 z-20 mb-3 hidden items-center justify-between gap-3 rounded-xl border border-primary-border bg-primary-light p-3 group-has-[:checked]:flex">
+            <span class="text-sm font-semibold text-primary">
+              Đã chọn khách hàng
+            </span>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                person_add
+              </span>
+              Phân công lại hàng loạt
+            </button>
+          </div>
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-on-surface-subtle">
+              50 khách hàng · Hiển thị 15 khách
+            </p>
+            <div class="flex gap-3">
+              <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                  download
+                </span>
+                Xuất Excel
+              </button>
+              <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                CSV
+              </a>
+            </div>
+          </div>
+          <div class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs hidden min-w-0 lg:block">
+            <table class="w-full table-fixed text-left text-xs">
+              <caption class="sr-only">
+                Danh sách khách hàng và hạn liên hệ
+              </caption>
+              <thead class="sticky top-16 z-10 bg-surface-container-low">
+                <tr>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[22%]">
+                    Khách
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[12%]">
+                    Phụ huynh
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[12%]">
+                    Giai đoạn
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[16%]">
+                    Liên hệ tiếp theo / SLA
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[14%]">
+                    Phụ trách
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[12%]">
+                    Nguồn
+                  </th>
+                  <th scope="col" class="px-2 py-4 font-medium text-on-surface-subtle w-[12%]">
+                    Thao tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Quách Bảo Vy" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Quách Bảo Vy
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-S70WF3
+                        </p>
+                        <a href="tel:0392000014" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000014
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Quách Văn Lợi
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        error
+                      </span>
+                      Thất bại
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Google Ads">
+                      Google Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Quách Bảo Vy" href="tel:0392000014" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Quách Bảo Vy" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Tô Ngọc Ánh" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Tô Ngọc Ánh
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-6RVMFN
+                        </p>
+                        <a href="tel:0392000013" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000013
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Tô Văn Toàn
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        error
+                      </span>
+                      Thất bại
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Facebook Ads">
+                      Facebook Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Tô Ngọc Ánh" href="tel:0392000013" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Tô Ngọc Ánh" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Lâm Gia Phúc" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Lâm Gia Phúc
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-93E3W5
+                        </p>
+                        <a href="tel:0392000012" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000012
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Lâm Thị Ngọc
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đã chốt
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Tiktok Organic">
+                      Tiktok Organic
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Lâm Gia Phúc" href="tel:0392000012" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Lâm Gia Phúc" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Hà Khánh Ngân" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Hà Khánh Ngân
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-SB3GW9
+                        </p>
+                        <a href="tel:0392000011" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000011
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Hà Văn Bình
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đã chốt
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Google Ads">
+                      Google Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Hà Khánh Ngân" href="tel:0392000011" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Hà Khánh Ngân" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Tạ Minh Hiếu" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Tạ Minh Hiếu
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-NQDJMG
+                        </p>
+                        <a href="tel:0392000010" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000010
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Tạ Thu Hằng
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đã chốt
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Bạn bè giới thiệu">
+                      Bạn bè giới thiệu
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Tạ Minh Hiếu" href="tel:0392000010" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Tạ Minh Hiếu" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Cao Minh Tú" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Cao Minh Tú
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-RARE6J
+                        </p>
+                        <a href="tel:0392000009" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000009
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Cao Thị Yến
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        info
+                      </span>
+                      Chờ xếp lớp
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Facebook Ads">
+                      Facebook Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Cao Minh Tú" href="tel:0392000009" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Cao Minh Tú" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Đinh Quốc Bảo" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Đinh Quốc Bảo
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-T06J5C
+                        </p>
+                        <a href="tel:0392000008" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000008
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Đinh Văn Hải
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        sell
+                      </span>
+                      Gửi kết quả
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Quá hạn 5 giờ
+                    </span>
+                    <p class="mt-2 text-xs text-on-surface-subtle">
+                      09:03 hôm nay
+                    </p>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Bạn bè giới thiệu">
+                      Bạn bè giới thiệu
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Đinh Quốc Bảo" href="tel:0392000008" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Đinh Quốc Bảo" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Mai Anh Khoa" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Mai Anh Khoa
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-64WWS0
+                        </p>
+                        <a href="tel:0392000007" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000007
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Mai Thị Hoa
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-accent-container px-2 py-1 text-xs font-medium text-accent">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        label
+                      </span>
+                      Đã test
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Còn 23 giờ
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Sự kiện Offline">
+                      Sự kiện Offline
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Mai Anh Khoa" href="tel:0392000007" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Mai Anh Khoa" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Phan Tuấn Minh" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Phan Tuấn Minh
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-GJBZDE
+                        </p>
+                        <a href="tel:0392000006" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000006
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Phan Thị Nga
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        info
+                      </span>
+                      Test
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Còn 5 giờ
+                    </span>
+                    <p class="mt-2 text-xs text-on-surface-subtle">
+                      20:03 hôm nay
+                    </p>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Facebook Ads">
+                      Facebook Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Phan Tuấn Minh" href="tel:0392000006" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Phan Tuấn Minh" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Lý Gia Hân" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Lý Gia Hân
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-YF4FQW
+                        </p>
+                        <a href="tel:0392000005" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000005
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Lý Văn Tài
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        sell
+                      </span>
+                      Hẹn test
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Còn 1 ngày
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Google Ads">
+                      Google Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Lý Gia Hân" href="tel:0392000005" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Lý Gia Hân" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Ngô Phương Thảo" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Ngô Phương Thảo
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-X2F2JF
+                        </p>
+                        <a href="tel:0392000004" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000004
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Ngô Đức Mạnh
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đang tư vấn
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Còn 2 ngày
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Tiktok Organic">
+                      Tiktok Organic
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Ngô Phương Thảo" href="tel:0392000004" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Ngô Phương Thảo" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Đỗ Minh Quân" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Đỗ Minh Quân
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-C08K73
+                        </p>
+                        <a href="tel:0392000003" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000003
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Đỗ Thị Lan
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đang tư vấn
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Quá hạn 2 ngày
+                    </span>
+                    <p class="mt-2 text-xs text-on-surface-subtle">
+                      14:03 29/10
+                    </p>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Bạn bè giới thiệu">
+                      Bạn bè giới thiệu
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Đỗ Minh Quân" href="tel:0392000003" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Đỗ Minh Quân" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Phạm Bảo Anh" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Phạm Bảo Anh
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-M2DXXK
+                        </p>
+                        <a href="tel:0392000002" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000002
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Phạm Quang Huy
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        info
+                      </span>
+                      Mới
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Quá hạn 1 ngày
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Website / Hotline">
+                      Website / Hotline
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Phạm Bảo Anh" href="tel:0392000002" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Phạm Bảo Anh" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Trần An Nhiên" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Trần An Nhiên
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-XEMT4X
+                        </p>
+                        <a href="tel:0392000001" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0392000001
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Trần Văn Hùng
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        info
+                      </span>
+                      Mới
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        schedule
+                      </span>
+                      Còn 19 giờ
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        HĐ
+                      </span>
+                      <span class="text-xs">
+                        # Hoàng Đức Thịnh
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Facebook Ads">
+                      Facebook Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Trần An Nhiên" href="tel:0392000001" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Trần An Nhiên" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="border-b border-surface-dim/50 hover:bg-surface-subtle">
+                  <td class="p-2">
+                    <div class="flex items-start gap-1">
+                      <label class="inline-flex h-11 w-8 shrink-0 items-center justify-center">
+                        <input type="checkbox" aria-label="Chọn khách # Chu Minh Trí" class="h-4 w-4 rounded border-outline text-primary-container focus:ring-primary-container checked:[counter-increment:selected]">
+                      </label>
+                      <div class="py-2">
+                        <p class="font-semibold">
+                          # Chu Minh Trí
+                        </p>
+                        <p class="mt-1 font-mono text-xs text-on-surface-subtle">
+                          KH-15F68H
+                        </p>
+                        <a href="tel:0391000014" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 min-h-11 text-xs">
+                          0391000014
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    # Chu Thị Hoa
+                  </td>
+                  <td class="p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        error
+                      </span>
+                      Thất bại
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap p-2">
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        remove
+                      </span>
+                      —
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-2">
+                      <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                        TM
+                      </span>
+                      <span class="text-xs">
+                        # Trần Thị Mai
+                      </span>
+                    </div>
+                  </td>
+                  <td class="p-2 text-xs">
+                    <span title="Google Ads">
+                      Google Ads
+                    </span>
+                  </td>
+                  <td class="p-2">
+                    <div class="flex items-center gap-1">
+                      <a aria-label="Gọi # Chu Minh Trí" href="tel:0391000014" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 h-11 w-11 justify-center">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          call
+                        </span>
+                      </a>
+                      <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                        Xem
+                      </a>
+                      <details class="relative">
+                        <summary aria-label="Thêm thao tác với khách # Chu Minh Trí" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                            more_horiz
+                          </span>
+                        </summary>
+                        <div class="absolute right-0 z-20 w-44 rounded-lg border border-surface-dim bg-surface-container-lowest p-2 shadow-level-2">
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Sửa khách hàng
+                          </a>
+                          <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 px-2">
+                            Phân công lại
+                          </a>
+                        </div>
+                      </details>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="space-y-3 lg:hidden">
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Quách Bảo Vy</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    error
+                  </span>
+                  Thất bại
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-S70WF3 · # Quách Văn Lợi</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0392000014" aria-label="Gọi # Quách Bảo Vy" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Tô Ngọc Ánh</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    error
+                  </span>
+                  Thất bại
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-6RVMFN · # Tô Văn Toàn</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0392000013" aria-label="Gọi # Tô Ngọc Ánh" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Lâm Gia Phúc</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đã chốt
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-93E3W5 · # Lâm Thị Ngọc</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0392000012" aria-label="Gọi # Lâm Gia Phúc" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Hà Khánh Ngân</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đã chốt
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-SB3GW9 · # Hà Văn Bình</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0392000011" aria-label="Gọi # Hà Khánh Ngân" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Tạ Minh Hiếu</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đã chốt
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-NQDJMG · # Tạ Thu Hằng</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0392000010" aria-label="Gọi # Tạ Minh Hiếu" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Cao Minh Tú</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    info
+                  </span>
+                  Chờ xếp lớp
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-RARE6J · # Cao Thị Yến</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0392000009" aria-label="Gọi # Cao Minh Tú" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Đinh Quốc Bảo</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    sell
+                  </span>
+                  Gửi kết quả
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-T06J5C · # Đinh Văn Hải</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Quá hạn 5 giờ
+                </span>
+                <a href="tel:0392000008" aria-label="Gọi # Đinh Quốc Bảo" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Mai Anh Khoa</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-accent-container px-2 py-1 text-xs font-medium text-accent">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    label
+                  </span>
+                  Đã test
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-64WWS0 · # Mai Thị Hoa</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Còn 23 giờ
+                </span>
+                <a href="tel:0392000007" aria-label="Gọi # Mai Anh Khoa" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Phan Tuấn Minh</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    info
+                  </span>
+                  Test
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-GJBZDE · # Phan Thị Nga</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Còn 5 giờ
+                </span>
+                <a href="tel:0392000006" aria-label="Gọi # Phan Tuấn Minh" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Lý Gia Hân</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-primary-light px-2 py-1 text-xs font-medium text-primary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    sell
+                  </span>
+                  Hẹn test
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-YF4FQW · # Lý Văn Tài</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Còn 1 ngày
+                </span>
+                <a href="tel:0392000005" aria-label="Gọi # Lý Gia Hân" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Ngô Phương Thảo</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đang tư vấn
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-X2F2JF · # Ngô Đức Mạnh</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Còn 2 ngày
+                </span>
+                <a href="tel:0392000004" aria-label="Gọi # Ngô Phương Thảo" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Đỗ Minh Quân</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    check_circle
+                  </span>
+                  Đang tư vấn
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-C08K73 · # Đỗ Thị Lan</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Quá hạn 2 ngày
+                </span>
+                <a href="tel:0392000003" aria-label="Gọi # Đỗ Minh Quân" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Phạm Bảo Anh</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    info
+                  </span>
+                  Mới
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-M2DXXK · # Phạm Quang Huy</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Quá hạn 1 ngày
+                </span>
+                <a href="tel:0392000002" aria-label="Gọi # Phạm Bảo Anh" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Trần An Nhiên</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-info-container/60 px-2 py-1 text-xs font-medium text-info">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    info
+                  </span>
+                  Mới
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-XEMT4X · # Trần Văn Hùng</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-tertiary/10 px-2 py-1 text-xs font-medium text-tertiary">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  Còn 19 giờ
+                </span>
+                <a href="tel:0392000001" aria-label="Gọi # Trần An Nhiên" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Hoàng Đức Thịnh" title="# Hoàng Đức Thịnh" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  HĐ
+                </span>
+              </div>
+            </article>
+            <article class="relative rounded-xl border border-surface-dim/60 bg-surface-container-lowest p-3 shadow-2xs">
+              <div class="flex items-center justify-between gap-2">
+                <h2 class="min-w-0 truncate font-semibold"><a href="#" class="after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"># Chu Minh Trí</a></h2>
+                <div class="shrink-0"><span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    error
+                  </span>
+                  Thất bại
+                </span></div>
+              </div>
+              <p class="mt-1 truncate text-xs text-on-surface-subtle">KH-15F68H · # Chu Thị Hoa</p>
+              <div class="mt-1 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    remove
+                  </span>
+                  —
+                </span>
+                <a href="tel:0391000014" aria-label="Gọi # Chu Minh Trí" class="relative z-10 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"><span class="material-symbols-outlined shrink-0" aria-hidden="true">call</span></a>
+                <span role="img" aria-label="Phụ trách: # Trần Thị Mai" title="# Trần Thị Mai" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+                  TM
+                </span>
+              </div>
+            </article>
+          </div>
+        </section>
+        <nav aria-label="Phân trang khách hàng" class="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <label class="flex items-center gap-2 text-xs text-on-surface-subtle">
+            Hiển thị
+            <select aria-label="Số khách mỗi trang" class="min-h-11 rounded-lg border-outline/60 text-lg md:text-sm">
+              <option>
+                15
+              </option>
+              <option>
+                30
+              </option>
+            </select>
+            · 1–15 / 50 khách
+          </label>
+          <div class="flex items-center gap-1">
+            <button type="button" aria-label="Trang trước" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                chevron_left
+              </span>
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              1
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              2
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              3
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              4
+            </button>
+            <button type="button" aria-label="Trang sau" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                chevron_right
+              </span>
+            </button>
+          </div>
+        </nav>
+      </main>
+      <footer class="border-t border-surface-dim/60 px-4 py-5 text-center text-xs text-on-surface-subtle ">
+        <strong>
+          MENGLISH
+        </strong>
+        · Hệ thống quản trị giáo dục
+        &
+        học vụ
+      </footer>
+    </div>
+  </body>
+</html>

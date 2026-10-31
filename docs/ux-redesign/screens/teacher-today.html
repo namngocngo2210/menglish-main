@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Bản thiết kế giao diện MEnglish — Lịch dạy hôm nay.">
+    <title>
+      Lịch dạy hôm nay · MEnglish
+    </title>
+    <link rel="stylesheet" href="../assets/mockup.css">
+  </head>
+  <body class="min-h-screen font-sans text-sm desktop:flex desktop:items-start">
+    <a href="#main" class="sr-only z-50 rounded-lg bg-primary-container p-3 text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+      Đến nội dung chính
+    </a>
+    <aside class="sticky top-0 z-40 hidden h-screen w-sidebar-width shrink-0 flex-col bg-sidebar desktop:flex">
+      <div class="flex-1 overflow-y-auto px-3 pt-7">
+        <div class="mb-8 flex items-center gap-3 px-3">
+          <span class="h-9 w-1.5 rounded-full bg-brand">
+          </span>
+          <div>
+            <p class="text-2xl font-bold tracking-wide text-on-primary">
+              MENGLISH
+            </p>
+            <p class="mt-1 text-xs tracking-wide text-inverse-on-surface">
+              HỆ THỐNG QUẢN TRỊ
+            </p>
+          </div>
+        </div>
+        <nav aria-label="Điều hướng chính">
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TỔNG QUAN
+            </p>
+            <a href="dashboard.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                space_dashboard
+              </span>
+              <span>
+                Tổng quan
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              PHÊ DUYỆT
+            </p>
+            <a href="approvals.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                fact_check
+              </span>
+              <span>
+                Cần duyệt
+              </span>
+              <span class="ml-auto rounded-full bg-surface-container-lowest px-1.5 text-xs text-primary">
+                21
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                outgoing_mail
+              </span>
+              <span>
+                Xin duyệt
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              GIAO VIỆC
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                add_task
+              </span>
+              <span>
+                Tạo đầu việc
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                task_alt
+              </span>
+              <span>
+                Danh sách đầu việc
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TUYỂN SINH
+            </p>
+            <a href="crm-customers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                group
+              </span>
+              <span>
+                Khách hàng (CRM)
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                quiz
+              </span>
+              <span>
+                Test đầu vào
+                &
+                học thử
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              ĐÀO TẠO
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                school
+              </span>
+              <span>
+                Học viên
+              </span>
+            </a>
+            <a href="teacher-today.html" aria-current="page" class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm bg-primary-container font-semibold text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                calendar_month
+              </span>
+              <span>
+                Lớp học
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                menu_book
+              </span>
+              <span>
+                Giáo trình
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                laptop_chromebook
+              </span>
+              <span>
+                E-learning
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                assignment
+              </span>
+              <span>
+                Big Test
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                poll
+              </span>
+              <span>
+                Khảo sát
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              TÀI CHÍNH
+            </p>
+            <a href="receipt-create.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                payments
+              </span>
+              <span>
+                Học phí
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                account_balance_wallet
+              </span>
+              <span>
+                Thu - Chi
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                inventory_2
+              </span>
+              <span>
+                Kho vật phẩm
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              NHÂN SỰ
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                badge
+              </span>
+              <span>
+                Người dùng
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                support_agent
+              </span>
+              <span>
+                Ticket hỗ trợ
+              </span>
+            </a>
+            <a href="timesheet-teachers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                schedule
+              </span>
+              <span>
+                Chấm công
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                account_balance
+              </span>
+              <span>
+                Lương
+                &
+                Phạt
+              </span>
+            </a>
+          </div>
+          <div class="mb-5">
+            <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+              BÁO CÁO
+            </p>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                monitoring
+              </span>
+              <span>
+                Doanh thu
+              </span>
+            </a>
+            <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                analytics
+              </span>
+              <span>
+                Đào tạo
+                &
+                Chất lượng
+              </span>
+            </a>
+          </div>
+        </nav>
+      </div>
+      <div class="border-t border-navy-lighter p-4 text-xs text-inverse-on-surface">
+        <p>
+          Vai trò:
+          <strong class="text-on-primary">
+            Giáo viên Part-time
+          </strong>
+        </p>
+        <a href="#" class="mt-2 flex min-h-11 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+            logout
+          </span>
+          Đăng xuất
+        </a>
+      </div>
+    </aside>
+    <div class="min-w-0 flex-1">
+      <header class="sticky top-0 z-30 flex h-16 items-center gap-1 border-b border-surface-dim/60 bg-background px-3 md:gap-4 md:px-8">
+        <details class="group desktop:hidden">
+          <summary aria-label="Mở trình đơn" class="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              menu
+            </span>
+          </summary>
+          <div class="fixed inset-y-16 left-0 z-50 w-72 overflow-y-auto bg-sidebar p-4 text-on-primary shadow-level-3">
+            <div class="mb-8 flex items-center gap-3 px-3">
+              <span class="h-9 w-1.5 rounded-full bg-brand">
+              </span>
+              <div>
+                <p class="text-2xl font-bold tracking-wide text-on-primary">
+                  MENGLISH
+                </p>
+                <p class="mt-1 text-xs tracking-wide text-inverse-on-surface">
+                  HỆ THỐNG QUẢN TRỊ
+                </p>
+              </div>
+            </div>
+            <nav aria-label="Điều hướng chính">
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TỔNG QUAN
+                </p>
+                <a href="dashboard.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    space_dashboard
+                  </span>
+                  <span>
+                    Tổng quan
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  PHÊ DUYỆT
+                </p>
+                <a href="approvals.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    fact_check
+                  </span>
+                  <span>
+                    Cần duyệt
+                  </span>
+                  <span class="ml-auto rounded-full bg-surface-container-lowest px-1.5 text-xs text-primary">
+                    21
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    outgoing_mail
+                  </span>
+                  <span>
+                    Xin duyệt
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  GIAO VIỆC
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    add_task
+                  </span>
+                  <span>
+                    Tạo đầu việc
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    task_alt
+                  </span>
+                  <span>
+                    Danh sách đầu việc
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TUYỂN SINH
+                </p>
+                <a href="crm-customers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    group
+                  </span>
+                  <span>
+                    Khách hàng (CRM)
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    quiz
+                  </span>
+                  <span>
+                    Test đầu vào
+                    &
+                    học thử
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  ĐÀO TẠO
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    school
+                  </span>
+                  <span>
+                    Học viên
+                  </span>
+                </a>
+                <a href="teacher-today.html" aria-current="page" class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm bg-primary-container font-semibold text-on-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    calendar_month
+                  </span>
+                  <span>
+                    Lớp học
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    menu_book
+                  </span>
+                  <span>
+                    Giáo trình
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    laptop_chromebook
+                  </span>
+                  <span>
+                    E-learning
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    assignment
+                  </span>
+                  <span>
+                    Big Test
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    poll
+                  </span>
+                  <span>
+                    Khảo sát
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  TÀI CHÍNH
+                </p>
+                <a href="receipt-create.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    payments
+                  </span>
+                  <span>
+                    Học phí
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    account_balance_wallet
+                  </span>
+                  <span>
+                    Thu - Chi
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    inventory_2
+                  </span>
+                  <span>
+                    Kho vật phẩm
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  NHÂN SỰ
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    badge
+                  </span>
+                  <span>
+                    Người dùng
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    support_agent
+                  </span>
+                  <span>
+                    Ticket hỗ trợ
+                  </span>
+                </a>
+                <a href="timesheet-teachers.html"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    schedule
+                  </span>
+                  <span>
+                    Chấm công
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    account_balance
+                  </span>
+                  <span>
+                    Lương
+                    &
+                    Phạt
+                  </span>
+                </a>
+              </div>
+              <div class="mb-5">
+                <p class="mb-2 px-3 text-xs font-semibold tracking-wider text-inverse-on-surface">
+                  BÁO CÁO
+                </p>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    monitoring
+                  </span>
+                  <span>
+                    Doanh thu
+                  </span>
+                </a>
+                <a href="#"  class="mb-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-inverse-on-surface hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    analytics
+                  </span>
+                  <span>
+                    Đào tạo
+                    &
+                    Chất lượng
+                  </span>
+                </a>
+              </div>
+            </nav>
+          </div>
+        </details>
+        <span class="min-w-0 flex-1 text-sm font-semibold md:flex-none md:text-h3">
+          Lịch dạy hôm nay
+        </span>
+        <label class="ml-4 hidden min-w-0 max-w-sm flex-1 items-center gap-2 rounded-full border border-surface-dim bg-surface-container-lowest px-3 md:flex">
+          <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+            search
+          </span>
+          <input aria-label="Tìm màn hình, khách, học viên, lớp" placeholder="Tìm màn hình, khách, học viên, lớp…" class="min-h-11 w-full border-0 bg-transparent text-sm focus-visible:ring-2 focus-visible:ring-primary-container">
+        </label>
+        <div class="ml-auto flex items-center gap-1 md:gap-3">
+          <span class="md:hidden">
+            <button type="button" aria-label="Tìm kiếm" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                search
+              </span>
+            </button>
+          </span>
+          <button aria-label="Thông báo, 9 thông báo chưa đọc" class="relative flex h-11 w-11 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              notifications
+            </span>
+            <span class="absolute right-1 top-0 rounded-full bg-error px-1 text-xs font-semibold text-on-error">
+              9+
+            </span>
+          </button>
+          <div class="hidden items-center gap-3 border-l border-surface-dim pl-4 md:flex">
+            <div class="text-right">
+              <p class="font-semibold">
+                # Nguyễn Văn An
+              </p>
+              <p class="text-xs text-on-surface-subtle">
+                Giáo viên
+              </p>
+            </div>
+            <span aria-hidden="true" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-semibold text-primary">
+              VA
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main id="main" class="min-w-0 px-4 pb-12 pt-4 md:pt-16 md:px-8 pb-48 md:pb-12">
+        <nav aria-label="Điều hướng mục" class="-mx-4 mb-6 flex gap-5 overflow-x-auto border-b border-surface-dim/60 px-4 md:mx-0 md:px-0">
+          <a href="#" aria-current="page" class="flex min-h-12 shrink-0 items-center border-b-2 border-primary-container font-semibold text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Lịch dạy hôm nay
+          </a>
+          <a href="#"  class="flex min-h-12 shrink-0 items-center border-b-2 border-transparent text-on-surface-subtle hover:text-primary text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            Lớp của tôi
+          </a>
+        </nav>
+        <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+      <span class="inline-flex self-start lg:order-last md:fixed md:right-8 md:top-20 md:z-20 rounded-full border border-surface-dim bg-surface-container-lowest px-3 py-1.5 text-xs text-on-surface-subtle shadow-2xs">
+        Dữ liệu mẫu — bản thiết kế
+      </span>
+          <div>
+            <h1 class="text-h1 md:text-4xl">
+              Thứ Bảy, 31/10
+            </h1>
+            <p class="mt-2 text-sm text-on-surface-subtle">
+              Chào # Nguyễn Văn An · Hôm nay bạn có 2 ca dạy
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                description
+              </span>
+              Báo cáo buổi chưa nộp · 18
+            </button>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                grading
+              </span>
+              Chấm bài nộp
+            </button>
+          </div>
+        </div>
+        <div class="grid items-start gap-6 xl:grid-cols-3">
+          <div class="min-w-0 xl:col-span-2">
+            <section class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs overflow-hidden">
+              <div class="flex items-center justify-between border-b border-surface-dim/60 px-5 py-4">
+                <h2 class="text-h3">
+                  Ca dạy hôm nay
+                </h2>
+                <span class="text-xs text-on-surface-subtle">
+                  Check-in 1/2 · Điểm danh 0/2
+                </span>
+              </div>
+              <div class="p-5 md:flex md:gap-5">
+                <div class="mb-4 flex items-center gap-3 rounded-xl bg-primary-light p-3 text-primary md:mb-0 md:w-24 md:shrink-0 md:flex-col md:justify-start md:text-center">
+                  <strong class="font-mono text-2xl">
+                    17:30
+                  </strong>
+                  <span class="text-xs">
+                    đến 19:00
+                  </span>
+                  <span class="text-xs font-semibold">
+                    Ca chiều
+                  </span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="mb-4">
+                    <div class="mb-2">
+                      <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          event
+                        </span>
+                        Ca ngày 30/10
+                      </span>
+                    </div>
+                    <h3 class="text-xl font-bold">
+                      # Starters FAM 1 · K26 (CG)
+                    </h3>
+                    <p class="mt-2 text-sm text-on-surface-subtle">
+                      Phòng 101 · Chi nhánh Cầu Giấy · 11 HV
+                    </p>
+                    <p class="mt-1 text-xs text-primary">
+                      +1 Khách học thử
+                    </p>
+                  </div>
+                  <ol aria-label="Tiến độ buổi dạy" class="flex gap-2 overflow-x-auto pb-3">
+                    <li class="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-medium bg-tertiary/10 text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      <span>
+                        Check-in
+                      </span>
+                    </li>
+                    <li class="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-medium bg-primary-light text-primary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        radio_button_checked
+                      </span>
+                      <span>
+                        Điểm danh
+                      </span>
+                    </li>
+                    <li class="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-medium bg-surface-container-low text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        lock
+                      </span>
+                      <span>
+                        Bài giảng
+                      </span>
+                    </li>
+                    <li class="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-medium bg-surface-container-low text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        lock
+                      </span>
+                      <span>
+                        Giao bài tập
+                      </span>
+                    </li>
+                    <li class="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-xs font-medium bg-surface-container-low text-on-surface-subtle">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        lock
+                      </span>
+                      <span>
+                        Nộp báo cáo
+                      </span>
+                    </li>
+                  </ol>
+                  <div class="mt-2 mr-16 rounded-xl border border-primary-border bg-primary-light p-4 md:mr-0">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p class="font-semibold text-primary">
+                          Bước 2/5 · Điểm danh
+                        </p>
+                        <p class="mt-1 text-sm text-on-surface-variant">
+                          11 học viên + 1 khách học thử
+                        </p>
+                      </div>
+                      <button type="button" class="w-full md:w-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                        <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                          how_to_reg
+                        </span>
+                        Điểm danh
+                      </button>
+                    </div>
+                    <p class="mt-3 flex items-center gap-2 text-xs text-tertiary">
+                      <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                        check_circle
+                      </span>
+                      Đã check-in lúc 17:20
+                    </p>
+                  </div>
+                  <p class="mt-3 text-xs text-on-surface-subtle">
+                    Bước 1/5 đã xong · Bài giảng: Mở bài giảng → Dạy xong. Giao bài tập sau khi điểm danh.
+                  </p>
+                  <div class="mt-2 flex flex-wrap gap-x-5">
+                    <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      Mở giáo trình
+                    </a>
+                    <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      Nhập điểm
+                    </a>
+                    <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      Trang lớp
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <details class="border-t border-surface-dim/60">
+                <summary class="flex min-h-16 cursor-pointer list-none flex-wrap items-center gap-3 px-5 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+                  <strong class="font-mono">
+                    08:00
+                  </strong>
+                  <span class="flex-1 font-medium">
+                    # Pre Starters FAM 0 · K25 (CG)
+                  </span>
+                  <span class="inline-flex items-center gap-1 rounded-full bg-surface-container-low px-2 py-1 text-xs font-medium text-on-surface-subtle">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      history
+                    </span>
+                    Đã kết thúc
+                  </span>
+                  <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                    expand_more
+                  </span>
+                </summary>
+                <div class="px-5 pb-5">
+                  <p class="mb-3 text-on-surface-subtle">
+                    08:00–09:30 · Phòng 103 · Chi nhánh Cầu Giấy · 6 HV
+                  </p>
+                  <p class="mb-3 text-xs">
+                    Chưa check-in · Hạn 08:00 01/11 (còn 17 giờ 41 phút). Các bước sau mở khi check-in.
+                  </p>
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      login
+                    </span>
+                    Check-in
+                  </button>
+                  <div class="mt-3 flex flex-wrap gap-x-4">
+                    <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      Mở giáo trình
+                    </a>
+                    <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      Nhập điểm
+                    </a>
+                    <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                      Trang lớp
+                    </a>
+                  </div>
+                </div>
+              </details>
+            </section>
+            <section class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs mt-5 border-warning/40 p-5">
+              <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-h2">
+                    Buổi đã dạy chưa điểm danh · 7
+                  </h2>
+                  <p class="mt-1 text-sm text-on-surface-subtle">
+                    Trong 24h bạn tự điểm danh bù; quá hạn thì báo Học vụ.
+                  </p>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 border-t border-surface-dim/60 py-3">
+                <div class="w-12 text-center">
+                  <p class="text-xs text-on-surface-subtle">
+                    T6
+                  </p>
+                  <strong>
+                    30/10
+                  </strong>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="font-semibold">
+                    # Starters FAM 1 · K26 (CG)
+                  </p>
+                  <p class="mt-1 text-xs text-on-surface-subtle">
+                    17:30–19:00
+                  </p>
+                </div>
+                <div class="flex w-full items-center justify-end gap-3 sm:w-auto">
+                  <span class="inline-flex items-center gap-1 rounded-full bg-warning-container px-2 py-1 text-xs font-medium text-warning">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      schedule
+                    </span>
+                    Còn 4 giờ
+                  </span>
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-primary-container text-on-primary hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    Điểm danh bù
+                  </button>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 border-t border-surface-dim/60 py-3">
+                <div class="w-12 text-center">
+                  <p class="text-xs text-on-surface-subtle">
+                    T4
+                  </p>
+                  <strong>
+                    14/10
+                  </strong>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="font-semibold">
+                    # Starters FAM 1 · K26 (CG)
+                  </p>
+                  <p class="mt-1 text-xs text-on-surface-subtle">
+                    17:30–19:00
+                  </p>
+                </div>
+                <div class="flex w-full items-center justify-end gap-3 sm:w-auto">
+                  <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      schedule
+                    </span>
+                    Quá 24h
+                  </span>
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    Xem buổi
+                  </button>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-3 border-t border-surface-dim/60 py-3">
+                <div class="w-12 text-center">
+                  <p class="text-xs text-on-surface-subtle">
+                    T2
+                  </p>
+                  <strong>
+                    12/10
+                  </strong>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="font-semibold">
+                    # Starters FAM 1 · K26 (CG)
+                  </p>
+                  <p class="mt-1 text-xs text-on-surface-subtle">
+                    17:30–19:00
+                  </p>
+                </div>
+                <div class="flex w-full items-center justify-end gap-3 sm:w-auto">
+                  <span class="inline-flex items-center gap-1 rounded-full bg-error-container/50 px-2 py-1 text-xs font-medium text-error">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      schedule
+                    </span>
+                    Quá 24h
+                  </span>
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    Xem buổi
+                  </button>
+                </div>
+              </div>
+              <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                Xem tất cả 7 buổi
+              </a>
+            </section>
+            <section class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs mt-5 p-5">
+              <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 class="text-h2">
+                    Lịch dạy tuần 26/10 – 01/11/2026
+                  </h2>
+                </div>
+                <div class="flex items-center">
+                  <button type="button" aria-label="Tuần trước" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      chevron_left
+                    </span>
+                  </button>
+                  <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border border-outline/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    Tuần này
+                  </button>
+                  <button type="button" aria-label="Tuần sau" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 ">
+                    <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                      chevron_right
+                    </span>
+                  </button>
+                </div>
+              </div>
+              <div class="flex gap-2 overflow-x-auto pb-2">
+                <div class="min-w-24 flex-1 rounded-lg border border-surface-dim/60 p-3">
+                  <p class="text-xs text-on-surface-subtle">
+                    T2 · 26/10
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    17:30–19:00
+                  </p>
+                  <p class="mt-2 text-xs text-tertiary">
+                    Đã điểm danh
+                  </p>
+                </div>
+                <div class="min-w-24 flex-1 rounded-lg border border-surface-dim/60 p-3">
+                  <p class="text-xs text-on-surface-subtle">
+                    T3 · 27/10
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    —
+                  </p>
+                  <p class="mt-2 text-xs text-on-surface-subtle">
+                    Không có ca
+                  </p>
+                </div>
+                <div class="min-w-24 flex-1 rounded-lg border border-surface-dim/60 p-3">
+                  <p class="text-xs text-on-surface-subtle">
+                    T4 · 28/10
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    17:30–19:00
+                  </p>
+                  <p class="mt-2 text-xs text-tertiary">
+                    Đã điểm danh
+                  </p>
+                </div>
+                <div class="min-w-24 flex-1 rounded-lg border border-surface-dim/60 p-3">
+                  <p class="text-xs text-on-surface-subtle">
+                    T5 · 29/10
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    —
+                  </p>
+                  <p class="mt-2 text-xs text-on-surface-subtle">
+                    Không có ca
+                  </p>
+                </div>
+                <div class="min-w-24 flex-1 rounded-lg border border-surface-dim/60 p-3">
+                  <p class="text-xs text-on-surface-subtle">
+                    T6 · 30/10
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    17:30–19:00
+                  </p>
+                  <p class="mt-2 text-xs text-error">
+                    Chưa điểm danh
+                  </p>
+                </div>
+                <div class="min-w-24 flex-1 rounded-lg border border-primary-container bg-primary-light p-3">
+                  <p class="text-xs font-semibold text-primary">
+                    T7 · 31/10
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    08:00–09:30
+                  </p>
+                  <p class="mt-2 text-xs text-on-surface-subtle">
+                    Hôm nay
+                  </p>
+                </div>
+                <div class="min-w-24 flex-1 rounded-lg border border-surface-dim/60 p-3">
+                  <p class="text-xs text-on-surface-subtle">
+                    CN · 01/11
+                  </p>
+                  <p class="mt-4 text-xs font-semibold">
+                    —
+                  </p>
+                  <p class="mt-2 text-xs text-on-surface-subtle">
+                    Không có ca
+                  </p>
+                </div>
+              </div>
+            </section>
+          </div>
+          <aside class="rounded-xl border border-surface-dim/60 bg-surface-container-lowest shadow-2xs p-5">
+            <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 class="text-h2">
+                  Học sinh cần chú ý
+                </h2>
+                <p class="mt-1 text-sm text-on-surface-subtle">
+                  Mini Test dưới 7/10 trong 30 ngày
+                </p>
+              </div>
+            </div>
+            <article class="border-t border-surface-dim/60 py-4">
+              <div class="flex justify-between gap-2">
+                <h3 class="font-semibold">
+                  # Nguyễn Minh Châu
+                </h3>
+                <strong class="font-mono text-error">
+                  5,5/10
+                </strong>
+              </div>
+              <p class="mt-2 text-xs text-on-surface-subtle">
+                # Starters FAM 1 · K26 (CG) · Mini Test Unit 2
+              </p>
+            </article>
+            <article class="border-t border-surface-dim/60 py-4">
+              <div class="flex justify-between gap-2">
+                <h3 class="font-semibold">
+                  # Lê Bảo Ngọc
+                </h3>
+                <strong class="font-mono text-error">
+                  6/10
+                </strong>
+              </div>
+              <p class="mt-2 text-xs text-on-surface-subtle">
+                # Starters FAM 1 · K26 (CG) · Mini Test Unit 2
+              </p>
+            </article>
+            <article class="border-t border-surface-dim/60 py-4">
+              <div class="flex justify-between gap-2">
+                <h3 class="font-semibold">
+                  # Ngô Hà My
+                </h3>
+                <strong class="font-mono text-error">
+                  6/10
+                </strong>
+              </div>
+              <p class="mt-2 text-xs text-on-surface-subtle">
+                # Pre Starters FAM 0 · K25 (CG) · Mini Test Unit 1
+              </p>
+            </article>
+            <article class="border-t border-surface-dim/60 py-4">
+              <div class="flex justify-between gap-2">
+                <h3 class="font-semibold">
+                  # Trịnh Mai Chi
+                </h3>
+                <strong class="font-mono text-error">
+                  5,5/10
+                </strong>
+              </div>
+              <p class="mt-2 text-xs text-on-surface-subtle">
+                # Pre Starters FAM 0 · K25 (CG) · Mini Test Unit 1
+              </p>
+            </article>
+            <article class="border-t border-surface-dim/60 py-4">
+              <div class="flex justify-between gap-2">
+                <h3 class="font-semibold">
+                  # Lê Hoàng Nam
+                </h3>
+                <strong class="font-mono text-error">
+                  6/10
+                </strong>
+              </div>
+              <p class="mt-2 text-xs text-on-surface-subtle">
+                # Starters FAM 1 · K26 (CG) · Mini Test Unit 1
+              </p>
+            </article>
+          </aside>
+        </div>
+      </main>
+      <footer class="border-t border-surface-dim/60 px-4 py-5 text-center text-xs text-on-surface-subtle mb-20">
+        <strong>
+          MENGLISH
+        </strong>
+        · Hệ thống quản trị giáo dục
+        &
+        học vụ
+      </footer>
+    </div>
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-surface-dim bg-surface-container-lowest pb-[env(safe-area-inset-bottom)] md:hidden">
+      <div class="relative">
+        <details class="group absolute bottom-full right-4 mb-2">
+          <summary aria-label="Mở tác vụ bổ sung" class="ml-auto flex h-12 w-12 cursor-pointer list-none items-center justify-center rounded-full bg-primary-container text-on-primary shadow-level-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              add
+            </span>
+          </summary>
+          <div class="absolute bottom-16 right-0 w-56 rounded-xl border border-surface-dim bg-surface-container-lowest p-2 shadow-level-3">
+            <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 w-full px-3">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                local_shipping
+              </span>
+              ORDER
+            </a>
+            <a href="#" class="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 w-full px-3">
+              <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+                assignment
+              </span>
+              Báo cáo của tôi
+            </a>
+          </div>
+        </details>
+        <nav aria-label="Điều hướng giáo viên" class="grid grid-cols-4 gap-1 px-2 py-2">
+          <a href="teacher-today.html" aria-current="page" class="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs bg-primary-light font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              calendar_month
+            </span>
+            Lịch dạy
+          </a>
+          <a href="timesheet-teachers.html"  class="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs text-on-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              schedule
+            </span>
+            Bảng công
+          </a>
+          <a href="#"  class="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs text-on-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              notifications
+            </span>
+            Thông báo
+          </a>
+          <a href="#"  class="flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-xs text-on-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2">
+            <span class="material-symbols-outlined shrink-0" aria-hidden="true">
+              person
+            </span>
+            Cá nhân
+          </a>
+        </nav>
+      </div>
+    </div>
+  </body>
+</html>
