@@ -289,6 +289,9 @@ class SessionLedgerTest extends TestCase
 
         $this->actingAs($this->academic)->get(route('tuition.receipts.create', ['student_id' => $student->id]))
             ->assertOk()
+            ->assertSee('data-testid="receipt-summary"', false)
+            ->assertSee('data-testid="receipt-submit-desktop"', false)
+            ->assertSee('data-testid="receipt-submit-mobile"', false)
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/ReceiptForm')
                 ->where('students.0.quote.mode', 'new')
                 ->where('students.0.quote.needed', 24)
