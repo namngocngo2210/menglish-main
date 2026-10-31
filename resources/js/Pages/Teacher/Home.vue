@@ -254,8 +254,8 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                             </Link>
                         </div>
                     </div>
-                    <div class="flex gap-2 overflow-x-auto p-sm md:grid md:grid-cols-7">
-                        <div v-for="day in weekDays" :key="day.label" :class="['min-h-28 min-w-28 flex-1 rounded-lg border border-outline-variant px-xs py-sm md:min-w-0', day.is_today ? 'bg-primary-light' : '']">
+                    <div class="custom-scrollbar flex gap-2 overflow-x-auto p-sm snap-x snap-mandatory md:grid md:grid-cols-7 md:snap-none">
+                        <div v-for="day in weekDays" :key="day.label" :class="['min-h-28 !min-w-[7.5rem] shrink-0 snap-start rounded-lg border border-outline-variant px-xs py-sm md:!min-w-0 md:flex-none', day.is_today ? 'bg-primary-light' : '']">
                             <div :class="['text-xs font-bold', day.is_today ? 'text-primary' : 'text-on-surface-variant']">{{ day.label }}</div>
                             <component
                                 :is="s.can_take ? 'a' : 'div'"
@@ -265,11 +265,11 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                                 :class="['mt-[6px] flex min-h-11 min-w-0 flex-col justify-center rounded-lg border bg-surface-container-lowest px-xs py-[6px] text-xs', weekState(s).border, s.can_take ? 'hover:bg-surface-container-low' : '', s.cancelled ? 'line-through' : '']"
                                 @click="s.can_take && ($event.preventDefault(), openDrawer(attendanceUrl(s.class_id, s.id)))"
                             >
-                                <span class="block break-words font-bold text-on-surface">{{ s.time }}</span>
-                                <span class="block truncate text-on-surface-variant">{{ s.class_name }}</span>
-                                <span v-if="s.type_label" class="block break-words text-on-surface-variant">{{ s.type_label }}</span>
-                                <span :class="['mt-[2px] block font-semibold', weekState(s).cls]">{{ weekState(s).label }}</span>
-                                <span v-if="s.checkin_overdue" class="block font-semibold text-error">Quá hạn chấm công</span>
+                                <span class="block truncate font-bold text-on-surface" :title="s.time">{{ s.time }}</span>
+                                <span class="block truncate text-on-surface-variant" :title="s.class_name">{{ s.class_name }}</span>
+                                <span v-if="s.type_label" class="block truncate text-on-surface-variant" :title="s.type_label">{{ s.type_label }}</span>
+                                <span :class="['mt-[2px] block truncate font-semibold', weekState(s).cls]">{{ weekState(s).label }}</span>
+                                <span v-if="s.checkin_overdue" class="block text-xs font-semibold text-error">Quá hạn chấm công</span>
                             </component>
                         </div>
                     </div>
