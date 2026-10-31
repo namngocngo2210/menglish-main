@@ -353,6 +353,7 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
             ->assertSee('Thứ Tư, 07/10')->assertSee('hôm nay bạn có 1 ca dạy')
             // Thẻ ca: 3 bước Check-in → Điểm danh → Báo cáo buổi; điểm danh mở ngăn kéo (URL thật của ngăn điểm danh).
+            ->assertSee('data-testid="shift-current-step"', false)->assertSee('Bước 1/5')
             ->assertSee('Ca dạy hôm nay')->assertSee('đến 11:30')->assertSee('Phòng 204, Cầu Giấy')
             // 5 bước theo thứ tự; chưa check-in thì mọi bước sau bị khoá.
             ->assertSeeInOrder(['data-step="checkin"', 'data-step="attendance"', 'data-step="lesson"', 'data-step="homework"', 'data-step="report"'], false)

@@ -1,8 +1,5 @@
 <script setup>
-/**
- * Nút ORDER cố định góc màn cho GV (quy trình syllabus Bước 7 — "góc màn hình luôn có nút ORDER", docs/kho-syllabus.md §9.3):
- * nhấp nháy + số mốc khi lớp có mốc order in ấn / mini test / Big Test đến hạn chưa order.
- */
+/** Fixed teacher ORDER shortcut; pulse when printing or test orders are due. */
 import { Link } from '@inertiajs/vue3';
 
 defineProps({ order: { type: Object, required: true } });
@@ -12,7 +9,7 @@ defineProps({ order: { type: Object, required: true } });
     <Link
         :href="order.url"
         :class="[
-            'fixed bottom-24 right-md z-40 inline-flex items-center gap-xs rounded-full px-md py-sm font-body-semibold text-body-small shadow-level-3 transition md:bottom-lg md:right-lg',
+            'fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-md z-30 inline-flex h-11 items-center gap-xs rounded-full px-md py-sm font-body-semibold text-body-small shadow-level-3 transition md:bottom-lg md:right-lg',
             order.count > 0 ? 'motion-safe:animate-pulse bg-error text-white' : 'bg-primary-container text-white',
         ]"
         :aria-label="order.count > 0 ? `ORDER — ${order.count} mốc đến hạn` : 'ORDER'"
