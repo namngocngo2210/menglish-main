@@ -17,6 +17,7 @@ import DailyReportBanner from './Dashboard/DailyReportBanner.vue';
 import FunnelCard from './Dashboard/FunnelCard.vue';
 import KpiGrid from './Dashboard/KpiGrid.vue';
 import MyTasksCard from './Dashboard/MyTasksCard.vue';
+import MobileCollapse from './Dashboard/MobileCollapse.vue';
 import OverviewHeader from './Dashboard/OverviewHeader.vue';
 import RevenueWeeks from './Dashboard/RevenueWeeks.vue';
 import ShiftHero from './Dashboard/ShiftHero.vue';
@@ -51,7 +52,7 @@ const missingReports = computed(() => {
 </script>
 
 <template>
-    <div class="space-y-lg" :data-overview-kind="kind">
+    <div class="min-w-0 space-y-lg" :data-overview-kind="kind">
         <OverviewHeader :greeting="overview.greeting">
             <UiButton v-if="welcome?.tasksUrl" variant="secondary" size="sm" icon="checklist" :href="welcome.tasksUrl">{{ welcome.tasksLabel ?? 'Việc của tôi' }}</UiButton>
             <UiButton v-if="welcome?.salaryUrl" variant="secondary" size="sm" icon="payments" :href="welcome.salaryUrl">Lương của tôi</UiButton>
@@ -62,23 +63,16 @@ const missingReports = computed(() => {
         <!-- Admin / Quản lý cơ sở -->
         <template v-if="operations">
             <KpiGrid :kpis="overview.kpis" />
-            <div v-if="kind === 'admin'" class="grid grid-cols-1 gap-md lg:grid-cols-3">
-                <TodoCard :todo="overview.todo" class="lg:col-span-2" />
-                <AlertsCard :alerts="overview.alerts" :extra="missingReports" />
+            <div class="grid min-w-0 grid-cols-1 items-start gap-md lg:grid-cols-5">
+                <TodoCard :todo="overview.todo" class="lg:col-span-3" />
+                <AlertsCard :alerts="overview.alerts" :extra="missingReports" class="lg:col-span-2" />
             </div>
-            <template v-else>
-                <div class="grid grid-cols-1 gap-md lg:grid-cols-3">
-                    <TodaySessions :sessions="overview.todaySessions" class="lg:col-span-2" />
-                    <AlertsCard :alerts="overview.alerts" :extra="missingReports" />
-                </div>
-                <div class="grid grid-cols-1 items-start gap-md lg:grid-cols-3">
-                    <TodoCard :todo="overview.todo" class="lg:col-span-2" />
-                    <RevenueWeeks :weeks="overview.revenueWeeks" />
-                </div>
-            </template>
-            <div v-if="kind === 'admin'" class="grid grid-cols-1 gap-md lg:grid-cols-3">
-                <BranchTable :branches="overview.branches" class="lg:col-span-2" />
-                <RevenueWeeks :weeks="overview.revenueWeeks" />
+            <div class="grid min-w-0 grid-cols-1 items-start gap-md lg:grid-cols-5">
+                <RevenueWeeks :weeks="overview.revenueWeeks" class="lg:col-span-2" />
+                <MobileCollapse v-if="kind === 'admin'" title="So sánh cơ sở trong tháng" class="lg:col-span-3">
+                    <BranchTable :branches="overview.branches" />
+                </MobileCollapse>
+                <TodaySessions v-else :sessions="overview.todaySessions" class="lg:col-span-3" />
             </div>
         </template>
 

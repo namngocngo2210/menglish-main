@@ -1,9 +1,5 @@
 <script setup>
-/**
- * Lập / Sửa phiếu thu học phí (mockup lap-phieu-thu-hoc-phi).
- * Mở từ dòng học viên / khoản học phí → modal 4xl; "Lập phiếu thu mới" (lập tự do) và mở thẳng URL → trang riêng.
- * Lưu xong trong modal: đóng modal, trang nền có dữ liệu mới. Nút "Lưu nháp" / "Gửi duyệt" gửi kèm submit_action.
- */
+/** Shared receipt editor: remote modal or a full page with a persistent summary. */
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useRemoteModal } from '@/Components/ui/modalContext';
@@ -44,7 +40,7 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
     <UiModalFrame v-if="modal" :title="`${pageTitle} · ${nextReceiptNumber}`" description="Lập, đối soát thanh toán và gửi duyệt phiếu thu học phí / phụ thu.">
         <UiForm :id="formId" :action="action" method="post" class="space-y-6">
             <input v-if="editing" type="hidden" name="_method" value="put" />
-            <ReceiptFields :form="form" prefix="modal-" :recent-rejection="recentRejection" :can-request-cancel="canRequestCancel" />
+            <ReceiptFields :form="form" prefix="modal-" layout="modal" :recent-rejection="recentRejection" :can-request-cancel="canRequestCancel" />
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" type="submit" :form="formId" name="submit_action" value="draft" icon="drafts">Lưu nháp</UiButton>
@@ -57,7 +53,7 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
     <template v-else>
         <UiPageHeader :title="pageTitle" description="Quy trình lập, đối soát thanh toán và xuất hóa đơn/biên lai học viên">
             <template #breadcrumbs>
-                <Link :href="route('tuition.students')" class="hover:text-primary">Danh sách thu phí</Link>
+                <Link :href="route('tuition.students')" class="inline-flex min-h-11 items-center hover:text-primary">Danh sách thu phí</Link>
                 <span class="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
                 <span>{{ editing ? 'Sửa phiếu thu' : 'Lập phiếu thu' }}</span>
             </template>
@@ -71,23 +67,22 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
             </template>
         </UiPageHeader>
 
-        <div class="mx-auto max-w-5xl">
+        <div class="mx-auto max-w-6xl">
             <UiForm :id="formId" :action="action" method="post" class="space-y-6">
                 <input v-if="editing" type="hidden" name="_method" value="put" />
-                <ReceiptFields :form="form" :recent-rejection="recentRejection" :can-request-cancel="canRequestCancel" />
+                <ReceiptFields :form="form" layout="page" :submit-label="submitLabel" :cancel-url="cancelUrl" :recent-rejection="recentRejection" :can-request-cancel="canRequestCancel" />
 
-                <!-- Thanh thao tác dính đáy trong cột nội dung (sticky, không phải fixed) nên không đè lên sidebar. -->
-                <div class="sticky bottom-0 z-30 -mx-md mt-lg border-t border-surface-container-highest/80 bg-surface-container-lowest px-md py-sm shadow-[0_-4px_12px_rgba(0,0,0,0.06)] sm:mx-0 sm:rounded-t-xl">
-                    <div class="flex flex-wrap items-center justify-between gap-sm">
-                        <div class="flex items-center gap-sm">
-                            <UiButton variant="secondary" :href="cancelUrl">Hủy bỏ</UiButton>
-                            <UiButton type="submit" variant="secondary" icon="drafts" name="submit_action" value="draft">Lưu nháp</UiButton>
+                <!-- Sticky within the content column so sidebar and floating actions stay clear. -->
+                <div class="sticky bottom-0 z-30 mt-lg border-t border-surface-container-highest bg-surface-container-lowest px-3 py-3 shadow-sm lg:hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-xs font-medium text-on-surface-variant">Tổng thực thu</p>
+                            <p class="break-words font-code text-xl font-bold text-primary">{{ formatMoney(form.totalAmount || 0) }}</p>
                         </div>
-                        <div class="flex w-full items-center sm:w-auto">
-                            <UiButton type="submit" icon="save" name="submit_action" value="submit" :disabled="!form.isValidReceipt" class="w-full sm:w-auto">
-                                <span>{{ submitLabel }} (<span class="font-code">{{ formatMoney(form.totalAmount || 0) }}</span>)</span>
-                            </UiButton>
-                        </div>
+                        <UiButton type="submit" variant="secondary" icon="drafts" name="submit_action" value="draft" class="min-h-11">Lưu nháp</UiButton>
+                        <UiButton type="submit" icon="save" name="submit_action" value="submit" data-testid="receipt-submit-mobile" :disabled="!form.isValidReceipt" class="min-h-11 w-full !whitespace-normal [&>.material-symbols-outlined]:shrink-0 sm:w-auto">
+                            <span class="min-w-0">{{ submitLabel }} (<span class="font-code">{{ formatMoney(form.totalAmount || 0) }}</span>)</span>
+                        </UiButton>
                     </div>
                 </div>
             </UiForm>

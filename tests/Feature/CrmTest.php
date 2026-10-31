@@ -219,6 +219,19 @@ class CrmTest extends TestCase
         $this->actingAs($user)->get(route('crm.customers.index'))->assertSee(route('crm.customers.deleted'), false);
     }
 
+    public function test_customer_list_has_labelled_row_actions_and_compact_filters(): void
+    {
+        $user = $this->admin();
+        CrmCustomer::create(['code' => 'KH-UX-01', 'name' => 'Khách Giao Diện', 'phone' => '0999 333 444', 'stage' => 'new']);
+
+        $this->actingAs($user)->get(route('crm.customers.index'))
+            ->assertOk()
+            ->assertSee('Bộ lọc thêm (0)', false)
+            ->assertSee('Thêm thao tác cho Khách Giao Diện', false)
+            ->assertSee('Sửa hồ sơ', false)
+            ->assertSee('Khách hàng', false);
+    }
+
     public function test_can_save_and_view_placement_test_score_in_crm_customer_page(): void
     {
         $user = $this->admin();

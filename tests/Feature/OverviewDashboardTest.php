@@ -117,7 +117,13 @@ class OverviewDashboardTest extends TestCase
         $this->lead(['name' => 'Lead A']);
         $this->lead(['name' => 'Lead B', 'branch_id' => $this->otherBranch->id]);
 
-        $overview = $this->actingAs($this->userWithRole('admin', $this->branch))->get(route('dashboard'))->assertOk()->inertiaProps('overview');
+        $page = $this->actingAs($this->userWithRole('admin', $this->branch))->get(route('dashboard'))->assertOk()
+            // Thiết kế lại 31/10: cảnh báo dạng ô mức độ + khối thu gọn trên mobile vẫn có trong HTML.
+            ->assertSee('Cảnh báo vận hành')
+            ->assertSee('So sánh cơ sở trong tháng')
+            ->assertSee('Doanh thu theo tuần')
+            ->assertSee('data-overview-alerts', false);
+        $overview = $page->inertiaProps('overview');
         $this->assertSame('admin', $overview['kind']);
         $this->assertCount(4, $overview['kpis']);
         $this->assertSame('2', $overview['kpis'][2]['value']);

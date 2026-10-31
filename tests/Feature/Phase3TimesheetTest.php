@@ -313,6 +313,14 @@ class Phase3TimesheetTest extends TestCase
             ->assertSee('Buổi thiếu chấm công (1)')->assertSee('data-bulk-confirm', false)->assertSee('Xác nhận theo lịch');
     }
 
+    public function test_teacher_timesheets_show_compact_filters_and_schedule_banner(): void
+    {
+        $this->actingAs($this->academicStaff)->get(route('payroll.timesheets.teachers'))
+            ->assertOk()
+            ->assertSee('Bộ lọc thêm (0)', false)
+            ->assertSee('Chấm công theo lịch', false);
+    }
+
     public function test_bulk_confirm_approves_pending_checkin_instead_of_duplicating(): void
     {
         $this->travelTo(Carbon::parse('2026-10-23 10:00:00'));
