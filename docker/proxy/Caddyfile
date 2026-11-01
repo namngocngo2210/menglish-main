@@ -36,6 +36,12 @@ beejunior.meducation.vn {
 	handle /api/* {
 		reverse_proxy bj-api:8080
 	}
+	# Luyện tập nhóm (rooms): SSE nên tắt buffer (flush_interval -1). Cờ ROOMS_ENABLED=false thì dịch vụ tự trả 503.
+	handle /rt/* {
+		reverse_proxy menglish-learning-rooms:3100 {
+			flush_interval -1
+		}
+	}
 	handle {
 		reverse_proxy bj-web:3100
 	}
