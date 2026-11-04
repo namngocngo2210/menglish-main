@@ -75,17 +75,17 @@ Có gì trong dữ liệu (L = tháng trước, C = tháng này):
 - **KPI Học vụ** 15 mục / 6 nhóm tháng L và C cho `nva`, `giaovu2` (Quản lý chi nhánh chấm).
 - Quy tắc chi tiết: [Hoa hồng tuyển sinh](docs/hoa-hong-tuyen-sinh.md).
 - **Hoa hồng** (Sale `tranmaia`): 4 khách mới SĐT `0377…` chốt vào `DEMO-CG-FAM1`. Khách chốt tháng L−1, đủ 3/3 mốc → **trả ở kỳ L**; 3 khách chốt đầu tháng L → **hoãn** ở kỳ L (chưa đủ 30 ngày); tháng C 2 khách đủ 3/3 mốc → **trả kỳ C**, 1 khách 2/3 mốc → vẫn hoãn. Khách đã được trả hoa hồng **hoàn phí** → giữ nguyên khoản đã trả, không thu hồi. Ngày chốt hoa hồng là ngày đóng học phí thành công đầu tiên.
-- **Kỳ lương**: kỳ L **Đã gửi GV xem** (từ ngày 10: **Đã trả**; khóa; Kế toán đã nhập bậc KPI giữ HS, KPI tự do, thuế TNCN, phụ cấp / khấu trừ tự do rồi tính lại); kỳ C **Đang tính** (đã tính + nhập tay, chờ Admin chốt rồi gửi GV xem). Vòng đời kỳ lương: `docs/vong-doi-ky-luong.md`.
+- **Kỳ lương**: kỳ L **Đã gửi GV xem** (từ ngày 10: **Đã trả**; khóa; Admin đã chốt KPI giữ HS tự đề xuất; KPI tự do của vai trò khác, thuế TNCN, phụ cấp / khấu trừ tự do đã nhập rồi tính lại); kỳ C **Đang tính** (đã tính + nhập tay, chờ Admin chốt rồi gửi GV xem). Vòng đời kỳ lương: `docs/vong-doi-ky-luong.md`.
 
 Đăng nhập để xem (mật khẩu như trên):
 
 | Vai trò | Email | Xem gì |
 |---|---|---|
-| Kế toán | `ketoan2@menglish.edu.vn` | Lương → Danh sách bảng lương: kỳ C "Đang tính" → phiếu lương từng người (nhập bậc KPI / TNCN / dòng tự do, "Đồng bộ & Tính lại"); không có nút chốt / gửi GV xem |
+| Kế toán | `ketoan2@menglish.edu.vn` | Lương → Danh sách bảng lương: kỳ C "Đang tính" → phiếu lương từng người (xem KPI giữ HS tự đề xuất / TNCN / dòng tự do, "Đồng bộ & Tính lại" theo quyền); không có nút chốt / gửi GV xem |
 | Admin | `admin@menglish.edu.vn` | Chốt rồi gửi GV xem kỳ C; kỳ L đã khóa; Đơn giá GV, Mốc hoa hồng, Tham số tính lương, Danh sách vi phạm |
 | Giáo viên part-time | `nguyenvanan@menglish.edu.vn` | "Lương của tôi": chỉ thấy kỳ L (đã gửi GV xem), kỳ C chưa hiện; biên bản của mình để giải trình |
 | GV full-time / TA | `gv.cohuu2@menglish.edu.vn` · `ta.tuan@menglish.edu.vn` | "Lương của tôi" kỳ L (GV full-time: BHXH 10,5% + Công đoàn 0,5% trên mức lương đóng BHXH 5,4 triệu × ngày công; TA: số giờ × đơn giá giờ, không BHXH) |
-| GVNN | `gv.native1@menglish.edu.vn` | Nhóm lương GVNN riêng; phút dạy × 7.500đ, KPI giữ học sinh chọn bậc tay; không có khoản "Buổi có GVNN" trên phiếu của chính GVNN |
+| GVNN | `gv.native1@menglish.edu.vn` | Nhóm lương GVNN riêng; phút dạy × 7.500đ, KPI giữ học sinh lũy tiến theo thâm niên, Admin chốt tiền đề xuất; không có khoản "Buổi có GVNN" trên phiếu của chính GVNN |
 | Học vụ | `nva@menglish.edu.vn` | Chấm công tay, duyệt chấm công, ghi nhận vi phạm, đánh giá KPI (không tự chấm mình) |
 | Quản lý cơ sở | `manager@menglish.edu.vn` | Chốt lỗi vận hành + quyết phạt, ghi nhận nộp phạt, tick mốc chăm sóc tháng đầu, đơn giá GV |
 | Học thuật | `academiclead@menglish.edu.vn` | Chốt lỗi chuyên môn + quyết phạt; khi seed demo lương: phiếu kỳ L có Lương đứng lớp và bảng chi tiết lớp |
@@ -98,6 +98,8 @@ bổ sung lương / KPI các vai trò. Học thuật `academiclead@menglish.edu.
 dạy thay ở `DEMO-CG-SPK27` tháng trước; học phí gắn lớp có ưu đãi và chưa thanh toán. Phiếu kỳ L có **Lương đứng lớp > 0**,
 tính theo **40% × giá niêm yết / buổi của HS giữ cuối kỳ**, không cần bật cờ kiêm nhiệm. Chạy lại không nhân bản;
 phần K27 đã có và kỳ đã chi trả giữ nguyên. Xem [dữ liệu demo lương / KPI](docs/demo-luong-kpi-seed.md).
+
+KPI giữ HS của GV Part-time / Full-time / GVNN tính **lũy tiến theo bảng bậc và thâm niên**, tự đề xuất tiền để Admin chốt. 0 HS giữ được là Không áp dụng; có HS chưa chốt thì chặn chốt kỳ. Học thuật kiêm nhiệm vẫn dùng bậc chọn tay. Xem [công thức KPI giữ HS](docs/luong-giao-vien.md#kpi-giữ-học-sinh-lũy-tiến-tk-2026-0023).
 
 `DemoPayrollSeeder` (`php artisan demo:luong`) bổ sung lớp Speaking Club K27 / K28 cho GVNN, gồm buổi đi muộn / nghỉ để đối chiếu quy tắc lương. Nguồn KPI part-time do `gv.banthoigian1@menglish.edu.vn` (K27, tháng trước) và `gv.thaonguyen@menglish.edu.vn` (K28, tháng này) đảm nhiệm: mỗi người có buổi muộn, 1 buổi nghỉ có phép và 1 buổi nghỉ không phép; GVNN không thuộc vai trò chấm KPI tự đếm. Chạy lại lệnh luôn đồng bộ `gv.native1@menglish.edu.vn` về vai trò `foreign_teacher` và sửa đơn giá demo cũ 450.000đ/buổi thành 7.500đ/phút; đơn giá tự nhập và phiếu lương đã khóa giữ nguyên. Xem [quy tắc lương GVNN](docs/luong-giao-vien.md) và [dữ liệu demo lương / KPI](docs/demo-luong-kpi-seed.md).
 

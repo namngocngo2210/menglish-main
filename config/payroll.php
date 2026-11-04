@@ -53,8 +53,8 @@ return [
     // TA không có KPI, không phụ cấp, không thưởng tái tục; vẫn bị trừ phạt.
     'assistant_hourly_tiers' => [30000, 35000, 40000],
 
-    // ── Part-time: KPI giữ học sinh ──────────────────────────────────────────────
-    // Số HS giữ được × bậc (đ / HS / tháng). Admin chọn bậc bằng tay cho từng GV từng kỳ.
+    // ── Học thuật kiêm nhiệm: KPI giữ học sinh ──────────────────────────────────────────────
+    // Số HS giữ được × bậc chọn tay chỉ cho Học thuật kiêm nhiệm. GV PT / FT / GVNN dùng kpi_retention_tiers lũy tiến.
     'retention_tiers' => [15000, 20000, 25000],
 
     /*

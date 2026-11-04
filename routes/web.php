@@ -436,6 +436,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/periods/{id}/operations', [PayrollController::class, 'operationsPeriod'])->middleware('can:payroll.view')->name('periods.operations');
         Route::post('/records/{id}/update', [PayrollController::class, 'updateRecord'])->middleware('can:payroll.edit')->name('records.update');
         Route::get('/records/{id}', [PayrollController::class, 'showRecord'])->whereNumber('id')->middleware('can:payroll.view')->name('records.show');
+        Route::post('/records/{id}/finalize-kpi', [PayrollController::class, 'finalizeKpi'])->whereNumber('id')->middleware('can:payroll.edit')->name('records.finalize-kpi');
         Route::post('/records/{id}/adjust', [PayrollController::class, 'adjustRecord'])->whereNumber('id')->middleware('can:payroll.edit')->name('records.adjust');
         Route::get('/timesheets/appsheet', [PayrollController::class, 'appsheetTimesheet'])->middleware('can:attendance_staff.view')->name('timesheets.appsheet');
         Route::get('/timesheets/manual', [PayrollController::class, 'manualTimesheet'])->middleware('can:attendance_staff.manual_record')->name('timesheets.manual');
@@ -449,6 +450,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/timesheets/sync-history', [PayrollController::class, 'syncHistory'])->middleware('can:attendance_staff.sync')->name('timesheets.sync-history');
         Route::get('/timesheets/sync-history/{id}/errors', [PayrollController::class, 'exportSyncErrors'])->whereNumber('id')->middleware('can:attendance_staff.sync')->name('timesheets.sync-history.errors');
         Route::get('/kpi-leaderboard', [PayrollController::class, 'kpiLeaderboard'])->middleware('can:kpi.view')->name('kpi-leaderboard');
+        Route::get('/config/kpi-tiers', [PayrollController::class, 'kpiTiers'])->middleware('can:teacher_rate.manage')->name('config.kpi-tiers');
+        Route::match(['post', 'put'], '/config/kpi-tiers', [PayrollController::class, 'storeKpiTiers'])->middleware('can:teacher_rate.manage')->name('config.kpi-tiers.store');
         Route::get('/config/settings', [PayrollController::class, 'configSettings'])->middleware('can:teacher_rate.manage')->name('config.settings');
         Route::post('/config/settings', [PayrollController::class, 'storeSettings'])->middleware('can:teacher_rate.manage')->name('config.settings.store');
         Route::get('/config/teacher-rates', [PayrollController::class, 'teacherRates'])->middleware('can:teacher_rate.manage')->name('config.teacher-rates');

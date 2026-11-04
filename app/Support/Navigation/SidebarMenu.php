@@ -540,6 +540,7 @@ final class SidebarMenu
                 'items' => self::anchored(self::PAYROLL, [
                     ['label' => 'Tham số lương', 'route' => 'payroll.config.settings'],
                     ['label' => 'Đơn giá giáo viên', 'route' => 'payroll.config.teacher-rates'],
+                    ['label' => 'Bậc KPI giữ học sinh', 'route' => 'payroll.config.kpi-tiers'],
                     ['label' => 'Mốc hoa hồng / Thưởng', 'route' => 'payroll.config.commission-tiers'],
                 ]),
             ],

@@ -106,11 +106,11 @@ class DemoPhase3Seeder extends Seeder
 
     /** Khoản Kế toán nhập tay trên phiếu lương mỗi kỳ (giữ khi tính lại). */
     private const MANUAL_INPUTS = [
-        'teacher_cg' => ['retention_tier' => 20000, 'foreign_session_pay' => 0, 'lines' => [['kind' => 'earning', 'label' => 'Gửi xe', 'amount' => 100000]]],
-        'assistant_cg' => ['retention_tier' => 15000, 'lines' => []],
-        'assistant_bd' => ['retention_tier' => 15000, 'lines' => [['kind' => 'deduction', 'label' => 'Tạm ứng', 'amount' => 100000]]],
-        'teacher_ft_cg' => ['kpi_manual_amount' => 800000, 'tax_deduction' => 300000, 'lines' => [['kind' => 'earning', 'label' => 'Phụ cấp trách nhiệm', 'amount' => 500000]]],
-        'teacher_bd' => ['kpi_manual_amount' => 1000000, 'tax_deduction' => 200000, 'lines' => [['kind' => 'earning', 'label' => 'Hỗ trợ thỏa thuận', 'amount' => 300000]]],
+        'teacher_cg' => ['foreign_session_pay' => 0, 'lines' => [['kind' => 'earning', 'label' => 'Gửi xe', 'amount' => 100000]]],
+        'assistant_cg' => ['lines' => []],
+        'assistant_bd' => ['lines' => [['kind' => 'deduction', 'label' => 'Tạm ứng', 'amount' => 100000]]],
+        'teacher_ft_cg' => ['tax_deduction' => 300000, 'lines' => [['kind' => 'earning', 'label' => 'Phụ cấp trách nhiệm', 'amount' => 500000]]],
+        'teacher_bd' => ['tax_deduction' => 200000, 'lines' => [['kind' => 'earning', 'label' => 'Hỗ trợ thỏa thuận', 'amount' => 300000]]],
         'lead' => ['kpi_manual_amount' => 1500000, 'tax_deduction' => 750000, 'lines' => []],
         'academic_cg' => ['tax_deduction' => 100000, 'lines' => [['kind' => 'earning', 'label' => 'Gửi xe', 'amount' => 100000]]],
         'academic_bd' => ['tax_deduction' => 50000, 'lines' => []],
@@ -706,6 +706,12 @@ class DemoPhase3Seeder extends Seeder
             $this->asUser($accountant, PayrollController::class, 'adjustRecord', $input + [
                 'adjustment_notes' => 'Kế toán nhập tay kỳ '.$month->format('m/Y').' (demo Phase 3).',
             ], ['id' => $record->id]);
+        }
+        foreach ($period->records()->where('kpi_source', PayrollRecord::KPI_RETENTION)
+            ->where('teaching_concurrent', false)->where('retention_students', '>', 0)->get() as $record) {
+            if (in_array($record->user_id, array_map(fn ($user) => $user->id, $this->staff), true)) {
+                $this->asUser($accountant, PayrollController::class, 'finalizeKpi', [], ['id' => $record->id]);
+            }
         }
         Carbon::setTestNow(now()->addMinutes(15));
         $this->asUser($accountant, PayrollController::class, 'calculatePeriod', [], ['id' => $period->id]);
