@@ -213,6 +213,66 @@ class Phase3FormulaTest extends TestCase
 
     // ───────────── B. Part-time ─────────────
 
+    /** Đóng lượt xếp lớp (thôi học / chuyển lớp) vào ngày $date qua left_at. */
+    private function leaveOn(Student $student, string $date): void
+    {
+        ClassEnrollment::where('student_id', $student->id)->update(['left_at' => $date, 'status' => Student::ENROLLMENT_DROPPED]);
+    }
+
+    /** TK-2026-0027 (BR-05): ví dụ GV KPI-6 — 7 HS (1 rời 20/10) + lớp chỉ có ca không hợp lệ (2 HS) → giữ 6, nghỉ 1. */
+    public function test_retention_counts_only_classes_with_valid_session_and_excludes_students_who_left(): void
+    {
+        $teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV KPI-6']);
+        $k6 = $this->classFor($teacher, 'GDT-K6');
+        $k6x = $this->classFor($teacher, 'GDT-K6X');
+        $students = collect(range(1, 7))->map(fn () => $this->enrolledStudent($k6));
+        collect(range(1, 2))->each(fn () => $this->enrolledStudent($k6x));
+        $this->leaveOn($students[0], '2026-10-20');
+        $this->timesheet($teacher, $k6, '2026-10-05');
+        TeacherTimesheet::create(['user_id' => $teacher->id, 'class_id' => $k6x->id, 'teaching_date' => '2026-10-06',
+            'hours' => 1.5, 'type' => 'regular', 'status' => 'invalid']);
+
+        $record = $this->record($this->calculate($this->period(10)), $teacher);
+
+        $this->assertSame(7, $record->retention_base_students);
+        $this->assertSame(6, $record->retention_students);
+        $this->assertSame(1, (int) data_get($record->calculation_details, 'retention.lost'));
+    }
+
+    public function test_retention_ignores_leave_before_period_and_keeps_leave_after_period(): void
+    {
+        $teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV giữ HS']);
+        $class = $this->classFor($teacher, 'RET-G');
+        $stay = $this->enrolledStudent($class);
+        $leftBefore = $this->enrolledStudent($class);
+        $leftAfter = $this->enrolledStudent($class);
+        $this->leaveOn($leftBefore, '2026-09-30');   // trước kỳ: không thuộc mẫu số
+        $this->leaveOn($leftAfter, '2026-11-02');    // sau kỳ: vẫn tính giữ
+        $this->timesheet($teacher, $class, '2026-10-05');
+
+        $record = $this->record($this->calculate($this->period(10)), $teacher);
+
+        $this->assertSame(2, $record->retention_base_students);
+        $this->assertSame(2, $record->retention_students);
+        $this->assertSame(0, (int) data_get($record->calculation_details, 'retention.lost'));
+        $this->assertNotNull($stay);
+    }
+
+    public function test_retention_has_no_base_when_teacher_only_has_invalid_sessions(): void
+    {
+        $teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV chỉ ca lỗi']);
+        $class = $this->classFor($teacher, 'RET-I');
+        $this->enrolledStudent($class);
+        TeacherTimesheet::create(['user_id' => $teacher->id, 'class_id' => $class->id, 'teaching_date' => '2026-10-06',
+            'hours' => 1.5, 'type' => 'regular', 'status' => 'invalid']);
+        $this->timesheet($teacher, $this->classFor(null, 'RET-EMPTY'), '2026-10-07');   // có ca hợp lệ để phát sinh phiếu lương
+
+        $record = $this->record($this->calculate($this->period(10)), $teacher);
+
+        $this->assertSame(0, $record->retention_base_students);
+        $this->assertSame(0, $record->retention_students);
+    }
+
     public function test_part_time_teacher_is_paid_per_session_plus_retention_kpi_foreign_line_and_free_lines(): void
     {
         // Lương cơ bản trên hồ sơ KHÔNG áp dụng cho Part-time

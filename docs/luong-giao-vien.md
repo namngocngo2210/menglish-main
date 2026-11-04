@@ -41,7 +41,7 @@ Phiếu lương có bảng theo lớp: **Lớp | Số buổi dạy | HS còn gi�
 Giá trị một buổi là tổng giá niêm yết theo buổi của HS giữ cuối kỳ; tổng giá trị các buổi thực tính còn phụ thuộc
 ngày vào lớp và bảo lưu từng ngày. Tiền được làm tròn đến đồng theo lớp rồi cộng tổng.
 
-KPI giữ HS của phần đứng lớp vẫn theo khối tính cũ (`HS giữ được × bậc chọn trên phiếu lương`), áp dụng cả Học thuật
+KPI giữ HS của phần đứng lớp (chỉ lớp có ca dạy hợp lệ trong kỳ; HS có `left_at` trong kỳ tính là nghỉ) vẫn theo khối tính cũ (`HS giữ được × bậc chọn trên phiếu lương`), áp dụng cả Học thuật
 chưa bật cờ nhưng đã dạy. **Phiếu KPI giảng dạy riêng** vẫn phụ thuộc cờ kiêm nhiệm như trước. Học thuật chưa bật cờ
 và không có ca lớp hợp lệ giữ phiếu lương cũ; đã bật cờ nhưng chưa có ca vẫn có phần kiêm nhiệm với lương đứng lớp 0đ.
 Kỳ đã khóa không tự tính lại khi đổi dữ liệu học phí / lớp.

@@ -59,14 +59,12 @@ return [
 
     /*
      * Định nghĩa "số HS giữ được" (chờ BA xác nhận):
-     * - Lớp tính: lớp GV là GV chính (classes.teacher_id) — 'main_teacher'; hoặc thêm cả lớp GV có ca dạy
-     *   hợp lệ trong kỳ — 'main_teacher_or_taught'.
+     * - Lớp tính: chỉ lớp GV có ít nhất một ca dạy hợp lệ trong kỳ (TK-2026-0027, BR-05).
      * - Mẫu số: học viên đang có lượt xếp lớp hiệu lực trong lớp TẠI NGÀY ĐẦU KỲ.
      * - Giữ được: trong số đó, học viên KHÔNG chuyển sang các trạng thái ở 'lost_statuses' (mặc định chỉ
      *   Thôi học) tính tới NGÀY CUỐI KỲ. Bảo lưu / Nghỉ hè vẫn tính là giữ được.
      */
     'retention' => [
-        'class_scope' => 'main_teacher_or_taught',
         'lost_statuses' => ['dropped'],
     ],
 
