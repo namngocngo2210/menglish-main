@@ -187,7 +187,7 @@ class ForeignTeacherPayrollTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('timesheets.0.unit', 'minute')->where('timesheets.0.minutes', 90));
     }
 
-    public function test_foreign_teacher_retention_uses_assigned_foreign_classes_and_taught_classes_with_manual_tier(): void
+    public function test_foreign_teacher_retention_uses_assigned_foreign_classes_and_progressive_finalization(): void
     {
         config(['payroll.retention.class_scope' => 'main_teacher']);
         $this->rate($this->foreign);
@@ -206,11 +206,11 @@ class ForeignTeacherPayrollTest extends TestCase
         $this->assertSame(PayrollRecord::KPI_RETENTION, $record->kpi_source);
         $this->assertSame(2, $record->retention_students);
         $this->assertSame(['pending', 'Chưa chốt KPI'], $record->kpi_state);
-        $this->actingAs($this->admin)->post(route('payroll.records.adjust', $record->id), ['retention_tier' => 15000])->assertSessionHasNoErrors();
-        $this->assertEquals(30000, $record->fresh()->kpi_bonus);
+        $this->actingAs($this->admin)->post(route('payroll.records.finalize-kpi', $record->id))->assertSessionHasNoErrors();
+        $this->assertEquals(50000, $record->fresh()->kpi_bonus);
         $this->assertSame('done', $record->fresh()->kpi_state[0]);
         $period->calculatePayrollForPeriod();
-        $this->assertEquals(30000, $this->record($period)->kpi_bonus);
+        $this->assertEquals(50000, $this->record($period)->kpi_bonus);
     }
 
     public function test_foreign_session_count_follows_session_assignment_and_legacy_date_fallback(): void

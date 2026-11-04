@@ -246,7 +246,7 @@ function filter(event) {
                         <td v-if="r.kpi_source === 'self'" class="text-right font-mono text-on-surface-variant">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '%' : '—' }}</td>
                         <td v-else class="text-right font-mono">
                             {{ formatMoney(r.kpi_bonus) }}
-                            <p v-if="r.kpi_source === 'retention'" class="font-caption text-caption text-on-surface-variant">{{ r.retention_students }} HS × {{ r.retention_tier !== null ? money(r.retention_tier) : 'chưa chọn bậc' }}</p>
+                            <p v-if="r.kpi_source === 'retention'" class="font-caption text-caption text-on-surface-variant">{{ r.retention_tier !== null ? `${r.retention_students} HS × ${money(r.retention_tier)}` : `${r.retention_students} HS · ${r.teaching_concurrent ? 'chưa chọn bậc' : 'Lũy tiến'}` }}</p>
                             <p v-else-if="r.kpi_source === 'academic_kpi'" class="font-caption text-caption text-on-surface-variant">{{ r.kpi_score !== null ? trimNumber(r.kpi_score, 2, '.', ',') + '% quỹ' : 'chưa chấm' }}</p>
                         </td>
                         <td class="text-right">

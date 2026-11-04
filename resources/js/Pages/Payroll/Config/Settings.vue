@@ -28,15 +28,23 @@ const renewalRowError = computed(() => {
 
 <template>
     <div>
-        <UiPageHeader title="Cấu hình Tham số Lương" icon="tune" :back="route('payroll.periods.index')" description="BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục." />
+        <UiPageHeader title="Cấu hình Tham số Lương" icon="tune" :back="route('payroll.periods.index')" description="BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục.">
+            <template #actions>
+                <UiButton variant="secondary" icon="military_tech" :href="route('payroll.config.kpi-tiers')">Bảng bậc KPI giữ HS</UiButton>
+            </template>
+        </UiPageHeader>
 
         <div class="max-w-3xl space-y-5">
             <UiAlert type="info">
                 <div class="space-y-1 text-xs leading-relaxed text-on-surface-variant">
                     <p>Thay đổi chỉ áp dụng khi <strong>tính/tính lại</strong> các kỳ lương về sau. Kỳ lương <strong>Đã chốt / Đã gửi GV xem / Đã trả</strong> không bị ảnh hưởng.</p>
-                    <p><strong>Part-time</strong> = số buổi × đơn giá buổi riêng (màn Đơn giá GV) + KPI giữ HS (bậc {{ settings.retention_tiers }}đ, chọn trên phiếu lương) + buổi có GVNN (chờ BA) + phụ cấp tự do − khoản trừ. Không BHXH / Công đoàn.</p>
+                    <p><strong>Part-time</strong> = số buổi × đơn giá buổi riêng (màn Đơn giá GV) + KPI giữ HS (lũy tiến theo thâm niên, cấu hình tại trang Bậc KPI) + buổi có GVNN (chờ BA) + phụ cấp tự do − khoản trừ. Không BHXH / Công đoàn.</p>
                     <p><strong>Full-time</strong> = (lương cơ bản + phụ cấp hợp đồng) ÷ công chuẩn × công hưởng lương + KPI / hoa hồng / thưởng tái tục (chỉ Học vụ) / phụ cấp − BHXH − Công đoàn (trên mức lương đóng BHXH, chỉ GV full-time / Học vụ / Học thuật) − đi muộn − quên chấm công − thuế TNCN (nhập tay) − trừ vi phạm.</p>
                     <p><strong>Trợ giảng</strong> = số giờ dạy hợp lệ × đơn giá giờ (bậc {{ settings.assistant_hourly_tiers }}đ, chọn ở màn Đơn giá GV) − khoản trừ. Không KPI, không phụ cấp, không thưởng tái tục.</p>
+                    <p><strong>Học thuật kiêm nhiệm</strong> = KPI giữ HS tính theo bậc đơn giá cố định ({{ settings.retention_tiers }}đ/hs, chọn trên phiếu lương).</p>
+                    <div class="pt-2">
+                        <UiButton variant="secondary" size="sm" icon="military_tech" :href="route('payroll.config.kpi-tiers')">Cấu hình Bảng bậc KPI giữ HS</UiButton>
+                    </div>
                 </div>
             </UiAlert>
 

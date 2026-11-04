@@ -7,6 +7,43 @@ Xếp lớp gắn các khoản NULL chưa dùng hết vào lớp chính; chuyể
 chuyển sang lớp mới, giữ lớp cũ cho khoản đã dùng hết. Không tự tính lại lương, kỳ đã khóa giữ nguyên.
 Xem [quy tắc gắn lớp học phí và lệnh bù dữ liệu](hoc-phi-gan-lop.md).
 
+## KPI giữ học sinh lũy tiến (TK-2026-0023)
+
+GV Part-time, GV Full-time (`teacher_fulltime`) và GVNN dùng chung bảng `kpi_retention_tiers`.
+Thâm niên là số tháng tròn từ ngày bắt đầu hợp đồng đến ngày cuối kỳ lương; thiếu ngày hoặc ngày bắt đầu
+ở tương lai thì bằng 0. Chọn nhóm có mốc thâm niên lớn nhất không vượt thâm niên của GV; nếu không có
+thì chọn nhóm nhỏ nhất. Bảng trống cho KPI 0đ.
+
+Mặc định nhóm từ **0 tháng**: HS thứ **1–5: 25.000đ/HS**, HS thứ **6–10: 30.000đ/HS**.
+Tiền tính **lũy tiến từng bậc**; vượt bậc cuối tiếp tục dùng đơn giá bậc cuối. Ví dụ:
+
+| HS giữ được | KPI đề xuất |
+| --- | --- |
+| 0 | 0đ |
+| 5 | 125.000đ |
+| 6 | 155.000đ |
+| 8 | 215.000đ (5 × 25.000 + 3 × 30.000) |
+| 10 | 275.000đ |
+| 11 | 305.000đ |
+
+**Đồng bộ & Tính lại** tự tính tiền đề xuất, lưu thâm niên và các phần tiền để giải thích trên phiếu.
+Admin chỉ **Chốt KPI**, không chọn bậc 15/20/25k hay nhập tiền KPI cho GV Full-time.
+Có HS giữ được mà chưa chốt thì **chặn chốt bảng lương**. **0 HS giữ được** là **Không áp dụng**,
+KPI 0đ, không chặn chốt dù có HS đầu kỳ. Tính lại đổi số tiền thì tự bỏ chốt (cả người chốt và thời điểm);
+số tiền không đổi thì giữ chốt. Kỳ đã chốt / gửi GV xem / trả không cho chốt KPI hoặc tính lại.
+
+Cấu hình bảng bậc dùng quyền `teacher_rate.manage`: `GET /payroll/config/kpi-tiers` trả trang
+`Payroll/Config/KpiTiers` với `bands: [{min_seniority_months, tiers: [{from_students, to_students, rate}]}]`.
+`POST` / `PUT` cùng URL thay toàn bộ bảng trong giao dịch: phải có nhóm 0 tháng, các mốc thâm niên không trùng,
+mỗi nhóm bắt đầu từ HS 1 và các bậc liên tiếp; chỉ bậc cuối được có `to_students: null` (không giới hạn).
+Đơn giá không âm, lưu đến 2 chữ số thập phân. Seed mặc định chỉ bổ sung khi bảng trống, không ghi đè cấu hình Admin.
+Giao diện cấu hình và nút chốt được triển khai riêng; backend cung cấp `kpi_finalized`, `kpi_tier_parts`,
+`kpi_proposed` trên phiếu và `POST /payroll/records/{id}/finalize-kpi` (quyền `payroll.edit`).
+
+**Ngoại lệ giữ nguyên:** Học thuật kiêm nhiệm dùng `HS giữ được × retention_tier` chọn tay;
+Học vụ dùng KPI đánh giá, Sale / nhân sự khác dùng KPI nhập tay, Admin giữ quy tắc riêng. Trợ giảng không có KPI giữ HS.
+Sau khi nâng cấp cần tính lại kỳ đang mở để chuyển các phiếu GV cũ sang công thức mới; kỳ đã khóa giữ số tiền đã lưu.
+
 ## Lương đứng lớp Học thuật (TK-2026-0018)
 
 Học thuật (`academic_lead`, vai trò tính lương `Roles::ACADEMIC_LEAD`) có ca dạy lớp hợp lệ trong kỳ được cộng
@@ -59,8 +96,8 @@ cảnh báo thiếu đơn giá; không tự đổi đơn giá theo giờ / buổ
 
 GVNN không tính thuế TNCN, phạt đi muộn, quên chấm công, vắng hoặc các phạt tự động. Ca vắng không có công hợp lệ không phát
 sinh tiền dạy và không cộng thêm tiền phạt. **Biên bản lập tay đã được người có thẩm quyền quyết phạt vẫn được trừ lương** khi
-đủ điều kiện; các khoản nhập tay khác vẫn đi theo luồng hiện tại. KPI giữ học sinh dùng bậc do người tính lương chọn tay; nếu
-cần bậc mà chưa chọn thì KPI còn chờ chốt, chặn chốt kỳ theo quy tắc chung.
+đủ điều kiện; các khoản nhập tay khác vẫn đi theo luồng hiện tại. KPI giữ học sinh tính lũy tiến theo thâm niên như GV PT / FT; có HS giữ được thì Admin phải chốt số tiền
+đề xuất trước khi chốt kỳ. 0 HS giữ được là Không áp dụng.
 
 Khoản **Buổi có GVNN** trên phiếu GV Việt Nam đếm **theo từng buổi** của chính GV Việt Nam: buổi đó phải có
 `class_sessions.foreign_teacher_id` và GVNN được gán có ca công hợp lệ cùng lớp / ngày. Không suy ra từ GVNN mặc định của lớp,
