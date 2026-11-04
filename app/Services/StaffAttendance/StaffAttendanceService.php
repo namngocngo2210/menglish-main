@@ -641,7 +641,7 @@ class StaffAttendanceService
      * - Công hưởng lương (paid_days), chỉ tính từ ngày bắt đầu hợp đồng nếu vào giữa kỳ:
      *   · ngày có chấm vào: đủ vào + ra = 1 công (kể cả đã chấm công bù được duyệt); có vào, quên ra, không bù (ngày đã qua)
      *     = 0,5 công;
-     *   · ngày nghỉ phép đã duyệt (như summary()['leave_days']);
+     *   · KHÔNG cộng ngày nghỉ phép đã duyệt (TK-0028, BR-19): đơn nghỉ chỉ để theo dõi, ngày không chấm công không phải ngày công;
      *   · ngày lễ rơi vào ngày làm việc (config payroll.workday.paid_holidays).
      * - Quên chấm công (missing_punches): mỗi lần quên chấm vào / chấm ra — ngày có vào mà không ra (chưa bù), hoặc đơn
      *   "Bổ sung công" đã duyệt bù giờ vào / giờ ra (mỗi giờ bù = 1 lần). Phạt mỗi lần trên bảng lương.
@@ -740,7 +740,7 @@ class StaffAttendanceService
         }
 
         $result['missing_punches'] = $result['missing_check_in'] + $result['missing_check_out'];
-        $result['paid_days'] = round($worked + $result['leave_days'] + $result['holiday_days'], 2);
+        $result['paid_days'] = round($worked + $result['holiday_days'], 2);
 
         return $result;
     }
