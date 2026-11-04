@@ -384,7 +384,7 @@ class PayrollWorkdayRulesTest extends TestCase
         $this->assertEquals(13000000, $record->base_salary_paid);
     }
 
-    public function test_holiday_stays_in_denominator_and_is_paid_and_approved_leave_is_paid(): void
+    public function test_holiday_stays_in_denominator_and_is_paid_and_approved_leave_is_not_paid(): void
     {
         $staff = $this->fulltime('teacher_fulltime', 13000000);
         Holiday::create(['code' => 'HOL-WD-1', 'name' => 'Quốc khánh', 'start_date' => '2026-09-02', 'end_date' => '2026-09-02', 'is_system_wide' => true]);
@@ -399,9 +399,51 @@ class PayrollWorkdayRulesTest extends TestCase
 
         $this->assertSame(26, $workdays['standard_days']); // ngày lễ không trừ khỏi mẫu số
         $this->assertSame(1, $workdays['holiday_days']);
-        $this->assertSame(1, $workdays['leave_days']);
-        $this->assertEquals(26, $workdays['paid_days']);
-        $this->assertEquals(13000000, $record->base_salary_paid);
+        $this->assertSame(1, $workdays['leave_days']); // chỉ theo dõi
+        $this->assertEquals(25, $workdays['paid_days']); // 24 ngày chấm công + 1 ngày lễ; nghỉ phép không tính
+        $this->assertEquals(round(13000000 * 25 / 26), $record->base_salary_paid);
+    }
+
+    private function leaveRequest(User $staff, string $date): void
+    {
+        StaffAttendanceRequest::create(['user_id' => $staff->id, 'branch_id' => $this->branch->id, 'type' => StaffAttendanceRequest::TYPE_LEAVE,
+            'date_from' => $date, 'date_to' => $date, 'reason' => 'Việc riêng', 'status' => StaffAttendanceRequest::STATUS_APPROVED,
+            'reviewed_by' => $this->admin->id, 'reviewed_at' => '2026-10-27 10:00:00']);
+    }
+
+    public function test_tk_0028_approved_leave_without_attendance_is_not_a_worked_day(): void
+    {
+        $staff = $this->fulltime('teacher_fulltime', 10000000, ['contract_start_date' => '2026-10-21', 'monthly_allowance' => 800000]);
+        foreach ([21, 22, 23, 24, 26, 27, 29, 30, 31] as $d) {
+            $this->attendDay($staff, "2026-10-$d");
+        }
+        $this->leaveRequest($staff, '2026-10-28');
+
+        $this->travelTo(Carbon::parse('2026-11-02 09:00:00'));
+        $record = $this->record($this->calculate($this->period(10)), $staff);
+
+        $this->assertSame(27, data_get($record->calculation_details, 'workdays.standard_days'));
+        $this->assertEquals(9, data_get($record->calculation_details, 'workdays.paid_days'));
+        $this->assertSame(1, data_get($record->calculation_details, 'workdays.leave_days'));
+        $this->assertEquals(3333333, $record->base_salary_paid);
+        $this->assertEquals(266667, $record->contract_allowance);
+        $this->assertEquals(189000, $record->insurance_deduction);
+        $this->assertEquals(9000, $record->union_deduction);
+    }
+
+    public function test_tk_0028_leave_day_with_attendance_still_counts_once(): void
+    {
+        $staff = $this->fulltime('teacher_fulltime', 10000000, ['contract_start_date' => '2026-10-21']);
+        foreach ([21, 22, 23, 24, 26, 27, 28, 29, 30, 31] as $d) {
+            $this->attendDay($staff, "2026-10-$d");
+        }
+        $this->leaveRequest($staff, '2026-10-28');
+
+        $this->travelTo(Carbon::parse('2026-11-02 09:00:00'));
+        $workdays = data_get($this->record($this->calculate($this->period(10)), $staff)->calculation_details, 'workdays');
+
+        $this->assertEquals(10, $workdays['paid_days']);
+        $this->assertSame(0, $workdays['leave_days']);
     }
 
     public function test_contract_starting_mid_month_pays_only_days_after_start(): void
