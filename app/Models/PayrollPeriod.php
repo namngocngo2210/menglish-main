@@ -441,10 +441,6 @@ class PayrollPeriod extends Model
             ->where(fn ($query) => $query->where(fn ($active) => $active->where('is_active', true)->whereNull('deleted_at')->staffAccounts())
                 ->orWhereIn('id', $departedIds))
             ->get();
-        // Ca dạy hợp lệ trong kỳ theo lớp + ngày + người: tra "buổi có GVNN" không phải truy vấn từng ca.
-        $validSessionKeys = TeacherTimesheet::whereBetween('teaching_date', [$this->start_date, $this->end_date])
-            ->where('status', 'valid')->get(['class_id', 'teaching_date', 'user_id'])
-            ->mapWithKeys(fn (TeacherTimesheet $ts) => [$ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$ts->user_id => true]);
         // Nạp phân công GVNN từng buổi một lần; ca cũ chưa gắn class_session_id tra theo lớp + ngày.
         $periodSessions = ClassSession::whereBetween('date', [$this->start_date, $this->end_date])
             ->get(['id', 'class_id', 'date', 'foreign_teacher_id']);
@@ -498,10 +494,21 @@ class PayrollPeriod extends Model
             $paysSessions = $isPartTime || $share !== null;
             // Trợ giảng (TK-0010): số giờ hợp lệ × đơn giá giờ của TA; không có đơn giá giờ → 0đ + cảnh báo.
             $isAssistant = $profile['salary_role'] === Roles::ASSISTANT;
+            // BR-03: buổi GV Việt Nam có GVNN cùng dạy (class_sessions.foreign_teacher_id) đếm riêng và không vào lương buổi tự tính; Kế toán nhập tay.
+            $coTaughtIds = $isForeignTeacher ? collect() : $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $sessionsById, $sessionsByClassDate) {
+                $assigned = $ts->class_session_id
+                    ? collect([$sessionsById->get($ts->class_session_id)])->filter()
+                    : $sessionsByClassDate->get($ts->class_id.'|'.$ts->teaching_date?->toDateString(), collect());
+
+                return $assigned->contains(fn (ClassSession $session) => $session->foreign_teacher_id && (int) $session->foreign_teacher_id !== (int) $user->id);
+            })->pluck('id')->flip();
+            $foreignSessions = $coTaughtIds->count();
+            $excludesCoTaught = $share === null && $isPartTime && ! $isAssistant;
             $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => match (true) {
                 $share !== null => $share['outcomes'][$ts->id] ?? ['amount' => 0.0, 'counted' => false, 'late_rule' => null, 'unit' => null],
                 $isForeignTeacher => $ts->foreignTeacherPayOutcome(),
                 $isAssistant => $ts->assistantPayOutcome($settings),
+                $excludesCoTaught && $coTaughtIds->has($ts->id) => ['amount' => 0.0, 'counted' => false, 'late_rule' => null, 'unit' => null],
                 default => $ts->payOutcome($user, $settings),
             });
             // Ca đi muộn / về sớm từ ngưỡng mà không báo trước: không tính buổi (Part-time và Học thuật kiêm nhiệm; Full-time lương cơ bản không đổi).
@@ -520,20 +527,6 @@ class PayrollPeriod extends Model
                 'rule' => $outcomes[$i]['late_rule'],
                 'deduction' => $outcomes[$i]['late_deduction'],
             ] : null)->filter()->values()->all() : [];
-
-            // Buổi có GVNN theo phân công từng buổi; Kế toán vẫn nhập tay tổng tiền cho GV Việt Nam.
-            $foreignSessions = $isForeignTeacher ? 0 : $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $validSessionKeys, $sessionsById, $sessionsByClassDate) {
-                $assigned = $ts->class_session_id
-                    ? collect([$sessionsById->get($ts->class_session_id)])->filter()
-                    : $sessionsByClassDate->get($ts->class_id.'|'.$ts->teaching_date?->toDateString(), collect());
-
-                return $assigned->contains(function (ClassSession $session) use ($ts, $user, $validSessionKeys) {
-                    $foreignTeacherId = $session->foreign_teacher_id;
-
-                    return $foreignTeacherId && (int) $foreignTeacherId !== (int) $user->id
-                        && $validSessionKeys->has($ts->class_id.'|'.$ts->teaching_date?->toDateString().'|'.$foreignTeacherId);
-                });
-            })->count();
 
             // 2. Hoa hồng: khoản đạt gate kép trong kỳ (kể cả khoản hoãn từ kỳ trước); còn lại hoãn.
             $commission = $commissionByUser->get($user->id, ['payable' => collect(), 'deferred' => collect()]);
@@ -675,7 +668,7 @@ class PayrollPeriod extends Model
 
             // Bỏ qua nhân sự không có khoản nào phát sinh trong kỳ (phạt quá hạn một mình không tạo phiếu — chờ kỳ có lương)
             if ($baseSalary == 0 && $sessions == 0 && $commissionBonus == 0 && $commissionClawback == 0 && $commissionDeferred == 0
-                && $kpiAuto == 0 && $renewal['amount'] == 0 && ! $hasManualInput) {
+                && $kpiAuto == 0 && $renewal['amount'] == 0 && $foreignSessions == 0 && ! $hasManualInput) {
                 continue;
             }
 

@@ -657,7 +657,7 @@ class PayrollBusinessTest extends TestCase
         $mainRecord = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $this->teacherUser->id)->firstOrFail();
         $this->assertSame(2, $mainRecord->foreign_teacher_sessions_count);   // gợi ý cho dòng "Buổi có GVNN"
         $this->assertEquals(0, $mainRecord->foreign_teacher_deduction);
-        $this->assertEquals(1200000, $mainRecord->net_salary);              // 4h × 300.000đ (chưa có đơn giá buổi)
+        $this->assertEquals(0, $mainRecord->net_salary);                    // BR-03: cả 2 buổi có GVNN → loại khỏi lương buổi tự tính
 
         // Chính GVNN không được đếm theo chính mình.
         $foreignRecord = PayrollRecord::where('payroll_period_id', $period->id)->where('user_id', $foreignTeacher->id)->firstOrFail();
