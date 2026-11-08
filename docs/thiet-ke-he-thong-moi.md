@@ -696,7 +696,7 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | Rủi ro | Mức | Cách giảm |
 | --- | --- | --- |
 | Công thức tiền (lương, học phí, hoa hồng) làm lại sai | Cao | Hàm thuần + test bảng lấy kịch bản từ test cũ; đối chiếu phiếu lương thật nếu hệ thống cũ còn chạy |
-| Quy tắc lương còn để sau (% tái tục khi lớp nghỉ từ 2 HS) | Cao | Chốt trước giai đoạn 6; tham số hóa thay vì viết cứng |
+| Thưởng tái tục (TK-2026-0033) | Đã chốt | Chỉ Học vụ: có HS đầu kỳ nghỉ → 0%; giữ nguyên → 1%; tăng HS → 1,5%; Admin chỉnh hai tỷ lệ |
 | Lọt quyền giữa chi nhánh | Cao | Policy tường minh + test phạm vi bắt buộc cho mọi danh sách và thao tác ghi |
 | VPS 4 GB RAM thiếu bộ nhớ hoặc đầy ổ 30 GB | Trung bình | Giới hạn RAM từng container, swap 2 GB, file và sao lưu trên R2, xoay vòng log, cảnh báo ở 80%; nâng gói khi chạm ngưỡng ở mục Triển khai |
 | Một VPS là điểm lỗi duy nhất | Trung bình | Sao lưu ngoài máy + PITR, tài liệu khôi phục đã diễn tập; sau này chuyển Postgres sang dịch vụ quản lý |
@@ -725,7 +725,7 @@ Tám giai đoạn, khoảng **46 tuần (10–11 tháng) với 3 lập trình vi
 | Lương cơ bản có chia theo ngày công | Có | Lương cơ bản thực nhận = lương cơ bản × ngày công thực tế ÷ ngày công chuẩn; ngày công lấy từ chấm công GPS + đơn nghỉ đã duyệt; ngày công chuẩn là tham số theo kỳ |
 | Buổi có GVNN | Nhập tay | Phiếu lương có dòng "Lương GVNN" kế toán nhập; hệ thống chỉ gợi ý số buổi |
 | Thuế TNCN | Có cấu hình | Bật/tắt theo người; biểu thuế lũy tiến, mức giảm trừ bản thân và người phụ thuộc lưu trong tham số có phiên bản; có chế độ khấu trừ cố định 10% cho cộng tác viên |
-| % tái tục khi lớp nghỉ từ 2 HS | Để sau | Bậc % là tham số, mặc định 0% cho mức này |
+| Thưởng tái tục theo giữ nguyên / tăng HS | TK-2026-0033 | Có bất kỳ HS đầu kỳ nào nghỉ → 0%; không nghỉ → tỷ lệ giữ nguyên / tăng HS, tỷ lệ tăng phải lớn hơn giữ nguyên |
 | Phạt tăng dần theo lần tái phạm | Không | Bỏ bậc tái phạm khỏi luật SLA; mức phạt do người chốt nhập |
 | Học viên/phụ huynh đăng nhập bằng gì | Cả mã học viên và SĐT phụ huynh | Một SĐT có nhiều con thì sau đăng nhập chọn học viên |
 | Mang dữ liệu từ hệ thống cũ | Có | Lệnh `menglish import-legacy` đọc MySQL cũ ghi vào Postgres, viết song song giai đoạn 6–7, chạy thử 2 lần trên bản sao trước ngày ra mắt (giai đoạn 8) |

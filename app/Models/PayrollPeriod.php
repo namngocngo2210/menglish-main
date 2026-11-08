@@ -386,16 +386,6 @@ class PayrollPeriod extends Model
      */
     public static function payrollSettings(): array
     {
-        $renewal = SystemSetting::get('payroll_renewal_table');
-        $table = [];
-        foreach ((is_array($renewal) ? $renewal : config('payroll.renewal_bonus.table', [])) as $quits => $row) {
-            $table[(int) $quits] = [
-                'percent' => (float) (is_array($row) ? ($row['percent'] ?? 0) : $row),
-                'pending' => (bool) (is_array($row) ? ($row['pending'] ?? false) : false),
-            ];
-        }
-        ksort($table);
-
         return [
             // Mức đóng BHXH (TK-0009): BHXH / Công đoàn tính trên mức này, không theo lương cơ bản.
             'insurance_salary_base' => (float) SystemSetting::get('payroll_insurance_salary_base', config('payroll.insurance_salary_base', 5400000)),
@@ -407,11 +397,11 @@ class PayrollPeriod extends Model
             'union_rate_percent' => (float) SystemSetting::get('payroll_union_rate_percent', config('payroll.union_rate_percent', 0.5)),
             'academic_kpi_fund' => (float) SystemSetting::get('payroll_academic_kpi_fund', config('payroll.academic_kpi_fund', 2000000)),
             'retention_tiers' => array_map('floatval', (array) config('payroll.retention_tiers', [15000, 20000, 25000])),
-            'renewal_table' => $table,
+            'renewal_same_percent' => (float) SystemSetting::get('payroll_renewal_same_percent', config('payroll.renewal_bonus.same_percent', 1.0)),
+            'renewal_increase_percent' => (float) SystemSetting::get('payroll_renewal_increase_percent', config('payroll.renewal_bonus.increase_percent', 1.5)),
             // Đi muộn / về sớm của GV: ngưỡng phút, đơn giá trừ mỗi phút khi không báo trước (4.000–5.000đ).
             'late_threshold_minutes' => (int) SystemSetting::get('payroll_late_threshold_minutes', config('payroll.late.threshold_minutes', 15)),
             'late_deduction_per_minute' => (float) SystemSetting::get('payroll_late_deduction_per_minute', config('payroll.late.deduction_per_minute', 5000)),
-            'renewal_beyond_percent' => (float) SystemSetting::get('payroll_renewal_beyond_percent', config('payroll.renewal_bonus.beyond_percent', 0)),
             // Học thuật kiêm nhiệm giảng dạy: % học phí theo buổi khi chưa có đơn giá "% học phí" riêng.
             'teaching_share_percent' => (float) SystemSetting::get('payroll_teaching_share_percent', config('payroll.teaching_share_percent', 40)),
         ];
