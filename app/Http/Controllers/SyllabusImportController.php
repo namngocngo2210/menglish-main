@@ -90,7 +90,6 @@ class SyllabusImportController extends Controller
             'file' => ['required', 'file', 'max:102400', 'extensions:zip,xlsx'],
             'visible_to_teachers' => ['nullable', 'boolean'],
             'visible_to_assistants' => ['nullable', 'boolean'],
-            'downloadable' => ['nullable', 'boolean'],
         ], [
             'file.required' => 'Hãy chọn file .zip hoặc .xlsx.',
             'file.max' => 'File tối đa 100MB.',
@@ -100,7 +99,6 @@ class SyllabusImportController extends Controller
         $visibility = [
             'visible_to_teachers' => $request->boolean('visible_to_teachers'),
             'visible_to_assistants' => $request->boolean('visible_to_assistants'),
-            'downloadable' => $request->boolean('downloadable'),
         ];
         $token = $this->store->put($data['file'], $request->user(), $visibility);
         $meta = $this->store->get($token, $request->user());
