@@ -247,7 +247,13 @@ function sessionNote(ts) {
                                         <span class="font-mono">{{ money(group.amount) }} đ</span>
                                     </p>
                                     <ul class="ml-md list-disc font-body-small text-body-small text-on-surface-variant">
-                                        <li v-for="(item, i) in group.items" :key="i">{{ item.code }} {{ item.name }} — điểm {{ pct(item.score) }}% × trọng số {{ pct(item.weight) }}% = {{ money(item.amount) }} đ</li>
+                                        <li v-for="(item, i) in group.items" :key="i">
+                                            {{ item.code }} {{ item.name }} — điểm {{ pct(item.score) }}% × trọng số {{ pct(item.weight) }}% = {{ money(item.amount) }} đ
+                                            <template v-if="item.critical">
+                                                <UiBadge color="error" :title="item.critical_note">Lỗi nghiêm trọng — 0%</UiBadge>
+                                                <span v-if="item.critical_note" class="block font-caption text-caption text-error">{{ item.critical_note }}</span>
+                                            </template>
+                                        </li>
                                     </ul>
                                 </div>
                                 <p v-if="!kpiGroups.length" class="font-body-small text-body-small text-on-surface-variant">Chưa có đánh giá KPI tháng {{ period.month }}/{{ period.year }} được chốt.</p>
