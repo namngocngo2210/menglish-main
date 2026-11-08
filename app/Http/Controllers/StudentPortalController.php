@@ -274,13 +274,17 @@ class StudentPortalController extends Controller
         $miniTests = collect();
         $bigTestResults = collect();
         $homeworks = collect();
+        $emptySessions = [];
+        $oldClassIds = [];
         if ($student) {
             $classIds = $student->activeClassIds();
-            $remarks = $this->recentSessionCards($student, $classIds);
+            $oldClassIds = array_values(array_diff($student->historyClassIds(), $classIds));
+            $remarks = $this->recentSessionCards($student, $classIds, $oldClassIds);
+            $emptySessions = $this->emptySessionCards($classIds);
             $miniTests = MiniTestScore::where('student_id', $student->id)->latest('test_date')->limit(10)->get();
             $bigTestResults = BigTestResult::with('bigTest')->where('student_id', $student->id)
                 ->whereIn('status', ['approved', 'sent'])->latest('approved_at')->limit(5)->get();
-            $homeworks = $this->homeworksFor($classIds, $student);
+            $homeworks = $this->homeworksFor($classIds, $student, $oldClassIds);
         }
 
         return Inertia::render('Portal/Homework', [
@@ -291,6 +295,7 @@ class StudentPortalController extends Controller
             'sessionProgress' => $homeworks->groupBy(fn (Homework $hw) => $hw->classSession?->id ?? 'none')
                 ->map(fn (Collection $group) => array_combine(['submitted', 'total'], self::basketProgress($group)))->all(),
             'remarks' => $remarks,
+            'emptySessions' => $emptySessions,
             'feedbackCategories' => ClassSessionFeedback::PARENT_CATEGORIES,
             'miniTests' => $miniTests->map(fn (MiniTestScore $mt) => [
                 'id' => $mt->id,
@@ -298,6 +303,14 @@ class StudentPortalController extends Controller
                 'test_date' => $mt->test_date?->format('d/m/Y'),
                 'score' => self::trimScore($mt->score),
                 'max_score' => self::trimScore($mt->max_score),
+                'note' => $mt->note,
+                'skills' => collect($mt->skill_scores ?? [])
+                    ->map(fn ($score, $key) => is_array($score)
+                        ? ['name' => $score['name'] ?? null, 'score' => $score['score'] ?? null]
+                        : ['name' => MiniTestScore::SKILLS[$key] ?? $key, 'score' => $score])
+                    ->filter(fn ($skill) => filled($skill['name']) && filled($skill['score']))
+                    ->map(fn ($skill) => ['name' => $skill['name'], 'score' => self::trimScore($skill['score'])])
+                    ->values()->all(),
             ])->values()->all(),
             'bigTestResults' => $bigTestResults->map(fn (BigTestResult $bt) => [
                 'id' => $bt->id,
@@ -307,8 +320,39 @@ class StudentPortalController extends Controller
                 'overall_score' => $bt->overall_score,
             ])->values()->all(),
             // BTVN GV giao theo từng buổi, nộp theo giỏ (docs/kho-syllabus.md §10) — không còn hạng mục nộp tự do.
-            'assignments' => $this->assignedHomework($homeworks),
+            'assignments' => $this->assignedHomework($homeworks, $oldClassIds),
         ]);
+    }
+
+    /** @param  list<int>  $classIds */
+    private function emptySessionCards(array $classIds): array
+    {
+        if ($classIds === []) {
+            return [];
+        }
+        $sessions = ClassSession::with('classModel:id,name')
+            ->whereIn('class_id', $classIds)
+            ->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', today()->subDays(self::HOMEWORK_RECENT_DAYS)->toDateString())
+            ->whereDate('date', '<=', today()->toDateString())
+            ->whereNotIn('id', Homework::select('class_session_id')->whereNotNull('class_session_id'))
+            ->orderByDesc('date')->orderByDesc('start_time')->get()
+            ->filter(fn (ClassSession $s) => ! $s->date->isToday() || $s->status === 'completed'
+                || ($s->start_time && $s->date->copy()->setTimeFrom($s->start_time)->isPast()));
+        $lessons = app(SessionLessonService::class)->lessonsFor($sessions);
+
+        return $sessions->map(function (ClassSession $session) use ($lessons) {
+            $lesson = $lessons[$session->id] ?? null;
+
+            return [
+                'id' => $session->id,
+                'label' => ! empty($lesson['no']) ? 'Buổi '.$lesson['no'] : ($session->type === ClassSession::TYPE_MAKEUP ? 'Buổi học bù' : 'Buổi học'),
+                'class_name' => $session->classModel?->name,
+                'date' => $session->date->toDateString(),
+                'lesson' => collect([$lesson['unit'] ?? null, $lesson['title'] ?? null])->filter()->implode(' — ') ?: null,
+            ];
+        })->values()->all();
     }
 
     /** Số buổi gần nhất hiện ở mục "Nhận xét buổi học"; phụ huynh chấm được buổi trong khoảng RATE_DAYS ngày. */
@@ -323,9 +367,9 @@ class StudentPortalController extends Controller
      * @param  list<int>  $classIds
      * @return list<array<string, mixed>>
      */
-    private function recentSessionCards(Student $student, array $classIds): array
+    private function recentSessionCards(Student $student, array $classIds, array $oldClassIds = []): array
     {
-        if ($classIds === []) {
+        if ($classIds === [] && $oldClassIds === []) {
             return [];
         }
         $sessions = ClassSession::with(['classModel:id,name', 'teacher:id,name'])
@@ -336,18 +380,37 @@ class StudentPortalController extends Controller
             ->whereDate('date', '<=', now()->toDateString())
             ->orderByDesc('date')->orderByDesc('start_time')
             ->get();
-        if ($sessions->isEmpty()) {
+        $oldSessions = collect();
+        if ($oldClassIds !== []) {
+            $enrollments = $student->enrollments()->whereIn('class_id', $oldClassIds)->get()->groupBy('class_id');
+            $oldSessions = ClassSession::with(['classModel:id,name', 'teacher:id,name'])
+                ->whereIn('class_id', $oldClassIds)
+                ->where('type', ClassSession::TYPE_REGULAR)
+                ->where('status', '!=', 'cancelled')
+                ->orderByDesc('date')->orderByDesc('start_time')->get()
+                ->filter(fn (ClassSession $s) => $enrollments->get($s->class_id, collect())->contains(fn ($enrollment) =>
+                    (! $enrollment->enrolled_at || $s->date->gte($enrollment->enrolled_at))
+                    && (! $enrollment->left_at || $s->date->lte($enrollment->left_at))));
+        }
+        if ($sessions->isEmpty() && $oldSessions->isEmpty()) {
             return [];
         }
 
-        $codes = $sessions->flatMap(fn (ClassSession $s) => [TeacherPortalController::remarkRecordCode($s), $s->class_id.'-'.$s->date->toDateString()]);
+        $codes = $sessions->concat($oldSessions)->flatMap(fn (ClassSession $s) => [TeacherPortalController::remarkRecordCode($s), $s->class_id.'-'.$s->date->toDateString()]);
         $records = AcademicRecord::where('module', 'teacher_remarks')->where('status', '!=', 'draft') // nhận xét "Lưu nháp" chưa hiện cho học viên
             ->whereIn('record_code', $codes->all())->get()->keyBy('record_code');
         // Buổi hôm nay chỉ hiện khi đã bắt đầu, đã điểm danh xong hoặc GV đã gửi nhận xét.
         $sessions = $sessions->filter(fn (ClassSession $s) => ! $s->date->isToday() || ! $s->start_time || $s->status === 'completed'
             || $s->date->copy()->setTimeFrom($s->start_time)->isPast()
             || $records->has(TeacherPortalController::remarkRecordCode($s)) || $records->has($s->class_id.'-'.$s->date->toDateString()))
-            ->take(self::RECENT_SESSIONS)
+            ->take(self::RECENT_SESSIONS);
+        $oldSessions = $oldSessions->filter(function (ClassSession $s) use ($records, $student) {
+            $record = $records->get(TeacherPortalController::remarkRecordCode($s)) ?? $records->get($s->class_id.'-'.$s->date->toDateString());
+
+            return collect((array) data_get($record?->data, (string) $student->id, []))->contains(fn ($value) => filled($value));
+        })->take(10);
+        $sessions = $sessions->concat($oldSessions)
+            ->sortByDesc(fn (ClassSession $s) => $s->date->toDateString().' '.($s->start_time?->format('H:i:s') ?? ''))
             ->values();
         $attendance = StudentAttendance::where('student_id', $student->id)->whereIn('class_session_id', $sessions->pluck('id'))
             ->pluck('status', 'class_session_id');
@@ -356,7 +419,8 @@ class StudentPortalController extends Controller
         $linked = $student->isLinkedTo(Auth::user());
         $sessionNumbers = app(SessionLessonService::class)->sessionNumbers($sessions->pluck('class_id')->unique()->values()->all());
 
-        return $sessions->map(function (ClassSession $s) use ($records, $attendance, $feedback, $linked, $student, $sessionNumbers) {
+        return $sessions->map(function (ClassSession $s) use ($records, $attendance, $feedback, $linked, $student, $sessionNumbers, $oldClassIds) {
+            $readonly = in_array((int) $s->class_id, $oldClassIds, true);
             $record = $records->get(TeacherPortalController::remarkRecordCode($s)) ?? $records->get($s->class_id.'-'.$s->date->toDateString());
             $remark = array_filter((array) data_get($record?->data, (string) $student->id, []), fn ($v) => filled($v));
             $mine = $feedback->get($s->id);
@@ -365,6 +429,7 @@ class StudentPortalController extends Controller
 
             return [
                 'session_id' => $s->id,
+                'readonly' => $readonly,
                 'date' => $s->date->format('d/m/Y'),
                 'label' => trim(($no ? 'Buổi '.$no.' · ' : '').$s->date->format('d/m').($s->start_time ? ' · '.$s->start_time->format('H:i') : '')),
                 'class_name' => $s->classModel?->name,
@@ -375,9 +440,9 @@ class StudentPortalController extends Controller
                     'rating' => $mine->rating,
                     'categories' => $mine->categories ?? [],
                     'content' => $mine->content,
-                    'editable' => $mine->parentEditable(),
+                    'editable' => ! $readonly && $mine->parentEditable(),
                 ] : null,
-                'can_rate' => $linked && ! $absent && $s->date->gte(today()->subDays(self::RATE_DAYS)) && (! $mine || $mine->parentEditable()),
+                'can_rate' => ! $readonly && $linked && ! $absent && $s->date->gte(today()->subDays(self::RATE_DAYS)) && (! $mine || $mine->parentEditable()),
             ];
         })->all();
     }
@@ -517,15 +582,27 @@ class StudentPortalController extends Controller
      * @param  list<int>  $classIds
      * @return Collection<int, Homework>
      */
-    private function homeworksFor(array $classIds, Student $student): Collection
+    private function homeworksFor(array $classIds, Student $student, array $oldClassIds = []): Collection
     {
-        if ($classIds === []) {
+        if ($classIds === [] && $oldClassIds === []) {
             return collect();
         }
 
+        $enrollments = $oldClassIds === [] ? collect()
+            : $student->enrollments()->whereIn('class_id', $oldClassIds)->get()->groupBy('class_id');
+
         return Homework::with(['classModel:id,name', 'classSession:id,class_id,date,start_time,type,status',
             'submissions' => fn ($q) => $q->where('student_id', $student->id)])
-            ->whereIn('class_id', $classIds)->get();
+            ->whereIn('class_id', [...$classIds, ...$oldClassIds])->get()
+            ->filter(function (Homework $hw) use ($oldClassIds, $enrollments) {
+                if (! in_array((int) $hw->class_id, $oldClassIds, true) || $hw->submissions->isNotEmpty()) {
+                    return true;
+                }
+                $date = $hw->classSession?->date ?? $hw->created_at;
+
+                return $enrollments->get($hw->class_id, collect())->contains(fn ($enrollment) =>
+                    ! $enrollment->left_at || $date->lte($enrollment->left_at->copy()->endOfDay()));
+            });
     }
 
     /**
@@ -554,22 +631,23 @@ class StudentPortalController extends Controller
      * @param  Collection<int, Homework>  $homeworks
      * @return list<array<string, mixed>>
      */
-    private function assignedHomework(Collection $homeworks): array
+    private function assignedHomework(Collection $homeworks, array $oldClassIds = []): array
     {
         $since = today()->subDays(self::HOMEWORK_RECENT_DAYS);
         $dateOf = fn (Homework $hw) => $hw->classSession?->date ?? $hw->created_at;
         $pending = fn (Homework $hw) => collect($hw->portalBaskets())->contains(fn (string $b) => ! $hw->submissions->contains('basket', $b));
-        $homeworks = $homeworks->filter(fn (Homework $hw) => $pending($hw) || $dateOf($hw)->gte($since))
+        $homeworks = $homeworks->filter(fn (Homework $hw) => in_array((int) $hw->class_id, $oldClassIds, true) || $pending($hw) || $dateOf($hw)->gte($since))
             ->sortByDesc(fn (Homework $hw) => $dateOf($hw)->format('Y-m-d').'-'.str_pad((string) $hw->id, 10, '0', STR_PAD_LEFT))
             ->values();
         $lessons = app(SessionLessonService::class)->lessonsFor($homeworks->pluck('classSession')->filter()->unique('id')->values());
 
-        return $homeworks->map(function (Homework $hw) use ($lessons) {
+        return $homeworks->map(function (Homework $hw) use ($lessons, $oldClassIds) {
             $session = $hw->classSession;
             $lesson = $session ? ($lessons[$session->id] ?? null) : null;
 
             return [
                 'id' => $hw->id,
+                'readonly' => in_array((int) $hw->class_id, $oldClassIds, true),
                 'title' => $hw->title,
                 'class_name' => $hw->classModel?->name,
                 'session' => $session ? [
