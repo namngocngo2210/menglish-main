@@ -21,13 +21,19 @@ class HomeworkSubmission extends Model
     public const STATUS_REVIEWED = 'reviewed';
 
     protected $fillable = [
-        'homework_id', 'student_id', 'basket', 'file_path', 'original_name', 'note', 'status', 'score', 'feedback', 'submitted_at', 'reviewed_by', 'reviewed_at',
+        'homework_id', 'student_id', 'basket', 'file_path', 'original_name', 'note', 'status', 'score', 'feedback', 'submitted_at', 'reviewed_by', 'reviewed_at', 'confirmed_by', 'confirmed_at', 'created_by',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'confirmed_at' => 'datetime',
     ];
+
+    public function confirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
 
     public function homework(): BelongsTo
     {

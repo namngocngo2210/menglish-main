@@ -516,9 +516,11 @@ class StudentPortalController extends Controller
         $hw = Homework::whereIn('class_id', $student->activeClassIds())->findOrFail($homework);
         abort_unless(in_array($basket, $hw->portalBaskets(), true), 404);
 
-        $allowed = HomeworkSubmission::BASKETS[$basket][2];
+        // Quiz: ảnh minh chứng là tùy chọn (TK-2026-0038); giấy / video bắt buộc có file.
+        $required = HomeworkSubmission::BASKETS[$basket][2] !== null;
+        $allowed = HomeworkSubmission::BASKETS[$basket][2] ?? ($basket === 'quizizz' ? SafeUploadService::IMAGES : null);
         $path = $name = null;
-        if ($allowed) {
+        if ($allowed && ($required || $request->hasFile('file'))) {
             $request->validate(['file' => ['required', 'file', 'max:102400']], ['file.required' => 'Chọn '.($basket === 'video' ? 'video' : 'ảnh bài làm').' để nộp.']);
             $path = SafeUploadService::store($request->file('file'), 'homework_submissions', $allowed, 'file', 'local');
             $name = $request->file('file')->getClientOriginalName();
@@ -527,7 +529,9 @@ class StudentPortalController extends Controller
         $key = ['homework_id' => $hw->id, 'student_id' => $student->id, 'basket' => $basket];
         $oldFile = HomeworkSubmission::where($key)->value('file_path');
         $values = ['file_path' => $path, 'original_name' => $name, 'note' => $validated['note'] ?? null,
-            'status' => HomeworkSubmission::STATUS_SUBMITTED, 'submitted_at' => now(), 'reviewed_by' => null, 'reviewed_at' => null];
+            'status' => HomeworkSubmission::STATUS_SUBMITTED, 'submitted_at' => now(), 'reviewed_by' => null, 'reviewed_at' => null,
+            // Nộp lại: GV phải xác nhận lại; bài này giờ là của HS tự nộp.
+            'confirmed_by' => null, 'confirmed_at' => null, 'created_by' => null];
         try {
             HomeworkSubmission::updateOrCreate($key, $values);
         } catch (UniqueConstraintViolationException) {
@@ -540,7 +544,7 @@ class StudentPortalController extends Controller
             Storage::disk('local')->delete($oldFile);
         }
 
-        return back()->with('success', $allowed ? 'Đã nộp '.mb_strtolower(HomeworkSubmission::BASKETS[$basket][0]).'.' : 'Đã ghi nhận làm bài Quizizz.');
+        return back()->with('success', 'Đã nộp '.mb_strtolower(HomeworkSubmission::BASKETS[$basket][0]).'.');
     }
 
     /** File bài nộp theo giỏ (lưu riêng tư): học viên / phụ huynh của bài, GV lớp, nhân sự xem được học viên. */
@@ -647,6 +651,7 @@ class StudentPortalController extends Controller
                         'label' => HomeworkSubmission::BASKETS[$basket][0],
                         'icon' => HomeworkSubmission::BASKETS[$basket][1],
                         'upload' => HomeworkSubmission::BASKETS[$basket][2] !== null,
+                        'can_attach' => $basket === 'quizizz' || HomeworkSubmission::BASKETS[$basket][2] !== null,
                         'accept' => $basket === 'video' ? 'video/*' : 'image/*',
                         'text' => collect($hw->items ?? [])->filter(fn ($text, $category) => filled($text) && Homework::basketOf($category) === $basket)->implode("\n"),
                         'link' => $basket === 'quizizz' ? $hw->quizizz_url : null,
@@ -658,6 +663,7 @@ class StudentPortalController extends Controller
                             'note' => $sub->note,
                             'score' => $sub->score,
                             'feedback' => $sub->feedback,
+                            'confirmed_at' => $sub->confirmed_at?->toIso8601String(),
                             'file_url' => $sub->file_path ? route('portal.student.homework-file', $sub->id) : null,
                         ] : null,
                     ];
@@ -1099,7 +1105,7 @@ class StudentPortalController extends Controller
         $types = ['basket', 'video', 'vocabulary', 'workbook', 'extra_book', 'bgd_book', 'quiz', 'pronunciation'];
         $activeTab = in_array($request->query('type'), $types, true) ? $request->query('type') : 'basket';
 
-        if ($activeTab === 'basket') {
+        if ($activeTab === 'basket' || $activeTab === 'quiz') {
             $range = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from']]);
             $to = isset($range['to']) ? Carbon::parse($range['to']) : today();
             $from = isset($range['from']) ? Carbon::parse($range['from']) : $to->copy()->subDays(30);
@@ -1112,7 +1118,7 @@ class StudentPortalController extends Controller
         $screenKey = $activeTab === 'pronunciation'
             ? '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am'
             : '04_Cong_Phu_Huynh_Hoc_Sinh/03_hoc_tap_cua_toi_nop_bai_tap';
-        $submissions = $studentIds->isEmpty() || $activeTab === 'basket'
+        $submissions = $studentIds->isEmpty() || in_array($activeTab, ['basket', 'quiz'], true)
             ? collect()
             : AcademicRecord::where('screen_key', $screenKey)
                 ->whereIn('data->student_id', $studentIds->map(fn ($id) => (string) $id))
@@ -1123,6 +1129,7 @@ class StudentPortalController extends Controller
         return Inertia::render('Portal/TeacherSubmissions', [
             'currentClass' => $class ? ['id' => $class->id, 'name' => $class->name] : null,
             'basket' => $activeTab === 'basket' && $class ? app(HomeworkStats::class)->matrix($class, $from, $to) : null,
+            'quiz' => $activeTab === 'quiz' && $class ? app(HomeworkStats::class)->quizBoard($class, $from, $to) : null,
             'classes' => $classes->map(fn (ClassModel $c) => ['id' => $c->id, 'name' => $c->name, 'code' => $c->code])->values()->all(),
             'activeTab' => $activeTab,
             'submissions' => $submissions->map(fn (AcademicRecord $sub) => [

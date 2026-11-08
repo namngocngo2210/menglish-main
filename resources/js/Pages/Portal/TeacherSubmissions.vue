@@ -12,6 +12,7 @@ defineOptions({ layout: { title: 'Bài nộp của lớp' } });
 const props = defineProps({
     currentClass: { type: Object, default: null },
     basket: { type: Object, default: null },
+    quiz: { type: Object, default: null },
     classes: { type: Array, default: () => [] },
     activeTab: { type: String, default: 'basket' },
     submissions: { type: Array, default: () => [] },
@@ -35,6 +36,7 @@ function changeClass(event) {
     router.visit(route('portal.teacher.submissions') + '/' + value);
 }
 
+const dateTime = (iso) => new Date(iso).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 const initials = (name) => Array.from(name ?? 'HV').slice(0, 2).join('');
 const filled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
 </script>
@@ -75,6 +77,48 @@ const filled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
 
         <HomeworkBasketMatrix v-if="activeTab === 'basket' && basket" :class-id="props.currentClass.id" v-bind="basket" />
         <UiEmptyState v-else-if="activeTab === 'basket'" icon="inbox" title="Bạn chưa được phân công lớp nào." />
+
+        <!-- Quiz (TK-2026-0038): HS tự nộp, GV xác nhận tùy chọn; cùng dữ liệu với bảng theo buổi -->
+        <template v-else-if="activeTab === 'quiz'">
+            <UiEmptyState v-if="!quiz" icon="inbox" title="Bạn chưa được phân công lớp nào." />
+            <div v-else class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm" data-testid="quiz-board">
+                <div class="flex items-center justify-between border-b border-surface-container-highest bg-surface-container-low px-5 py-4">
+                    <h3 class="flex items-center gap-2 text-sm font-bold text-on-surface">
+                        <span class="material-symbols-outlined text-[20px] text-primary">check_circle</span>
+                        Danh sách đã nộp bài ({{ quiz.submitted }})
+                    </h3>
+                </div>
+                <UiEmptyState v-if="!quiz.homeworks.length" icon="inbox" title="Chưa có bài Quiz nào được giao trong 30 ngày gần đây." />
+                <div v-for="hw in quiz.homeworks" :key="hw.id" class="border-b border-surface-container-highest last:border-0">
+                    <p class="bg-surface-container-low px-5 py-2 text-xs font-bold text-on-surface">{{ hw.title }} <span class="font-normal text-on-surface-variant">· giao {{ formatDate(hw.created_at) }}</span></p>
+                    <div v-for="row in hw.rows" :key="row.student_id" class="flex flex-col justify-between gap-2 px-5 py-3 text-xs md:flex-row md:items-center">
+                        <div>
+                            <p class="font-bold text-on-surface">{{ row.student }}</p>
+                            <template v-if="row.submission">
+                                <p class="font-mono text-on-surface-subtle">{{ row.submission.self_submitted ? 'HS nộp lúc' : 'GV tạo hộ lúc' }} {{ dateTime(row.submission.submitted_at) }}</p>
+                                <a v-if="row.submission.file_url" :href="row.submission.file_url" target="_blank" rel="noopener" class="font-semibold text-primary hover:underline">{{ row.submission.original_name ?? 'Ảnh đính kèm' }}</a>
+                                <p v-if="row.submission.note" class="italic text-on-surface-variant">"{{ row.submission.note }}"</p>
+                                <p v-if="row.submission.confirmed_at" class="font-semibold text-success">GV {{ row.submission.confirmed_by ?? '' }} xác nhận lúc {{ dateTime(row.submission.confirmed_at) }}</p>
+                            </template>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <UiBadge v-if="row.submission" :color="row.submission.confirmed_at ? 'success' : 'secondary'" pill>{{ row.submission.confirmed_at ? 'Đã xác nhận' : 'Đã nộp' }}</UiBadge>
+                            <UiBadge v-else color="error" pill>Chưa nộp</UiBadge>
+                            <UiForm v-if="row.submission?.confirmed_at" :action="route('teacher.homework-submissions.quiz-cancel')" method="post">
+                                <input type="hidden" name="homework_id" :value="hw.id" />
+                                <input type="hidden" name="student_id" :value="row.student_id" />
+                                <UiButton type="submit" size="sm" variant="secondary" icon="undo">Hủy xác nhận</UiButton>
+                            </UiForm>
+                            <UiForm v-else :action="route('teacher.homework-submissions.quiz-confirm')" method="post">
+                                <input type="hidden" name="homework_id" :value="hw.id" />
+                                <input type="hidden" name="student_id" :value="row.student_id" />
+                                <UiButton type="submit" size="sm" icon="task_alt">Xác nhận</UiButton>
+                            </UiForm>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
 
         <!-- Danh sách đã nộp -->
         <div v-else class="overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">

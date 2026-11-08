@@ -53,9 +53,13 @@ const inputClass = 'rounded-lg border-outline-variant bg-surface-container-lowes
                                 <a v-if="row.baskets[key].file_url" :href="row.baskets[key].file_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
                                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">attachment</span>{{ row.baskets[key].original_name ?? 'Bài nộp' }}
                                 </a>
-                                <span v-else class="font-semibold text-on-surface">Đã làm</span>
+                                <span v-else class="font-semibold text-on-surface">Đã nộp</span>
                                 <p v-if="row.baskets[key].note" class="italic text-on-surface-variant">"{{ row.baskets[key].note }}"</p>
-                                <template v-if="row.baskets[key].status === 'reviewed'">
+                                <!-- Quiz không chấm điểm (TK-2026-0038): xác nhận / hủy xác nhận ở tab Quiz -->
+                                <template v-if="key === 'quizizz'">
+                                    <UiBadge v-if="row.baskets[key].confirmed_at" color="success" class="mt-1">GV {{ row.baskets[key].confirmed_by ?? '' }} đã xác nhận</UiBadge>
+                                </template>
+                                <template v-else-if="row.baskets[key].status === 'reviewed'">
                                     <UiBadge color="success" class="mt-1">{{ row.baskets[key].score ? 'Đã chấm: ' + row.baskets[key].score : 'Đã xem' }}</UiBadge>
                                     <p v-if="row.baskets[key].feedback" class="mt-1 text-on-surface-variant">{{ row.baskets[key].feedback }}</p>
                                 </template>
