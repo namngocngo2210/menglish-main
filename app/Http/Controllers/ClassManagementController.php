@@ -187,6 +187,12 @@ class ClassManagementController extends Controller
 
         $this->assertValidTeachingStaff($validated);
 
+        // O-37: không tạo nhiều buổi hơn kế hoạch khóa (TKB do client render không biết số buổi của khóa).
+        $planned = (int) Course::where('name', $validated['chuong_trinh'])->value('total_lessons');
+        if ($planned > 0) {
+            $scheduleSessions = array_slice($scheduleSessions, 0, $planned);
+        }
+
         // Mã lớp sinh tự động nếu để trống
         $code = ! empty($validated['ma_lop'])
             ? strtoupper(trim($validated['ma_lop']))

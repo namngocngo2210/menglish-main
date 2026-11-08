@@ -30,6 +30,7 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoPayrollSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -46,6 +47,12 @@ class DemoPayrollSeederTest extends TestCase
         // DatabaseSeeder chỉ gọi demo lương ngoài unit test (staging / local).
         $this->assertSame(0, StaffAttendance::count());
         $this->seed(DemoPayrollSeeder::class);
+
+        // O-37 (query R14c): không lớp nào có nhiều buổi chính khóa/học bù chưa hủy hơn kế hoạch khóa (phụ đạo 1-1 không tính).
+        $this->assertSame([], DB::table('class_sessions as s')
+            ->join('classes as c', 'c.id', '=', 's.class_id')->join('courses as co', 'co.id', '=', 'c.course_id')
+            ->whereIn('s.type', ['regular', 'makeup'])->where('s.status', '!=', 'cancelled')->where('co.total_lessons', '>', 0)
+            ->groupBy('c.id', 'co.total_lessons')->havingRaw('count(*) > co.total_lessons')->pluck('c.id')->all());
 
         $month = now()->startOfMonth();
         $last = $month->copy()->subMonthNoOverflow();

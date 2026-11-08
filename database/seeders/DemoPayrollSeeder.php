@@ -587,6 +587,9 @@ class DemoPayrollSeeder extends Seeder
                     if ($day->dayOfWeekIso !== $weekday || $this->isHoliday($day)) {
                         continue;
                     }
+                    if ($course?->total_lessons && $n >= $course->total_lessons) { // O-37: không quá kế hoạch khóa
+                        break 2;
+                    }
                     ClassSession::create([
                         'class_id' => $class->id, 'branch_id' => $branch->id, 'date' => $day->toDateString(),
                         'shift_name' => $shift, 'type' => ClassSession::TYPE_REGULAR, 'start_time' => $from, 'end_time' => $to,
