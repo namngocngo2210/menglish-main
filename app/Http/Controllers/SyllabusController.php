@@ -2414,8 +2414,12 @@ class SyllabusController extends Controller
 
         $this->markNotified($res);
 
+        // R-07: kết quả có điểm đầu tiên được Duyệt & Gửi đóng chặng và mở chặng kế.
+        $outcome = $progression->onScoredApproval($test->fresh(), Auth::user())
+            ?? $progression->syncBigTest($test->fresh(), Auth::user());
+
         return redirect()->back()->with('status', "Đã duyệt và ghi nhận báo kết quả em {$studentName} cho phụ huynh."
-            .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user())));
+            .$progression->describe($outcome));
     }
 
     /**

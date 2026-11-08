@@ -391,14 +391,10 @@ class Phase2AcceptanceTest extends TestCase
         $closed = SyllabusAssignment::where('class_id', $class->id)->where('stage_id', $stage1->id)->firstOrFail();
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $closed->status);
         $this->assertSame($bigTest->id, (int) $closed->closed_by_big_test_id);
-        // Không tự mở chặng 2: Học thuật được báo và giao chặng tiếp theo, GV nhận thông báo XÁC NHẬN (Bước 11, 4).
-        $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $class->id)->count());
-        $this->assertTrue(AdminNotification::where('user_id', $this->lead->id)->where('title', 'like', '%giao chặng tiếp theo%')->exists());
-        $this->actingAs($this->lead)->post(route('syllabus.assignments.store'), ['class_id' => $class->id, 'start_date' => today()->toDateString()])->assertSessionHasNoErrors();
+        // R-07: đóng chặng 1 thì chặng 2 tự mở cho lớp, cùng GV phụ trách.
         $next = SyllabusAssignment::open()->where('class_id', $class->id)->firstOrFail();
         $this->assertSame($stage2->id, $next->stage_id);
         $this->assertSame($this->teacher->id, $next->user_id);
-        $this->assertTrue(AdminNotification::where('user_id', $this->teacher->id)->where('type', 'syllabus_workflow')->where('title', 'like', '%'.$stage2->name.'%')->exists());
         $this->assertNotNull($bigTest->fresh()->results_completed_at);
 
         // Kết quả đã gửi cũng không sửa được.
