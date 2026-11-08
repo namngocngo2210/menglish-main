@@ -1448,8 +1448,10 @@ class SyllabusController extends Controller
     {
         $user = $request->user();
         // Mockup: chỉ chọn được lớp đang có chặng mở (giãn tiến độ cho chặng đang học).
+        // GV chỉ thấy chặng mình được giao (bản ghi phân công), không theo buổi dạy / dạy thay.
         $openAssignments = SyllabusAssignment::open()->with('stage')
             ->whereIn('class_id', ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->select('id'))
+            ->when(! $user->can('syllabus.approve_adjustment'), fn ($q) => $q->where('user_id', $user->id))
             ->get()->keyBy('class_id');
         $classes = ClassModel::whereIn('id', $openAssignments->keys())->orderBy('name')->get();
         $requests = SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'assignment'])
@@ -1569,6 +1571,10 @@ class SyllabusController extends Controller
         abort_unless(ClassModel::visibleTo($user)->whereKey($class->id)->exists(), 403, 'Bạn không phụ trách lớp này.');
         // Giãn tiến độ luôn gắn chặng đang mở (Q4); lớp chưa mở chặng thì không nhận yêu cầu.
         $openAssignmentId = SyllabusAssignment::open()->where('class_id', $class->id)->value('id');
+        // Người gửi không phải người duyệt: chặng đang mở phải được giao đúng cho mình.
+        if ($openAssignmentId && ! $user->can('syllabus.approve_adjustment')) {
+            abort_unless(SyllabusAssignment::whereKey($openAssignmentId)->where('user_id', $user->id)->exists(), 403, 'Chặng đang mở của lớp này không được giao cho bạn.');
+        }
         if (! $openAssignmentId) {
             throw ValidationException::withMessages(['class_id' => "Lớp {$class->name} không có chặng học nào đang mở — không thể xin điều chỉnh tiến độ."]);
         }
