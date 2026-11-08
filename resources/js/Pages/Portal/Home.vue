@@ -50,7 +50,7 @@ function sessionBadge(s) {
 
     <!-- Khung điện thoại -->
     <div class="relative mx-auto my-4 flex min-h-[844px] max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-background pb-20 shadow-2xl md:min-h-0 md:max-w-6xl md:pb-6 md:shadow-sm">
-        <PortalTopHeader :student="student" :students="students" title="MENGLISH" />
+        <PortalTopHeader :student="student" title="MENGLISH" />
 
         <div class="flex w-full flex-1 flex-col gap-5 overflow-y-auto p-4 md:grid md:grid-cols-2 md:items-start md:gap-6 md:p-6">
             <!-- Lời chào -->

@@ -29,7 +29,7 @@ const params = computed(() => ({ studentId: props.student?.id ?? null }));
 
     <!-- Khung điện thoại -->
     <div class="relative mx-auto my-4 flex min-h-[844px] max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-surface-container-lowest pb-24 shadow-2xl md:min-h-0 md:max-w-4xl md:pb-6 md:shadow-sm">
-        <PortalTopHeader :student="student" :students="students" title="Thông báo" show-back :back-url="route('portal.student.home', params)" />
+        <PortalTopHeader :student="student" title="Thông báo" show-back :back-url="route('portal.student.home', params)" />
 
         <div class="flex items-center justify-between border-b border-surface-container-highest bg-surface-container-low/80 px-4 py-3">
             <span class="text-xs font-bold text-on-surface">Tất cả thông báo</span>

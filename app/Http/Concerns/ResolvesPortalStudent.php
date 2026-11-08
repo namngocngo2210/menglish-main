@@ -26,6 +26,12 @@ trait ResolvesPortalStudent
      */
     protected function getActiveStudent($studentId = null)
     {
+        // Tài khoản học viên / phụ huynh luôn chỉ xem hồ sơ của chính mình: bỏ qua mọi tham số chọn học viên (chống IDOR).
+        // Chỉ nhân sự có student.view mới xem hộ học viên theo id.
+        if (! $this->canManageStudents()) {
+            $studentId = null;
+        }
+
         $students = Student::with(['currentClass.teacher', 'tuition.receipts'])
             ->when(
                 $this->canManageStudents(),

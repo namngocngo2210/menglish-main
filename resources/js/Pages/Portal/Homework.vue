@@ -6,7 +6,7 @@
  * Nhân sự xem hộ thì quay về danh sách học viên; học viên quay về trang chủ cổng. Trên điện thoại dùng thanh điều hướng đáy.
  */
 import { computed, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { can } from '@/lib/can';
 import { formatDate } from '@/lib/format';
 import { route } from '@/lib/route';
@@ -40,7 +40,6 @@ const progressPercent = computed(() => (props.basketProgress.total ? Math.round(
 const dueLabel = (hw) => (hw.due_at ? formatDate(hw.due_at, 'd/m/Y H:i') : hw.due_date ? formatDate(hw.due_date) : 'Không giới hạn');
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
 const backUrl = computed(() => (can('student.view') ? route('students.index') : route('portal.student.home', params.value)));
-const studentOptions = computed(() => props.students.map((s) => ({ value: s.id, label: `${s.name} (${s.class_name ?? 'Chưa xếp lớp'})` })));
 const filled = (value) => value !== null && value !== undefined && String(value).trim() !== '';
 
 // Nộp theo giỏ của bài tập GV giao.
@@ -58,9 +57,6 @@ function checkSize(event) {
     if (fileError.value) event.target.value = '';
 }
 
-function switchStudent(event) {
-    router.visit(route('portal.student.homework', { studentId: event.target.value }));
-}
 </script>
 
 <template>
@@ -71,7 +67,7 @@ function switchStudent(event) {
     </PortalPageHeader>
 
     <div class="mx-auto max-w-4xl space-y-6">
-        <!-- Đổi học viên (phụ huynh nhiều con / nhân sự xem hộ) -->
+        <!-- Mỗi tài khoản học viên là một đầu mối truy cập duy nhất: chỉ hiện tên + mã học viên đang đăng nhập -->
         <div class="flex flex-col justify-between gap-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-sm sm:flex-row sm:items-center">
             <div class="flex items-center gap-3">
                 <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container/10 font-bold text-primary">
@@ -83,8 +79,6 @@ function switchStudent(event) {
                     <span class="font-mono text-xs text-on-surface-variant"> (<UiCode :value="student?.code" />)</span>
                 </div>
             </div>
-
-            <UiSelect inline-label="Đổi học viên:" :options="studentOptions" :value="student?.id" @change="switchStudent" />
         </div>
 
         <!-- Khung điện thoại -->
