@@ -54,9 +54,8 @@ class StudentLearningProfile
                 'class_name' => $m->classModel?->name,
                 'score' => $m->score,
                 'max_score' => $m->max_score,
-                'skills' => collect((array) $m->skill_scores)
-                    ->filter(fn ($v) => filled($v))
-                    ->map(fn ($v, $k) => (MiniTestScore::SKILLS[$k] ?? $k).' '.$v)
+                'skills' => collect($m->components())
+                    ->map(fn ($c) => $c['name'].' '.$c['score'])
                     ->values()->implode(' · '),
                 'note' => $m->note,
             ])->values()->all();

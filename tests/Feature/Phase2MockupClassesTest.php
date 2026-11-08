@@ -577,25 +577,53 @@ class Phase2MockupClassesTest extends TestCase
         $this->actingAs($this->teacher)->get(route('teacher.scores', $this->classModel->id))->assertOk()
             ->assertSee('Nhập điểm mini test')->assertSee('Vui lòng chọn thông tin và nhập điểm cho học sinh')
             ->assertSee('Chọn Unit')->assertSee('Unit 2: Daily Routines')->assertSee('Chọn học sinh')->assertSee('Nguyễn Văn Điểm')
-            ->assertSee('Điểm kỹ năng')->assertSee('Nghe')->assertSee('Nói')->assertSee('Đọc')->assertSee('Viết')
+            ->assertSee('Thành phần điểm')->assertSee('Thêm thành phần')->assertDontSee('Thang điểm tối đa')
             ->assertSee('Nhận xét chung (Không bắt buộc)')->assertSee('Lưu điểm');
 
-        $this->actingAs($this->teacher)->post(route('teacher.scores.store', $this->classModel->id), [
-            'unit_id' => $unit->id, 'student_id' => $student->id, 'skills' => ['listening' => 8, 'speaking' => 7, 'reading' => '', 'writing' => 6],
-        ])->assertSessionHasErrors('skills');
-        $this->assertSame('Cần nhập đủ điểm 4 kỹ năng.', session('errors')->first('skills'));
+        $post = fn (array $components) => $this->actingAs($this->teacher)->post(route('teacher.scores.store', $this->classModel->id), [
+            'unit_id' => $unit->id, 'student_id' => $student->id, 'components' => $components,
+        ]);
+        $msg = 'Cần nhập ít nhất 1 thành phần điểm, mỗi thành phần phải có đủ tên và điểm.';
 
-        $this->actingAs($this->teacher)->post(route('teacher.scores.store', $this->classModel->id), [
-            'unit_id' => $unit->id, 'student_id' => $student->id, 'skills' => ['listening' => 8, 'speaking' => 7, 'reading' => 9, 'writing' => 6],
-            'note' => 'Cần luyện viết',
-        ])->assertSessionHasNoErrors();
+        // Guard: 0 dòng, dòng trống, thiếu điểm, thiếu tên → từ chối, không ghi DB.
+        $post([])->assertSessionHasErrors('components');
+        $post([['name' => '', 'score' => '']])->assertSessionHasErrors('components');
+        $post([['name' => 'Nghe', 'score' => 8], ['name' => 'Nói', 'score' => '']])->assertSessionHasErrors('components');
+        $post([['name' => 'Nghe', 'score' => 8], ['name' => '', 'score' => 7]])->assertSessionHasErrors('components');
+        $this->assertSame($msg, session('errors')->first('components'));
+        $this->assertSame(0, MiniTestScore::count());
+
+        // Không còn chặn thang 10: điểm 25 và tên/số lượng thành phần tự do (3 dòng, 1 dòng trống bị bỏ qua).
+        $post([['name' => 'Từ vựng', 'score' => 25], ['name' => 'Ngữ pháp', 'score' => 15], ['name' => '', 'score' => '']])
+            ->assertSessionHasNoErrors();
         $score = MiniTestScore::sole();
         $this->assertSame('Unit 2: Daily Routines', $score->name);
         $this->assertSame($unit->id, $score->syllabus_unit_id);
-        $this->assertEquals(7.5, (float) $score->score);
-        $this->assertEquals(['listening' => 8, 'speaking' => 7, 'reading' => 9, 'writing' => 6], $score->skill_scores);
+        $this->assertEquals(20, (float) $score->score);
+        $this->assertSame([['name' => 'Từ vựng', 'score' => 25.0], ['name' => 'Ngữ pháp', 'score' => 15.0]], $score->components());
+
+        // Chỉ 1 thành phần cũng lưu được (sửa lại cùng bài).
+        $post([['name' => 'Tổng', 'score' => 9]])->assertSessionHasNoErrors();
+        $this->assertEquals(9, (float) MiniTestScore::sole()->score);
 
         $this->actingAs($this->teacher)->get(route('teacher.scores', ['classId' => $this->classModel->id, 'unit_id' => $unit->id]))
-            ->assertSee('Điểm đã nhập — Unit 2: Daily Routines')->assertSee('7.5/10');
+            ->assertSee('Điểm đã nhập — Unit 2: Daily Routines')->assertSee('Tổng: 9');
+    }
+
+    public function test_legacy_four_skill_mini_test_still_displays_without_migration(): void
+    {
+        $student = $this->student('Học Sinh Cũ');
+        $score = MiniTestScore::create([
+            'class_id' => $this->classModel->id, 'student_id' => $student->id, 'name' => 'Mini Test Cũ',
+            'score' => 7.5, 'max_score' => 10, 'test_date' => today(),
+            'skill_scores' => ['listening' => 8, 'speaking' => 7, 'reading' => 9, 'writing' => 6],
+        ]);
+        $this->assertSame(
+            [['name' => 'Nghe', 'score' => 8.0], ['name' => 'Nói', 'score' => 7.0], ['name' => 'Đọc', 'score' => 9.0], ['name' => 'Viết', 'score' => 6.0]],
+            $score->components()
+        );
+
+        $this->actingAs($this->teacher)->get(route('teacher.scores', ['classId' => $this->classModel->id, 'name' => 'Mini Test Cũ', 'student_id' => $student->id]))
+            ->assertOk()->assertSee('Nghe: 8')->assertSee('Viết: 6')->assertSee('7.5/10');
     }
 }
