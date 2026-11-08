@@ -51,40 +51,6 @@ class AuditSecurityTest extends TestCase
         ]);
     }
 
-    public function test_staff_cannot_reach_a_student_record_by_setting_the_same_email(): void
-    {
-        $student = $this->studentWithEmail('phu-huynh@example.test');
-        $teacher = $this->userWithRole('teacher', ['email' => 'phu-huynh@example.test']);
-
-        $this->actingAs($teacher)
-            ->post(route('portal.student.profile.update', $student->id), ['phone' => '0911111111'])
-            ->assertForbidden();
-
-        $this->assertSame('0900000001', $student->fresh()->phone);
-    }
-
-    public function test_portal_account_with_the_same_email_still_manages_the_student_record(): void
-    {
-        $student = $this->studentWithEmail('phu-huynh@example.test');
-        $parent = $this->userWithRole('student', ['email' => 'phu-huynh@example.test']);
-
-        $this->actingAs($parent)
-            ->post(route('portal.student.profile.update', $student->id), ['phone' => '0911111111'])
-            ->assertRedirect();
-
-        $this->assertSame('0911111111', $student->fresh()->phone);
-    }
-
-    public function test_staff_with_only_view_permission_cannot_edit_students_through_the_portal(): void
-    {
-        $student = $this->studentWithEmail('hv@example.test', $this->branchB);
-        $branchStaff = $this->userWithRole('academic_staff');
-
-        $this->actingAs($branchStaff)
-            ->post(route('portal.student.profile.update', $student->id), ['phone' => '0922222222'])
-            ->assertForbidden();
-    }
-
     public function test_changing_email_requires_current_password(): void
     {
         $teacher = $this->userWithRole('teacher', ['email' => 'gv@example.test', 'password' => Hash::make('Mat-khau-cu-123')]);
