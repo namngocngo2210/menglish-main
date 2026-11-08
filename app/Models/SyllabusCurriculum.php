@@ -14,6 +14,11 @@ class SyllabusCurriculum extends Model
 {
     use AuditsChanges, HasFactory, LogsCurriculumId, SoftDeletes;
 
+    /** Ảnh lộ trình nằm trên disk private, chỉ đọc qua route portal.student.roadmap-image. */
+    public const ROADMAP_DISK = 'local';
+
+    public const ROADMAP_DIRECTORY = 'syllabus_roadmaps';
+
     protected $table = 'syllabus_curriculums';
 
     protected $fillable = [
@@ -28,6 +33,7 @@ class SyllabusCurriculum extends Model
         'file_size',
         'file_url',
         'description',
+        'roadmap_image_path',
     ];
 
     /**

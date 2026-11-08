@@ -379,6 +379,8 @@ Route::middleware('auth')->group(function () {
         // Homework 3 giỏ: chỉ nộp vào BTVN GV giao theo buổi & giỏ (đã gỡ nộp tự do 6 hạng mục); file bài nộp lưu riêng tư (docs/kho-syllabus.md §10).
         Route::post('/student-homework/{homework}/basket/{basket}', [StudentPortalController::class, 'submitBasket'])
             ->whereNumber('homework')->whereIn('basket', ['paper', 'quizizz', 'video'])->name('student.homework.basket');
+        // Ảnh lộ trình của giáo trình lớp đang học (TK-2026-0044); chỉ trả ảnh của đúng học viên đang xem.
+        Route::get('/student-roadmap/{studentId}', [StudentPortalController::class, 'roadmapImage'])->whereNumber('studentId')->name('student.roadmap-image');
         Route::get('/student-homework/file/{submission}', [StudentPortalController::class, 'homeworkFile'])->whereNumber('submission')->name('student.homework-file');
         // Phụ huynh chấm từng buổi học ngay dưới nhận xét của giáo viên
         Route::post('/session-feedback', [StudentPortalController::class, 'submitSessionFeedback'])->name('student.session-feedback.store');
@@ -565,6 +567,8 @@ Route::middleware('auth')->group(function () {
         });
         Route::post('/curriculums', [SyllabusController::class, 'storeCurriculum'])->middleware('can:syllabus.library')->name('curriculums.store');
         Route::put('/curriculums/{id}', [SyllabusController::class, 'updateCurriculum'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.update');
+        Route::post('/curriculums/{id}/roadmap-image', [SyllabusController::class, 'uploadRoadmapImage'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.roadmap-image.store');
+        Route::delete('/curriculums/{id}/roadmap-image', [SyllabusController::class, 'destroyRoadmapImage'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.roadmap-image.destroy');
         Route::delete('/curriculums/{id}', [SyllabusController::class, 'destroyCurriculum'])->whereNumber('id')->middleware('can:syllabus.library')->name('curriculums.destroy');
         Route::post('/units', [SyllabusController::class, 'storeUnit'])->middleware('can:syllabus.library')->name('units.store');
         Route::put('/units/{id}', [SyllabusController::class, 'updateUnit'])->whereNumber('id')->middleware('can:syllabus.library')->name('units.update');

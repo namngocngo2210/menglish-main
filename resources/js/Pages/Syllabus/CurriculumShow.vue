@@ -133,6 +133,21 @@ const milestoneLabel = (value) => props.milestones.find((m) => m.value === value
                     <UiButton type="submit" icon="save">Lưu thông tin giáo trình</UiButton>
                 </div>
             </UiForm>
+
+            <div class="mt-5 border-t border-surface-container-highest pt-4">
+                <UiField label="Ảnh lộ trình tổng quát (hiện ở cổng học sinh)" hint="JPG/PNG/WebP, tối đa 5 MB. Chưa có ảnh thì cổng học sinh hiện “Chưa cập nhật lộ trình”.">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <UiBadge :color="curriculum.has_roadmap_image ? 'success' : 'neutral'">{{ curriculum.has_roadmap_image ? 'Đã có ảnh' : 'Chưa có ảnh' }}</UiBadge>
+                        <UiForm v-if="canManage" :action="route('syllabus.curriculums.roadmap-image.store', curriculum.id)" method="post" class="flex flex-wrap items-center gap-2">
+                            <input type="file" name="roadmap_image" accept="image/jpeg,image/png,image/webp,image/gif" class="text-xs" />
+                            <UiButton type="submit" size="sm" icon="upload">Tải lên</UiButton>
+                        </UiForm>
+                        <UiForm v-if="canManage && curriculum.has_roadmap_image" :action="route('syllabus.curriculums.roadmap-image.destroy', curriculum.id)" method="delete" confirm="Gỡ ảnh lộ trình của giáo trình này?" confirm-label="Gỡ" danger>
+                            <UiButton type="submit" variant="danger-text" size="sm" icon="delete">Gỡ ảnh</UiButton>
+                        </UiForm>
+                    </div>
+                </UiField>
+            </div>
         </section>
 
         <!-- Ô soạn thảo chặng / unit / buổi: hộp thoại mở theo tham số URL, đóng thì về trang chi tiết (không tải lại trang). -->
