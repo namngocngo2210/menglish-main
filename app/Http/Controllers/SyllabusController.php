@@ -1718,7 +1718,8 @@ class SyllabusController extends Controller
         $user = $request->user();
         $assignments = SyllabusAssignment::open()
             ->with(['stage', 'classModel.course'])
-            ->whereIn('class_id', ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->select('id'))
+            // Dạy thay theo buổi không hiện ở đây (withSessions: false).
+            ->whereIn('class_id', ClassModel::visibleTo($user, false)->where('status', '!=', 'cancelled')->select('id'))
             ->get()
             ->sortBy(fn ($a) => $a->classModel?->name)
             ->values();
