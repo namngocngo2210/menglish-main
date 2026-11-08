@@ -416,7 +416,11 @@ class Phase2AcceptanceTest extends TestCase
                     && collect($rows)->every(fn ($a) => (int) StudentAttendance::find($a['id'])?->student_id === $s1->id))
                 ->where('bigTestResults', fn ($results) => collect($results)->count() === 1
                     && BigTestResult::find(collect($results)->first()['id'])?->status === 'sent'));
-        $this->actingAs($studentUser)->get(route('portal.student.home', ['studentId' => $s2->id]))->assertForbidden();
+        $this->actingAs($studentUser)->get(route('portal.student.home', ['studentId' => $s2->id]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Home')
+                ->where('student.id', $s1->id)
+                ->where('student.code', $s1->code)
+                ->where('student.name', $s1->name));
         $this->actingAs($studentUser)->get(route('portal.student.homework'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Homework')
                 ->where('miniTests', fn ($scores) => collect($scores)->count() === 1)
