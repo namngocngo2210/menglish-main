@@ -26,6 +26,7 @@ const props = defineProps({
     miniTests: { type: Array, default: () => [] },
     bigTestResults: { type: Array, default: () => [] },
     assignments: { type: Array, default: () => [] },
+    sessionProgress: { type: Object, default: () => ({}) },
 });
 
 const REMARK_FIELDS = {
@@ -36,7 +37,17 @@ const REMARK_FIELDS = {
     result: ['Kết quả', 'checklist', 'text-accent'],
 };
 
-const progressPercent = computed(() => (props.basketProgress.total ? Math.round((props.basketProgress.submitted / props.basketProgress.total) * 100) : 0));
+const percentOf = (p) => (p?.total ? Math.round((p.submitted / p.total) * 100) : 0);
+// Nhóm thẻ BTVN theo buổi (giữ thứ tự xuất hiện); bài không gắn buổi là nhóm riêng. Mỗi nhóm có bộ đếm riêng.
+const groups = computed(() => {
+    const map = new Map();
+    for (const hw of props.assignments) {
+        const key = hw.session?.id ?? 'none';
+        if (!map.has(key)) map.set(key, { key, session: hw.session, class_name: hw.class_name, items: [], progress: props.sessionProgress[key] });
+        map.get(key).items.push(hw);
+    }
+    return [...map.values()];
+});
 const dueLabel = (hw) => (hw.due_at ? formatDate(hw.due_at, 'd/m/Y H:i') : hw.due_date ? formatDate(hw.due_date) : 'Không giới hạn');
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
 const backUrl = computed(() => (can('student.view') ? route('students.index') : route('portal.student.home', params.value)));
@@ -115,15 +126,18 @@ function switchStudent(event) {
                         <h2 class="text-base font-bold text-on-surface">Bài tập về nhà</h2>
                     </div>
 
-                    <div v-if="basketProgress.total" class="mt-1 flex items-center justify-between" data-testid="homework-progress">
-                        <p class="text-xs font-bold text-on-surface">Đã hoàn thành: {{ basketProgress.submitted }}/{{ basketProgress.total }} phần bài tập</p>
-                        <div class="h-2 w-1/3 overflow-hidden rounded-full bg-surface-container">
-                            <div class="h-full rounded-full bg-tertiary transition-all duration-300" :style="{ width: progressPercent + '%' }"></div>
+                    <!-- BTVN GV giao theo từng buổi — nộp đúng giỏ theo loại để thống kê; bài không gắn buổi là nhóm riêng -->
+                    <template v-for="group in groups" :key="group.key">
+                    <div v-if="group.progress?.total" class="mt-1 flex items-center justify-between gap-3" data-testid="homework-progress">
+                        <p class="text-xs font-bold text-on-surface">
+                            {{ group.session ? `${group.class_name} · ${group.session.label} · ${formatDate(group.session.date)}` : 'Bài không gắn buổi' }}
+                            — Đã hoàn thành: {{ group.progress.submitted }}/{{ group.progress.total }} phần bài tập
+                        </p>
+                        <div class="h-2 w-1/3 shrink-0 overflow-hidden rounded-full bg-surface-container">
+                            <div class="h-full rounded-full bg-tertiary transition-all duration-300" :style="{ width: percentOf(group.progress) + '%' }"></div>
                         </div>
                     </div>
-
-                    <!-- BTVN GV giao theo từng buổi — nộp đúng giỏ theo loại để thống kê -->
-                    <div v-for="hw in assignments" :key="hw.id" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs" data-testid="assigned-homework">
+                    <div v-for="hw in group.items" :key="hw.id" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs" data-testid="assigned-homework">
                         <div>
                             <div class="flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant" data-testid="homework-session">
                                 <span class="font-bold text-primary">{{ hw.class_name }}</span>
@@ -141,7 +155,6 @@ function switchStudent(event) {
                             <p v-if="hw.note" class="mt-1 text-xs italic text-on-surface-variant">{{ hw.note }}</p>
                             <p v-if="hw.description" class="mt-1 whitespace-pre-line text-xs text-on-surface-variant">{{ hw.description }}</p>
                             <a v-if="hw.youtube_url" :href="hw.youtube_url" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex items-center gap-1 text-xs font-bold text-secondary hover:underline">Video hướng dẫn <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span></a>
-                            <p v-if="!hw.baskets.length" class="mt-1 text-xs text-on-surface-subtle">Bài này không cần nộp trên cổng.</p>
                         </div>
                         <div v-for="b in hw.baskets" :key="b.key" class="rounded-xl border border-surface-container-highest bg-surface-container-low p-2.5 text-xs">
                             <div class="flex items-center justify-between gap-2">
@@ -163,6 +176,7 @@ function switchStudent(event) {
                             </div>
                         </div>
                     </div>
+                    </template>
 
                     <UiEmptyState v-if="!assignments.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="assignment" title="Chưa có bài tập về nhà được giao" description="Bài tập giáo viên giao theo từng buổi học sẽ hiện ở đây để nộp." />
                 </section>

@@ -73,6 +73,17 @@ class Homework extends Model
         return array_values(array_filter(array_keys(HomeworkSubmission::BASKETS), fn (string $b) => $baskets->contains($b)));
     }
 
+    /**
+     * Giỏ học viên nộp được trên cổng: bài giao bằng form cũ (không hạng mục, không Quizizz) vẫn cho nộp ảnh bài làm,
+     * không để thẻ hiện mà không nộp được (TK-2026-0045). Thống kê GV vẫn dùng baskets().
+     *
+     * @return list<string>
+     */
+    public function portalBaskets(): array
+    {
+        return $this->baskets() ?: ['paper'];
+    }
+
     public function submissions(): HasMany
     {
         return $this->hasMany(HomeworkSubmission::class);
