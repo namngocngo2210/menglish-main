@@ -116,6 +116,18 @@ const incidents = ref(props.incidents.map((i) => ({ key: seq++, ...i })));
 const addIncident = () => incidents.value.push({ key: seq++, id: null, title: '', content: '', severity: 'normal' });
 const SEVERITY_TONE = { normal: 'neutral', important: 'warning', urgent: 'error' };
 
+// "Lưu nhận xét": cùng form nhưng chỉ lưu nhận xét học sinh (không trường nào bắt buộc, không cần điểm danh).
+let remarksOnly = false;
+const withRemarksFlag = (data) => {
+    const out = remarksOnly ? { ...data, remarks_only: 1 } : data;
+    remarksOnly = false;
+    return out;
+};
+const saveRemarks = (submit) => {
+    remarksOnly = true;
+    submit();
+};
+
 const content = ref(props.report?.content ?? props.lessonText ?? '');
 
 const card = 'rounded-xl border border-surface-container-highest bg-surface-container-lowest p-lg';
@@ -128,7 +140,7 @@ const attLabel = { present: 'Có mặt', late: 'Đi muộn', absent: 'Vắng', e
 </script>
 
 <template>
-    <UiForm :action="route('classes.session-report.store', { id: classInfo.id, session: sessionInfo.id })" method="post" class="space-y-md pb-28" #default="{ processing }">
+    <UiForm :action="route('classes.session-report.store', { id: classInfo.id, session: sessionInfo.id })" method="post" class="space-y-md pb-28" :transform="withRemarksFlag" #default="{ processing, submit }">
         <!-- Đầu trang -->
         <header class="space-y-1">
             <nav aria-label="Đường dẫn" class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant">
@@ -420,6 +432,7 @@ const attLabel = { present: 'Có mặt', late: 'Đi muộn', absent: 'Vắng', e
                     </label>
                 </template>
             </div>
+            <UiButton type="button" icon="save" :disabled="processing" data-save-remarks @click="saveRemarks(submit)">Lưu nhận xét</UiButton>
             <UiButton type="submit" icon="send" :disabled="processing || !attendanceDone">{{ report ? 'Cập nhật báo cáo' : 'Nộp báo cáo buổi' }}</UiButton>
         </div>
     </UiForm>
