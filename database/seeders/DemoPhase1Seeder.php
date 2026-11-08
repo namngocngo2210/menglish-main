@@ -235,6 +235,7 @@ class DemoPhase1Seeder extends Seeder
 
         if (! $class->sessions()->exists()) {
             $sessions = $this->schedule->generate($slots, $class->start_date, $class->end_date, $this->branch->id);
+            $sessions = array_slice($sessions, 0, (int) $course->total_lessons ?: null); // O-37
             foreach ($sessions as $session) {
                 $date = Carbon::parse($session['date']);
                 ClassSession::create([

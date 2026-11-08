@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Holiday;
 use Carbon\CarbonInterface;
@@ -44,6 +45,25 @@ class SessionScheduleService
         }
 
         return $sessions;
+    }
+
+    /**
+     * Số buổi chính khóa/học bù còn được sinh thêm theo kế hoạch khóa (courses.total_lessons, quy tắc O-37):
+     * kế hoạch trừ các buổi chưa hủy của lớp (trừ $ignoreIds — buổi sắp bị thay). null = lớp không có kế hoạch khóa.
+     */
+    public function remainingLessons(ClassModel $class, array $ignoreIds = []): ?int
+    {
+        $total = (int) $class->course?->total_lessons;
+        if ($total < 1) {
+            return null;
+        }
+        $used = ClassSession::where('class_id', $class->id)
+            ->whereIn('type', [ClassSession::TYPE_REGULAR, ClassSession::TYPE_MAKEUP])
+            ->where('status', '!=', 'cancelled')
+            ->whereKeyNot($ignoreIds)
+            ->count();
+
+        return max(0, $total - $used);
     }
 
     /**
