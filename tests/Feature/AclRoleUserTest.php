@@ -348,6 +348,8 @@ class AclRoleUserTest extends TestCase
         $oldPasswordHash = $user->password;
         $responseReset = $this->actingAs($this->adminUser)->post(route('users.reset-password', $user));
         $responseReset->assertRedirect();
+        $responseReset->assertSessionHas('temporary_password.password');
+        $this->assertStringNotContainsString(session('temporary_password.password'), (string) session('status'));
         $user->refresh();
         $this->assertNotEquals($oldPasswordHash, $user->password);
     }
