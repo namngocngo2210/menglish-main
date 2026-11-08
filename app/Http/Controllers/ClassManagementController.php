@@ -656,14 +656,14 @@ class ClassManagementController extends Controller
         }
         if ($tab === 'students') {
             // Danh sách lớp thật: học viên có lớp chính là lớp này + học viên liên kết lớp khác,
-            // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7). SĐT chỉ gửi cho người quản lý lớp.
+            // bỏ Thôi học / Hoàn thành / Bảo lưu (audit A4 #7). SĐT và địa chỉ chỉ gửi cho người quản lý lớp (TK-2026-0041).
             $data['students'] = $class->rosterStudents()->map(fn ($st) => [
                 'id' => $st->id,
                 'name' => $st->name,
                 'code' => $st->code,
                 'dob' => $st->dob?->format('d/m/Y'),
                 'target' => $st->target,
-                'address' => $st->address,
+                'address' => $canManage ? $st->address : null,
                 'parent_name' => $st->parent_name,
                 'phone' => $canManage ? $st->phone : null,
                 'notes' => $st->notes,
