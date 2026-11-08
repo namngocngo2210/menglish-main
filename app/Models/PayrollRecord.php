@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Phiếu lương một người trong một kỳ. Từ Q3 (A6 25/09/2026) mỗi phiếu ghi rõ loại nhân sự:
  *
  * - Part-time (GV part-time): số buổi × đơn giá buổi riêng + KPI giữ HS (số HS giữ được × bậc Admin chọn)
- *   + lương buổi có GVNN (nhập tay, chờ BA) + phụ cấp tự do − phạt quá hạn − khấu trừ tự do. Không BHXH/Công đoàn.
+ *   + lương buổi có GVNN (nhập tay) + phụ cấp tự do − phạt quá hạn − khấu trừ tự do. Không BHXH/Công đoàn.
  * - GVNN (Part-time): phút lịch buổi × đơn giá phút cá nhân + KPI giữ HS; không phạt tự động / đi muộn / vắng.
  *   Biên bản thủ công đã quyết phạt vẫn khấu trừ.
  * - Full-time (GV full-time, Học vụ, Học thuật, Sale, nhân sự khác): lương cơ bản + KPI + hoa hồng + thưởng tái tục
@@ -349,8 +349,8 @@ class PayrollRecord extends Model
                         : (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được — chưa chọn bậc KPI'];
             }
             if (! $this->isForeignTeacher()) {
-                $lines[] = ['key' => 'foreign_session_pay', 'label' => 'Buổi có GVNN (chờ BA chốt)', 'amount' => (float) $this->foreign_session_pay,
-                    'hint' => 'Kế toán nhập tay'.((int) $this->foreign_teacher_sessions_count > 0 ? ' · '.(int) $this->foreign_teacher_sessions_count.' buổi có GVNN cùng lớp trong kỳ' : '')];
+                $lines[] = ['key' => 'foreign_session_pay', 'label' => 'Buổi có GVNN (nhập tay)', 'amount' => (float) $this->foreign_session_pay,
+                    'hint' => 'Kế toán nhập tay · '.(int) $this->foreign_teacher_sessions_count.' buổi có GVNN (không tính vào lương buổi dạy tự động)'];
             }
         } else {
             $lines[] = ['key' => 'base_salary', 'label' => 'Lương cơ bản', 'amount' => $this->base_salary_earned, 'hint' => $this->workdayHint()];

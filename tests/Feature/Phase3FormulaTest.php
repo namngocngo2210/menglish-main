@@ -354,7 +354,7 @@ class Phase3FormulaTest extends TestCase
             ->assertSee('Lương buổi dạy (8 buổi)')
             ->assertSee('KPI giữ học sinh')
             ->assertSee('9/10 HS giữ được')
-            ->assertSee('Buổi có GVNN (chờ BA chốt)')
+            ->assertSee('Buổi có GVNN (nhập tay)')->assertDontSee('chờ BA chốt')
             ->assertSee('Gửi xe')
             ->assertSee('Tạm ứng')
             ->assertSee('2.630.000')
@@ -384,12 +384,13 @@ class Phase3FormulaTest extends TestCase
         $record = $this->record($period, $teacher);
         $this->assertSame(2, $record->foreign_teacher_sessions_count);   // gợi ý cho Kế toán
         $this->assertEquals(0, $record->foreign_teacher_deduction);       // bỏ quy tắc trừ 50k/buổi
-        $this->assertEquals(600000, $record->net_salary);
+        $this->assertEquals(0, $record->teaching_salary);                 // BR-03: cả 2 buổi có GVNN → không vào lương buổi tự tính
+        $this->assertEquals(0, $record->net_salary);
 
-        $this->actingAs($this->accountant)->post(route('payroll.records.update', $record->id), ['foreign_session_pay' => 150000, 'notes' => 'Tạm tính chờ BA'])
+        $this->actingAs($this->accountant)->post(route('payroll.records.update', $record->id), ['foreign_session_pay' => 150000, 'notes' => 'Nhập tay buổi có GVNN'])
             ->assertSessionHasNoErrors();
-        $this->assertEquals(750000, $record->fresh()->net_salary);
-        $this->assertEquals(750000, $this->calculate($period)->records()->where('user_id', $teacher->id)->value('net_salary'));
+        $this->assertEquals(150000, $record->fresh()->net_salary);
+        $this->assertEquals(150000, $this->calculate($period)->records()->where('user_id', $teacher->id)->value('net_salary'));
     }
 
     // ───────────── C. Full-time + BHXH / Công đoàn / TNCN ─────────────
