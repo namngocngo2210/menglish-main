@@ -198,7 +198,7 @@ function sessionNote(ts) {
 
                         <section v-if="!record.is_assistant" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
                             <h3 class="font-h3 text-h3 text-on-surface">Phụ cấp mở rộng</h3>
-                            <UiInput v-if="canEdit && !record.is_foreign_teacher" type="number" name="foreign_session_pay" label="Lớp GVNN đan xen (đ) — chờ BA chốt" min="0" step="1000" :value="Math.trunc(record.foreign_session_pay)" :hint="`${record.foreign_teacher_sessions_count} buổi có GVNN cùng lớp trong kỳ. Kế toán nhập tổng tiền.`" />
+                            <UiInput v-if="canEdit && !record.is_foreign_teacher" type="number" name="foreign_session_pay" label="Lớp GVNN đan xen (đ)" min="0" step="1000" :value="Math.trunc(record.foreign_session_pay)" :hint="`${record.foreign_teacher_sessions_count} buổi có GVNN cùng dạy trong kỳ (không tính vào lương buổi dạy tự động). Kế toán nhập tổng tiền.`" />
                             <p v-else-if="!record.is_foreign_teacher" class="flex justify-between font-body-medium text-body-medium"><span>Lớp GVNN đan xen</span><span class="font-mono">{{ money(record.foreign_session_pay) }} đ</span></p>
                             <PayslipLines kind="earning" :lines="editLines" :saved="record.manual_lines" :can-edit="canEdit" add-label="Thêm phụ cấp" placeholder="VD: Hỗ trợ thỏa thuận, Gửi xe, Thưởng khác" />
                         </section>

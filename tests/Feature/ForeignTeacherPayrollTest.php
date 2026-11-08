@@ -224,19 +224,62 @@ class ForeignTeacherPayrollTest extends TestCase
             $this->teach($vn, $date, ['class_session_id' => $date === '2026-09-19' ? null : $session->id]);
             $this->teach($other, $date, ['status' => $date === '2026-09-26' ? 'invalid' : 'valid']);
         }
-        // Không đếm 12/09 (buổi không có GVNN) hoặc 26/09 (GVNN không có chấm công hợp lệ).
+        // Không đếm 12/09 (buổi không có GVNN); 26/09 vẫn đếm vì phân công GVNN theo buổi, không phụ thuộc chấm công của GVNN.
         $period = $this->period();
         $period->calculatePayrollForPeriod();
-        $this->assertSame(2, $this->record($period, $vn)->foreign_teacher_sessions_count);
+        $this->assertSame(3, $this->record($period, $vn)->foreign_teacher_sessions_count);
         $this->assertSame(0, $this->record($period, $other)->foreign_teacher_sessions_count);
         $this->assertEquals(0, $this->record($period, $vn)->foreign_session_pay);
         // Bỏ mặc định lớp: phân công theo buổi vẫn giữ nguyên kết quả.
         $this->class->update(['foreign_teacher_id' => null]);
         $period->calculatePayrollForPeriod();
-        $this->assertSame(2, $this->record($period, $vn)->foreign_teacher_sessions_count);
+        $this->assertSame(3, $this->record($period, $vn)->foreign_teacher_sessions_count);
         ClassSession::whereDate('date', '2026-09-12')->firstOrFail()->update(['foreign_teacher_id' => $other->id]);
         $period->calculatePayrollForPeriod();
-        $this->assertSame(3, $this->record($period, $vn)->foreign_teacher_sessions_count);
+        $this->assertSame(4, $this->record($period, $vn)->foreign_teacher_sessions_count);
+    }
+
+    /** TK-2026-0022: 10 buổi hợp lệ (2 có GVNN), đơn giá 150k trước 16/10 và 180k từ 16/10. */
+    public function test_co_taught_sessions_are_excluded_from_auto_session_pay_across_rate_change(): void
+    {
+        $vn = $this->staff(Roles::TEACHER_PARTTIME, 'PT-A');
+        $this->rate($vn, 150000, '2026-01-01', TeacherHourlyRate::UNIT_SESSION);
+        $this->rate($vn, 180000, '2026-10-16', TeacherHourlyRate::UNIT_SESSION);
+        // 5 buổi trước 16/10 (không có GVNN), 5 buổi từ 16/10 (2 có GVNN: 20/10, 24/10) → 5×150k + 3×180k.
+        $dates = ['2026-10-01', '2026-10-03', '2026-10-06', '2026-10-08', '2026-10-10', '2026-10-16', '2026-10-18', '2026-10-20', '2026-10-22', '2026-10-24'];
+        foreach ($dates as $date) {
+            $coTaught = in_array($date, ['2026-10-20', '2026-10-24'], true);
+            $session = ClassSession::create(['class_id' => $this->class->id, 'branch_id' => $this->branch->id, 'date' => $date,
+                'start_time' => '18:00', 'end_time' => '19:30', 'teacher_id' => $vn->id,
+                'foreign_teacher_id' => $coTaught ? $this->foreign->id : null, 'status' => 'scheduled']);
+            $this->teach($vn, $date, ['class_session_id' => $session->id]);
+        }
+        $period = PayrollPeriod::create(['code' => 'PR-2026-10', 'title' => 'Bảng lương Tháng 10/2026', 'month' => 10, 'year' => 2026,
+            'start_date' => '2026-10-01', 'end_date' => '2026-10-31', 'status' => PayrollPeriod::STATUS_DRAFT]);
+        $period->calculatePayrollForPeriod();
+
+        $record = $this->record($period, $vn);
+        $this->assertSame(2, $record->foreign_teacher_sessions_count);
+        $this->assertSame(8, (int) $record->teaching_sessions);
+        $this->assertEquals(1290000, $record->teaching_salary);   // 5×150k + 3×180k; không phải 1.620.000
+        $this->assertEquals(0, $record->foreign_session_pay);
+
+        // Export: no "chờ BA" label; GVNN session count matches the payslip.
+        $csv = $this->actingAs($this->admin)->get(route('payroll.periods.export', ['id' => $period->id, 'format' => 'csv']))->assertOk()->streamedContent();
+        $rows = array_map('str_getcsv', preg_split('/\R/', trim(ltrim($csv, "\xEF\xBB\xBF"))));
+        $this->assertStringNotContainsString('chờ BA', implode(',', $rows[0]));
+        $this->assertContains('Buổi có GVNN', $rows[0]);
+        $row = collect($rows)->first(fn ($r) => ($r[0] ?? null) === 'PT-A');
+        $this->assertSame((string) $record->foreign_teacher_sessions_count, $row[array_search('Số buổi có GVNN', $rows[0], true)]);
+
+        // Nhập tay vẫn cộng thêm và được giữ khi tính lại.
+        $this->actingAs($this->admin)->post(route('payroll.records.update', $record->id), ['foreign_session_pay' => 330000])->assertSessionHasNoErrors();
+        $this->assertEquals(1620000, $period->fresh()->records()->where('user_id', $vn->id)->value('net_salary'));
+        $period->calculatePayrollForPeriod();
+        $this->assertEquals(330000, $this->record($period, $vn)->foreign_session_pay);
+
+        $this->actingAs($this->admin)->get(route('payroll.records.show', $record->id))
+            ->assertOk()->assertSee('Buổi có GVNN (nhập tay)')->assertSee('2 buổi có GVNN')->assertDontSee('chờ BA chốt');
     }
 
     public function test_rate_form_forces_minute_foreign_type_and_validates_minimum(): void

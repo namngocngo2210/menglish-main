@@ -258,7 +258,7 @@ function filter(event) {
                                     <UiModal :show="foreignOpen === r.id" title="Lương buổi có GVNN" max-width="md" class="text-left" @close="foreignOpen = null">
                                         <UiForm :id="`foreign-form-${r.id}`" :action="route('payroll.records.update', r.id)" method="post" preserve-state="errors" class="space-y-md text-left">
                                             <p class="font-body-small text-body-small text-on-surface-variant">{{ r.name }}</p>
-                                            <UiAlert type="warning"><strong>Chờ BA chốt:</strong> cách tính lương buổi có GVNN chưa được xác nhận. Kế toán nhập tổng tiền cộng cho GV. Kỳ này có {{ r.foreign_teacher_sessions_count }} buổi GVNN cùng lớp.</UiAlert>
+                                            <UiAlert type="info">Kỳ này có {{ r.foreign_teacher_sessions_count }} buổi có GVNN cùng dạy, không tính vào lương buổi dạy tự động. Kế toán nhập tổng tiền cộng cho GV.</UiAlert>
                                             <UiInput type="number" name="foreign_session_pay" label="Số tiền (VNĐ)" :value="Math.trunc(r.foreign_session_pay)" min="0" step="1000" required />
                                             <UiTextarea name="notes" label="Ghi chú" rows="2" :value="r.adjustment_notes" placeholder="Ghi chú thêm..." />
                                         </UiForm>

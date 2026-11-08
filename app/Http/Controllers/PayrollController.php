@@ -373,7 +373,7 @@ class PayrollController extends Controller
                 'Nhân sự', 'Mã NV', 'Email', 'Khối', 'Loại', 'Vai trò lương', 'Lương cơ bản (hợp đồng)', 'Công chuẩn', 'Công hưởng lương', 'Ngày quên chấm ra (0,5 công)',
                 'Lương cơ bản theo công', 'Phụ cấp hợp đồng theo công', 'Số buổi', 'Số giờ', 'Lương buổi / giờ / phút dạy',
                 'Nguồn KPI', 'Trạng thái KPI', 'HS giữ được / đầu kỳ', 'Bậc KPI giữ HS (đ/HS)', 'Điểm KPI Học vụ (%)', 'KPI', 'KPI kiêm nhiệm giảng dạy',
-                'Số buổi có GVNN', 'Buổi có GVNN (chờ BA)', 'Số HS chốt (hoa hồng)', '% hoa hồng', 'Căn cứ thực thu', 'Hoa hồng', 'Hoa hồng hoãn',
+                'Số buổi có GVNN', 'Buổi có GVNN', 'Số HS chốt (hoa hồng)', '% hoa hồng', 'Căn cứ thực thu', 'Hoa hồng', 'Hoa hồng hoãn',
                 'Thưởng tái tục', 'Chi tiết cộng tự do', 'Phụ cấp / cộng khác', 'Tổng thu nhập',
                 'Mức lương đóng BHXH', 'BHXH', 'Công đoàn', 'Thuế TNCN', 'Đi muộn (phút)', 'Trừ đi muộn', 'Quên chấm công (lần)', 'Trừ quên chấm công', 'Phạt', 'Thu hồi hoa hồng', 'Chi tiết trừ tự do', 'Khấu trừ khác', 'Tổng khấu trừ', 'Thực lĩnh', 'Ghi chú',
             ],
@@ -451,7 +451,7 @@ class PayrollController extends Controller
     }
 
     /**
-     * Dòng "Buổi có GVNN" (Q3 Part-time — chờ BA chốt cách tính): Kế toán nhập tay số tiền cộng cho GV,
+     * Dòng "Buổi có GVNN" (Q3 Part-time): Kế toán nhập tay số tiền cộng cho GV,
      * hệ thống chỉ gợi ý số buổi có GVNN cùng lớp. Thay cho quy tắc cũ "trừ 50.000đ/buổi có GVNN".
      */
     public function updateRecord(Request $request, $id)
@@ -715,7 +715,7 @@ class PayrollController extends Controller
 
     /**
      * Kế toán / Admin nhập các khoản tay trên phiếu lương khi kỳ đang tính — được giữ khi "Đồng bộ & Tính lại":
-     * bậc KPI giữ HS (Part-time), KPI tự do (GV Full-time, Học thuật, Sale, khác), buổi có GVNN (Part-time, chờ BA),
+     * bậc KPI giữ HS (Part-time), KPI tự do (GV Full-time, Học thuật, Sale, khác), buổi có GVNN (Part-time),
      * thuế TNCN (Full-time), các dòng phụ cấp / thưởng / khấu trừ tự do có tên, ghi chú.
      * Hoa hồng và KPI Học vụ tự tính, không sửa tay.
      */
