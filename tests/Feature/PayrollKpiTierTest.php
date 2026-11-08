@@ -188,7 +188,6 @@ class PayrollKpiTierTest extends TestCase
     public function test_positive_retention_with_zero_rates_still_requires_finalization_without_other_pay(): void
     {
         $teacher = $this->teacher('teacher_parttime', 8);
-        TeacherTimesheet::where('user_id', $teacher->id)->delete();
         KpiRetentionTier::query()->update(['rate' => 0]);
         $period = $this->period();
         $period->calculatePayrollForPeriod();
