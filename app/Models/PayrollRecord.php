@@ -528,7 +528,7 @@ class PayrollRecord extends Model
             $parts[] = (int) $w['half_days'].' ngày quên chấm ra (0,5 công)';
         }
         if ((int) ($w['leave_days'] ?? 0) > 0) {
-            $parts[] = (int) $w['leave_days'].' ngày nghỉ phép';
+            $parts[] = (int) $w['leave_days'].' ngày nghỉ phép (không tính công)';
         }
         if ((int) ($w['holiday_days'] ?? 0) > 0) {
             $parts[] = (int) $w['holiday_days'].' ngày lễ';
