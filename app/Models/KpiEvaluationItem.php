@@ -16,6 +16,10 @@ class KpiEvaluationItem extends Model
         'score',
         'actual',
         'critical_error',
+        'critical_note',
+        'critical_marked_by',
+        'critical_marked_at',
+        'critical_prev_score',
         'not_applicable',
         'note',
         'evidence',
@@ -24,6 +28,9 @@ class KpiEvaluationItem extends Model
     protected $casts = [
         'score' => 'decimal:2',
         'critical_error' => 'boolean',
+        'critical_marked_by' => 'integer',
+        'critical_marked_at' => 'datetime',
+        'critical_prev_score' => 'decimal:2',
         'not_applicable' => 'boolean',
         'evidence' => 'array',
     ];
@@ -36,5 +43,10 @@ class KpiEvaluationItem extends Model
     public function criterion(): BelongsTo
     {
         return $this->belongsTo(KpiCriterion::class, 'kpi_criterion_id')->withTrashed();
+    }
+
+    public function criticalMarker(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'critical_marked_by');
     }
 }

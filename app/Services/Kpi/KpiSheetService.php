@@ -156,7 +156,7 @@ class KpiSheetService
             $criteria = $evaluation->scoredCriteria($criteria)['criteria'];
         }
         $fund = $role === Roles::ACADEMIC_STAFF ? KpiCriterion::fund() : null;
-        $items = $evaluation ? $evaluation->loadMissing('items')->items->keyBy('kpi_criterion_id') : collect();
+        $items = $evaluation ? $evaluation->loadMissing('items.criticalMarker')->items->keyBy('kpi_criterion_id') : collect();
         $frozen = $evaluation?->status === KpiEvaluation::STATUS_APPROVED;
         $weightTotal = (float) $criteria->sum('weight');
         $monthKeys = collect(range(0, $period['months'] - 1))->map(fn ($i) => $period['from']->copy()->addMonths($i)->format('Y-m'));
@@ -172,6 +172,7 @@ class KpiSheetService
             $evidence = [];
             $auto = false;
             $level = null;
+            $previousScore = $item?->critical_prev_score;
             $na = false;
             if ($frozen) {
                 $value = $cast($item?->actual);
@@ -205,13 +206,15 @@ class KpiSheetService
                     };
                 } else {
                     // Tiêu chí % cũ không có quy tắc: giữ % đã chấm.
-                    $level = $item ? (float) $item->score : null;
-                }
-                if ($item?->critical_error) {
-                    $level = 0.0;
+                    $level = $item ? (float) ($item->critical_error ? ($item->critical_prev_score ?? $item->score) : $item->score) : null;
                 }
                 if ($level !== null && collect($evidence)->contains(fn ($e) => ! empty($e['cap']))) {
                     $level = min($level, self::CAP_LEVEL);
+                }
+                if ($item?->critical_error) {
+                    // Preserve the underlying level when a pending critical item is approved.
+                    $previousScore = $level;
+                    $level = 0.0;
                 }
             }
             $maxAmount = $fund !== null && $weightTotal > 0 ? $fund * (float) $c->weight / $weightTotal : null;
@@ -227,6 +230,11 @@ class KpiSheetService
                 'value' => $value,
                 'evidence' => $evidence,
                 'level' => $level,
+                'critical' => (bool) $item?->critical_error,
+                'critical_note' => $item?->critical_note,
+                'critical_by' => $item?->criticalMarker?->name,
+                'critical_at' => $item?->critical_marked_at?->format('d/m/Y H:i'),
+                'critical_prev_score' => $previousScore,
                 'na' => $na,
                 'cap' => collect($evidence)->contains(fn ($e) => ! empty($e['cap'])),
                 'max_amount' => $maxAmount,
@@ -235,13 +243,7 @@ class KpiSheetService
         });
 
         $knockout = $lines->first(fn ($l) => $l['criterion']->knockout && ($l['value'] ?? 0) > 0);
-        // Mục Không phát sinh bỏ khỏi cả tử số và mẫu số.
-        $applicable = $lines->reject(fn ($l) => $l['na']);
-        $applicableWeight = (float) $applicable->sum(fn ($l) => (float) $l['criterion']->weight);
-        $total = $applicableWeight > 0 ? round($applicable->sum(fn ($l) => ($l['level'] ?? 0) * (float) $l['criterion']->weight) / $applicableWeight, 2) : 0.0;
-        if ($knockout) {
-            $total = 0.0;
-        }
+        $total = $this->totalFromLines($lines);
         if ($frozen) {
             $total = (float) $evaluation->total_score;
         }
@@ -266,5 +268,20 @@ class KpiSheetService
             'bonus_fund' => $bonusFund,
             'bonus' => $bonusFund !== null ? round($bonusFund * $grade['pay'] / 100) : null,
         ];
+    }
+
+    /** Recompute from line levels, including saved scores on approved sheets. */
+    public function totalFromLines(Collection $lines): float
+    {
+        if ($lines->contains(fn ($l) => $l['criterion']->knockout && ($l['value'] ?? 0) > 0)) {
+            return 0.0;
+        }
+
+        $applicable = $lines->reject(fn ($l) => $l['na']);
+        $weight = (float) $applicable->sum(fn ($l) => (float) $l['criterion']->weight);
+
+        return $weight > 0
+            ? round($applicable->sum(fn ($l) => ($l['level'] ?? 0) * (float) $l['criterion']->weight) / $weight, 2)
+            : 0.0;
     }
 }

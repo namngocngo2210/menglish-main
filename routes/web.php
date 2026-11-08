@@ -1005,6 +1005,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/mine', 'mine')->middleware('can:'.\App\Models\KpiCriterion::OWN_ABILITY)->name('mine');
         Route::get('/evaluate/{userId}', 'evaluate')->middleware('can:kpi.view')->name('evaluate');
         Route::post('/evaluate/{userId}', 'evaluateStore')->middleware('can:kpi.confirm')->name('evaluate.store');
+        Route::post('/evaluate/{userId}/critical', 'evaluateCritical')->middleware('can:kpi.manage')->name('evaluate.critical');
         Route::get('/attendance-review', 'attendanceReview')->middleware('can:kpi.view')->name('attendance-review');
         Route::post('/attendance-review/{id}', 'reviewAttendance')->middleware('can:kpi.confirm')->name('attendance-review.update');
     });
