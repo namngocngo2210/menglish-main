@@ -342,7 +342,8 @@ class TeacherPortalController extends Controller
                 'student_name' => $score->student?->name,
                 'class_name' => $score->classModel?->name,
                 'name' => $score->name,
-                'score' => self::trimNumber($score->score).'/'.self::trimNumber($score->max_score),
+                // AC-R09 (TK-2026-0042): chỉ gửi %, không gửi điểm tuyệt đối.
+                'percent' => (int) round((float) $score->score / (float) $score->max_score * 100),
             ])->values()->all(),
         ]);
     }

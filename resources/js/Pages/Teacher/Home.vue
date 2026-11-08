@@ -285,7 +285,7 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                                 <span class="block font-semibold text-on-surface">{{ score.student_name }}</span>
                                 <span class="block text-xs text-on-surface-variant">{{ score.class_name }} · {{ score.name }}</span>
                             </span>
-                            <UiBadge color="error" :dot="false" class="self-start">{{ score.score }}</UiBadge>
+                            <UiBadge color="error" :dot="false" class="self-start">{{ score.percent }}%</UiBadge>
                         </li>
                     </ul>
                     <p v-if="!attention.length" class="border-t border-surface-container pt-sm font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
