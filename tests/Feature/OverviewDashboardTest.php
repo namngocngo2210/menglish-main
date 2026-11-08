@@ -76,6 +76,21 @@ class OverviewDashboardTest extends TestCase
         $this->assertStringContainsString('session='.$this->pastSession->id, $first['href']);
     }
 
+    public function test_teacher_attention_widget_shows_percent_not_raw_score(): void
+    {
+        // AC-R09 (TK-2026-0042): "Học sinh cần chú ý" chỉ có %, không có điểm tuyệt đối.
+        $student = \App\Models\Student::create(['code' => 'HV-OV-1', 'name' => 'Kiều Anh Thư', 'phone' => '0912000099',
+            'branch_id' => $this->branch->id, 'current_class_id' => $this->todaySession->class_id, 'status' => 'studying']);
+        \App\Models\MiniTestScore::create(['class_id' => $this->todaySession->class_id, 'student_id' => $student->id,
+            'user_id' => $this->teacher->id, 'name' => 'Mini Test Unit 2', 'score' => 5.5, 'max_score' => 10, 'test_date' => '2026-10-04']);
+
+        $attention = $this->actingAs($this->teacher)->get(route('dashboard'))->assertOk()
+            ->inertiaProps('overview')['shifts']['attention'];
+
+        $this->assertSame('Mini Test Unit 2: 55%', $attention[0]['why']);
+        $this->assertStringNotContainsString('/10', json_encode($attention));
+    }
+
     public function test_academic_staff_gets_overdue_calls_first_and_branch_sessions(): void
     {
         $staff = $this->userWithRole('academic_staff', $this->branch);

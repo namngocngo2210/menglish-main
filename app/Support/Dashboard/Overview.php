@@ -639,7 +639,8 @@ final class Overview
             ->map(fn (MiniTestScore $s) => [
                 'name' => $s->student?->name ?? 'Học sinh',
                 'class' => $s->classModel?->name,
-                'why' => ($s->name ? $s->name.': ' : 'Mini test: ').rtrim(rtrim(number_format((float) $s->score, 1, ',', ''), '0'), ',').'/'.rtrim(rtrim(number_format((float) $s->max_score, 1, ',', ''), '0'), ','),
+                // AC-R09 (TK-2026-0042): chỉ hiện %, không hiện điểm tuyệt đối.
+                'why' => ($s->name ? $s->name.': ' : 'Mini test: ').(int) round((float) $s->score / (float) $s->max_score * 100).'%',
             ])->values()->all();
     }
 
