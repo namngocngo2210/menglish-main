@@ -195,7 +195,7 @@ class PayrollFormulaService
             ->whereIn('class_id', $classIds)
             ->where(fn ($q) => $q->whereDate('enrolled_at', '<=', $startDay->toDateString())
                 ->orWhere(fn ($q) => $q->whereNull('enrolled_at')->where('created_at', '<=', $startDay->copy()->endOfDay())))
-            ->get(['id', 'student_id', 'class_id', 'status', 'enrolled_at', 'updated_at']);
+            ->get(['id', 'student_id', 'class_id', 'status', 'enrolled_at', 'left_at', 'updated_at']);
 
         $base = [];
         $lost = [];
@@ -204,7 +204,10 @@ class PayrollFormulaService
             if (! $student) {
                 continue;
             }
-            $enrollmentDroppedAt = $enrollment->status === Student::ENROLLMENT_DROPPED ? $enrollment->updated_at : null;
+            // Ngày rời lớp: left_at (thôi học / chuyển lớp); dữ liệu cũ chưa có left_at thì lấy ngày cập nhật khi đã thôi học.
+            $enrollmentDroppedAt = $enrollment->left_at
+                ? $enrollment->left_at->copy()->endOfDay()
+                : ($enrollment->status === Student::ENROLLMENT_DROPPED ? $enrollment->updated_at : null);
             $studentLostAt = in_array($student->status, $lostStatuses, true) ? $student->updated_at : null;
 
             // Đã nghỉ trước đầu kỳ → không thuộc mẫu số.
@@ -237,20 +240,15 @@ class PayrollFormulaService
     }
 
     /**
-     * Lớp tính KPI giữ HS của giáo viên: lớp GV là GV chính, cộng lớp có ca dạy hợp lệ trong kỳ
-     * (config payroll.retention.class_scope = main_teacher_or_taught). GVNN luôn lấy lớp được phân công GVNN
-     * cộng lớp có ca dạy hợp lệ trong kỳ.
+     * Lớp tính KPI giữ HS (TK-2026-0027, BR-05): chỉ lớp GV có ít nhất một ca dạy hợp lệ trong kỳ —
+     * lớp phụ trách nhưng chỉ có ca không hợp lệ (hoặc không có ca) không được tính.
      *
-     * @param  array<int>  $taughtClassIds
+     * @param  array<int>  $taughtClassIds  lớp của các ca hợp lệ trong kỳ
      * @return array<int>
      */
     public function retentionClassIds(User $user, array $taughtClassIds): array
     {
-        $foreign = $this->profile($user)['salary_role'] === Roles::FOREIGN_TEACHER;
-        $owned = ClassModel::where($foreign ? 'foreign_teacher_id' : 'teacher_id', $user->id)->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $scope = config('payroll.retention.class_scope', 'main_teacher_or_taught');
-
-        return array_values(array_unique(! $foreign && $scope === 'main_teacher' ? $owned : array_merge($owned, array_map('intval', $taughtClassIds))));
+        return array_values(array_unique(array_filter(array_map('intval', $taughtClassIds))));
     }
 
     /** Bảng % thưởng tái tục theo số HS nghỉ: [số nghỉ => ['percent' => float, 'pending' => bool]]. */

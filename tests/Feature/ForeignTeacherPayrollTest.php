@@ -189,12 +189,12 @@ class ForeignTeacherPayrollTest extends TestCase
 
     public function test_foreign_teacher_retention_uses_assigned_foreign_classes_and_progressive_finalization(): void
     {
-        config(['payroll.retention.class_scope' => 'main_teacher']);
         $this->rate($this->foreign);
         $taught = ClassModel::create(['code' => 'L-NN-THAY', 'name' => 'Lớp dạy thay', 'course_id' => $this->class->course_id,
             'branch_id' => $this->branch->id, 'status' => 'active']);
         $this->teach($this->foreign, '2026-09-05', ['class_id' => $taught->id]);
-        // Lớp phân công GVNN chưa dạy trong kỳ + lớp dạy thay không phân công thường xuyên đều tính giữ HS.
+        $this->teach($this->foreign, '2026-09-06');
+        // Lớp phân công GVNN + lớp dạy thay không phân công thường xuyên: cả hai có ca hợp lệ nên đều tính giữ HS (TK-2026-0027).
         foreach ([$this->class, $taught] as $index => $class) {
             $student = Student::create(['code' => 'HS-NN-'.$index, 'name' => 'Học sinh GVNN '.$index, 'phone' => '090123456'.$index,
                 'branch_id' => $this->branch->id, 'status' => 'studying', 'current_class_id' => $class->id]);
