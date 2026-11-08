@@ -578,7 +578,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->assertSame('sent', $scored->fresh()->status);
         $this->assertTrue($scored->fresh()->parent_notified);
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $assignment->fresh()->status);
-        $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
+        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
 
         $this->actingAs($this->academic)->get($page)->assertOk()->assertSee('Đã báo phụ huynh')->assertDontSee('Duyệt &amp; Đã báo phụ huynh', false);
     }

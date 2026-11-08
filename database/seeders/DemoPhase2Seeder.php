@@ -409,14 +409,17 @@ class DemoPhase2Seeder extends Seeder
         $this->asUser($this->admin, SyllabusController::class, 'approveBigTestResults', [], ['id' => $test->id]);
         $this->asUser($this->lead, SyllabusController::class, 'markResultsNotified', [], ['id' => $test->id]);
 
-        // Chặng không tự mở chặng kế (quy trình syllabus Bước 11): Học thuật giao chặng 2 từ ngày sau buổi thi.
+        // Đóng chặng 1 tự mở chặng 2 (R-07); mốc mở lùi về ngày sau buổi thi.
         $switchAt = $examSession->date->copy()->addDay()->setTime(9, 0);
-        $this->asUser($this->lead, SyllabusController::class, 'storeAssignment', ['class_id' => $class->id, 'start_date' => $switchAt->toDateString()]);
         SyllabusAssignment::open()->where('class_id', $class->id)->update(['confirmed_at' => $switchAt, 'confirmed_by' => $class->teacher_id]);
 
         // Lùi mốc đóng / mở chặng về sau ngày thi (dữ liệu demo tạo cùng lúc).
         SyllabusAssignment::where('class_id', $class->id)->where('status', SyllabusAssignment::STATUS_CLOSED)->update(['closed_at' => $switchAt]);
-        SyllabusAssignment::open()->where('class_id', $class->id)->update(['opened_at' => $switchAt]);
+        $planned = (int) SyllabusAssignment::open()->where('class_id', $class->id)->value('planned_sessions');
+        SyllabusAssignment::open()->where('class_id', $class->id)->update([
+            'opened_at' => $switchAt, 'start_date' => $switchAt->toDateString(),
+            'deadline' => app(\App\Services\Syllabus\StageSchedule::class)->endDate($class, $switchAt->copy()->startOfDay(), max(1, $planned)),
+        ]);
         BigTestResult::where('big_test_id', $test->id)->update(['notified_at' => $switchAt]);
 
         $open = SyllabusAssignment::open()->where('class_id', $class->id)->first();
