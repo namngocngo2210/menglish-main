@@ -371,8 +371,6 @@ Route::middleware('auth')->group(function () {
 
         // Step 2: Trang chủ Phụ huynh / Học sinh
         Route::get('/home/{studentId?}', [StudentPortalController::class, 'studentHome'])->name('student.home');
-        Route::post('/student/{id}/update-profile', [StudentPortalController::class, 'updateProfile'])->name('student.profile.update');
-        Route::post('/student/tuition-request', [StudentPortalController::class, 'submitTuitionRequest'])->name('student.tuition.request');
 
         // Step 3: Học tập của tôi — Nộp bài tập
         Route::get('/student-homework/{studentId?}', [StudentPortalController::class, 'studentHomework'])->name('student.homework');

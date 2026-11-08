@@ -113,6 +113,35 @@ class Flow4StudentPortalTest extends TestCase
     }
 
     /**
+     * TK-2026-0039: khu thông tin học sinh / học phí của cổng HS là chỉ đọc — không còn Sửa / Báo đóng.
+     */
+    public function test_tk_2026_0039_student_home_is_read_only(): void
+    {
+        foreach (['portal.student.profile.update', 'portal.student.tuition.request'] as $name) {
+            $this->assertFalse(Route::has($name), "{$name} phải bị gỡ.");
+        }
+
+        $before = $this->student->fresh()->only(['phone', 'address', 'notes']);
+        $recordCount = AcademicRecord::count();
+
+        $this->actingAs($this->user)->post('/portal/student/'.$this->student->id.'/update-profile', [
+            'phone' => '0900000099', 'address' => 'Địa chỉ mới', 'notes' => 'x',
+        ])->assertNotFound();
+        $this->actingAs($this->user)->post('/portal/student/tuition-request', [
+            'student_id' => $this->student->id, 'amount' => 2500000, 'content' => 'CK',
+        ])->assertNotFound();
+
+        $this->assertSame($before, $this->student->fresh()->only(['phone', 'address', 'notes']));
+        $this->assertSame($recordCount, AcademicRecord::count());
+
+        // Guard UI: trang chủ không còn nút / hộp thoại Sửa & Báo đóng.
+        $vue = file_get_contents(base_path('resources/js/Pages/Portal/Home.vue'));
+        foreach (['Báo đóng học phí', 'Cập nhật thông tin học viên', 'profileOpen', 'requestOpen', 'student.profile.update', 'student.tuition.request'] as $needle) {
+            $this->assertStringNotContainsString($needle, $vue);
+        }
+    }
+
+    /**
      * Flow 4 - Step 3: Học tập của tôi - Nộp bài tập
      */
     public function test_flow_4_step_3_student_homework_renders_successfully()
@@ -297,44 +326,6 @@ class Flow4StudentPortalTest extends TestCase
         $this->assertDatabaseHas('academic_records', [
             'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback',
             'status' => 'submitted',
-        ]);
-    }
-
-    /**
-     * Flow 4 - Step 2: Update student profile
-     */
-    public function test_flow_4_step_2_update_student_profile()
-    {
-        $response = $this->actingAs($this->user)->post(route('portal.student.profile.update', ['id' => $this->student->id]), [
-            'student_id' => $this->student->id,
-            'phone' => '0912345678',
-            'address' => '456 Cầu Giấy, Hà Nội',
-            'notes' => 'Cập nhật từ phụ huynh',
-        ]);
-
-        $response->assertSessionHas('success');
-        $this->assertDatabaseHas('students', [
-            'id' => $this->student->id,
-            'phone' => '0912345678',
-            'address' => '456 Cầu Giấy, Hà Nội',
-        ]);
-    }
-
-    /**
-     * Flow 4 - Step 2: Submit tuition payment report request
-     */
-    public function test_flow_4_step_2_submit_tuition_request()
-    {
-        $response = $this->actingAs($this->user)->post(route('portal.student.tuition.request'), [
-            'student_id' => $this->student->id,
-            'amount' => 2500000,
-            'content' => 'CK HP HK2 - Đã chuyển khoản qua Vietcombank',
-        ]);
-
-        $response->assertSessionHas('success');
-        $this->assertDatabaseHas('academic_records', [
-            'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/02_trang_chu_phu_huynh_hoc_sinh',
-            'status' => 'pending',
         ]);
     }
 

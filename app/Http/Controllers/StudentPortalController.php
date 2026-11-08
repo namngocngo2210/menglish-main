@@ -18,9 +18,7 @@ use App\Models\SyllabusAssignment;
 use App\Services\Homework\HomeworkStats;
 use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
-use App\Services\Tuition\PaymentReportService;
 use App\Support\DataScope;
-use App\Support\Money;
 use App\Support\Portal\PortalNotifications;
 use App\Support\TuitionPaymentHistory;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -262,59 +260,6 @@ class StudentPortalController extends Controller
             ])->values()->all(),
             'studentClasses' => $studentClasses->pluck('name')->values()->all(),
         ]);
-    }
-
-    /**
-     * CRUD: Cập nhật thông tin liên hệ / ghi chú học viên (MH #2)
-     */
-    public function updateProfile(Request $request, $id)
-    {
-        $student = Student::findOrFail($id);
-        $this->authorizeStudent($student);
-
-        $validated = $request->validate([
-            'phone' => 'required|string|max:20',
-            'address' => 'nullable|string|max:255',
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $student->update($validated);
-
-        return back()->with('success', 'Đã cập nhật thông tin học viên thành công!');
-    }
-
-    /**
-     * CRUD: Gửi yêu cầu hỗ trợ / xác nhận đóng học phí (MH #2)
-     */
-    public function submitTuitionRequest(Request $request)
-    {
-        $validated = $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'amount' => 'required|numeric|min:1000',
-            'content' => 'required|string|max:500',
-        ]);
-
-        $student = Student::findOrFail($validated['student_id']);
-        $this->authorizeStudent($student);
-        $studentName = $student->name;
-
-        AcademicRecord::create([
-            'screen_key' => PaymentReportService::SCREEN_KEY,
-            'module' => 'student_portal',
-            'record_code' => 'YCHOCPHI-'.strtoupper(Str::random(6)),
-            'title' => 'Báo đóng học phí: '.Money::format($validated['amount']).' - '.$studentName,
-            'status' => PaymentReportService::STATUS_PENDING,
-            'data' => [
-                'student_id' => (string) $validated['student_id'],
-                'student_name' => $studentName,
-                'amount' => $validated['amount'],
-                'content' => $validated['content'],
-                'submitted_at' => now()->format('d/m/Y H:i'),
-            ],
-            'user_id' => Auth::id(),
-        ]);
-
-        return back()->with('success', 'Đã gửi thông báo đóng học phí tới bộ phận Kế toán thành công!');
     }
 
     // ─────────────────────────────────────────────
