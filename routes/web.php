@@ -459,7 +459,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/config/renewal-bonus', [PayrollController::class, 'storeRenewalTable'])->middleware('can:commission_config.manage')->name('config.renewal.store');
     });
 
-    Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->name('portal.my-salary');
+    Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->middleware('can:portal.staff')->name('portal.my-salary');
 
     // ─────────────────────────────────────────────
     // 5. Kỷ luật & Xử phạt (Epic 8)
