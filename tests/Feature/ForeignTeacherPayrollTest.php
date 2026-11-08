@@ -264,6 +264,14 @@ class ForeignTeacherPayrollTest extends TestCase
         $this->assertEquals(1290000, $record->teaching_salary);   // 5×150k + 3×180k; không phải 1.620.000
         $this->assertEquals(0, $record->foreign_session_pay);
 
+        // Export: no "chờ BA" label; GVNN session count matches the payslip.
+        $csv = $this->actingAs($this->admin)->get(route('payroll.periods.export', ['id' => $period->id, 'format' => 'csv']))->assertOk()->streamedContent();
+        $rows = array_map('str_getcsv', preg_split('/\R/', trim(ltrim($csv, "\xEF\xBB\xBF"))));
+        $this->assertStringNotContainsString('chờ BA', implode(',', $rows[0]));
+        $this->assertContains('Buổi có GVNN', $rows[0]);
+        $row = collect($rows)->first(fn ($r) => ($r[0] ?? null) === 'PT-A');
+        $this->assertSame((string) $record->foreign_teacher_sessions_count, $row[array_search('Số buổi có GVNN', $rows[0], true)]);
+
         // Nhập tay vẫn cộng thêm và được giữ khi tính lại.
         $this->actingAs($this->admin)->post(route('payroll.records.update', $record->id), ['foreign_session_pay' => 330000])->assertSessionHasNoErrors();
         $this->assertEquals(1620000, $period->fresh()->records()->where('user_id', $vn->id)->value('net_salary'));
