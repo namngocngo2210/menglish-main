@@ -471,6 +471,34 @@ class Penalty extends Model
     }
 
     /**
+     * Mức phạt theo cấu hình SLA (bậc phạt tái phạm) cho biên bản tự động; null nếu biên bản lập tay / không có quy tắc phạt.
+     * Số lần = số biên bản cùng người + cùng quy tắc (không tính đã hủy) lập trước biên bản này trong N tháng, cộng 1
+     * — cùng cách đếm lúc SlaBreachService lập biên bản (TK-0030/0031, BR-11).
+     */
+    public function configuredAmount(): ?float
+    {
+        if (! $this->auto_source || ! array_key_exists($this->auto_source, \App\Services\Sla\Sla::defaults())) {
+            return null;
+        }
+        $rule = \App\Services\Sla\Sla::rule($this->auto_source);
+        if (! $rule['penalty']) {
+            return null;
+        }
+        $at = $this->created_at ?? now();
+        $occurrence = self::withoutViewerScope()->where('user_id', $this->user_id)->where('auto_source', $this->auto_source)
+            ->where('status', '!=', 'cancelled')->where('id', '<', $this->id ?? PHP_INT_MAX)
+            ->where('created_at', '>=', $at->copy()->subMonthsNoOverflow(\App\Services\Sla\Sla::ladderResetMonths()))->count() + 1;
+
+        return \App\Services\Sla\Sla::amountForOccurrence($rule, $occurrence);
+    }
+
+    /** Lần vi phạm thuộc mức nhắc nhở (cấu hình = 0đ): không được quyết phạt tiền. */
+    public function isReminderTier(): bool
+    {
+        return $this->configuredAmount() === 0.0;
+    }
+
+    /**
      * Trạng thái mà bảng lương sẽ thu nộp khi tính kỳ lương.
      */
     public static function payableStatuses(): array
