@@ -332,7 +332,7 @@ class PayrollController extends Controller
             (float) $r->teaching_salary,
             $kpiSources[$r->kpi_source] ?? '',
             $r->kpi_state[1],
-            $r->kpi_source === PayrollRecord::KPI_RETENTION || $r->teaching_concurrent ? (int) $r->retention_students.'/'.(int) $r->retention_base_students : '',
+            $r->kpi_source === PayrollRecord::KPI_RETENTION ? (int) $r->retention_students.'/'.(int) $r->retention_base_students : '',
             $r->retention_tier !== null ? (float) $r->retention_tier : '',
             $r->kpi_score !== null ? (float) $r->kpi_score : '',
             (float) $r->kpi_bonus,
@@ -759,9 +759,6 @@ class PayrollController extends Controller
                 if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
                     $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
                     $record->foreign_session_pay = $record->isForeignTeacher() ? 0 : (float) ($validated['foreign_session_pay'] ?? 0);
-                } elseif ($record->teaching_concurrent) {
-                    // Học thuật kiêm nhiệm giảng dạy: bậc KPI kiêm nhiệm (giữ HS) như GV part-time.
-                    $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
                 }
                 if ($record->kpi_source === PayrollRecord::KPI_MANUAL) {
                     $record->kpi_manual_amount = filled($validated['kpi_manual_amount'] ?? null) ? (float) $validated['kpi_manual_amount'] : null;
