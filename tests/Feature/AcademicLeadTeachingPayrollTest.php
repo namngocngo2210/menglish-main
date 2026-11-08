@@ -138,7 +138,7 @@ class AcademicLeadTeachingPayrollTest extends TestCase
 
         $keys = collect($record->earningLines())->pluck('key')->all();
         $this->assertContains('teaching_salary', $keys);
-        $this->assertContains('teaching_kpi_bonus', $keys);
+        $this->assertNotContains('teaching_kpi_bonus', $keys);
     }
 
     public function test_personal_tuition_percent_and_late_rules_apply_like_parttime(): void
@@ -159,28 +159,30 @@ class AcademicLeadTeachingPayrollTest extends TestCase
         $this->assertNull($record->calculation_details['teaching_share']['classes'][0]['percent'], 'Hai mức % trong kỳ');
     }
 
-    public function test_retention_kpi_for_teaching_is_chosen_on_payslip(): void
+    /** TK-2026-0035 (BR-08): Học thuật (kể cả dạy thay / lớp chính) không có KPI giữ HS / KPI giảng dạy và không bị chặn chốt kỳ. */
+    public function test_academic_lead_has_no_teaching_kpi_and_is_not_blocked_by_it(): void
     {
         $this->teach('2026-09-05');
         $record = $this->calculate();
 
-        // HS đầu kỳ (xếp lớp trước 01/09): HS1–HS3, không ai nghỉ.
-        $this->assertSame(3, $record->retention_base_students);
-        $this->assertSame(3, $record->retention_students);
-        $this->assertSame('pending', $record->kpi_state[0]);
+        $this->assertTrue($record->teaching_concurrent);
+        $this->assertSame(0, $record->retention_base_students);
+        $this->assertEquals(0, (float) $record->teaching_kpi_bonus);
+        $this->assertNotContains('teaching_kpi_bonus', collect($record->earningLines())->pluck('key')->all());
 
-        $this->actingAs($this->admin)->post(route('payroll.records.adjust', $record->id), [
-            'retention_tier' => 20000, 'kpi_manual_amount' => 500000,
-        ])->assertSessionHasNoErrors();
-
-        $record->refresh();
-        $this->assertEquals(60000, (float) $record->teaching_kpi_bonus);
-        $this->assertEquals(500000, (float) $record->kpi_bonus);
-        $this->assertSame('done', $record->kpi_state[0]);
-
-        // Tính lại giữ bậc đã chọn.
+        // Lớp dạy thay (lớp của GV khác) cũng không tạo KPI.
+        $other = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+        $this->class->update(['teacher_id' => $other->id]);
         $record->period->calculatePayrollForPeriod();
-        $this->assertEquals(60000, (float) $record->fresh()->teaching_kpi_bonus);
+        $record = $record->fresh();
+        $this->assertSame(0, $record->retention_base_students);
+
+        // Chọn bậc trên phiếu không tạo tiền KPI giảng dạy.
+        $this->actingAs($this->admin)->post(route('payroll.records.adjust', $record->id), ['retention_tier' => 20000, 'kpi_manual_amount' => 500000])
+            ->assertSessionHasNoErrors();
+        $record->refresh();
+        $this->assertEquals(0, (float) $record->teaching_kpi_bonus);
+        $this->assertNull($record->retention_tier);
     }
 
     public function test_without_option_or_timesheets_academic_lead_payslip_is_unchanged(): void
@@ -291,7 +293,7 @@ class AcademicLeadTeachingPayrollTest extends TestCase
         $record = $this->calculate();
         $this->assertTrue($record->teaching_concurrent);
         $this->assertEquals(160000, (float) $record->teaching_salary);
-        $this->assertSame(3, $record->retention_students);
+        $this->assertSame(0, $record->retention_students);
         $this->assertSame(['main'], KpiSheetService::tracksFor($this->lead->fresh()));
     }
 

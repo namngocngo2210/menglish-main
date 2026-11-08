@@ -589,10 +589,7 @@ class PayrollPeriod extends Model
                 $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
             } else {
                 if ($share !== null) {
-                    // KPI kiêm nhiệm giảng dạy = HS giữ được ở các lớp đã dạy × bậc chọn tay (như KPI giữ HS của GV part-time).
-                    $retentionData = $formula->retentionFor($timesheets->pluck('class_id')->filter()->unique()->values()->all(), $start, $end);
-                    $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
-                    $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
+                    // Học thuật không có KPI giữ HS / KPI giảng dạy (TK-2026-0035, BR-08): chỉ lương đứng lớp.
                     $details['teaching_share'] = ['default_percent' => $share['default_percent'], 'classes' => $share['classes'], 'skipped' => $share['skipped']];
                 }
                 if ($profile['salary_role'] === Roles::ACADEMIC_STAFF) {

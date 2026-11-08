@@ -258,6 +258,32 @@ class Phase3FormulaTest extends TestCase
         $this->assertNotNull($stay);
     }
 
+    /** TK-2026-0035 (BR-05): lớp chỉ dạy thay không vào KPI giữ HS; lớp chính vẫn tính như cũ. */
+    public function test_retention_ignores_classes_where_teacher_only_substituted(): void
+    {
+        $main = $this->userWithRole('teacher_parttime', ['name' => 'GV chính']);
+        $sub = $this->userWithRole('teacher_parttime', ['name' => 'GV dạy thay']);
+        $ownClass = $this->classFor($sub, 'RET-OWN');
+        $this->enrolledStudent($ownClass);
+        $this->enrolledStudent($ownClass);
+        $subbedClass = $this->classFor($main, 'RET-SUB');
+        foreach (range(1, 11) as $i) {
+            $this->enrolledStudent($subbedClass);
+        }
+        $this->timesheet($sub, $ownClass, '2026-10-06');
+        $this->timesheet($sub, $subbedClass, '2026-10-23');
+        // GV chỉ dạy thay, không có lớp chính nào: base = 0 (không chặn chốt kỳ).
+        $onlySub = $this->userWithRole('teacher_parttime', ['name' => 'GV chỉ dạy thay']);
+        $this->timesheet($onlySub, $subbedClass, '2026-10-23');
+
+        $period = $this->calculate($this->period(10));
+
+        $this->assertSame(2, $this->record($period, $sub)->retention_base_students);
+        $onlyRecord = $this->record($period, $onlySub);
+        $this->assertSame(0, $onlyRecord->retention_base_students);
+        $this->assertSame('na', $onlyRecord->kpi_state[0]);
+    }
+
     public function test_retention_has_no_base_when_teacher_only_has_invalid_sessions(): void
     {
         $teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV chỉ ca lỗi']);
