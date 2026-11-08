@@ -104,7 +104,7 @@ function sessionBadge(s) {
                 <div class="grid grid-cols-3 gap-2 text-center">
                     <div class="rounded-xl bg-tertiary/10 p-2"><div class="text-lg font-black text-tertiary">{{ learningProgress.attendance_present }}/{{ learningProgress.attendance_total }}</div><div class="text-xs text-on-surface-variant">Chuyên cần</div></div>
                     <div class="rounded-xl bg-secondary/10 p-2"><div class="text-lg font-black text-secondary">{{ learningProgress.homework_submitted }}/{{ learningProgress.homework_total }}</div><div class="text-xs text-on-surface-variant">Bài tập</div></div>
-                    <div class="rounded-xl bg-primary-container/10 p-2"><div class="text-lg font-black text-primary">{{ learningProgress.latest_big_test ?? '—' }}</div><div class="text-xs text-on-surface-variant">Big Test mới nhất</div></div>
+                    <div class="rounded-xl bg-primary-container/10 p-2"><div class="text-xs font-bold text-primary">{{ learningProgress.latest_big_test ?? '—' }}</div><div class="text-xs text-on-surface-variant">Big Test mới nhất</div></div>
                 </div>
             </div>
 
@@ -136,10 +136,10 @@ function sessionBadge(s) {
                     <div v-for="r in bigTestResults" :key="r.id" class="rounded-xl border border-surface-container-highest px-3 py-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-on-surface">{{ r.title }}</span>
-                            <span class="font-mono font-black text-primary">{{ r.is_absent ? 'Vắng thi' : r.overall_score }}</span>
+                            <span v-if="r.is_absent" class="font-mono font-black text-primary">Vắng thi</span>
                         </div>
-                        <div v-if="!r.is_absent" class="mt-1 grid grid-cols-4 gap-1 text-center text-xs text-on-surface-variant">
-                            <span>Nghe {{ r.listening_score ?? '—' }}</span><span>Đọc {{ r.reading_score ?? '—' }}</span><span>Viết {{ r.writing_score ?? '—' }}</span><span>Nói {{ r.speaking_score ?? '—' }}</span>
+                        <div v-if="!r.is_absent" class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-on-surface-variant">
+                            <span v-for="c in r.components" :key="c.name">{{ c.name }} <b class="font-mono text-primary">{{ c.score }}</b></span>
                         </div>
                         <p v-if="r.progress_note" class="mt-1 text-xs text-on-surface-variant">{{ r.progress_note }}</p>
                     </div>

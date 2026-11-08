@@ -30,6 +30,7 @@ class BigTestResult extends Model
         'reading_score',
         'writing_score',
         'speaking_score',
+        'components',
         'overall_score',
         'is_absent',
         'progress_note',
@@ -48,6 +49,7 @@ class BigTestResult extends Model
         'writing_score' => 'decimal:1',
         'speaking_score' => 'decimal:1',
         'overall_score' => 'decimal:1',
+        'components' => 'array',
         'is_absent' => 'boolean',
         'parent_notified' => 'boolean',
         'notified_at' => 'datetime',
@@ -84,6 +86,40 @@ class BigTestResult extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** 4 kỹ năng của dữ liệu cũ (trước TK-2026-0056); chỉ dùng để đọc lại bản ghi cũ. */
+    public const LEGACY_SKILLS = ['listening_score' => 'Nghe', 'reading_score' => 'Đọc', 'writing_score' => 'Viết', 'speaking_score' => 'Nói'];
+
+    /**
+     * Thành phần điểm [{name, score}] do GV tự đặt. Bản ghi cũ chỉ có 4 cột kỹ năng vẫn hiện được, không cần migrate dữ liệu.
+     *
+     * @return list<array{name: string, score: float}>
+     */
+    public function scoreComponents(): array
+    {
+        $stored = collect((array) $this->components)
+            ->filter(fn ($c) => is_array($c) && filled($c['name'] ?? null) && ($c['score'] ?? null) !== null && $c['score'] !== '')
+            ->map(fn ($c) => ['name' => (string) $c['name'], 'score' => (float) $c['score']])
+            ->values()->all();
+        if ($stored !== []) {
+            return $stored;
+        }
+
+        $legacy = [];
+        foreach (self::LEGACY_SKILLS as $column => $label) {
+            if ($this->{$column} !== null) {
+                $legacy[] = ['name' => $label, 'score' => (float) $this->{$column}];
+            }
+        }
+
+        return $legacy;
+    }
+
+    /** "Nghe 8 · Đọc 7.5" — điểm các thành phần trên một dòng, không có điểm tổng. */
+    public function scoreSummary(): string
+    {
+        return collect($this->scoreComponents())->map(fn ($c) => $c['name'].' '.(float) $c['score'])->implode(' · ');
     }
 
     public function isLocked(): bool

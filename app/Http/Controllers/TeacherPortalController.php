@@ -1651,11 +1651,7 @@ class TeacherPortalController extends Controller
                 'student_name' => $r->student?->name,
                 'test_title' => $r->bigTest?->title,
                 'class_name' => $r->bigTest?->classModel?->name,
-                'listening_score' => $r->listening_score,
-                'reading_score' => $r->reading_score,
-                'writing_score' => $r->writing_score,
-                'speaking_score' => $r->speaking_score,
-                'overall_score' => $r->overall_score,
+                'components' => $r->scoreComponents(),
                 'approved' => $r->status === 'approved',
             ]),
         ]);
