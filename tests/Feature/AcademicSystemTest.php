@@ -457,16 +457,13 @@ class AcademicSystemTest extends TestCase
         $adjReq = SyllabusAdjustmentRequest::where('class_id', $this->classModel->id)->first();
         $this->assertNotNull($adjReq);
 
-        // 2. Approve request — chỉ Admin duyệt (06/10/2026), Học thuật bị chặn
-        $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.approve', $adjReq->id))->assertForbidden();
-        $this->assertEquals('pending', $adjReq->fresh()->status);
-
-        $responseApprove = $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $adjReq->id));
+        // 2. Approve request — Admin hoặc Học thuật duyệt được (TK-2026-0055, TC GV-GD-03)
+        $responseApprove = $this->actingAs($this->academicHead)->post(route('syllabus.adjustment-requests.approve', $adjReq->id));
         $responseApprove->assertRedirect();
 
         $adjReq->refresh();
         $this->assertEquals('approved', $adjReq->status);
-        $this->assertEquals($this->admin->id, $adjReq->approver_id);
+        $this->assertEquals($this->academicHead->id, $adjReq->approver_id);
 
         // 3. Reject another adjustment request
         $adjReq2 = SyllabusAdjustmentRequest::create([
@@ -525,9 +522,8 @@ class AcademicSystemTest extends TestCase
         $this->assertNotNull($bigTest);
         $this->assertStringStartsWith('BT-', $bigTest->code);
         $this->assertNotEmpty($bigTest->passcode);
-        // Duyệt & phân phối đề: chỉ Admin (06/10/2026)
-        $this->actingAs($this->academicHead)->post(route('syllabus.big-tests.approve', $bigTest->id))->assertForbidden();
-        $this->actingAs($this->admin)->post(route('syllabus.big-tests.approve', $bigTest->id))->assertRedirect();
+        // Duyệt & phân phối đề: Admin + Học thuật (TK-2026-0055)
+        $this->actingAs($this->academicHead)->post(route('syllabus.big-tests.approve', $bigTest->id))->assertRedirect();
         $bigTest->refresh();
         $this->assertTrue($bigTest->is_distributed);
 

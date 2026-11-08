@@ -86,14 +86,17 @@ class Phase2BigTestTest extends TestCase
 
         $order = BigTestOrder::firstOrFail();
 
-        // Học thuật vẫn xem order đề nhưng không còn nút duyệt / từ chối (chỉ Admin duyệt, 06/10/2026).
+        // TC GV-BG-01 (TK-2026-0055): Học thuật thấy nút duyệt / từ chối order đề; giáo viên thì không.
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
             ->assertOk()
             ->assertSee('Chặng 1: Present Simple')
             ->assertSee('Tập trung Speaking')
             ->assertSee($order->due_date->format('d/m/Y'))
-            ->assertDontSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false))
-            ->assertDontSee(route('syllabus.big-tests.orders.reject', $order->id, absolute: false));
+            ->assertSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false))
+            ->assertSee(route('syllabus.big-tests.orders.reject', $order->id, absolute: false));
+        $this->actingAs($this->teacherA)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
+            ->assertOk()
+            ->assertDontSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false));
         $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))
             ->assertOk()
             ->assertSee('Chặng 1: Present Simple')
@@ -116,9 +119,13 @@ class Phase2BigTestTest extends TestCase
         ]);
 
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
-        // Chỉ Admin duyệt / từ chối order đề (06/10/2026): Học thuật bị chặn.
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.reject', $other->id), ['rejection_reason' => 'Lý do'])->assertForbidden();
+        // Học vụ / QLCS không duyệt được order đề (Admin + Học thuật mới được).
+        foreach ([Roles::ACADEMIC_STAFF, Roles::MANAGER] as $role) {
+            $u = User::factory()->create(['is_active' => true]);
+            $u->assignRole($role);
+            $this->actingAs($u)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
+            $this->actingAs($u)->post(route('syllabus.big-tests.orders.reject', $other->id), ['rejection_reason' => 'Lý do'])->assertForbidden();
+        }
         $this->assertSame('pending', $order->fresh()->status);
         $this->assertSame('pending', $other->fresh()->status);
         $this->actingAs($this->admin)->post(route('syllabus.big-tests.orders.approve', $order->id))->assertSessionHasErrors('test_link');
