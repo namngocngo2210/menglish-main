@@ -234,9 +234,9 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (u
 
 const createUpdate = `-- name: CreateUpdate :one
 
-INSERT INTO syllabus.project_updates (project_id, milestone_id, user_id, quantity_done, content, difficulties, links, marks_complete)
+INSERT INTO syllabus.project_updates (project_id, milestone_id, user_id, quantity_done, content, difficulties, links, marks_complete, created_at)
 VALUES ($1, $2, $3, $4, $5,
-        $6, $7::text[], $8)
+        $6, $7::text[], $8, $9)
 RETURNING id
 `
 
@@ -249,6 +249,7 @@ type CreateUpdateParams struct {
 	Difficulties  *string
 	Links         []string
 	MarksComplete bool
+	CreatedAt     time.Time
 }
 
 // ───────────────────────── Cập nhật tiến độ ─────────────────────────
@@ -262,6 +263,7 @@ func (q *Queries) CreateUpdate(ctx context.Context, arg CreateUpdateParams) (uui
 		arg.Difficulties,
 		arg.Links,
 		arg.MarksComplete,
+		arg.CreatedAt,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
