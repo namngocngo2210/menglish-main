@@ -340,8 +340,11 @@ class StudentPortalController extends Controller
 
         return Inertia::render('Portal/Homework', [
             ...$this->portalProps($students, $student),
-            // Bộ đếm "Đã hoàn thành x/y": giỏ đã nộp / tổng giỏ của mọi bài tập GV giao cho (các) lớp học viên.
+            // Bộ đếm tổng giỏ đã nộp / tổng giỏ; trang hiển thị bộ đếm theo từng buổi (sessionProgress).
             'basketProgress' => array_combine(['submitted', 'total'], self::basketProgress($homeworks)),
+            // "Đã hoàn thành x/y" theo buổi: khóa = id buổi, bài không gắn buổi gom vào khóa "none".
+            'sessionProgress' => $homeworks->groupBy(fn (Homework $hw) => $hw->classSession?->id ?? 'none')
+                ->map(fn (Collection $group) => array_combine(['submitted', 'total'], self::basketProgress($group)))->all(),
             'remarks' => $remarks,
             'feedbackCategories' => ClassSessionFeedback::PARENT_CATEGORIES,
             'miniTests' => $miniTests->map(fn (MiniTestScore $mt) => [
@@ -511,7 +514,7 @@ class StudentPortalController extends Controller
         $student = Student::findOrFail($validated['student_id']);
         $this->authorizeStudent($student);
         $hw = Homework::whereIn('class_id', $student->activeClassIds())->findOrFail($homework);
-        abort_unless(in_array($basket, $hw->baskets(), true), 404);
+        abort_unless(in_array($basket, $hw->portalBaskets(), true), 404);
 
         $allowed = HomeworkSubmission::BASKETS[$basket][2];
         $path = $name = null;
@@ -590,7 +593,7 @@ class StudentPortalController extends Controller
     {
         $submitted = $total = 0;
         foreach ($homeworks as $hw) {
-            foreach ($hw->baskets() as $basket) {
+            foreach ($hw->portalBaskets() as $basket) {
                 $total++;
                 $submitted += $hw->submissions->contains('basket', $basket) ? 1 : 0;
             }
@@ -610,7 +613,7 @@ class StudentPortalController extends Controller
     {
         $since = today()->subDays(self::HOMEWORK_RECENT_DAYS);
         $dateOf = fn (Homework $hw) => $hw->classSession?->date ?? $hw->created_at;
-        $pending = fn (Homework $hw) => collect($hw->baskets())->contains(fn (string $b) => ! $hw->submissions->contains('basket', $b));
+        $pending = fn (Homework $hw) => collect($hw->portalBaskets())->contains(fn (string $b) => ! $hw->submissions->contains('basket', $b));
         $homeworks = $homeworks->filter(fn (Homework $hw) => $pending($hw) || $dateOf($hw)->gte($since))
             ->sortByDesc(fn (Homework $hw) => $dateOf($hw)->format('Y-m-d').'-'.str_pad((string) $hw->id, 10, '0', STR_PAD_LEFT))
             ->values();
@@ -631,12 +634,12 @@ class StudentPortalController extends Controller
                     'date' => $session->date->toDateString(),
                 ] : null,
                 'note' => $hw->class_note,
-                // Bài giao theo form cũ (chỉ tiêu đề + mô tả, không có giỏ): hiện mô tả, không có phần nộp.
-                'description' => $hw->baskets() === [] ? $hw->description : null,
+                // Bài giao theo form cũ (chỉ tiêu đề + mô tả): hiện mô tả; hạng mục mới đã nằm trong từng giỏ.
+                'description' => blank($hw->items) ? $hw->description : null,
                 'youtube_url' => $hw->youtube_url,
                 'due_date' => $hw->due_date?->toDateString(),
                 'due_at' => $hw->due_at?->toIso8601String(),
-                'baskets' => collect($hw->baskets())->map(function (string $basket) use ($hw) {
+                'baskets' => collect($hw->portalBaskets())->map(function (string $basket) use ($hw) {
                     $sub = $hw->submissions->firstWhere('basket', $basket);
 
                     return [
