@@ -12,6 +12,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class SecurityHardeningTest extends TestCase
@@ -133,7 +134,12 @@ class SecurityHardeningTest extends TestCase
 
         $this->actingAs($owner)
             ->get(route('portal.student.home', ['studentId' => $otherStudent->id]))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Home')
+                ->where('student.name', 'Owned student')
+                ->where('student.code', 'HV-OWN'))
+            ->assertDontSee('Other student')
+            ->assertDontSee('HV-OTHER');
     }
 
     public function test_user_without_payroll_permission_is_forbidden(): void

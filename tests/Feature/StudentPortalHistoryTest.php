@@ -84,7 +84,8 @@ class StudentPortalHistoryTest extends TestCase
                 ->where('miniTests.1.id', $legacy->id)->where('miniTests.1.note', 'Teacher comment')
                 ->where('miniTests.1.skills', [['name' => 'Nghe', 'score' => '8.5'], ['name' => 'Nói', 'score' => '0']]));
         $this->actingAs($otherParent)->get(route('portal.student.homework', $this->student->id))
-            ->assertForbidden()->assertDontSee('Legacy test')->assertDontSee('Teacher comment');
+            ->assertOk()->assertDontSee('Legacy test')->assertDontSee('Teacher comment')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('miniTests', 1)->where('miniTests.0.name', 'Private B test'));
         $this->actingAs($otherParent)->get(route('portal.student.homework', $other->id))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->has('miniTests', 1)->where('miniTests.0.name', 'Private B test'));
     }
@@ -161,7 +162,10 @@ class StudentPortalHistoryTest extends TestCase
         $this->actingAs($this->parent)->post(route('portal.student.homework.basket', [$hw->id, 'quizizz']), ['student_id' => $this->student->id])
             ->assertNotFound();
         $this->assertSame('Old homework feedback', $submission->fresh()->feedback);
-        $this->actingAs($otherParent)->get(route('portal.student.homework', $this->student->id))->assertForbidden();
+        $this->actingAs($otherParent)->get(route('portal.student.homework', $this->student->id))->assertOk()
+            ->assertDontSee('Old teacher comment')->assertDontSee('Old homework feedback')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('assignments', fn ($rows) => collect($rows)->pluck('id')->all() === [$activeHw->id]));
         $this->actingAs($otherParent)->get(route('portal.student.homework', $other->id))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('remarks', fn ($rows) => ! collect($rows)->contains('session_id', $old->id))

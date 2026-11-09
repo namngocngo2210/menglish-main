@@ -35,7 +35,7 @@ const percent = (s) => (s.total > 0 ? Math.round((s.correct / s.total) * 100) : 
 
     <!-- Khung điện thoại -->
     <div class="relative mx-auto my-4 flex min-h-[844px] max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-surface-container-low pb-24 shadow-2xl md:min-h-0 md:max-w-4xl md:pb-6 md:shadow-sm">
-        <PortalTopHeader :student="student" :students="students" title="Kết quả" show-back :back-url="backUrl" />
+        <PortalTopHeader :student="student" title="Kết quả" show-back :back-url="backUrl" />
 
         <div class="w-full flex-1 space-y-4 overflow-y-auto p-4">
             <!-- Điểm -->

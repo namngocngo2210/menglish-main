@@ -4,7 +4,7 @@
  * Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn tiêu đề/nút quay lại và dải tab.
  */
 import { computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import PortalBottomNav from './PortalBottomNav.vue';
 import { route } from '@/lib/route';
 import PortalPageHeader from './PortalPageHeader.vue';
@@ -24,12 +24,7 @@ const props = defineProps({
     backUrl: { type: String, default: null },
 });
 
-const studentOptions = computed(() => props.students.map((s) => ({ value: s.id, label: s.name })));
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
-
-function switchStudent(event) {
-    router.visit(route('portal.app-shell') + '?student_id=' + event.target.value);
-}
 </script>
 
 <template>
@@ -45,7 +40,6 @@ function switchStudent(event) {
         <header class="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-surface-container-highest bg-background px-4 dark:border-inverse-surface dark:bg-inverse-surface">
             <div class="text-2xl font-bold tracking-tight text-primary">MENGLISH</div>
             <div class="flex items-center gap-2">
-                <UiSelect v-if="students.length > 1" class="!min-w-0 py-1 text-xs font-semibold" aria-label="Chọn học viên" :options="studentOptions" :value="student?.id" @change="switchStudent" />
                 <Link :href="route('portal.student.home', params)" class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary-container/10 text-primary transition-opacity duration-100 hover:opacity-80 active:scale-95">
                     <span class="material-symbols-outlined text-2xl">account_circle</span>
                 </Link>
