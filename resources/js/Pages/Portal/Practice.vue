@@ -55,7 +55,7 @@ const scoreText = (score) => Number(score).toLocaleString('vi-VN', { maximumFrac
 
     <!-- Khung điện thoại -->
     <div class="relative mx-auto my-4 flex min-h-[844px] max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-surface-container-low pb-24 shadow-2xl md:min-h-0 md:max-w-4xl md:pb-6 md:shadow-sm">
-        <PortalTopHeader :student="student" :students="students" title="Luyện tập" />
+        <PortalTopHeader :student="student" title="Luyện tập" />
 
         <div class="w-full flex-1 space-y-4 overflow-y-auto p-4">
             <!-- Khối & năm học -->

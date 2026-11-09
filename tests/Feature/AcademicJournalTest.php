@@ -136,7 +136,7 @@ class AcademicJournalTest extends TestCase
         // Cùng biểu mẫu báo cáo ngày Học vụ; tab Ngày đứng trước Tuần / Tháng / Quý, báo cáo chính vẫn là tuần.
         $this->actingAs($lead)->get(route('reports.periodic.daily'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/DailyOps')->where('audience', 'Học thuật')
-                ->has('sections', 4)->has('tabs', 4)->where('tabs.0.active', true));
+                ->has('sections', 4)->has('tabs', 5)->where('tabs.0.active', true));
         $this->actingAs($lead)->get(route('reports.my'))->assertRedirect(route('reports.periodic.academic-weekly'));
 
         $this->actingAs($lead)->post(route('reports.periodic.daily.store'), ['date' => $today, 'notes' => ['projects' => 'Ghi chú 4']])

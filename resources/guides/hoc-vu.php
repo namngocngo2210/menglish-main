@@ -256,5 +256,24 @@ return [
                 'Tab **Báo cáo tuần (KPI)** dùng cho báo cáo tuần theo KPI.',
             ],
         ],
+        [
+            'id' => 'cham-cong-thang',
+            'title' => 'Nộp báo cáo chấm công tháng',
+            'icon' => 'schedule',
+            'menu' => 'Báo cáo của tôi → Báo cáo chấm công tháng',
+            'route' => 'reports.periodic.timesheet-monthly',
+            'intro' => 'Báo cáo chấm công riêng, không phải báo cáo tháng về chất lượng lớp của Học thuật.',
+            'images' => [
+                ['src' => 'hoc-vu/bao-cao-ngay.webp', 'caption' => 'Trang Báo cáo của tôi (tab Báo cáo chấm công tháng nằm cùng trang)'],
+            ],
+            'steps' => [
+                'Chọn tháng, nhập ghi chú nếu có rồi bấm **Nộp báo cáo**. Có thể nộp bất cứ lúc nào, không có hạn nộp; nộp lại cập nhật cùng bản của tháng đó.',
+                'Trạng thái **Đã nộp - dd/mm/yyyy** hiển thị ngày cập nhật gần nhất.',
+            ],
+            'tips' => [
+                'Từ thứ Hai của tuần chứa ngày cuối tháng, Trang chủ và Báo cáo của tôi nhắc các tháng chưa nộp. Tháng còn thiếu tiếp tục được nhắc sang tháng sau; chỉ tính từ tháng 11/2026 hoặc tháng tạo tài khoản nếu muộn hơn.',
+                'Trợ giảng không nộp báo cáo chấm công tháng và không nhận nhắc này.',
+            ],
+        ],
     ],
 ];

@@ -77,7 +77,7 @@ function validateForm(event) {
 
     <!-- Khung điện thoại -->
     <div class="relative mx-auto my-4 flex min-h-[844px] max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-surface-container-lowest pb-24 shadow-2xl md:min-h-0 md:max-w-4xl md:pb-6 md:shadow-sm">
-        <PortalTopHeader :student="student" :students="students" title="Feedback chặng" show-back :back-url="route('portal.student.survey', params)" />
+        <PortalTopHeader :student="student" title="Feedback chặng" show-back :back-url="route('portal.student.survey', params)" />
 
         <div class="flex items-center border-b border-surface-container-highest bg-surface-container-low px-3 pt-2">
             <Link :href="route('portal.student.survey', params)" class="flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2 text-xs font-semibold text-on-surface-variant transition hover:text-on-surface">

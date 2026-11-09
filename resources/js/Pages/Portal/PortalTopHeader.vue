@@ -1,37 +1,19 @@
 <script setup>
 /**
- * Thanh trên của cổng học viên (thay portal/partials/top-header): tiêu đề, học viên đang chọn, đổi học viên (phụ huynh
- * nhiều con / nhân sự xem hộ) và lối về App Shell. Đổi học viên giữ nguyên màn đang xem, chỉ đổi học viên trên URL.
+ * Thanh trên của cổng học viên (thay portal/partials/top-header): tiêu đề, học viên đang đăng nhập và lối về App Shell.
  */
-import { computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { useBackLink } from '@/lib/backLink';
 import { route } from '@/lib/route';
 
 const props = defineProps({
     student: { type: Object, default: null },
-    students: { type: Array, default: () => [] },
     title: { type: String, default: 'MENGLISH' },
     showBack: { type: Boolean, default: false },
     backUrl: { type: String, default: null },
 });
 const back = useBackLink(() => props.backUrl ?? route('portal.student.home', { studentId: props.student?.id }));
 
-const options = computed(() => props.students.map((s) => ({ value: s.id, label: s.name })));
-
-function switchStudent(event) {
-    const id = event.target.value;
-    const path = window.location.pathname
-        .replace(/\/home(\/\d+)?$/, '/home/' + id)
-        .replace(/\/student-homework(\/\d+)?$/, '/student-homework/' + id)
-        .replace(/\/pronunciation(\/\d+)?$/, '/pronunciation/' + id)
-        .replace(/\/practice(\/\d+)?$/, '/practice/' + id)
-        .replace(/\/notifications(\/\d+)?$/, '/notifications/' + id)
-        .replace(/\/survey(\/\d+)?$/, '/survey/' + id)
-        .replace(/\/feedback(\/\d+)?$/, '/feedback/' + id);
-    // Đổi học viên = cùng màn, không thêm bước lịch sử (nút Quay lại không về màn của học viên trước).
-    router.visit(path, { replace: true });
-}
 </script>
 
 <template>
@@ -47,9 +29,6 @@ function switchStudent(event) {
         </div>
 
         <div class="flex items-center gap-2">
-            <!-- Đổi học viên nhanh -->
-            <UiSelect v-if="students.length > 1" class="!min-w-0 py-1 text-xs font-semibold" aria-label="Chọn học viên" :options="options" :value="student?.id" @change="switchStudent" />
-
             <!-- Hướng dẫn sử dụng cho phụ huynh / học sinh (thay cho mục ở menu "Của tôi" của nhân sự). -->
             <Link :href="route('guide.index')" title="Hướng dẫn sử dụng" aria-label="Hướng dẫn sử dụng" class="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition hover:bg-surface-container active:scale-95">
                 <span class="material-symbols-outlined text-[22px]" aria-hidden="true">help</span>

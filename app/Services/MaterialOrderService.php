@@ -22,7 +22,7 @@ class MaterialOrderService
     public function __construct(private readonly DocumentCodeGenerator $codes) {}
 
     /**
-     * @param  array{branch_id: int, class_id?: int|null, category: string, title: string, description?: string|null, quantity?: int|null, use_date: string}  $data
+     * @param  array{branch_id: int, class_id?: int|null, category: string, title: string, description?: string|null, specification?: string|null, quantity?: int|null, use_date: string}  $data
      */
     public function create(User $requester, array $data, ?Carbon $now = null): MaterialOrder
     {
@@ -37,6 +37,7 @@ class MaterialOrderService
             'category' => $data['category'],
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
+            'specification' => $data['category'] === MaterialOrder::CATEGORY_PRINTING ? ($data['specification'] ?? null) : null,
             'quantity' => $data['quantity'] ?? null,
             'use_date' => $data['use_date'],
             'due_at' => $dueAt,

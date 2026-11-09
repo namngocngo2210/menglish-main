@@ -617,6 +617,32 @@ class Flow4StudentPortalTest extends TestCase
             ->assertSee('Không có nội dung chi tiết.');
     }
 
+    public function test_portal_ignores_another_student_id_for_student_accounts()
+    {
+        $other = Student::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'Trần Thị Khác',
+            'code' => 'HV-00999',
+            'phone' => '0911222333',
+            'status' => 'active',
+            'branch_id' => $this->student->branch_id,
+        ]);
+
+        foreach (['home', 'homework', 'pronunciation', 'notifications', 'survey', 'feedback'] as $screen) {
+            $this->actingAs($this->user)
+                ->get(route('portal.student.'.$screen, ['studentId' => $other->id]))
+                ->assertOk()
+                ->assertSee('Nguyễn Văn A')
+                ->assertDontSee('Trần Thị Khác');
+        }
+
+        $this->actingAs($this->user)
+            ->get(route('portal.app-shell', ['student_id' => $other->id]))
+            ->assertOk()
+            ->assertSee('Nguyễn Văn A')
+            ->assertDontSee('Trần Thị Khác');
+    }
+
     /** File MP3 tối thiểu (header ID3) để đuôi file suy ra từ nội dung là mp3. */
     private function fakeRecording(): UploadedFile
     {

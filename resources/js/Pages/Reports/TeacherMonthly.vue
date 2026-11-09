@@ -14,6 +14,7 @@ import { reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { formatDate } from '@/lib/format';
+import ReportTabs from './ReportTabs.vue';
 import ReportHistory from './ReportHistory.vue';
 import DailyMetric from './DailyMetric.vue';
 import SectionTasks from './SectionTasks.vue';
@@ -92,6 +93,7 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
 </script>
 
 <template>
+    <ReportTabs :tabs="tabs" />
     <div class="mx-auto max-w-5xl space-y-xl [&_[data-field-label]]:font-label [&_[data-field-label]]:text-label [&_[data-field-label]]:uppercase">
         <UiPageHeader title="Báo cáo chung của giáo viên" description="Hệ thống ghi nhận và quản lý công việc giảng dạy tháng">
             <template #actions>
@@ -113,8 +115,8 @@ const boxTitle = 'mb-md flex items-center gap-sm border-b border-surface-variant
             </h2>
             <p :class="['mt-md inline-flex items-center gap-xs rounded-full border px-md py-xs font-body-medium text-body-medium', statusPill[attendance.submitted_at ? 'success' : 'error']]">
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">{{ attendance.submitted_at ? 'check_circle' : 'error' }}</span>
-                <template v-if="attendance.submitted_at">Đã nộp báo cáo chấm công {{ monthLabel.toLowerCase() }} lúc {{ formatDate(attendance.submitted_at, 'H:i d/m') }}</template>
-                <template v-else>Chưa nộp báo cáo chấm công {{ monthLabel.toLowerCase() }}</template>
+                <template v-if="attendance.submitted_at">Đã nộp - {{ formatDate(attendance.submitted_at, 'd/m/Y') }}</template>
+                <template v-else>Chưa nộp</template>
             </p>
             <div v-if="auto?.work" class="mt-md grid grid-cols-2 gap-md md:grid-cols-5" data-teacher-work>
                 <DailyMetric v-for="item in auto.work.items" :key="item.key" :item="item" />
