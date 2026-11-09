@@ -480,12 +480,13 @@ function sessionNote(ts) {
                 <UiDataTable v-if="renewalClasses.length">
                     <template #header><h3 class="font-h3 text-h3 text-on-surface">Thưởng tái tục theo lớp</h3></template>
                     <table>
-                        <thead><tr><th>Lớp</th><th class="text-right">HS nghỉ</th><th class="text-right">%</th><th class="text-right">Doanh thu lớp</th><th class="text-right">Thưởng</th></tr></thead>
+                        <thead><tr><th>Lớp</th><th class="text-right">HS nghỉ</th><th class="text-right">HS mới còn học</th><th class="text-right">%</th><th class="text-right">Doanh thu lớp</th><th class="text-right">Thưởng</th></tr></thead>
                         <tbody>
                             <tr v-for="(row, i) in renewalClasses" :key="i">
                                 <td>{{ row.class }} <span class="block font-caption text-caption text-on-surface-variant">{{ row.base }} HS đầu kỳ</span></td>
                                 <td class="text-right font-code text-code">{{ row.quits }}</td>
-                                <td class="text-right font-code text-code">{{ pct(row.percent) }}%<span v-if="row.pending" class="block font-caption text-caption text-warning">chờ BA</span></td>
+                                <td class="text-right font-code text-code">{{ row.joined ?? '—' }}</td>
+                                <td class="text-right font-code text-code">{{ pct(row.percent) }}%<span v-if="row.tier" class="block font-caption text-caption text-on-surface-variant">{{ { dropped: 'Có HS nghỉ', same: 'Giữ nguyên số HS', increase: 'Tăng số HS' }[row.tier] }}</span></td>
                                 <td><UiMoney :value="row.revenue" suffix="đ" /></td>
                                 <td><UiMoney :value="row.amount" suffix="đ" /></td>
                             </tr>

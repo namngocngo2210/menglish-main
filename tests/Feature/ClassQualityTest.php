@@ -264,7 +264,7 @@ class ClassQualityTest extends TestCase
         $week = ReportPeriod::currentWeek();
 
         $this->actingAs($staff)->get(route('reports.periodic.weekly-kpi'))->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/WeeklyKpi')->where('week', $week)->has('tabs', 2));
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/WeeklyKpi')->where('week', $week)->has('tabs', 3));
 
         // Số lần phát sinh do hệ thống đếm (Nhật ký Học vụ gắn mã KPI), số gửi từ form bị bỏ qua.
         StaffReport::create(['user_id' => $staff->id, 'type' => 'journal', 'title' => 'Sự vụ', 'content' => 'Gọi phụ huynh trễ', 'kpi_code' => 'CS1', 'report_date' => today()]);
@@ -305,7 +305,7 @@ class ClassQualityTest extends TestCase
         ]);
         // Bảng tuần trong tháng (Tuần / Khoảng ngày / PIC) nhận cả báo cáo tuần dạng chữ cũ; bấm vào xem nội dung.
         $this->actingAs($lead)->get(route('reports.periodic.academic-monthly'))->assertOk()->assertSee('Cô Lan')
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/AcademicMonthly')->has('tabs', 4)
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/AcademicMonthly')->has('tabs', 5)
                 ->where('weeklyReports', fn ($weeks) => collect($weeks)->contains(fn ($w) => $w['title'] === 'Báo cáo tuần đầu tháng' && $w['pic'] === $lead->name)));
         $this->actingAs($lead)->post(route('reports.periodic.academic-monthly.store'), ['month' => $month, 'narrative' => []])
             ->assertSessionHasErrors();

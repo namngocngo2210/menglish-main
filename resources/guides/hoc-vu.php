@@ -263,6 +263,9 @@ return [
             'menu' => 'Báo cáo của tôi → Báo cáo chấm công tháng',
             'route' => 'reports.periodic.timesheet-monthly',
             'intro' => 'Báo cáo chấm công riêng, không phải báo cáo tháng về chất lượng lớp của Học thuật.',
+            'images' => [
+                ['src' => 'hoc-vu/bao-cao-ngay.webp', 'caption' => 'Trang Báo cáo của tôi (tab Báo cáo chấm công tháng nằm cùng trang)'],
+            ],
             'steps' => [
                 'Chọn tháng, nhập ghi chú nếu có rồi bấm **Nộp báo cáo**. Có thể nộp bất cứ lúc nào, không có hạn nộp; nộp lại cập nhật cùng bản của tháng đó.',
                 'Trạng thái **Đã nộp - dd/mm/yyyy** hiển thị ngày cập nhật gần nhất.',

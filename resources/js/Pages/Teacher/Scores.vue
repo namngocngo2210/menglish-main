@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Nhập điểm mini test (mockup 03_Cong_Giao_Vien/06_nhap_diem_mini_test): Chọn Unit + Chọn học sinh, điểm 4 kỹ năng (bắt buộc đủ),
+ * Nhập điểm mini test (mockup 03_Cong_Giao_Vien/06_nhap_diem_mini_test): Chọn Unit + Chọn học sinh, thành phần điểm động,
  * nhận xét chung. Bên dưới: bảng điểm đã nhập của Unit đang chọn (bấm để sửa).
  */
 import { computed, ref, watch } from 'vue';
@@ -12,7 +12,6 @@ defineOptions({ layout: { title: 'Nhập điểm mini test' } });
 
 const props = defineProps({
     classroom: { type: Object, required: true },
-    skills: { type: Object, required: true },
     units: { type: Array, default: () => [] },
     unitId: { type: Number, default: null },
     testName: { type: String, default: null },
@@ -28,14 +27,30 @@ const input = 'w-full rounded-lg border border-outline-variant bg-surface-contai
 
 const page = usePage();
 const errors = computed(() => page.props.errors ?? {});
-const firstError = computed(() => Object.values(errors.value).find((v) => typeof v === 'string') ?? null);
+const firstError = computed(() => errors.value.components ?? Object.values(errors.value).find((v) => typeof v === 'string') ?? null);
 
-const skillValues = ref({});
-const loadSkills = () => {
-    skillValues.value = { ...props.current.skills };
+const components = ref([]);
+const loadComponents = () => {
+    const initial = props.current?.components;
+    if (Array.isArray(initial) && initial.length > 0) {
+        components.value = initial.map((c) => ({
+            name: c.name ?? '',
+            score: c.score ?? '',
+        }));
+    } else {
+        components.value = [{ name: '', score: '' }];
+    }
 };
-loadSkills();
-watch(() => [props.selectedStudentId, props.unitId, props.testName], loadSkills);
+loadComponents();
+watch(() => [props.selectedStudentId, props.unitId, props.testName], loadComponents);
+
+function addComponent() {
+    components.value.push({ name: '', score: '' });
+}
+
+function removeComponent(index) {
+    components.value.splice(index, 1);
+}
 
 const studentOptions = computed(() => props.students.map((s) => ({ value: s.id, label: s.name + (s.has_score ? ' ✓' : '') })));
 
@@ -77,27 +92,39 @@ function pickUnit(event) {
                 <hr class="border-surface-container" />
 
                 <section class="space-y-md">
-                    <div class="flex items-center justify-between gap-sm">
-                        <h2 class="font-h3 text-h3 text-on-surface">Điểm kỹ năng</h2>
-                        <label class="flex items-center gap-xs font-body-small text-body-small text-on-surface-variant">
-                            Thang điểm tối đa
-                            <input type="number" name="max_score" :value="current.max_score" min="1" max="100" step="0.5" class="w-20 rounded-lg border border-outline-variant px-sm py-xs text-center font-code" />
-                        </label>
-                    </div>
-                    <div class="grid grid-cols-2 gap-md md:grid-cols-4">
-                        <UiField v-for="(label, key) in skills" :key="key" :label="label" name="skills" :for="'score_' + key" required>
+                    <h2 class="font-h3 text-h3 text-on-surface">Thành phần điểm</h2>
+                    <div class="space-y-sm">
+                        <div v-for="(component, index) in components" :key="index" class="flex items-center gap-sm">
                             <input
-                                :id="'score_' + key"
-                                v-model="skillValues[key]"
+                                v-model="component.name"
+                                type="text"
+                                :name="`components[${index}][name]`"
+                                placeholder="Tên thành phần, vd: Nghe"
+                                :class="[input, 'flex-1']"
+                            />
+                            <input
+                                v-model="component.score"
                                 type="number"
-                                :name="`skills[${key}]`"
+                                :name="`components[${index}][score]`"
                                 min="0"
                                 step="0.1"
-                                required
-                                placeholder="Nhập điểm"
-                                :class="[input, 'text-center font-code', errors.skills && (skillValues[key] ?? '') === '' ? 'border-error ring-2 ring-error/20' : '']"
+                                placeholder="Điểm"
+                                :class="[input, 'w-28 shrink-0 text-center font-code sm:w-36']"
                             />
-                        </UiField>
+                            <UiButton
+                                type="button"
+                                variant="ghost"
+                                icon="delete"
+                                aria-label="Xóa thành phần"
+                                title="Xóa thành phần"
+                                @click="removeComponent(index)"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <UiButton type="button" variant="secondary" icon="add" @click="addComponent">
+                            Thêm thành phần
+                        </UiButton>
                     </div>
                 </section>
 
@@ -119,7 +146,7 @@ function pickUnit(event) {
                     <thead>
                         <tr>
                             <th>Học sinh</th>
-                            <th v-for="(label, key) in skills" :key="key" class="text-center">{{ label }}</th>
+                            <th>Thành phần</th>
                             <th class="text-center">Tổng (TB)</th>
                             <th class="text-right">Thao tác</th>
                         </tr>
@@ -127,7 +154,7 @@ function pickUnit(event) {
                     <tbody>
                         <tr v-for="student in students" :key="student.id">
                             <td class="font-semibold">{{ student.name }}</td>
-                            <td v-for="(label, key) in skills" :key="key" class="text-center font-code">{{ student.skills[key] }}</td>
+                            <td>{{ student.components }}</td>
                             <td :class="['text-center font-code font-semibold', student.low ? 'text-error' : '']">{{ student.total ?? 'Chưa nhập' }}</td>
                             <td class="text-right">
                                 <UiButton size="sm" variant="ghost" icon="edit" :href="route('teacher.scores', { ...rowParams, student_id: student.id })">{{ student.has_score ? 'Sửa' : 'Nhập' }}</UiButton>

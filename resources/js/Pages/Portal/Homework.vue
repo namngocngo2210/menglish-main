@@ -275,7 +275,7 @@ function switchStudent(event) {
                                     <h4 class="text-xs font-bold text-on-surface">{{ mt.name }}</h4>
                                     <p class="font-mono text-xs text-on-surface-subtle">Ngày thi: {{ mt.test_date }}</p>
                                 </div>
-                                <div class="font-mono text-lg font-black text-primary">{{ mt.score }}<span class="text-xs text-on-surface-subtle">/{{ mt.max_score }}</span></div>
+                                <div class="font-mono text-lg font-black text-primary">{{ mt.score }}<span v-if="mt.max_score" class="text-xs text-on-surface-subtle">/{{ mt.max_score }}</span></div>
                             </div>
                             <div v-if="mt.skills?.length" class="flex flex-wrap items-center gap-1.5">
                                 <span v-for="s in mt.skills" :key="s.name" class="rounded-md bg-surface-container px-2 py-0.5 text-xs text-on-surface-variant">

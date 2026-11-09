@@ -3,7 +3,7 @@
  * Form nộp báo cáo trực lớp (mockup "Báo cáo trực lớp" 14/10/2026) — dùng chung modal và trang đầy đủ (id tiền tố "modal-"
  * trong modal, nút Nộp ở footer modal). 4 khối: 1. Thông tin ca trực (chỉ đọc, theo lớp / buổi đã chọn), 2. Nội dung & diễn biến,
  * 3. Ảnh minh chứng (nhiều ảnh), 4. Học sinh cần bổ trợ (bảng động). Quy tắc chuyển trạng thái nằm sau nút "i"; cuối form báo
- * trước kết quả sau khi nộp (có ảnh → hoàn thành ngay, không ảnh → chờ Admin xác nhận).
+ * trước kết quả sau khi nộp (có ảnh → hoàn thành ngay, không ảnh → chờ GV chính / người giao xác nhận).
  * Đổi lớp: tải lại form theo lớp mới (buổi / học sinh / người xác nhận của lớp). Ảnh: gửi multipart, xem trước và bỏ bớt ảnh đã chọn.
  * Lấy từ hệ thống (chủ dự án 15/10/2026): "Hôm nay học gì" điền sẵn theo giáo trình của buổi, sĩ số theo điểm danh của GV,
  * danh sách bổ trợ gợi ý sẵn học sinh vắng buổi này + mini test gần nhất dưới 7 (người nộp xóa / sửa được, chỉ "Kế hoạch xử lý" là nhập tay).
@@ -114,7 +114,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                 Quy tắc chuyển trạng thái
                 <UiInfo title="Quy tắc chuyển trạng thái nhiệm vụ" align="right" label="Quy tắc chuyển trạng thái nhiệm vụ">
                     <p><strong class="text-on-surface">Có ít nhất 1 ảnh đính kèm:</strong> đầu việc trực lớp tự chuyển sang <strong class="text-tertiary">Hoàn thành</strong> ngay.</p>
-                    <p><strong class="text-on-surface">Không có ảnh:</strong> chuyển sang <strong class="text-warning">Chờ xác nhận</strong> (chờ Admin xác nhận ở màn duyệt).</p>
+                    <p><strong class="text-on-surface">Không có ảnh:</strong> chuyển sang <strong class="text-warning">Chờ xác nhận</strong> (chờ GV chính của lớp xác nhận ở màn duyệt).</p>
                     <p v-if="confirmMode === 'none'">Lớp này chưa có GV chính và báo cáo chưa gắn đầu việc được giao, nên cần đính kèm ít nhất 1 ảnh.</p>
                 </UiInfo>
             </span>
@@ -313,7 +313,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                     <span>
                         Kết quả dự kiến sau khi bấm nộp:
                         <strong v-if="previews.length" class="text-tertiary">Hoàn thành ngay</strong>
-                        <template v-else-if="confirmMode !== 'none'"><strong class="text-warning">Chờ xác nhận</strong> (chờ Admin xác nhận)</template>
+                        <template v-else-if="confirmMode !== 'none'"><strong class="text-warning">Chờ xác nhận</strong> (chờ <strong>{{ confirmer }}</strong> xác nhận)</template>
                         <strong v-else class="text-error">Cần đính kèm ít nhất 1 ảnh</strong>
                     </span>
                 </p>

@@ -1,10 +1,6 @@
 <script setup>
-/**
- * Cấu hình mốc hoa hồng & thưởng tái tục (mockup epic-7/cau-hinh-moc-hoa-hong-thuong-tai-tuc).
- * Tab "Hoa hồng tuyển sinh": mốc đang hiệu lực tại một ngày (xem lại theo ?as_of=), sửa = tạo phiên bản mới, ngừng áp dụng,
- * lịch sử phiên bản, thêm mốc (modal new-tier). Tab "Thưởng tái tục" (?tab=renewal): bảng % doanh thu lớp theo số HS nghỉ.
- */
-import { computed, reactive, ref } from 'vue';
+// Commission versions and renewal percentages for academic staff.
+import { computed, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 
@@ -19,8 +15,8 @@ const props = defineProps({
     gateMilestones: { type: [Number, String], default: null },
     today: { type: String, required: true },
     tomorrow: { type: String, required: true },
-    renewalRows: { type: Array, default: () => [] },
-    renewalBeyond: { type: String, default: '0' },
+    renewalSamePercent: { type: Number, required: true },
+    renewalIncreasePercent: { type: Number, required: true },
 });
 
 const page = usePage();
@@ -54,7 +50,6 @@ function edit(tier) {
     editOpen.value = true;
 }
 
-const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
 </script>
 
 <template>
@@ -218,56 +213,18 @@ const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
             </template>
 
             <template v-else>
-                <!-- Thưởng tái tục (A6): % doanh thu lớp theo số HS nghỉ trong kỳ, cho GV Full-time phụ trách lớp -->
-                <UiForm :action="route('payroll.config.renewal.store')" method="post" preserve-state="errors">
-                    <UiDataTable class="shadow-sm">
-                        <template #header>
-                            <div>
-                                <h3 class="font-h3 text-h3 text-on-surface">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
-                                <p class="font-body-small text-body-small text-on-surface-variant">BA đã chốt: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc khác gắn <strong>chờ BA</strong> tới khi có bảng đầy đủ.</p>
-                            </div>
-                            <UiButton variant="secondary" size="sm" icon="add" @click="rows.push({ quits: rows.length, percent: 0, pending: true })">Thêm mốc mới</UiButton>
-                        </template>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Số HS nghỉ trong lớp</th>
-                                    <th>Tỷ lệ (% doanh thu lớp)</th>
-                                    <th>Chờ BA</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(row, i) in rows" :key="i">
-                                    <td><input v-model="row.quits" type="number" min="0" :name="`renewal[${i}][quits]`" aria-label="Số HS nghỉ" class="w-28 rounded-lg border border-outline-variant px-sm py-xs font-code text-code" /></td>
-                                    <td>
-                                        <span class="relative inline-block">
-                                            <input v-model="row.percent" type="number" min="0" max="100" step="0.05" :name="`renewal[${i}][percent]`" aria-label="Tỷ lệ %" class="w-32 rounded-lg border border-outline-variant px-sm py-xs pr-lg text-right font-code text-code" />
-                                            <span class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant">%</span>
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <input type="hidden" :name="`renewal[${i}][pending]`" :value="row.pending ? 1 : 0" />
-                                        <label class="inline-flex items-center gap-xs"><input v-model="row.pending" type="checkbox" class="rounded border-outline-variant text-primary-container" /><span v-show="row.pending" class="font-caption text-caption font-semibold text-warning">chờ BA</span></label>
-                                    </td>
-                                    <td class="text-right"><UiButton variant="danger-text" size="sm" icon="delete" aria-label="Xoá mốc" @click="rows.splice(i, 1)" /></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <template #footer>
-                            <div class="flex flex-wrap items-center justify-between gap-md p-md">
-                                <label class="flex items-center gap-sm font-body-medium text-body-medium">
-                                    Nghỉ nhiều hơn các mốc trên:
-                                    <input type="number" name="renewal_beyond_percent" min="0" max="100" step="0.05" :value="renewalBeyond" class="w-28 rounded-lg border border-outline-variant px-sm py-xs text-right font-code text-code" /> % <span class="font-caption text-caption text-warning">(chờ BA)</span>
-                                </label>
-                                <UiButton type="submit" icon="save">Lưu cấu hình</UiButton>
-                            </div>
-                        </template>
-                    </UiDataTable>
+                <UiForm :action="route('payroll.config.renewal.store')" method="post" preserve-state="errors" class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg shadow-sm">
+                    <h3 class="font-h3 text-h3 text-on-surface">Thưởng tái tục — % doanh thu lớp</h3>
+                    <p class="font-body-small text-body-small text-on-surface-variant">Chỉ áp dụng cho Học vụ, trên các lớp mình phụ trách có HS đầu kỳ. Có bất kỳ HS đầu kỳ nào nghỉ trong kỳ → 0%. Không có HS nghỉ: giữ nguyên số HS → tỷ lệ giữ nguyên; có HS mới vào trong kỳ còn học cuối kỳ, số HS cuối kỳ tăng so với đầu kỳ → tỷ lệ tăng HS. Tỷ lệ tăng số HS phải lớn hơn tỷ lệ giữ nguyên số HS.</p>
+                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
+                        <UiInput id="renewal_same_percent" type="number" name="renewal_same_percent" label="Giữ nguyên số HS (%)" min="0" max="100" step="any" required :value="renewalSamePercent" />
+                        <UiInput id="renewal_increase_percent" type="number" name="renewal_increase_percent" label="Tăng số HS (%)" min="0" max="100" step="any" required :value="renewalIncreasePercent" />
+                    </div>
+                    <UiButton type="submit" icon="save">Lưu cấu hình</UiButton>
                 </UiForm>
                 <p class="font-body-small text-body-small text-on-surface-variant">
-                    Thưởng tái tục = Σ theo lớp GV Full-time là GV chính: % theo số HS nghỉ trong kỳ × doanh thu lớp (phiếu thu đã duyệt trong kỳ, trừ tiền nhận chuyển nhượng).
-                    Bảng áp dụng cho lần <strong>tính / tính lại</strong> kỳ lương tiếp theo; kỳ đã duyệt không đổi.
+                    Thưởng tái tục = tổng thưởng các lớp Học vụ phụ trách: tỷ lệ áp dụng × doanh thu lớp (phiếu thu đã duyệt trong kỳ, trừ tiền nhận chuyển nhượng).
+                    Tỷ lệ áp dụng khi <strong>tính / tính lại</strong> kỳ lương đang mở; kỳ đã chốt / đã gửi GV xem / đã trả không đổi.
                 </p>
             </template>
         </div>

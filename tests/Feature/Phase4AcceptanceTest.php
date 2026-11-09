@@ -403,7 +403,7 @@ class Phase4AcceptanceTest extends TestCase
         $this->get(route('tuition.students'))->assertOk();
     }
 
-    public function test_class_duty_report_photo_completes_task_otherwise_admin_confirms(): void
+    public function test_class_duty_report_photo_completes_task_otherwise_main_teacher_confirms(): void
     {
         // "Gắn lớp" bắt buộc chọn buổi học (buổi thật trong ngày hoặc nhập tên buổi).
         $this->actingAs($this->academic)->post(route('tasks.ta-assign.store'), [
@@ -431,23 +431,23 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertSame('approved', $withPhoto->status);
         $this->assertSame('completed', $shifts['after']->fresh()->status);
 
-        // Không ảnh → chờ Admin xác nhận (chỉ Admin, 06/10/2026); TA không tự duyệt, GV chính không còn được báo / xác nhận.
+        // Không ảnh → chờ GV chính xác nhận (R-13); TA không tự duyệt, Admin bị chặn 403.
         $this->actingAs($this->assistant)->post(route('tasks.class-reports.store'), [
             'class_id' => $this->class->id, 'session_name' => 'Buổi 7', 'hom_nay_hoc_gi' => 'Unit 4', 'task_id' => $shifts['during']->id,
         ])->assertSessionHasNoErrors();
         $noPhoto = ClassReport::where('session_name', 'Buổi 7')->sole();
         $this->assertSame('pending_approval', $noPhoto->status);
         $this->assertSame('pending_confirmation', $shifts['during']->fresh()->status);
-        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'class_report_pending']);
-        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'class_report_pending']);
+        $this->assertDatabaseHas('admin_notifications', ['user_id' => $this->teacher->id, 'type' => 'class_report_pending']);
+        $this->assertDatabaseMissing('admin_notifications', ['user_id' => $this->admin->id, 'type' => 'class_report_pending']);
         $this->actingAs($this->assistant)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertForbidden();
-        $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertForbidden();
-        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertSessionHasNoErrors();
-        $this->assertSame(['approved', $this->admin->id], [$noPhoto->fresh()->status, $noPhoto->fresh()->approved_by]);
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertForbidden();
+        $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $noPhoto->id))->assertSessionHasNoErrors();
+        $this->assertSame(['approved', $this->teacher->id], [$noPhoto->fresh()->status, $noPhoto->fresh()->approved_by]);
         $this->assertSame('completed', $shifts['during']->fresh()->status);
 
-        // Q8: lớp chưa có GV chính, không ảnh + không gắn việc "Trực lớp" → không cho nộp; gắn việc thì vẫn chỉ Admin xác nhận
-        // (người giao việc không còn xác nhận, 06/10/2026).
+        // Q8: lớp chưa có GV chính, không ảnh + không gắn việc "Trực lớp" → không cho nộp; gắn việc thì người giao xác nhận
+        // (R-13).
         $noTeacherClass = ClassModel::create([
             'code' => 'N4A-FAM2', 'name' => 'Lớp N4A FAM 2', 'course_id' => $this->class->course_id, 'branch_id' => $this->branchA->id,
             'assistant_id' => $this->assistant->id, 'max_capacity' => 12, 'tuition_fee' => 9000000,
@@ -467,8 +467,8 @@ class Phase4AcceptanceTest extends TestCase
         $assignerConfirms = ClassReport::where('class_id', $noTeacherClass->id)->sole();
         $this->assertSame(['pending_approval', $this->academic->id], [$assignerConfirms->status, $assignerConfirms->confirmer_id]);
         $this->actingAs($this->teacher)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertForbidden();
-        $this->actingAs($this->academic)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertForbidden();
-        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tasks.class-reports.approve', $assignerConfirms->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $assignerConfirms->fresh()->status);
         $this->assertSame('completed', $duty->fresh()->status);
     }

@@ -230,6 +230,10 @@ class Phase2MockupSyllabusTest extends TestCase
     public function test_proposal_targets_lesson_and_detail_matches_mockup(): void
     {
         $lesson = $this->lessons[2];
+        SyllabusAssignment::create([
+            'class_id' => $this->class->id, 'curriculum_id' => $this->curriculum->id, 'stage_id' => $lesson->unit->stage_id, 'stage_name' => 'Chặng của buổi',
+            'user_id' => $this->teacher->id, 'assigned_chapters' => 'x', 'status' => SyllabusAssignment::STATUS_OPEN, 'open_class_id' => $this->class->id, 'opened_at' => now(),
+        ]);
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-propose'))->assertOk()
             ->assertSee('Chọn giáo trình')

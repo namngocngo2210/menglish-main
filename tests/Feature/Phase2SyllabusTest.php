@@ -390,8 +390,8 @@ class Phase2SyllabusTest extends TestCase
     public function test_teacher_proposal_is_reviewed_by_academic(): void
     {
         Storage::fake('local');
-        $cur = $this->curriculum();
-        $unit = SyllabusUnit::create(['curriculum_id' => $cur->id, 'unit_number' => 1, 'title' => 'Writing Task 1']);
+        $cur = $this->openFirstStage($this->curriculum());
+        $unit = SyllabusUnit::create(['curriculum_id' => $cur->id, 'stage_id' => $cur->stages()->value('id'), 'unit_number' => 1, 'title' => 'Writing Task 1']);
 
         $this->actingAs($this->teacher)->post(route('syllabus.proposals.store'), [
             'curriculum_id' => $cur->id, 'unit_id' => $unit->id, 'proposal_type' => 'Khác',

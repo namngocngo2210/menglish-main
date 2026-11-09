@@ -165,6 +165,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', 'home')->name('home');
         Route::post('/', 'punch')->middleware('throttle:20,1')->name('punch');
         Route::get('/lich-su', 'history')->name('history');
+        Route::get('/bao-cao-thang', 'monthlyReport')->name('monthly-report');
+        Route::post('/bao-cao-thang', 'storeMonthlyReport')->name('monthly-report.store');
         Route::get('/don', 'requests')->name('requests');
         Route::post('/don', 'storeRequest')->name('requests.store');
         Route::post('/don/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
@@ -813,12 +815,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/complete', [WorkTaskController::class, 'completeTask'])->name('complete');
         Route::get('/class-reports/create', [WorkTaskController::class, 'createClassReport'])->name('class-reports.create');
         Route::post('/class-reports', [WorkTaskController::class, 'storeClassReport'])->name('class-reports.store');
-        // Xác nhận / trả lại việc và báo cáo trực lớp: chỉ Admin (AdminOnlyApprovals), không tự duyệt — kiểm tra thêm trong controller.
+        // Xác nhận / trả lại việc và báo cáo trực lớp: chỉ người xác nhận theo R-13 (GV chính của lớp / người giao việc) — kiểm tra trong controller (403).
         Route::get('/manual-approvals', [WorkTaskController::class, 'manualApprovals'])->name('manual-approvals');
-        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('approve');
-        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('reject');
-        Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('class-reports.approve');
-        Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('class-reports.reject');
+        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->name('approve');
+        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->name('reject');
+        Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->name('class-reports.approve');
+        Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->name('class-reports.reject');
         Route::get('/schedule-config', [WorkTaskController::class, 'scheduleConfig'])->name('schedule-config');
         Route::post('/schedule-config', [WorkTaskController::class, 'updateScheduleConfig'])->middleware('can:work_task.assign')->name('schedule-config.update');
         Route::get('/support-sessions', [WorkTaskController::class, 'supportSessions'])->name('support-sessions');

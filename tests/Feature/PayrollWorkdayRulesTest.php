@@ -646,8 +646,8 @@ class PayrollWorkdayRulesTest extends TestCase
     {
         $formula = app(\App\Services\PayrollFormulaService::class);
         $this->assertTrue($formula->getsRenewalBonus('academic_staff'));
-        foreach (['teacher_fulltime', 'teacher_parttime', 'academic_lead', 'assistant', 'sales', 'staff'] as $role) {
-            $this->assertFalse($formula->getsRenewalBonus($role), $role);
+        foreach (['teacher_fulltime', 'teacher_parttime', 'academic_lead', 'assistant', 'accountant', 'foreign_teacher', 'manager', 'admin', 'sales', 'staff', null] as $role) {
+            $this->assertFalse($formula->getsRenewalBonus($role), $role ?? 'no role');
         }
     }
 
