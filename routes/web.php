@@ -165,6 +165,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', 'home')->name('home');
         Route::post('/', 'punch')->middleware('throttle:20,1')->name('punch');
         Route::get('/lich-su', 'history')->name('history');
+        Route::get('/bao-cao-thang', 'monthlyReport')->name('monthly-report');
+        Route::post('/bao-cao-thang', 'storeMonthlyReport')->name('monthly-report.store');
         Route::get('/don', 'requests')->name('requests');
         Route::post('/don', 'storeRequest')->name('requests.store');
         Route::post('/don/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
