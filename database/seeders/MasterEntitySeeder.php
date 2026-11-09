@@ -653,11 +653,7 @@ class MasterEntitySeeder extends Seeder
             BigTestResult::query()->updateOrCreate(
                 ['big_test_id' => $bigTest->id, 'student_id' => $student1->id],
                 [
-                    'listening_score' => 6.5,
-                    'reading_score' => 6.0,
-                    'writing_score' => 5.5,
-                    'speaking_score' => 6.0,
-                    'overall_score' => 6.0,
+                    'components' => [['name' => 'Listening', 'score' => 6.5], ['name' => 'Reading', 'score' => 6.0], ['name' => 'Writing', 'score' => 5.5], ['name' => 'Speaking', 'score' => 6.0]],
                     'progress_note' => 'Tăng +1.0 Band so với đầu vào',
                     'status' => 'pending_review',
                     'parent_notified' => false,
@@ -671,11 +667,7 @@ class MasterEntitySeeder extends Seeder
             BigTestResult::query()->updateOrCreate(
                 ['big_test_id' => $bigTest->id, 'student_id' => $student2->id],
                 [
-                    'listening_score' => 7.0,
-                    'reading_score' => 6.5,
-                    'writing_score' => 6.0,
-                    'speaking_score' => 6.5,
-                    'overall_score' => 6.5,
+                    'components' => [['name' => 'Listening', 'score' => 7.0], ['name' => 'Reading', 'score' => 6.5], ['name' => 'Writing', 'score' => 6.0], ['name' => 'Speaking', 'score' => 6.5]],
                     'progress_note' => 'Đạt mục tiêu đầu ra IELTS 6.5',
                     'status' => 'pending_review',
                     'parent_notified' => false,
@@ -689,11 +681,7 @@ class MasterEntitySeeder extends Seeder
             BigTestResult::query()->updateOrCreate(
                 ['big_test_id' => $bigTest->id, 'student_id' => $student3->id],
                 [
-                    'listening_score' => 5.5,
-                    'reading_score' => 5.5,
-                    'writing_score' => 5.0,
-                    'speaking_score' => 5.5,
-                    'overall_score' => 5.4,
+                    'components' => [['name' => 'Listening', 'score' => 5.5], ['name' => 'Reading', 'score' => 5.5], ['name' => 'Writing', 'score' => 5.0], ['name' => 'Speaking', 'score' => 5.5]],
                     'progress_note' => 'Cần bổ trợ thêm kỹ năng Viết Task 2',
                     'status' => 'pending_review',
                     'parent_notified' => false,

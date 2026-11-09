@@ -347,20 +347,20 @@ class Phase2AcceptanceTest extends TestCase
         $this->actingAs($this->teacher)->get(route('syllabus.big-tests.results', $bigTest->id))->assertOk();
         $this->actingAs($this->otherTeacher)->get(route('syllabus.big-tests.results', $bigTest->id))->assertNotFound();
         $this->actingAs($this->otherTeacher)->post(route('syllabus.big-tests.results.store', $bigTest->id), [
-            'results' => [['student_id' => $s1->id, 'listening_score' => 1, 'reading_score' => 1, 'writing_score' => 1, 'speaking_score' => 1]],
+            'results' => [['student_id' => $s1->id, 'components' => [['name' => 'Nghe', 'score' => 1]]]],
         ])->assertNotFound();
 
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $bigTest->id), ['results' => [
-            ['student_id' => $s1->id, 'listening_score' => 8, 'reading_score' => 8.5, 'writing_score' => 7.5, 'speaking_score' => 8, 'progress_note' => 'Tiến bộ tốt'],
+            ['student_id' => $s1->id, 'components' => [['name' => 'Nghe', 'score' => 8], ['name' => 'Đọc', 'score' => 8.5]], 'progress_note' => 'Tiến bộ tốt'],
             ['student_id' => $s2->id, 'is_absent' => 1],
-            ['student_id' => $s3->id, 'listening_score' => 6, 'reading_score' => 6, 'writing_score' => 6.5, 'speaking_score' => 6],
-            ['student_id' => $s4->id, 'listening_score' => 7, 'reading_score' => 7.5, 'writing_score' => 7, 'speaking_score' => 8],
+            ['student_id' => $s3->id, 'components' => [['name' => 'Nghe', 'score' => 6], ['name' => 'Viết', 'score' => 6.5]]],
+            ['student_id' => $s4->id, 'components' => [['name' => 'Nghe', 'score' => 7], ['name' => 'Nói', 'score' => 8]]],
         ]])->assertSessionHasNoErrors();
         $absent = BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s2->id)->firstOrFail();
         $this->assertTrue($absent->is_absent);
         $this->assertNull($absent->overall_score, 'Vắng thi không lưu điểm 0.');
         $this->assertSame(4, BigTestResult::where('big_test_id', $bigTest->id)->where('status', 'pending_review')->count());
-        $this->assertTrue(ClassReportStudentSupport::where('student_id', $s3->id)->where('source', SupportListService::SOURCE_BIG_TEST)->exists());
+        $this->assertFalse(ClassReportStudentSupport::where('student_id', $s3->id)->where('source', SupportListService::SOURCE_BIG_TEST)->exists(), 'Không tự xếp loại điểm thấp (TK-2026-0056).');
         // Kết quả chưa duyệt không hiện ở cổng học viên.
         $this->actingAs($studentUser)->get(route('portal.student.home'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->where('bigTestResults', fn ($results) => collect($results)->isEmpty()));
@@ -373,9 +373,9 @@ class Phase2AcceptanceTest extends TestCase
         $this->assertTrue(SyllabusAssignment::open()->where('class_id', $class->id)->where('stage_id', $stage1->id)->exists(), 'Chưa gửi PH thì chặng chưa đóng.');
 
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $bigTest->id), ['results' => [
-            ['student_id' => $s1->id, 'listening_score' => 10, 'reading_score' => 10, 'writing_score' => 10, 'speaking_score' => 10],
+            ['student_id' => $s1->id, 'components' => [['name' => 'Nghe', 'score' => 10]]],
         ]])->assertSessionHas('error');
-        $this->assertSame('8.0', (string) BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s1->id)->value('listening_score'));
+        $this->assertSame([['name' => 'Nghe', 'score' => 8.0], ['name' => 'Đọc', 'score' => 8.5]], BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s1->id)->firstOrFail()->scoreComponents());
 
         // ── 7. Ghi nhận đã báo phụ huynh: từng học viên trước, chặng chưa đóng khi còn kết quả chưa báo ─────────
         $r4 = BigTestResult::where('big_test_id', $bigTest->id)->where('student_id', $s4->id)->firstOrFail();
@@ -399,7 +399,7 @@ class Phase2AcceptanceTest extends TestCase
 
         // Kết quả đã gửi cũng không sửa được.
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $bigTest->id), ['results' => [
-            ['student_id' => $s4->id, 'listening_score' => 1, 'reading_score' => 1, 'writing_score' => 1, 'speaking_score' => 1],
+            ['student_id' => $s4->id, 'components' => [['name' => 'Nghe', 'score' => 1]]],
         ]])->assertSessionHas('error');
 
         // ── 8. Cổng học viên: lịch học, điểm danh, kết quả thi của chính mình ────────────────

@@ -461,8 +461,8 @@ class BpmnWorkflowIntegrationTest extends TestCase
         $this->actingAs($admin)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), [
             'results' => [[
-                'student_id' => $this->student->id, 'listening_score' => 7, 'reading_score' => 7,
-                'writing_score' => 6, 'speaking_score' => 6, 'progress_note' => 'Đạt tiến bộ',
+                'student_id' => $this->student->id, 'components' => [['name' => 'Nghe', 'score' => 7], ['name' => 'Viết', 'score' => 6]],
+                'progress_note' => 'Đạt tiến bộ',
             ]],
         ])->assertRedirect();
         $result = BigTestResult::firstOrFail();

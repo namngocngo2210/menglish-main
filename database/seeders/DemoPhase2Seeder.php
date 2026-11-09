@@ -452,7 +452,7 @@ class DemoPhase2Seeder extends Seeder
             // "Lưu nháp" không kéo dòng đã gửi duyệt về nháp → HV này chưa được gửi duyệt (GV còn đang chấm).
             BigTestResult::where('big_test_id', $test->id)->where('student_id', $last->id)->delete();
             $this->asUser($this->staff['teacher'], SyllabusController::class, 'storeBigTestResults', ['action' => 'draft', 'results' => [
-                ['student_id' => $last->id, 'listening_score' => 7, 'reading_score' => 7.5, 'progress_note' => 'Đang chấm lại phần Viết.'],
+                ['student_id' => $last->id, 'components' => [['name' => 'Nghe', 'score' => 7], ['name' => 'Đọc', 'score' => 7.5]], 'progress_note' => 'Đang chấm lại phần Viết.'],
             ]], ['id' => $test->id]);
         }
     }
@@ -562,7 +562,7 @@ class DemoPhase2Seeder extends Seeder
         return $order;
     }
 
-    /** GV nhập kết quả Big Test (4 kỹ năng, 1 học viên vắng thi, có học viên dưới 7 → bổ trợ). */
+    /** GV nhập kết quả Big Test (thành phần điểm tự đặt, 1 học viên vắng thi). */
     private function enterResults(BigTest $test, ClassModel $class, int $absentIndex): void
     {
         $bands = [[8, 8.5, 7.5, 8], [6, 6.5, 5.5, 6], [9, 9, 8.5, 9.5], [7, 7.5, 7, 7.5], [5.5, 6, 6.5, 5], [8.5, 8, 9, 8], [7.5, 7, 8, 8]];
@@ -572,7 +572,7 @@ class DemoPhase2Seeder extends Seeder
             }
             [$l, $r, $w, $sp] = $bands[$j % count($bands)];
 
-            return ['student_id' => $s->id, 'listening_score' => $l, 'reading_score' => $r, 'writing_score' => $w, 'speaking_score' => $sp,
+            return ['student_id' => $s->id, 'components' => [['name' => 'Nghe', 'score' => $l], ['name' => 'Đọc', 'score' => $r], ['name' => 'Viết', 'score' => $w], ['name' => 'Nói', 'score' => $sp]],
                 'progress_note' => $l >= 7 ? 'Tiến bộ rõ ở kỹ năng Nghe.' : 'Cần luyện thêm Đọc & Viết.'];
         })->all();
 

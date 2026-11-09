@@ -228,7 +228,7 @@ class StudentPortalController extends Controller
             'paymentHistory' => $paymentHistory,
             'learningProgress' => [
                 ...$learningProgress,
-                'latest_big_test' => $learningProgress['latest_big_test']?->overall_score,
+                'latest_big_test' => $learningProgress['latest_big_test']?->scoreSummary() ?: null,
             ],
             'upcomingDays' => self::UPCOMING_DAYS,
             'upcomingSessions' => $upcomingSessions->map(fn (ClassSession $s) => [
@@ -251,11 +251,7 @@ class StudentPortalController extends Controller
                 'id' => $r->id,
                 'title' => $r->bigTest?->title ?? 'Big Test',
                 'is_absent' => (bool) $r->is_absent,
-                'overall_score' => $r->overall_score,
-                'listening_score' => $r->listening_score,
-                'reading_score' => $r->reading_score,
-                'writing_score' => $r->writing_score,
-                'speaking_score' => $r->speaking_score,
+                'components' => $r->scoreComponents(),
                 'progress_note' => $r->progress_note,
             ])->values()->all(),
             'studentClasses' => $studentClasses->pluck('name')->values()->all(),
@@ -317,7 +313,7 @@ class StudentPortalController extends Controller
                 'title' => $bt->bigTest?->title ?? 'Big Test',
                 'scheduled_at' => $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—',
                 'is_absent' => (bool) $bt->is_absent,
-                'overall_score' => $bt->overall_score,
+                'components' => $bt->scoreComponents(),
             ])->values()->all(),
             // BTVN GV giao theo từng buổi, nộp theo giỏ (docs/kho-syllabus.md §10) — không còn hạng mục nộp tự do.
             'assignments' => $this->assignedHomework($homeworks, $oldClassIds),
