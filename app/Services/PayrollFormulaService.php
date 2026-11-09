@@ -6,6 +6,7 @@ use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\KpiCriterion;
 use App\Models\KpiEvaluation;
+use App\Models\KpiRetentionTier;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Student;
@@ -18,7 +19,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Các thành phần công thức lương Q3 (A6 25/09/2026) — dùng trong PayrollPeriod::calculatePayrollForPeriod():
- * loại nhân sự, số HS giữ được (KPI Part-time), KPI Học vụ tự động, thưởng tái tục theo lớp.
+ * loại nhân sự, số HS giữ được (KPI giáo viên), KPI Học vụ tự động, thưởng tái tục theo lớp.
  */
 class PayrollFormulaService
 {
@@ -83,13 +84,57 @@ class PayrollFormulaService
         return ['employee_type' => PayrollRecord::TYPE_FULLTIME, 'salary_role' => 'staff', 'department' => $fallbackDepartment];
     }
 
+    public function kpiTierBandFor(int $seniorityMonths): Collection
+    {
+        $band = KpiRetentionTier::where('min_seniority_months', '<=', $seniorityMonths)->max('min_seniority_months')
+            ?? KpiRetentionTier::query()->min('min_seniority_months');
+
+        return $band === null ? collect() : KpiRetentionTier::where('min_seniority_months', $band)->orderBy('from_students')->get();
+    }
+
+    /** @return array{amount: float, parts: list<array{students: int, rate: float}>} */
+    public function retentionKpi(int $students, int $seniorityMonths): array
+    {
+        $parts = [];
+        $cents = 0;
+        if ($students <= 0) {
+            return ['amount' => 0.0, 'parts' => []];
+        }
+
+        $tiers = $this->kpiTierBandFor($seniorityMonths);
+        foreach ($tiers as $index => $tier) {
+            $to = $tier->to_students ?? $students;
+            if ($index === $tiers->count() - 1) {
+                $to = max($to, $students);
+            }
+            $count = max(0, min($students, $to) - $tier->from_students + 1);
+            if ($count > 0) {
+                $rate = (float) $tier->rate;
+                $cents += $count * (int) round($rate * 100);
+                $parts[] = ['students' => $count, 'rate' => $rate];
+            }
+        }
+
+        return ['amount' => round($cents / 100, 2), 'parts' => $parts];
+    }
+
+    public function seniorityMonths(User $user, CarbonInterface $periodEnd): int
+    {
+        $start = $user->contract_start_date;
+        if ($start === null || $start->gt($periodEnd)) {
+            return 0;
+        }
+
+        return (int) $start->diffInMonths($periodEnd);
+    }
+
     /** BHXH / Công đoàn chỉ áp cho GV full-time, Học vụ, Học thuật (TK-0009; config payroll.insurance_roles). */
     public function paysInsurance(?string $salaryRole): bool
     {
         return in_array($salaryRole, (array) config('payroll.insurance_roles', [Roles::TEACHER_FULLTIME, Roles::ACADEMIC_STAFF, Roles::ACADEMIC_LEAD]), true);
     }
 
-    /** Thưởng tái tục chỉ cho Học vụ (TK-0015); GV full-time hưởng KPI theo đầu HS (chưa có bảng bậc — TK-0020). */
+    /** Thưởng tái tục chỉ cho Học vụ (TK-0015); GV full-time hưởng KPI lũy tiến theo HS giữ được. */
     public function getsRenewalBonus(?string $salaryRole): bool
     {
         return $salaryRole === Roles::ACADEMIC_STAFF;

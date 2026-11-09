@@ -415,6 +415,8 @@ class MasterEntitySeeder extends Seeder
             }
         }
 
+        $this->call(KpiRetentionTierSeeder::class);
+
         // 7. Bảng lương kỳ & Timesheets
         // firstOrCreate: chạy lại db:seed không được ghi đè trạng thái / tổng tiền của kỳ đã tính hoặc đã chốt / gửi GV xem (đóng băng).
         $period = PayrollPeriod::query()->firstOrCreate(
