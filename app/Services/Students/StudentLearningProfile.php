@@ -53,7 +53,7 @@ class StudentLearningProfile
                 'date' => $m->test_date ? \Illuminate\Support\Carbon::parse($m->test_date)->format('d/m/Y') : null,
                 'class_name' => $m->classModel?->name,
                 'score' => $m->score,
-                'max_score' => $m->max_score,
+                'max_score' => $m->isFreeScale() ? null : $m->max_score,
                 'skills' => collect($m->components())
                     ->map(fn ($c) => $c['name'].' '.$c['score'])
                     ->values()->implode(' · '),

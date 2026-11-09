@@ -299,7 +299,7 @@ class StudentPortalController extends Controller
                 'name' => $mt->name,
                 'test_date' => $mt->test_date?->format('d/m/Y'),
                 'score' => self::trimScore($mt->score),
-                'max_score' => self::trimScore($mt->max_score),
+                'max_score' => $mt->isFreeScale() ? null : self::trimScore($mt->max_score),
                 'note' => $mt->note,
                 'skills' => collect($mt->skill_scores ?? [])
                     ->map(fn ($score, $key) => is_array($score)

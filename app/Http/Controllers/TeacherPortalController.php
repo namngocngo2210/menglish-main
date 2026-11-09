@@ -1300,8 +1300,8 @@ class TeacherPortalController extends Controller
                     'name' => $student->name,
                     'has_score' => (bool) $sc,
                     'components' => $sc ? collect($sc->components())->map(fn ($c) => $c['name'].': '.$fmt($c['score']))->implode(' · ') : '',
-                    'total' => $sc ? $fmt($sc->score).'/'.$fmt($sc->max_score) : null,
-                    'low' => $sc && (float) $sc->max_score > 0 && (float) $sc->score * 10 < (float) $sc->max_score * 7,
+                    'total' => $sc ? $fmt($sc->score).($sc->isFreeScale() ? '' : '/'.$fmt($sc->max_score)) : null,
+                    'low' => $sc && ! $sc->isFreeScale() && (float) $sc->max_score > 0 && (float) $sc->score * 10 < (float) $sc->max_score * 7,
                 ];
             })->values()->all(),
             'scoredCount' => $existing->count(),

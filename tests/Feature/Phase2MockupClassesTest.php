@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\ClassReportStudentSupport;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseLevel;
@@ -19,6 +20,7 @@ use App\Models\SyllabusUnit;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Services\SupportListService;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -608,6 +610,22 @@ class Phase2MockupClassesTest extends TestCase
 
         $this->actingAs($this->teacher)->get(route('teacher.scores', ['classId' => $this->classModel->id, 'unit_id' => $unit->id]))
             ->assertSee('Điểm đã nhập — Unit 2: Daily Routines')->assertSee('Tổng: 9');
+    }
+
+    public function test_free_component_record_shows_average_only_without_max_or_low_flag_or_support_list(): void
+    {
+        $student = $this->student('Học Sinh Mới');
+        MiniTestScore::create([
+            'class_id' => $this->classModel->id, 'student_id' => $student->id, 'name' => 'Mini Test Tự Do',
+            'score' => 5, 'max_score' => 10, 'test_date' => today(),
+            'skill_scores' => [['name' => 'Từ vựng', 'score' => 5], ['name' => 'Ngữ pháp', 'score' => 5]],
+        ]);
+
+        $res = $this->actingAs($this->teacher)->get(route('teacher.scores', ['classId' => $this->classModel->id, 'name' => 'Mini Test Tự Do']))->assertOk();
+        $row = collect($res->viewData('page')['props']['students'])->firstWhere('id', $student->id);
+        $this->assertSame('5', $row['total']); // không có "/10"
+        $this->assertFalse($row['low']);
+        $this->assertFalse(ClassReportStudentSupport::where('student_id', $student->id)->where('source', SupportListService::SOURCE_MINI_TEST)->exists());
     }
 
     public function test_legacy_four_skill_mini_test_still_displays_without_migration(): void
