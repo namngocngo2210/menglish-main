@@ -900,6 +900,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/academic-monthly', 'academicMonthlyStore')->name('periodic.academic-monthly.store');
         Route::get('/academic-quarterly', 'academicQuarterly')->name('periodic.academic-quarterly');
         Route::post('/academic-quarterly', 'academicQuarterlyStore')->name('periodic.academic-quarterly.store');
+        Route::get('/timesheet-monthly', 'timesheetMonthly')->name('periodic.timesheet-monthly');
         Route::get('/teacher-monthly', 'teacherMonthly')->name('periodic.teacher-monthly');
         Route::post('/teacher-monthly', 'teacherMonthlyStore')->name('periodic.teacher-monthly.store');
         Route::post('/teacher-attendance', 'teacherAttendanceStore')->name('periodic.teacher-attendance.store');

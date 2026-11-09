@@ -160,3 +160,16 @@ Thực hiện trực tiếp trong phiên (chủ dự án yêu cầu "làm tiếp
 |---|---|---|
 | 1 | `punchBlockReason` + áp vào chấm công / đơn Bổ sung công + khóa nút trên màn Chấm công, kèm test | **Xong** (23/10) |
 | 2 | `ScheduleConfirmation` service + refactor `confirmScheduledSession` + route / UI xác nhận hàng loạt, kèm test | **Xong** (23/10) |
+
+## Báo cáo chấm công tháng (TK-2026-0076, 09/11/2026)
+
+Trong **Báo cáo của tôi**, Học vụ / Học thuật có tab **Báo cáo chấm công tháng** riêng
+(`teacher_attendance`), tách biệt với **Báo cáo tháng** chất lượng lớp của Học thuật
+(`academic_monthly`). Kỳ chính vẫn là ngày với Học vụ, tuần với Học thuật. Giáo viên tiếp tục
+nộp ở khối chấm công trên trang báo cáo tháng giáo viên; trợ giảng không nộp và không nhận nhắc.
+
+Có thể nộp bất cứ lúc nào, không có hạn nộp; mỗi người một bản mỗi tháng, nộp lại là cập nhật.
+Ghi chú tùy chọn; trạng thái **Đã nộp - dd/mm/yyyy** dùng ngày cập nhật gần nhất.
+Nhắc trên Trang chủ và các trang Báo cáo của tôi bắt đầu từ thứ Hai của tuần chứa ngày cuối tháng,
+giữ các tháng chưa nộp sang tháng sau. Chỉ tính từ tháng 11/2026 hoặc tháng tạo tài khoản nếu muộn hơn.
+Không chọn hay nộp tháng tương lai. Vị trí banner đang chờ BA xác nhận, dùng chung `TimesheetReminder.vue`.

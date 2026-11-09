@@ -13,6 +13,7 @@ import AcademicBoard from './Dashboard/AcademicBoard.vue';
 import AgendaCard from './Dashboard/AgendaCard.vue';
 import AlertsCard from './Dashboard/AlertsCard.vue';
 import BranchTable from './Dashboard/BranchTable.vue';
+import TimesheetReminder from './Reports/TimesheetReminder.vue';
 import DailyReportBanner from './Dashboard/DailyReportBanner.vue';
 import FunnelCard from './Dashboard/FunnelCard.vue';
 import KpiGrid from './Dashboard/KpiGrid.vue';
@@ -58,6 +59,7 @@ const missingReports = computed(() => {
             <UiButton v-if="welcome?.salaryUrl" variant="secondary" size="sm" icon="payments" :href="welcome.salaryUrl">Lương của tôi</UiButton>
         </OverviewHeader>
 
+        <TimesheetReminder />
         <DailyReportBanner v-if="dailyReport" :daily-report="dailyReport" />
 
         <!-- Admin / Quản lý cơ sở -->
