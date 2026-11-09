@@ -278,7 +278,7 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
             <aside class="min-w-0">
                 <section aria-labelledby="chu-y" :class="[card, 'px-md py-md md:px-lg']" data-testid="widget-attention">
                     <h2 id="chu-y" class="text-base font-bold text-on-surface">Học sinh cần chú ý</h2>
-                    <p class="mb-[6px] mt-[2px] text-xs text-on-surface-variant">Mini Test dưới 7/10 trong 30 ngày</p>
+                    <p class="mb-[6px] mt-[2px] text-xs text-on-surface-variant">Mini Test mới nhất dưới ngưỡng cần chú ý</p>
                     <ul>
                         <li v-for="score in attention" :key="score.id" class="flex justify-between gap-sm border-t border-surface-container py-[9px]">
                             <span class="min-w-0">
@@ -288,7 +288,7 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                             <UiBadge color="error" :dot="false" class="self-start">{{ score.percent }}%</UiBadge>
                         </li>
                     </ul>
-                    <p v-if="!attention.length" class="border-t border-surface-container pt-sm font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
+                    <p v-if="!attention.length" class="border-t border-surface-container pt-sm font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới ngưỡng ở bài Mini Test mới nhất.</p>
                 </section>
             </aside>
         </div>
