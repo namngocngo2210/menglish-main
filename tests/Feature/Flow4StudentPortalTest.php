@@ -343,6 +343,33 @@ class Flow4StudentPortalTest extends TestCase
     }
 
     /**
+     * HS-KS-02 / R-10 AC-S06: gửi khảo sát tạo đúng 1 thông báo xác nhận, gửi lại không nhân đôi.
+     */
+    public function test_submit_survey_creates_single_confirmation_notification()
+    {
+        $payload = [
+            'student_id' => $this->student->id,
+            'survey_title' => 'Khảo sát tháng 10',
+            'feedback' => 'Phòng học sạch sẽ.',
+        ];
+
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
+
+        $this->actingAs($this->user)->get(route('portal.student.notifications', $this->student->id))
+            ->assertInertia(fn ($page) => $page
+                ->component('Portal/Notifications')
+                ->has('notifications', 1)
+                ->where('notifications.0.title', 'Đã nhận khảo sát của bạn')
+                ->where('notifications.0.unread', true));
+        $this->assertSame(0, \App\Models\AdminNotification::where('type', 'survey_submitted')->count());
+
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), ['survey_title' => 'Khảo sát khác'] + $payload);
+        $this->actingAs($this->user)->get(route('portal.student.notifications', $this->student->id))
+            ->assertInertia(fn ($page) => $page->has('notifications', 2));
+    }
+
+    /**
      * Flow 4 - Step 7: Phụ huynh gửi Feedback chặng học (MH6)
      */
     public function test_flow_4_step_7_feedback_renders_successfully()
