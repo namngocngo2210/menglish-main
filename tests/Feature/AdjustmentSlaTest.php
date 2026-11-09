@@ -115,14 +115,38 @@ class AdjustmentSlaTest extends TestCase
         $this->assertSame(0, AdminNotification::where('type', 'adjustment_sla')->count());
     }
 
+    /** TC GV-GD-03 (TK-2026-0055): Học thuật thấy nút Duyệt/Từ chối và duyệt/từ chối được; vai trò khác bị chặn. */
+    public function test_academic_lead_can_approve_and_reject_adjustment_request(): void
+    {
+        $req = $this->submit();
+        $approveUrl = route('syllabus.adjustment-requests.approve', $req->id, absolute: false);
+        $rejectUrl = route('syllabus.adjustment-requests.reject', $req->id, absolute: false);
+
+        foreach (['academic_staff', 'manager', 'teacher'] as $role) {
+            $other = User::factory()->create(['is_active' => true]);
+            $other->assignRole($role);
+            $this->actingAs($other)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])->assertForbidden();
+            $this->actingAs($other)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'x'])->assertForbidden();
+        }
+        $this->assertSame('pending', $req->fresh()->status);
+
+        $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['request' => $req->id]))
+            ->assertOk()->assertSee($approveUrl)->assertSee($rejectUrl);
+
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa hợp lý'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('rejected', $req->fresh()->status);
+
+        $req2 = $this->submit();
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req2->id), ['extra_sessions' => 0])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('approved', $req2->fresh()->status);
+        $this->assertSame($this->academic->id, $req2->fresh()->approver_id);
+    }
+
     public function test_admin_can_approve_adjustment_request(): void
     {
         $req = $this->submit();
-
-        // Học thuật không còn duyệt được (chỉ Admin, 06/10/2026).
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])
-            ->assertForbidden();
-        $this->assertSame('pending', $req->fresh()->status);
 
         $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $req->id), ['extra_sessions' => 0])
             ->assertSessionHasNoErrors();

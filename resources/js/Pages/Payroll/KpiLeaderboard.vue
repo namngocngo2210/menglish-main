@@ -95,7 +95,7 @@ function filter(event) {
                         </td>
                         <td>{{ r.branch }}</td>
                         <td class="text-right font-mono">{{ money(r.retention_students) }} <span class="font-caption text-caption text-on-surface-variant">/ {{ r.retention_base_students }}</span></td>
-                        <td v-if="can('payroll.view')" class="text-right font-mono">{{ r.retention_tier !== null ? money(r.retention_tier) : 'Chưa chọn bậc' }}</td>
+                        <td v-if="can('payroll.view')" class="text-right font-mono">{{ r.retention_tier !== null ? money(r.retention_tier) : 'Lũy tiến' }}</td>
                         <td v-if="can('payroll.view')" class="text-right font-mono font-bold text-primary">{{ money(r.kpi_bonus) }}</td>
                     </tr>
                     <tr v-if="!retentionPage.data.length">

@@ -386,6 +386,7 @@ final class SidebarMenu
                     // (trước ở giao diện điện thoại riêng /m, bỏ 14/10/2026). Cũng mở từ menu tài khoản trên topbar.
                     ['label' => 'Chấm công của tôi', 'route' => 'my-attendance.home'],
                     ['label' => 'Lịch sử công của tôi', 'route' => 'my-attendance.history'],
+                    ['label' => 'Báo cáo chấm công tháng', 'route' => 'my-attendance.monthly-report'],
                     ['label' => 'Chấm công hằng ngày', 'route' => 'staff-attendance.index', 'active' => ['staff-attendance.*']],
                     ['label' => 'Giờ dạy giáo viên', 'route' => 'payroll.timesheets.teachers', 'can' => ['attendance_staff.view', ...self::TEACHING_PORTAL], 'alt_label' => self::forAssistant('Giờ trợ giảng của tôi')],
                     ['label' => 'Chấm công đơn lẻ', 'route' => 'payroll.timesheets.manual'],
@@ -540,6 +541,7 @@ final class SidebarMenu
                 'items' => self::anchored(self::PAYROLL, [
                     ['label' => 'Tham số lương', 'route' => 'payroll.config.settings'],
                     ['label' => 'Đơn giá giáo viên', 'route' => 'payroll.config.teacher-rates'],
+                    ['label' => 'Bậc KPI giữ học sinh', 'route' => 'payroll.config.kpi-tiers'],
                     ['label' => 'Mốc hoa hồng / Thưởng', 'route' => 'payroll.config.commission-tiers'],
                 ]),
             ],

@@ -17,6 +17,9 @@ final class AdminOnlyApprovals
 {
     public const ABILITY = 'approve-as-admin';
 
+    /** TK-2026-0055: duyệt giãn buổi/chặng và order/phân phối Big Test — Admin hoặc Học thuật (academic_lead). */
+    public const SYLLABUS_ABILITY = 'approve-syllabus-as-academic';
+
     /** @var list<string> */
     public const PERMISSIONS = [
         'tuition.approve',
@@ -33,6 +36,11 @@ final class AdminOnlyApprovals
     public static function allows(?User $user): bool
     {
         return $user !== null && $user->hasRole(Roles::ADMIN);
+    }
+
+    public static function allowsSyllabus(?User $user): bool
+    {
+        return $user !== null && ($user->hasRole(Roles::ADMIN) || $user->hasRole(Roles::ACADEMIC_LEAD));
     }
 
     public static function covers(string $permission): bool

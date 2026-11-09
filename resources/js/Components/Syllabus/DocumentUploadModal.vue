@@ -16,7 +16,6 @@ const emit = defineEmits(['close']);
 
 const teachers = ref(false);
 const assistants = ref(false);
-const downloadable = ref(false);
 const fileName = ref('');
 const dragging = ref(false);
 const fileInput = ref(null);
@@ -29,7 +28,7 @@ function drop(event) {
     }
 }
 function uploaded() {
-    teachers.value = assistants.value = downloadable.value = false;
+    teachers.value = assistants.value = false;
     fileName.value = '';
     emit('close');
 }
@@ -53,10 +52,6 @@ function uploaded() {
                     <label class="flex cursor-pointer items-center gap-2">
                         <input v-model="assistants" type="checkbox" name="visible_to_assistants" value="1" class="h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary-container" />
                         <span class="font-medium text-on-surface">Trợ giảng</span>
-                    </label>
-                    <label class="col-span-2 flex cursor-pointer items-center gap-2 border-t border-outline-variant pt-sm">
-                        <input v-model="downloadable" type="checkbox" name="downloadable" value="1" class="h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary-container" />
-                        <span class="font-medium text-on-surface">Cho phép GV/TG tải về (bỏ chọn = chỉ xem trực tuyến)</span>
                     </label>
                 </div>
             </UiField>
@@ -84,10 +79,6 @@ function uploaded() {
                     />
                 </label>
             </UiField>
-
-            <UiAlert v-show="(teachers || assistants) && !downloadable" type="warning">
-                <p class="font-body-small text-body-small">Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.</p>
-            </UiAlert>
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" @click="emit('close')">Hủy</UiButton>

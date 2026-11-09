@@ -28,7 +28,7 @@ class SyllabusImportStore
     /**
      * Lưu file upload, trả token (uuid).
      *
-     * @param  array{visible_to_teachers: bool, visible_to_assistants: bool, downloadable: bool}  $visibility
+     * @param  array{visible_to_teachers: bool, visible_to_assistants: bool}  $visibility
      */
     /** @param  array<string, mixed>  $context  dữ liệu kèm phiên (vd. import chặng: curriculum_id, stage_id) */
     public function put(UploadedFile $file, User $user, array $visibility, array $context = []): string

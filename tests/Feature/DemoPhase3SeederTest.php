@@ -77,10 +77,12 @@ class DemoPhase3SeederTest extends TestCase
         $sale = User::where('email', 'tranmaia@menglish.edu.vn')->firstOrFail();
         $this->assertEquals(0, (float) PayrollRecord::where('payroll_period_id', $current->id)->where('user_id', $sale->id)->value('commission_clawback'));
 
-        // Nhập tay của Kế toán giữ sau khi tính lại: bậc KPI giữ HS, TNCN, dòng tự do; Full-time có BHXH / Công đoàn.
+        // KPI lũy tiến đã chốt, TNCN và dòng tự do giữ sau khi tính lại; Full-time có BHXH / Công đoàn.
         $pt = PayrollRecord::where('payroll_period_id', $current->id)->where('user_id', $teacher->id)->firstOrFail();
         $this->assertSame('parttime', $pt->employee_type);
-        $this->assertEquals(20000, $pt->retention_tier);
+        $this->assertNull($pt->retention_tier);
+        $this->assertNotNull($pt->kpi_finalized_at);
+        $this->assertNotEmpty(data_get($pt->calculation_details, 'kpi_tier.parts'));
         $this->assertCount(1, $pt->manualLines('earning'));
         // BHXH / Công đoàn trên mức lương đóng BHXH × công hưởng lương / công chuẩn (TK-0009), chỉ GV full-time / Học vụ / Học thuật.
         $ft = PayrollRecord::where('payroll_period_id', $current->id)->where('employee_type', 'fulltime')->where('tax_deduction', '>', 0)
@@ -131,8 +133,8 @@ class DemoPhase3SeederTest extends TestCase
             'name' => 'Nhân sự đang dùng thử', 'email' => 'that@example.com', 'password' => 'secret-password',
             'is_active' => true, 'base_salary' => 7000000, 'contract_type' => 'Toàn thời gian', 'contract_start_date' => now()->subYear()->toDateString(),
         ]);
-        // GV full-time: KPI nhập tay chưa chốt → kỳ tháng trước không chốt được (Trợ giảng không có KPI — TK-0011).
-        $staff->syncRoles([Roles::TEACHER_FULLTIME]);
+        // Nhân sự Sale: KPI nhập tay chưa chốt → kỳ tháng trước không chốt được (Trợ giảng không có KPI — TK-0011).
+        $staff->syncRoles([Roles::SALES_CONSULTANT]);
         DB::table('staff_attendances')->insert([
             'user_id' => $staff->id, 'work_date' => now()->subMonthNoOverflow()->startOfMonth()->addDays(9)->toDateString(),
             'source' => 'mobile', 'created_at' => now(), 'updated_at' => now(),

@@ -55,7 +55,7 @@ Hệ thống mới phải làm được những gì MEnglish hiện tại đang 
 - **Cây gán vai trò** (`access.php`, `app/Support/Rbac.php`): Quản lý cơ sở gán mọi vai trò trừ Admin và Quản lý khác; Học vụ chỉ gán Học viên, GV, Trợ giảng, Học thuật. Bản mới giữ nguyên quy tắc này ở `iam`.
 - **Vai trò đã bỏ** (`Roles::RETIRED`): `accountant` → Quản lý cơ sở, `teacher` → GV Full-time. Seed mới không tạo, nhưng `import-legacy` phải map.
 - **Nhóm vai trò dùng trong nghiệp vụ** (`Roles::TEACHERS`, `TEACHING`, `ACADEMIC`, `KPI_ROLES`, `BRANCH_OPERATORS`): KPI, lương, người nhận việc phụ thuộc các nhóm này, nên khai báo thành hằng ở `iam`. Admin đổi được nhãn vai trò (`roles.label`).
-- **Ability ngoài dạng `module.action`**: `approve-as-admin` (9 quyền duyệt chỉ Admin, `AdminOnlyApprovals`) và ability KPI của chính mình (`KpiCriterion::OWN_ABILITY`). Quyền lùi bước CRM là `lead.stage_back`, chỉ Admin.
+- **Ability ngoài dạng `module.action`**: `approve-as-admin` (9 quyền duyệt chỉ Admin, `AdminOnlyApprovals`) và ability KPI của chính mình (`KpiCriterion::OWN_ABILITY`). Quyền lùi bước CRM là `lead.stage_back`, chỉ Admin. Ngoại lệ TK-2026-0055: `approve-syllabus-as-academic` (Admin + Học thuật) cho duyệt/từ chối yêu cầu giãn buổi và order/phân phối Big Test.
 - Chi tiết ma trận quyền mặc định nằm ở `docs/rbac.md`; khi có lệch, `docs/rbac.md` và `config/access.php` là nguồn chuẩn.
 
 ### Đăng nhập và bề mặt công khai

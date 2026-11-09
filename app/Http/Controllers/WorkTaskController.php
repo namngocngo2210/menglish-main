@@ -871,11 +871,11 @@ class WorkTaskController extends Controller
             'completed_at' => $task->completed_at?->format('H:i'),
             'due_label' => ($task->due_time ? substr($task->due_time, 0, 5) : '—').', '.($isToday ? 'Hôm nay' : $task->due_date?->format('d/m/Y')),
             'rejection_reason' => in_array($task->status, ['in_progress', 'overdue'], true) ? $task->rejection_reason : null,
-            // Việc chờ xác nhận: chỉ Admin xác nhận (06/10/2026).
+            // Việc chờ xác nhận: GV chính (việc gắn lớp) / người giao (việc không gắn lớp) — R-13.
             'pending_label' => $task->status === 'pending_confirmation'
                 ? ($task->classReport && $task->classReport->status === ClassReport::STATUS_PENDING
-                    ? 'Đang chờ Admin xác nhận báo cáo trực lớp'
-                    : 'Đang chờ Admin xác nhận')
+                    ? 'Đang chờ GV chính xác nhận báo cáo trực lớp'
+                    : ($task->class_id ? 'Đang chờ GV chính xác nhận' : 'Đang chờ người giao việc xác nhận'))
                 : null,
         ];
         $groups = collect([
@@ -982,7 +982,7 @@ class WorkTaskController extends Controller
                 'completion_note' => $note,
             ]);
             $this->notifyTaskConfirmer($task->loadMissing('assignee'));
-            $msg = "Đã gửi báo cáo tiến độ. Do không đính kèm ảnh, nhiệm vụ chuyển sang 'Chờ Admin xác nhận'!";
+            $msg = "Đã gửi báo cáo tiến độ. Do không đính kèm ảnh, nhiệm vụ chuyển sang 'Chờ xác nhận' (người xác nhận: ".($task->confirmerId() ? User::whereKey($task->confirmerId())->value('name') : 'người giao việc').').';
         }
 
         return redirect()->back()->with('success', $msg);
@@ -1048,7 +1048,7 @@ class WorkTaskController extends Controller
             'students' => Ui::options($students, fn ($st) => "{$st->name} ({$st->code})"),
             'sessionOptions' => Ui::options($sessionOptions),
             'defaultSessionId' => $defaultSessionId,
-            // Dòng gợi ý "Không có ảnh →": chờ Admin xác nhận (khi lớp có GV chính hoặc gắn việc được giao) / bắt buộc ảnh.
+            // Dòng gợi ý "Không có ảnh →": chờ GV chính / người giao xác nhận (khi lớp có GV chính hoặc gắn việc được giao) / bắt buộc ảnh.
             'confirmMode' => $selectedClass?->teacher_id && (int) $selectedClass->teacher_id !== (int) $user->id ? 'teacher' : ($confirmer ? 'creator' : 'none'),
             'confirmer' => $confirmer?->name,
             // Khối "Thông tin ca trực gán sẵn (chỉ đọc)" — mockup Báo cáo trực lớp 14/10/2026.
@@ -1397,7 +1397,7 @@ class WorkTaskController extends Controller
                     'status' => $hasImage ? 'completed' : 'pending_confirmation',
                     'completed_at' => $hasImage ? now() : null,
                     'completion_proof_image' => $paths[0] ?? null,
-                    'completion_note' => 'Báo cáo trực lớp: '.$validated['hom_nay_hoc_gi'],
+                    'completion_note' => 'Báo cáo trực lớp: '.$report->topics_learned,
                     'rejection_reason' => null,
                 ]);
             }
@@ -1411,7 +1411,7 @@ class WorkTaskController extends Controller
 
         $msg = $hasImage
             ? 'Đã nộp báo cáo trực lớp kèm '.count($paths).' ảnh — đầu việc "Trực lớp" đã tự hoàn thành.'
-            : 'Đã nộp báo cáo trực lớp (không có ảnh) — chờ Admin xác nhận.';
+            : 'Đã nộp báo cáo trực lớp (không có ảnh) — chờ '.$report->confirmerRoleLabel().' xác nhận.';
 
         return $this->modalSaved($msg, route('portal.ta-tasks'), 'success');
     }
@@ -1561,7 +1561,8 @@ class WorkTaskController extends Controller
         $isAssignee = (int) $task->assignee_id === (int) $user->id;
         $isCreator = (int) $task->creator_id === (int) $user->id;
         $isAdmin = AdminOnlyApprovals::allows($user);
-        $isApprover = ! $isAssignee && $isAdmin; // chỉ Admin xác nhận hoàn thành, không tự duyệt việc của mình
+        // Việc chờ xác nhận: chỉ GV chính / người giao (R-13); còn lại Admin; không ai tự duyệt việc của mình.
+        $isApprover = ! $isAssignee && ($task->status === 'pending_confirmation' ? $task->isConfirmableBy($user) : $isAdmin);
 
         if ($task->status === 'blocked' && $task->creator_id && (int) $task->creator_id !== (int) $task->assignee_id) {
             array_splice($next, array_search('canceled', $next, true), 0, [self::HAND_BACK]);
@@ -1587,7 +1588,7 @@ class WorkTaskController extends Controller
     public function approveClassReport(Request $request, int $id)
     {
         $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
-        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ Admin được xác nhận báo cáo này.');
+        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ người xác nhận (GV chính của lớp) được xác nhận / trả lại báo cáo này.');
         abort_unless($report->status === ClassReport::STATUS_PENDING, 422, 'Báo cáo không ở trạng thái chờ xác nhận.');
 
         $this->confirmClassReport($report, $request->user(), $request->input('admin_note'));
@@ -1599,7 +1600,7 @@ class WorkTaskController extends Controller
     {
         $validated = $request->validate(['reason' => 'required|string|max:1000'], ['reason.required' => 'Vui lòng nhập lý do trả về.']);
         $report = ClassReport::with(['classModel', 'task'])->findOrFail($id);
-        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ Admin được xác nhận báo cáo này.');
+        abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ người xác nhận (GV chính của lớp) được xác nhận / trả lại báo cáo này.');
         abort_unless($report->status === ClassReport::STATUS_PENDING, 422, 'Báo cáo không ở trạng thái chờ xác nhận.');
 
         $this->returnClassReport($report, $request->user(), $validated['reason']);
@@ -1681,7 +1682,7 @@ class WorkTaskController extends Controller
     private function ensureCanApprove(WorkTask $task, User $user): void
     {
         abort_if((int) $task->assignee_id === (int) $user->id, 403, 'Không thể tự duyệt công việc của chính mình.');
-        abort_unless(AdminOnlyApprovals::allows($user), 403, 'Chỉ Admin được xác nhận / trả lại công việc.');
+        abort_unless($task->isConfirmableBy($user), 403, 'Chỉ người xác nhận (GV chính của lớp hoặc người giao việc) được xác nhận / trả lại công việc này.');
         abort_unless($task->status === 'pending_confirmation', 422, 'Công việc không ở trạng thái chờ xác nhận.');
     }
 
@@ -1756,22 +1757,23 @@ class WorkTaskController extends Controller
         $this->notifyUser($task->assignee_id, 'task_assigned', $title, $message, route('tasks.index', ['tab' => 'mine']), ['task_id' => $task->id]);
     }
 
-    /** Báo cáo trực lớp không ảnh chờ xác nhận → báo Admin (chỉ Admin xác nhận, 06/10/2026). */
+    /** Báo cáo trực lớp không ảnh chờ xác nhận → báo người xác nhận (R-13: GV chính của lớp). */
     private function notifyClassReportConfirmer(ClassReport $report, ClassModel $class): void
     {
-        foreach (BranchStaff::admins()->reject(fn (User $admin) => (int) $admin->id === (int) $report->reporter_id) as $admin) {
-            $this->notifyUser($admin->id, 'class_report_pending', 'Báo cáo trực lớp chờ xác nhận',
-                "Báo cáo {$report->session_name} lớp {$class->name} không có ảnh bảng, cần Admin xác nhận.",
+        if ($id = $report->currentConfirmerId()) {
+            $this->notifyUser($id, 'class_report_pending', 'Báo cáo trực lớp chờ xác nhận',
+                "Báo cáo {$report->session_name} lớp {$class->name} không có ảnh bảng, cần bạn xác nhận.",
                 route('tasks.manual-approvals', ['report' => $report->id]), ['class_report_id' => $report->id]);
         }
     }
 
-    /** Người thực hiện gửi "Chờ xác nhận" (không ảnh) → báo Admin (chỉ Admin xác nhận, 06/10/2026). */
+    /** Người thực hiện gửi "Chờ xác nhận" (không ảnh) → báo người xác nhận (R-13: GV chính của lớp / người giao). */
     private function notifyTaskConfirmer(WorkTask $task): void
     {
-        foreach (BranchStaff::admins()->reject(fn (User $admin) => (int) $admin->id === (int) $task->assignee_id) as $admin) {
-            $this->notifyUser($admin->id, 'task_assigned', "Việc chờ xác nhận: {$task->title}",
-                ($task->assignee?->name ?? 'Người thực hiện').' đã báo hoàn thành (không ảnh minh chứng), cần Admin xác nhận.',
+        $id = $task->confirmerId();
+        if ($id && $id !== (int) $task->assignee_id) {
+            $this->notifyUser($id, 'task_assigned', "Việc chờ xác nhận: {$task->title}",
+                ($task->assignee?->name ?? 'Người thực hiện').' đã báo hoàn thành (không ảnh minh chứng), cần bạn xác nhận.',
                 route('tasks.manual-approvals', ['selected_id' => $task->id]), ['task_id' => $task->id]);
         }
     }
@@ -1838,7 +1840,7 @@ class WorkTaskController extends Controller
 
         // Đầu việc "Trực lớp" có báo cáo chờ xác nhận: theo luật Q8 (GV chính / người giao việc).
         if ($report = $this->pendingReportOf($task)) {
-            abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ Admin được xác nhận báo cáo trực lớp này.');
+            abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ người xác nhận (GV chính của lớp) được xác nhận / trả lại báo cáo này.');
             $this->confirmClassReport($report, $request->user(), $request->input('admin_note'));
 
             return redirect()->route('tasks.manual-approvals')->with('success', "Đã xác nhận hoàn thành công việc '{$task->title}'!");
@@ -1871,7 +1873,7 @@ class WorkTaskController extends Controller
         $request->validate(['admin_note' => 'required|string|max:1000'], ['admin_note.required' => 'Vui lòng nhập lý do từ chối / yêu cầu bổ sung.']);
 
         if ($report = $this->pendingReportOf($task)) {
-            abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ Admin được xác nhận báo cáo trực lớp này.');
+            abort_unless($this->canReviewClassReport($report, $request->user()), 403, 'Chỉ người xác nhận (GV chính của lớp) được xác nhận / trả lại báo cáo này.');
             $this->returnClassReport($report, $request->user(), $request->input('admin_note'));
 
             return redirect()->route('tasks.manual-approvals')->with('info', "Đã từ chối/yêu cầu bổ sung cho công việc '{$task->title}'!");

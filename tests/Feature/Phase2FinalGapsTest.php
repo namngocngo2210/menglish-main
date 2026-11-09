@@ -88,7 +88,7 @@ class Phase2FinalGapsTest extends TestCase
 
     // ── 1. Quyền duyệt ──────────────────────────────────────────────────────
 
-    public function test_only_admin_approves_proposals_adjustments_and_big_test_orders(): void
+    public function test_academic_approves_adjustments_and_orders_but_only_admin_approves_proposals(): void
     {
         $assignment = $this->openStage();
         $this->assertFalse($this->staff->can('syllabus.approve_adjustment'));
@@ -102,10 +102,13 @@ class Phase2FinalGapsTest extends TestCase
         $order = BigTestOrder::create(['code' => 'ORDTEST-P2F', 'class_id' => $this->class->id, 'teacher_id' => $this->teacher->id,
             'stage_name' => 'Chặng 1', 'test_type' => 'big', 'status' => 'pending']);
 
-        // Học thuật cũng không còn duyệt (chỉ Admin, 06/10/2026), dù vẫn giữ quyền gốc.
+        // Học thuật duyệt giãn buổi + order Big Test (TK-2026-0055); đề xuất giáo trình vẫn chỉ Admin (06/10/2026).
         $this->assertTrue($this->lead->can('syllabus.approve_adjustment'));
         $this->assertTrue($this->lead->can('big_test.approve'));
-        foreach ([$this->staff, $this->user(Roles::MANAGER), $this->lead] as $user) {
+        $this->actingAs($this->lead)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertForbidden();
+        $this->actingAs($this->lead)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
+            ->assertSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false));
+        foreach ([$this->staff, $this->user(Roles::MANAGER)] as $user) {
             $this->actingAs($user)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.adjustment-requests.approve', $request->id))->assertForbidden();
             $this->actingAs($user)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://x.test'])->assertForbidden();
@@ -118,12 +121,22 @@ class Phase2FinalGapsTest extends TestCase
         $this->assertSame('pending', $request->fresh()->status);
         $this->assertSame('pending', $order->fresh()->status);
 
-        $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
-            ->assertSee(route('syllabus.big-tests.orders.approve', $order->id, absolute: false));
+        // Học thuật duyệt được giãn buổi và order (không đụng tới đề xuất giáo trình).
+        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.reject', $order->id), ['rejection_reason' => 'x'])->assertRedirect();
+        $this->assertSame('rejected', $order->fresh()->status);
+        $this->actingAs($this->lead)->post(route('syllabus.adjustment-requests.approve', $request->id))->assertRedirect();
+        $this->assertSame('approved', $request->fresh()->status);
+
         $this->actingAs($this->admin)->post(route('syllabus.proposals.approve', $proposal->id), ['review_note' => 'OK'])->assertRedirect();
         $this->assertSame('approved', $proposal->fresh()->status);
-        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $request->id))->assertRedirect();
-        $this->assertSame('approved', $request->fresh()->status);
+    }
+
+    public function test_class_academic_tab_shows_adjustment_approve_to_academic_and_admin_only(): void
+    {
+        foreach ([[$this->lead, true], [$this->admin, true], [$this->staff, false]] as [$user, $expected]) {
+            $this->actingAs($user)->get(route('classes.show', ['id' => $this->class->id, 'tab' => 'academic']))->assertOk()
+                ->assertInertia(fn ($page) => $page->where('canApproveAdjustment', $expected));
+        }
     }
 
     // ── 2. SĐT phụ huynh trên hồ sơ học viên ─────────────────────────────────
@@ -166,7 +179,7 @@ class Phase2FinalGapsTest extends TestCase
         ]);
 
         $this->actingAs($this->lead)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
-            ->assertSee('Đề cuối chặng')->assertDontSee('Tạo đợt thi mới'); // form duyệt chỉ cho Admin
+            ->assertSee('Đề cuối chặng')->assertSee('Tạo đợt thi mới'); // Học thuật cũng duyệt (TK-2026-0055)
         $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
             ->assertSee('Tạo đợt thi mới')->assertSee('Link phần Speaking')->assertSee($examDate->format('Y-m-d').'T08:00');
 

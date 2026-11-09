@@ -67,6 +67,32 @@ class TeacherLessonTodayTest extends TestCase
             ->assertSessionHasErrors('class_session_id');
     }
 
+    /** GV-TL-03 (TK-2026-0061): xem nội dung mọi buổi của chặng được giao, kể cả ngày không có buổi học; chỉ xem. */
+    public function test_teacher_can_view_any_lesson_of_assigned_stage_read_only(): void
+    {
+        $this->today->update(['status' => 'cancelled']);
+        $stageLessonIds = SyllabusLesson::whereHas('unit', fn ($q) => $q->where('stage_id', $this->stage1->id))->pluck('id')->all();
+
+        $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id, 'lesson' => $this->lesson(2)->id]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('session', null)
+                ->where('lesson.session_no', 2)
+                ->where('lesson.data.content', 'Nội dung buổi 2')
+                ->where('viewing_other', true)
+                ->where('can_mark', false)
+                ->has('stage_lessons', count($stageLessonIds))
+                ->etc());
+    }
+
+    public function test_teacher_cannot_view_lesson_outside_assigned_stage(): void
+    {
+        $outside = SyllabusLesson::whereHas('unit', fn ($q) => $q->where('stage_id', $this->stage2->id))->firstOrFail();
+
+        $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id, 'lesson' => $outside->id]))
+            ->assertNotFound();
+    }
+
     public function test_mark_taught_advances_and_records_pace_note(): void
     {
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), [
@@ -170,18 +196,14 @@ class TeacherLessonTodayTest extends TestCase
             ->assertSee('Lớp chưa được giao chặng');
     }
 
-    /** Thẻ "Chặng đang dạy" liệt kê mọi lớp xem được: GV dạy thay buổi trước bấm "Bài giảng" phải mở được (không lỗi), chỉ không bấm Đã dạy. */
+    /** GV dạy thay buổi trước không còn thấy lớp ở thẻ "Chặng đang dạy" (chỉ GV được giao chặng), nhưng vẫn mở được Bài giảng (session scope), không bấm Đã dạy. */
     public function test_substitute_of_past_session_can_open_lesson_from_teaching_stage_card(): void
     {
         $substitute = $this->userWithRole(Roles::TEACHER_FULLTIME, 'GV dạy thay');
         $this->addSession(-2)->update(['teacher_id' => $substitute->id]);
 
         $this->actingAs($substitute)->get(route('syllabus.teaching-stages'))
-            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('assignments.0.class_id', $this->class->id)
-                ->where('assignments.0.role_label', 'Học thuật / Quản lý')
-                ->where('assignments.0.can_view_order', false)
-                ->etc());
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('assignments', 0)->etc());
         $this->actingAs($substitute)->get(route('teacher.lesson-today', ['class' => $this->class->id]))
             ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('classId', $this->class->id)

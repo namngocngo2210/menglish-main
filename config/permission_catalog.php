@@ -242,7 +242,7 @@ return [
                 'library' => ['Sửa Kho syllabus', 'Sửa syllabus gốc: giáo trình, chặng, unit, buổi, tài liệu, import (kèm quyền Xem Kho syllabus).'],
                 'upload' => ['Tải tài liệu', 'Tải lên / xóa tài liệu giáo trình.'],
                 'propose_adjustment' => ['Đề xuất sửa / giãn tiến độ', 'Gửi đề xuất sửa giáo trình, xin điều chỉnh tiến độ.'],
-                'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối chỉ Admin (06/10/2026).'],
+                'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối giãn buổi và order Big Test: Admin + Học thuật (TK-2026-0055); đề xuất sửa giáo trình chỉ Admin.'],
             ],
         ],
         'question_bank' => [

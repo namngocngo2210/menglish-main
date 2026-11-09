@@ -10,6 +10,7 @@ use App\Models\CommissionAdjustment;
 use App\Models\CommissionItem;
 use App\Models\CommissionTier;
 use App\Models\KpiEvaluation;
+use App\Models\KpiRetentionTier;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
@@ -38,6 +39,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -634,6 +636,8 @@ class PayrollController extends Controller
                     'score' => (float) ($item['score'] ?? 0),
                     'weight' => (float) ($item['weight'] ?? 0),
                     'amount' => (float) ($item['amount'] ?? 0),
+                    'critical' => (bool) ($item['critical'] ?? false),
+                    'critical_note' => $item['critical_note'] ?? null,
                 ])->values(),
             ])->values(),
             'renewalClasses' => array_values(data_get($record->calculation_details, 'renewal.classes', [])),
@@ -724,12 +728,12 @@ class PayrollController extends Controller
 
         $tiers = PayrollPeriod::payrollSettings()['retention_tiers'];
         $validated = $request->validate([
-            'retention_tier' => ['nullable', 'numeric', function ($attribute, $value, $fail) use ($tiers) {
+            'retention_tier' => [Rule::excludeIf(! $record->teaching_concurrent && $record->kpi_source === PayrollRecord::KPI_RETENTION), 'nullable', 'numeric', function ($attribute, $value, $fail) use ($tiers) {
                 if ($value !== null && $value !== '' && ! in_array((float) $value, $tiers, true)) {
                     $fail('Bậc KPI giữ học sinh phải là một trong: '.implode(' / ', array_map(fn ($t) => Money::format($t), $tiers)).'.');
                 }
             }],
-            'kpi_manual_amount' => ['nullable', 'numeric', 'min:0'],
+            'kpi_manual_amount' => [Rule::excludeIf($record->salary_role === Roles::TEACHER_FULLTIME || ($record->kpi_source === PayrollRecord::KPI_RETENTION && ! $record->teaching_concurrent)), 'nullable', 'numeric', 'min:0'],
             'foreign_session_pay' => ['nullable', 'numeric', 'min:0'],
             'tax_deduction' => ['nullable', 'numeric', 'min:0'],
             'lines' => ['nullable', 'array', 'max:30'],
@@ -756,11 +760,10 @@ class PayrollController extends Controller
             $before = $record->only(['retention_tier', 'kpi_manual_amount', 'foreign_session_pay', 'tax_deduction', 'manual_lines', 'adjustment_notes', 'net_salary']);
 
             if ($record->usesQ3Formula()) {
-                if ($record->kpi_source === PayrollRecord::KPI_RETENTION) {
-                    $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
+                if ($record->kpi_source === PayrollRecord::KPI_RETENTION && $record->isPartTime()) {
                     $record->foreign_session_pay = $record->isForeignTeacher() ? 0 : (float) ($validated['foreign_session_pay'] ?? 0);
                 }
-                if ($record->kpi_source === PayrollRecord::KPI_MANUAL) {
+                if ($record->kpi_source === PayrollRecord::KPI_MANUAL && $record->salary_role !== Roles::TEACHER_FULLTIME) {
                     $record->kpi_manual_amount = filled($validated['kpi_manual_amount'] ?? null) ? (float) $validated['kpi_manual_amount'] : null;
                 }
                 if ($record->isFullTime()) {
@@ -785,6 +788,33 @@ class PayrollController extends Controller
 
         return redirect()->route('payroll.records.show', $record->id)
             ->with('status', 'Đã lưu các khoản nhập tay — thực lĩnh mới '.Money::format((float) $record->net_salary).'.');
+    }
+
+    public function finalizeKpi(Request $request, int $id)
+    {
+        $record = $this->scopeRecords(PayrollRecord::with('period'))->findOrFail($id);
+        abort_if($record->isLocked(), 422, 'Không thể sửa phiếu lương của kỳ đã chốt / gửi GV xem / trả.');
+
+        DB::transaction(function () use ($record, $request) {
+            $period = PayrollPeriod::whereKey($record->payroll_period_id)->lockForUpdate()->firstOrFail();
+            abort_if($period->isFrozen(), 422, 'Không thể sửa phiếu lương của kỳ đã chốt / gửi GV xem / trả.');
+            $record->refresh()->setRelation('period', $period);
+            abort_unless($record->kpi_source === PayrollRecord::KPI_RETENTION && ! $record->teaching_concurrent
+                && (int) $record->retention_students > 0, 422, 'Phiếu lương không áp dụng chốt KPI giữ học sinh.');
+
+            $before = $record->only(['kpi_bonus', 'kpi_finalized_at', 'kpi_finalized_by']);
+            $record->applyManualInputs();
+            $record->kpi_finalized_at = now();
+            $record->kpi_finalized_by = $request->user()->id;
+            $record->save();
+            $period->refreshTotals();
+
+            activity('payroll_record')->causedBy($request->user())->performedOn($record)
+                ->withProperties(['before' => $before, 'after' => $record->only(array_keys($before))])
+                ->log('Chốt KPI giữ học sinh '.$record->user?->name.' — '.$period->title);
+        });
+
+        return redirect()->route('payroll.records.show', $record->id)->with('status', 'Đã chốt KPI giữ học sinh.');
     }
 
     public function fulltimePeriod($id): InertiaResponse
@@ -1544,8 +1574,10 @@ class PayrollController extends Controller
                 'branch' => $r->user?->branch?->name ?? 'Hệ thống MEnglish',
                 'retention_students' => (int) $r->retention_students,
                 'retention_base_students' => (int) $r->retention_base_students,
-                // Đơn giá bậc × số HS = KPI (đ) → cùng là số tiền phiếu lương, ẩn với người không xem bảng lương.
-                'retention_tier' => $showMoney ? $r->retention_tier : null,
+                // Amounts follow the same payroll visibility rules.
+                'retention_tier' => $showMoney && $r->teaching_concurrent ? $r->retention_tier : null,
+                'kpi_finalized' => $r->kpi_finalized_at !== null,
+                'kpi_proposed' => $money($r->kpi_bonus),
                 'kpi_bonus' => $money($r->kpi_bonus),
             ]),
             'salesPage' => $salesPage->through(fn (array $item) => [
@@ -1584,12 +1616,79 @@ class PayrollController extends Controller
         );
     }
 
+    public function kpiTiers(): InertiaResponse
+    {
+        $bands = KpiRetentionTier::orderBy('min_seniority_months')->orderBy('from_students')->get()
+            ->groupBy('min_seniority_months')
+            ->map(fn ($tiers, $months) => [
+                'min_seniority_months' => (int) $months,
+                'tiers' => $tiers->map(fn (KpiRetentionTier $tier) => [
+                    'from_students' => $tier->from_students,
+                    'to_students' => $tier->to_students,
+                    'rate' => (float) $tier->rate,
+                ])->values()->all(),
+            ])->values()->all();
+
+        return Inertia::render('Payroll/Config/KpiTiers', ['bands' => $bands]);
+    }
+
+    public function storeKpiTiers(Request $request)
+    {
+        $validated = $request->validate([
+            'bands' => ['required', 'array', 'min:1'],
+            'bands.*.min_seniority_months' => ['required', 'integer', 'min:0', 'max:65535', 'distinct'],
+            'bands.*.tiers' => ['required', 'array', 'min:1'],
+            'bands.*.tiers.*.from_students' => ['required', 'integer', 'min:1', 'max:65535'],
+            'bands.*.tiers.*.to_students' => ['present', 'nullable', 'integer', 'min:1', 'max:65535'],
+            'bands.*.tiers.*.rate' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+        ]);
+        $bands = collect($validated['bands']);
+        if (! $bands->contains(fn ($band) => (int) $band['min_seniority_months'] === 0)) {
+            throw ValidationException::withMessages(['bands' => 'Phải có nhóm thâm niên từ 0 tháng.']);
+        }
+        foreach ($bands as $bandIndex => $band) {
+            $expectedFrom = 1;
+            $tiers = array_values($band['tiers']);
+            foreach ($tiers as $tierIndex => $tier) {
+                $from = (int) $tier['from_students'];
+                $to = $tier['to_students'] === null ? null : (int) $tier['to_students'];
+                if ($from !== $expectedFrom || ($to !== null && $to < $from)
+                    || ($to === null && $tierIndex !== count($tiers) - 1)) {
+                    throw ValidationException::withMessages([
+                        "bands.{$bandIndex}.tiers" => 'Bậc phải bắt đầu từ 1, liên tiếp và chỉ bậc cuối được để trống số HS tối đa.',
+                    ]);
+                }
+                $expectedFrom = $to === null ? null : $to + 1;
+            }
+        }
+
+        DB::transaction(function () use ($bands, $request) {
+            $before = KpiRetentionTier::orderBy('min_seniority_months')->orderBy('from_students')->get()->toArray();
+            KpiRetentionTier::query()->delete();
+            foreach ($bands as $band) {
+                foreach ($band['tiers'] as $tier) {
+                    KpiRetentionTier::create([
+                        'min_seniority_months' => (int) $band['min_seniority_months'],
+                        'from_students' => (int) $tier['from_students'],
+                        'to_students' => $tier['to_students'] === null ? null : (int) $tier['to_students'],
+                        'rate' => round((float) $tier['rate'], 2),
+                    ]);
+                }
+            }
+            activity('payroll_config')->causedBy($request->user())
+                ->withProperties(['before' => $before, 'after' => $bands->all()])->log('Cập nhật bảng bậc KPI giữ học sinh.');
+        });
+
+        return redirect()->route('payroll.config.kpi-tiers')->with('status', 'Đã lưu bảng bậc KPI giữ học sinh.');
+    }
+
     public function configSettings()
     {
         $settings = PayrollPeriod::payrollSettings();
         $fmt = fn ($v) => rtrim(rtrim(number_format((float) $v, 2, '.', ''), '0'), '.');
 
         return Inertia::render('Payroll/Config/Settings', [
+            'kpi_tiers_url' => route('payroll.config.kpi-tiers'),
             'settings' => [
                 'insurance_salary_base' => (int) $settings['insurance_salary_base'],
                 'missing_punch_fine' => (int) $settings['missing_punch_fine'],
@@ -2320,6 +2419,9 @@ class PayrollController extends Controller
             'kpi_score' => $r->kpi_score !== null ? (float) $r->kpi_score : null,
             'kpi_manual_amount' => $r->kpi_manual_amount !== null ? (float) $r->kpi_manual_amount : null,
             'kpi_bonus' => (float) $r->kpi_bonus,
+            'kpi_finalized' => $r->kpi_finalized_at !== null,
+            'kpi_tier_parts' => (array) data_get($r->calculation_details, 'kpi_tier.parts', []),
+            'kpi_proposed' => (float) $r->kpi_bonus,
             'retention_students' => (int) $r->retention_students,
             'retention_tier' => $r->retention_tier !== null ? (float) $r->retention_tier : null,
             'base_salary' => (float) $r->base_salary,

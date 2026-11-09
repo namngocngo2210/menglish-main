@@ -532,7 +532,7 @@ class ClassManagementController extends Controller
                 (int) $c->teacher_id => 'GV chính',
                 (int) $c->assistant_id => 'Trợ giảng',
                 (int) $c->foreign_teacher_id => 'GVNN',
-                default => 'Dạy thay',
+                default => 'GV được giao chặng',
             } : null,
             'seat' => $c->seatSummary(),
         ]);
@@ -812,8 +812,8 @@ class ClassManagementController extends Controller
         $kindLabels = SyllabusAdjustmentRequest::KINDS;
         $requests = SyllabusAdjustmentRequest::with(['teacher:id,name', 'approver:id,name'])
             ->where('class_id', $class->id)->latest('id')->limit(10)->get();
-        // Duyệt giãn / dời buổi: quyền duyệt + chỉ Admin (AdminOnlyApprovals) — nút duyệt hiện ngay trên thẻ yêu cầu.
-        $canApprove = $viewer->can('syllabus.approve_adjustment') && $viewer->can(AdminOnlyApprovals::ABILITY);
+        // Duyệt giãn / dời buổi: Admin + Học thuật (SYLLABUS_ABILITY, TK-2026-0055) — nút duyệt hiện ngay trên thẻ yêu cầu.
+        $canApprove = $viewer->can('syllabus.approve_adjustment') && $viewer->can(AdminOnlyApprovals::SYLLABUS_ABILITY);
 
         return [
             'syllabus' => $syllabus,

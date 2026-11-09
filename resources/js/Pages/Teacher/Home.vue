@@ -21,6 +21,7 @@ const props = defineProps({
     week: { type: Object, required: true },
     weekDays: { type: Array, default: () => [] },
     attention: { type: Array, default: () => [] },
+    penaltyWidget: { type: Object, default: () => ({ violations: 0, deductions: 0, deduction_amount: 0, total: 0, period_label: '', url: null }) },
 });
 
 const card = 'rounded-xl border border-outline-variant bg-surface-container-lowest';
@@ -183,6 +184,9 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                 <Link v-if="todo.reports_pending && todo.report_url" :href="todo.report_url" :class="[chip, 'border-error-container bg-[#fff8f7]']">
                     Báo cáo buổi chưa nộp <b class="rounded-full bg-error-container px-[7px] text-xs leading-5 text-on-error-container">{{ todo.reports_pending }}</b>
                 </Link>
+                <Link v-if="todo.attendance_report_pending && todo.attendance_report_url" :href="todo.attendance_report_url" :class="[chip, 'border-error-container bg-[#fff8f7]']">
+                    Báo cáo chấm công chưa nộp
+                </Link>
                 <Link v-if="can('homework.grade')" :href="route('portal.teacher.submissions')" :class="[chip, 'border-outline-variant bg-surface-container-lowest']">
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">grading</span>Chấm bài nộp
                 </Link>
@@ -276,9 +280,20 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                 </section>
             </div>
             <aside class="min-w-0">
+                <section aria-labelledby="vi-pham" :class="[card, 'mb-md px-md py-md md:px-lg']" data-testid="widget-penalties">
+                    <h2 id="vi-pham" class="text-base font-bold text-on-surface">Vi phạm / khoản trừ mới</h2>
+                    <p class="mb-[6px] mt-[2px] text-xs text-on-surface-variant">{{ penaltyWidget.period_label }}</p>
+                    <Link :href="penaltyWidget.url" class="flex min-h-11 items-center justify-between gap-sm border-t border-surface-container py-[9px] hover:bg-surface-container-low">
+                        <span class="min-w-0 text-sm text-on-surface">
+                            <span class="block font-semibold">{{ penaltyWidget.violations }} vi phạm cần xử lý</span>
+                            <span class="block text-xs text-on-surface-variant">{{ penaltyWidget.deductions }} khoản trừ mới<template v-if="penaltyWidget.deductions"> · {{ formatMoney(penaltyWidget.deduction_amount) }}</template></span>
+                        </span>
+                        <UiBadge :color="penaltyWidget.total > 0 ? 'error' : 'neutral'" :dot="false" class="self-start" data-testid="penalty-total">{{ penaltyWidget.total }}</UiBadge>
+                    </Link>
+                </section>
                 <section aria-labelledby="chu-y" :class="[card, 'px-md py-md md:px-lg']" data-testid="widget-attention">
                     <h2 id="chu-y" class="text-base font-bold text-on-surface">Học sinh cần chú ý</h2>
-                    <p class="mb-[6px] mt-[2px] text-xs text-on-surface-variant">Mini Test dưới 7/10 trong 30 ngày</p>
+                    <p class="mb-[6px] mt-[2px] text-xs text-on-surface-variant">Mini Test mới nhất dưới ngưỡng cần chú ý</p>
                     <ul>
                         <li v-for="score in attention" :key="score.id" class="flex justify-between gap-sm border-t border-surface-container py-[9px]">
                             <span class="min-w-0">
@@ -288,7 +303,7 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                             <UiBadge color="error" :dot="false" class="self-start">{{ score.percent }}%</UiBadge>
                         </li>
                     </ul>
-                    <p v-if="!attention.length" class="border-t border-surface-container pt-sm font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới mục tiêu trong 30 ngày qua.</p>
+                    <p v-if="!attention.length" class="border-t border-surface-container pt-sm font-body-small text-body-small text-on-surface-variant">Không có học sinh nào dưới ngưỡng ở bài Mini Test mới nhất.</p>
                 </section>
             </aside>
         </div>

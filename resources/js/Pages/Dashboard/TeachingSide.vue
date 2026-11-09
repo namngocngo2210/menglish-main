@@ -9,6 +9,7 @@ defineProps({ shifts: { type: Object, required: true } });
     <div class="flex flex-col gap-md">
         <component :is="shifts.salary.url ? Link : 'div'" :href="shifts.salary.url ?? undefined" class="flex flex-col gap-xs rounded-xl border border-surface-variant bg-surface-container-lowest p-md" data-overview-salary>
             <span class="font-body-small text-body-small font-semibold text-on-surface-variant">Lương tạm tính tháng này</span>
+            <span class="font-caption text-caption italic text-on-surface-variant" data-overview-salary-provisional>tạm tính, có thể thay đổi đến khi chốt lương</span>
             <span v-if="shifts.salary.amount" class="font-h1 text-h1 font-bold tabular-nums text-on-surface">{{ shifts.salary.amount }}</span>
             <span v-else class="font-h3 text-h3 font-bold text-on-surface">Chưa có đơn giá</span>
             <span class="font-caption text-caption text-on-surface-variant">

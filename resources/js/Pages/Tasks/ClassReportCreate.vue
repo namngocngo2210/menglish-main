@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Nộp báo cáo trực lớp, luật A6 Q8: ảnh không bắt buộc; có ≥ 1 ảnh → đầu việc "Trực lớp" tự hoàn thành;
- * không ảnh → chờ Admin xác nhận (chỉ Admin xác nhận từ 06/10/2026).
+ * không ảnh → chờ GV chính / người giao xác nhận (R-13).
  * Mở từ Cổng TA / menu → modal 2xl; mở thẳng URL → trang riêng (gọn cho điện thoại).
  */
 import { useBackLink } from '@/lib/backLink';

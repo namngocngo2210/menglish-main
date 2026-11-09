@@ -83,7 +83,6 @@ class SyllabusController extends Controller
             'file' => ['required', 'file', 'max:'.SyllabusDocument::MAX_KB],
             'visible_to_teachers' => ['nullable', 'boolean'],
             'visible_to_assistants' => ['nullable', 'boolean'],
-            'downloadable' => ['nullable', 'boolean'],
         ], [
             'file.required' => 'Vui lòng chọn file tài liệu.',
             'file.max' => 'Dung lượng file tối đa 100 MB.',
@@ -113,7 +112,6 @@ class SyllabusController extends Controller
             'size_bytes' => $size,
             'visible_to_teachers' => $request->boolean('visible_to_teachers'),
             'visible_to_assistants' => $request->boolean('visible_to_assistants'),
-            'downloadable' => $request->boolean('downloadable'),
             'uploaded_by' => Auth::id(),
         ]);
 
@@ -291,7 +289,7 @@ class SyllabusController extends Controller
             'extension' => $doc->extension,
             'size_human' => $doc->size_human,
             'audience_labels' => $doc->audience_labels,
-            'downloadable' => (bool) $doc->downloadable,
+            'downloadable' => $doc->canDownload(Auth::user()),
             'view_url' => route('syllabus.documents.file', $doc->id),
             'download_url' => route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]),
         ];
@@ -1185,7 +1183,16 @@ class SyllabusController extends Controller
 
     public function teacherPropose(Request $request)
     {
-        $curriculums = SyllabusCurriculum::with(['lessons.unit'])->orderBy('title')->get();
+        $scope = $this->proposalScope($request->user());
+        $curriculums = SyllabusCurriculum::with(['lessons.unit'])
+            ->when($scope !== null, fn ($q) => $q->whereIn('id', $scope->keys()))
+            ->orderBy('title')->get()
+            ->each(function (SyllabusCurriculum $c) use ($scope) {
+                $stageIds = $scope?->get($c->id);
+                if ($stageIds) {
+                    $c->setRelation('lessons', $c->lessons->filter(fn ($l) => $l->unit && in_array($l->unit->stage_id, $stageIds, true))->values());
+                }
+            });
         $status = $request->query('status');
         $proposals = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson'])
             ->where('user_id', $request->user()->id)
@@ -1216,6 +1223,21 @@ class SyllabusController extends Controller
         ]);
     }
 
+    /**
+     * Phạm vi đề xuất sửa giáo trình của GV: [curriculum_id => [stage_id, ...]] theo các chặng đang mở được giao cho họ
+     * (stage_id rỗng = bản ghi cũ không gắn chặng → cả giáo trình). Người duyệt đề xuất: null = không giới hạn.
+     */
+    private function proposalScope(\App\Models\User $user): ?\Illuminate\Support\Collection
+    {
+        if ($user->can('syllabus.approve_adjustment')) {
+            return null;
+        }
+
+        return SyllabusAssignment::open()->where('user_id', $user->id)->get(['curriculum_id', 'stage_id'])
+            ->groupBy('curriculum_id')
+            ->map(fn ($rows) => $rows->contains(fn ($r) => ! $r->stage_id) ? [] : $rows->pluck('stage_id')->all());
+    }
+
     public function storeProposal(Request $request)
     {
         $validated = $request->validate([
@@ -1235,6 +1257,13 @@ class SyllabusController extends Controller
         // Chọn buổi học → gắn luôn Unit của buổi đó.
         if (! empty($validated['lesson_id'])) {
             $validated['unit_id'] = SyllabusLesson::whereKey($validated['lesson_id'])->value('unit_id');
+        }
+        // GV chỉ đề xuất trong chặng được giao (R-01a AC-S01), kiểm tra phía server.
+        $scope = $this->proposalScope($request->user());
+        if ($scope !== null) {
+            $stageIds = $scope->get((int) $validated['curriculum_id']);
+            abort_if($stageIds === null, 403, 'Giáo trình này không thuộc chặng được giao cho bạn.');
+            abort_if($stageIds && ! empty($validated['unit_id']) && ! in_array((int) SyllabusUnit::whereKey($validated['unit_id'])->value('stage_id'), $stageIds, true), 403, 'Buổi/Unit này không thuộc chặng được giao cho bạn.');
         }
 
         $attachmentPath = null;
@@ -1543,7 +1572,7 @@ class SyllabusController extends Controller
             'listTitle' => ['pending' => 'Danh sách chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối'][$status] ?? 'Tất cả yêu cầu',
             'listUrl' => route('syllabus.adjustment-requests', $listQuery),
             'maxExtraSessions' => SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
-            'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // xem theo quyền ở trên; nút duyệt chỉ Admin
+            'canReview' => $user->can(AdminOnlyApprovals::SYLLABUS_ABILITY), // nút duyệt: Admin + Học thuật (TK-2026-0055)
         ]);
     }
 
@@ -1733,7 +1762,8 @@ class SyllabusController extends Controller
         $user = $request->user();
         $assignments = SyllabusAssignment::open()
             ->with(['stage', 'classModel.course'])
-            ->whereIn('class_id', ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->select('id'))
+            // Dạy thay theo buổi không hiện ở đây (withSessions: false).
+            ->whereIn('class_id', ClassModel::visibleTo($user, false)->where('status', '!=', 'cancelled')->select('id'))
             ->get()
             ->sortBy(fn ($a) => $a->classModel?->name)
             ->values();
@@ -1863,7 +1893,7 @@ class SyllabusController extends Controller
             ->map(fn (Collection $stages) => $stages->pluck('label', 'id'));
 
         $canReview = $user->can('big_test.approve');
-        $canApprove = $user->can(AdminOnlyApprovals::ABILITY); // duyệt / phân phối đề, duyệt order: chỉ Admin (06/10/2026)
+        $canApprove = $user->can(AdminOnlyApprovals::SYLLABUS_ABILITY); // duyệt / phân phối đề, duyệt order: Admin + Học thuật (TK-2026-0055)
         $listQuery = array_filter(['order_search' => $orderSearch, 'orders_page' => $request->query('orders_page')]) + ['order_status' => (string) $orderStatus];
 
         return Inertia::render('Syllabus/BigTestDistribution', [

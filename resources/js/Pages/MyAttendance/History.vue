@@ -16,7 +16,9 @@ defineProps({
 <template>
     <Head title="Lịch sử công của tôi" />
 
-    <UiPageHeader title="Lịch sử công của tôi" icon="calendar_month" description="Ngày công, đi muộn và nghỉ phép theo tháng." />
+    <UiPageHeader title="Lịch sử công của tôi" icon="calendar_month" description="Ngày công, đi muộn và nghỉ phép theo tháng.">
+        <template #actions><UiButton :href="route('my-attendance.monthly-report', { month })" icon="description">Báo cáo chấm công tháng</UiButton></template>
+    </UiPageHeader>
 
     <div class="max-w-3xl space-y-md">
         <div class="flex items-center justify-between gap-sm rounded-2xl border border-outline-variant bg-surface-container-lowest p-xs shadow-sm">
