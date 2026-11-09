@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\ResolvesPortalStudent;
 use App\Models\AcademicRecord;
-use App\Models\AdminNotification;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -961,18 +960,30 @@ class StudentPortalController extends Controller
         ]);
 
         // R-10 AC-S06: đúng 1 thông báo xác nhận cho HS mỗi khảo sát (gửi lại/retry không tạo thêm)
-        AdminNotification::firstOrCreate(
+        // Kênh Cổng HS đọc: AcademicRecord màn 05_danh_sach_thong_bao; record_code xác định theo HS + tiêu đề.
+        AcademicRecord::firstOrCreate(
             [
-                'user_id' => Auth::id(),
-                'type' => 'survey_submitted',
-                'data->student_id' => (string) $student->id,
-                'data->survey_title' => $validated['survey_title'],
+                'screen_key' => PortalNotifications::SCREEN_KEY,
+                'record_code' => 'SURVEY-CONFIRM-'.$student->id.'-'.substr(sha1($validated['survey_title']), 0, 12),
             ],
             [
+                'module' => 'student_portal',
                 'title' => 'Đã nhận khảo sát của bạn',
-                'message' => 'Trung tâm đã nhận khảo sát "'.$validated['survey_title'].'" của '.$studentName.'. Cảm ơn bạn đã phản hồi!',
-                'data' => ['student_id' => (string) $student->id, 'survey_title' => $validated['survey_title']],
-                'is_read' => false,
+                'status' => 'active',
+                'data' => [
+                    'type' => 'survey_submitted',
+                    'title' => 'Đã nhận khảo sát của bạn',
+                    'content' => 'Trung tâm đã nhận khảo sát "'.$validated['survey_title'].'" của '.$studentName.'. Cảm ơn bạn đã phản hồi!',
+                    'unread' => true,
+                    'icon' => 'fact_check',
+                    'bg_color' => 'bg-primary-container/10',
+                    'text_color' => 'text-primary',
+                    'created_at' => now()->format('d/m/Y H:i'),
+                    'student_id' => (string) $student->id,
+                    'student_name' => $studentName,
+                    'survey_title' => $validated['survey_title'],
+                ],
+                'user_id' => Auth::id(),
             ]
         );
 

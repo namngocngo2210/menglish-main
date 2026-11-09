@@ -289,10 +289,17 @@ class Flow4StudentPortalTest extends TestCase
         $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
         $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
 
-        $this->assertSame(1, \App\Models\AdminNotification::where('user_id', $this->user->id)->where('type', 'survey_submitted')->count());
+        $this->actingAs($this->user)->get(route('portal.student.notifications', $this->student->id))
+            ->assertInertia(fn ($page) => $page
+                ->component('Portal/Notifications')
+                ->has('notifications', 1)
+                ->where('notifications.0.title', 'Đã nhận khảo sát của bạn')
+                ->where('notifications.0.unread', true));
+        $this->assertSame(0, \App\Models\AdminNotification::where('type', 'survey_submitted')->count());
 
         $this->actingAs($this->user)->post(route('portal.student.survey.store'), ['survey_title' => 'Khảo sát khác'] + $payload);
-        $this->assertSame(2, \App\Models\AdminNotification::where('type', 'survey_submitted')->count());
+        $this->actingAs($this->user)->get(route('portal.student.notifications', $this->student->id))
+            ->assertInertia(fn ($page) => $page->has('notifications', 2));
     }
 
     /**
