@@ -15,6 +15,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\SyllabusAssignment;
+use App\Models\SyllabusCurriculum;
 use App\Models\SyllabusDocument;
 use App\Services\Homework\HomeworkStats;
 use App\Services\SafeUploadService;
@@ -320,6 +321,9 @@ class StudentPortalController extends Controller
             ])->values()->all(),
             // BTVN GV giao theo từng buổi, nộp theo giỏ (docs/kho-syllabus.md §10) — không còn hạng mục nộp tự do.
             'assignments' => $this->assignedHomework($homeworks, $oldClassIds),
+            // Lộ trình = đúng 1 ảnh cấu hình ở giáo trình của lớp; chưa có ảnh → null (trang hiện "Chưa cập nhật lộ trình").
+            'roadmapImageUrl' => $student && $this->roadmapCurriculum($student)
+                ? route('portal.student.roadmap-image', $student->id) : null,
         ]);
     }
 
@@ -352,6 +356,35 @@ class StudentPortalController extends Controller
                 'lesson' => collect([$lesson['unit'] ?? null, $lesson['title'] ?? null])->filter()->implode(' — ') ?: null,
             ];
         })->values()->all();
+    }
+
+    /** Giáo trình (đã có ảnh lộ trình) của chặng đang mở ở lớp học viên; ưu tiên lớp hiện tại. */
+    private function roadmapCurriculum(Student $student): ?SyllabusCurriculum
+    {
+        $classIds = $student->activeClassIds();
+        if ($classIds === []) {
+            return null;
+        }
+
+        return SyllabusAssignment::open()->whereIn('class_id', $classIds)
+            ->whereHas('curriculum', fn ($q) => $q->whereNotNull('roadmap_image_path'))
+            ->with('curriculum')
+            ->orderByRaw('class_id = ? desc', [(int) $student->current_class_id])
+            ->first()?->curriculum;
+    }
+
+    public function roadmapImage($studentId = null)
+    {
+        [, $student] = $this->getActiveStudent($studentId);
+        $path = $student ? $this->roadmapCurriculum($student)?->roadmap_image_path : null;
+        $disk = Storage::disk(SyllabusCurriculum::ROADMAP_DISK);
+        abort_unless($path && $disk->exists($path), 404);
+
+        if (config('filesystems.disks.local.driver') !== 'local') {
+            return redirect()->away($disk->temporaryUrl($path, now()->addMinutes(30)));
+        }
+
+        return response()->file($disk->path($path), ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=300']);
     }
 
     /** Số buổi gần nhất hiện ở mục "Nhận xét buổi học"; phụ huynh chấm được buổi trong khoảng RATE_DAYS ngày. */

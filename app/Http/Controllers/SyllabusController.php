@@ -350,6 +350,7 @@ class SyllabusController extends Controller
                 'version' => $curriculum->version,
                 'course_id' => $curriculum->course_id,
                 'description' => $curriculum->description,
+                'has_roadmap_image' => (bool) $curriculum->roadmap_image_path,
                 'level_ids' => $curriculum->levels->pluck('id')->all(),
             ],
             'stages' => $stages->map(fn (SyllabusStage $stage) => [
@@ -491,6 +492,36 @@ class SyllabusController extends Controller
 
         return redirect()->route('syllabus.curriculums.show', $curriculum->id)
             ->with('status', "Đã lưu thông tin giáo trình {$curriculum->title}.");
+    }
+
+    /** Học thuật tải lên / thay ảnh lộ trình tổng quát của giáo trình (hiện ở cổng học sinh). */
+    public function uploadRoadmapImage(Request $request, int $id)
+    {
+        $curriculum = SyllabusCurriculum::findOrFail($id);
+        $request->validate(['roadmap_image' => ['required', 'file', 'max:5120']], [
+            'roadmap_image.required' => 'Vui lòng chọn ảnh lộ trình.',
+            'roadmap_image.max' => 'Ảnh lộ trình tối đa 5 MB.',
+        ]);
+
+        $path = SafeUploadService::store($request->file('roadmap_image'), SyllabusCurriculum::ROADMAP_DIRECTORY, SafeUploadService::IMAGES, 'roadmap_image', SyllabusCurriculum::ROADMAP_DISK);
+        $old = $curriculum->roadmap_image_path;
+        $curriculum->update(['roadmap_image_path' => $path]);
+        if ($old) {
+            Storage::disk(SyllabusCurriculum::ROADMAP_DISK)->delete($old);
+        }
+
+        return redirect()->back()->with('status', "Đã cập nhật ảnh lộ trình giáo trình {$curriculum->title}.");
+    }
+
+    public function destroyRoadmapImage(int $id)
+    {
+        $curriculum = SyllabusCurriculum::findOrFail($id);
+        if ($curriculum->roadmap_image_path) {
+            Storage::disk(SyllabusCurriculum::ROADMAP_DISK)->delete($curriculum->roadmap_image_path);
+            $curriculum->update(['roadmap_image_path' => null]);
+        }
+
+        return redirect()->back()->with('status', "Đã gỡ ảnh lộ trình giáo trình {$curriculum->title}.");
     }
 
     public function destroyCurriculum(int $id)
