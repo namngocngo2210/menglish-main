@@ -71,7 +71,7 @@ function openTask(event, task) {
 <template>
     <UiPageHeader title="Danh sách đầu việc" description="Quản lý, phân công và theo dõi tiến độ công việc — giao việc hai chiều.">
         <template #actions>
-            <UiButton v-if="can('work_task.approve')" variant="secondary" icon="fact_check" :href="route('tasks.manual-approvals')">
+            <UiButton v-if="can('work_task.view')" variant="secondary" icon="fact_check" :href="route('tasks.manual-approvals')">
                 Chờ xác nhận
                 <span v-if="counts.approvals > 0" class="rounded-full bg-error px-1.5 font-code text-caption text-white">{{ counts.approvals }}</span>
             </UiButton>
