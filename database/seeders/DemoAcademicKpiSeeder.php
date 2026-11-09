@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\DB;
  * - 2 dự án học thuật (giáo trình Starters K28, chương trình IELTS Foundation 2027) với các mốc deliverable: phần lớn đúng hạn,
  *   vài mốc trễ vài ngày, mốc giao GV khác để đối chiếu (không tính cho Trưởng Học thuật), mốc tháng sau chưa tới hạn.
  * - Việc được giao (Giao việc) có hạn trong tháng: đúng hạn, trễ vài giờ, việc tháng này còn đang làm.
- * - Order "Học liệu học thuật" theo buổi học thật, phần lớn giao trước hạn ngày 5: 1 order giao 12–24 giờ trước giờ dùng mỗi
+ * - Order "Học liệu học thuật" theo buổi học thật, phần lớn giao trước hạn 00:00 ngày 1: 1 order giao 12–24 giờ trước giờ dùng mỗi
  *   tháng, 1 order tháng trước tạo sát giờ (lỗi bên yêu cầu, không tính), 1 order đầu tháng này giao sau giờ dùng (mục tối đa
  *   50%, phiếu tối đa loại B), order GV vừa gửi còn chờ xử lý.
  * - Số liệu điền tay (chất lượng deliverable, tiến độ chương trình, đào tạo GV, xử lý phản ánh, lỗi lặp lại, nghỉ / họp):
@@ -81,24 +81,24 @@ class DemoAcademicKpiSeeder extends Seeder
     ];
 
     /**
-     * Order học liệu học thuật (hạn xử lý: ngày 5 của tháng dùng): [tháng, ngày dùng (buổi học đầu tiên từ ngày này), tên, ngày tạo
+     * Order học liệu học thuật (hạn xử lý: 00:00 ngày 1 của tháng dùng; ['day', n] với n ≤ 0 = 17:00 ngày 1 lùi |n|+1 ngày, tức giao trước hạn): [tháng, ngày dùng (buổi học đầu tiên từ ngày này), tên, ngày tạo
      * (tính từ đầu tháng dùng, âm = cuối tháng trước; ['h', n] = n giờ trước giờ dùng), lúc giao xong (['day', n] = 17:00 ngày n;
      * ['h', n] = n giờ trước giờ dùng, âm = sau giờ dùng; null = chưa giao)].
      */
     private const ORDERS = [
-        [-1, 8, 'Bộ flashcard Unit 1–3 (in màu)', -3, ['day', 3]],
-        [-1, 12, 'Đề mini test Unit 2 + đáp án', -2, ['day', 4]],
+        [-1, 8, 'Bộ flashcard Unit 1–3 (in màu)', -3, ['day', -2]],
+        [-1, 12, 'Đề mini test Unit 2 + đáp án', -2, ['day', -1]],
         [-1, 3, 'Phiếu bài tập Speaking theo cặp', -5, ['h', 16]],
-        [-1, 16, 'Audio bài nghe Unit 3 (bản chỉnh)', 1, ['day', 5]],
+        [-1, 16, 'Audio bài nghe Unit 3 (bản chỉnh)', -4, ['day', 0]],
         [-1, 22, 'Worksheet ôn tập Unit 1–4', ['h', 10], ['h', 3]],
-        [-1, 25, 'Đề Big Test kỳ 3 bản in', 2, ['day', 5]],
+        [-1, 25, 'Đề Big Test kỳ 3 bản in', -3, ['day', 0]],
         [0, 2, 'Slide ôn tập Unit 1', -6, ['h', -2]],
         [0, 3, 'Bộ tranh chủ đề Family', -1, ['h', 20]],
-        [0, 4, 'Bộ thẻ từ vựng Unit 1', -5, ['day', 1]],
-        [0, 6, 'Student Book bản PDF cho GV', -4, ['day', 2]],
-        [0, 9, 'Slide buổi 3–4 (đã duyệt)', -3, ['day', 4]],
-        [0, 14, 'Đề mini test Unit 1', -2, ['day', 5]],
-        [0, 20, 'Đề Big Test giữa khóa', 3, ['day', 5]],
+        [0, 4, 'Bộ thẻ từ vựng Unit 1', -5, ['day', -4]],
+        [0, 6, 'Student Book bản PDF cho GV', -4, ['day', -3]],
+        [0, 9, 'Slide buổi 3–4 (đã duyệt)', -3, ['day', -1]],
+        [0, 14, 'Đề mini test Unit 1', -2, ['day', 0]],
+        [0, 20, 'Đề Big Test giữa khóa', -2, ['day', 0]],
         [0, 27, 'Phiếu chấm Speaking giữa khóa', ['h', 0], null],
     ];
 
@@ -265,7 +265,7 @@ class DemoAcademicKpiSeeder extends Seeder
             $use = Carbon::parse($session->date)->setTimeFromTimeString(Carbon::parse($session->start_time)->format('H:i'));
             $at = fn (array|int $spec) => match (true) {
                 is_int($spec) => $this->day($offset, 1)->addDays($spec - 1)->setTime(10, 0),
-                $spec[0] === 'day' => $this->day($offset, $spec[1])->setTime(17, 0),
+                $spec[0] === 'day' => $this->day($offset, 1)->addDays($spec[1] - 1)->setTime(17, 0),
                 default => $use->copy()->subHours($spec[1]),
             };
             // Order chưa giao: GV vừa gửi hôm nay.

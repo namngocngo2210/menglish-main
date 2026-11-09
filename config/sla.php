@@ -252,18 +252,6 @@ return [
             'task' => false,
             'violation' => 'Quá hạn duyệt giãn tiến độ',
         ],
-        'material.monthly_deadline' => [
-            'group' => 'academic',
-            'label' => 'Hạn order GVNN / học liệu học thuật',
-            'description' => 'Order GVNN và học liệu học thuật xử lý đầu tháng: hạn là 23:59 ngày này của tháng chứa ngày sử dụng. Quá hạn → order "Quá hạn" + báo người xử lý. Áp dụng cho order tạo sau khi lưu.',
-            'value' => 5,
-            'unit' => 'day_of_month',
-            'penalty' => null,
-            'amount' => 0,
-            'task' => false,
-            'switchable' => false,
-            'violation' => 'Order học liệu quá hạn',
-        ],
         'material.day_before_cutoff' => [
             'group' => 'academic',
             'label' => 'Giờ chốt order đạo cụ / in ấn',
