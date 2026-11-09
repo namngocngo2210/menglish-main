@@ -636,6 +636,8 @@ class PayrollController extends Controller
                     'score' => (float) ($item['score'] ?? 0),
                     'weight' => (float) ($item['weight'] ?? 0),
                     'amount' => (float) ($item['amount'] ?? 0),
+                    'critical' => (bool) ($item['critical'] ?? false),
+                    'critical_note' => $item['critical_note'] ?? null,
                 ])->values(),
             ])->values(),
             'renewalClasses' => array_values(data_get($record->calculation_details, 'renewal.classes', [])),

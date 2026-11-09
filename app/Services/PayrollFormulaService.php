@@ -359,6 +359,8 @@ class PayrollFormulaService
             'code' => $criterion->code, 'group' => $criterion->group_name, 'name' => $criterion->name,
             'weight' => (float) $criterion->weight, 'score' => (float) ($scores->get($criterion->id)?->score ?? 0),
             'amount' => $amountOf($criterion),
+            'critical' => (bool) $scores->get($criterion->id)?->critical_error,
+            'critical_note' => $scores->get($criterion->id)?->critical_note,
         ])->values()->all();
 
         return [
