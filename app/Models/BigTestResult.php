@@ -21,6 +21,9 @@ class BigTestResult extends Model
     /** Kết quả đã duyệt/đã gửi phụ huynh thì không được chấm lại. */
     public const LOCKED_STATUSES = ['approved', 'sent'];
 
+    // Provisional wording (BA to finalize): shown while an absent Big Test has no approved make-up score.
+    public const MAKEUP_NOTICE = 'Bạn đã vắng bài thi này. Vui lòng hoàn thiện bài thi bù với giáo viên/trung tâm.';
+
     protected $table = 'big_test_results';
 
     protected $fillable = [
