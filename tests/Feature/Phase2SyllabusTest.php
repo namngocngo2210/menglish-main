@@ -486,8 +486,7 @@ class Phase2SyllabusTest extends TestCase
         $req = SyllabusAdjustmentRequest::firstOrFail();
         $this->assertSame(2, $req->extra_sessions);
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertForbidden(); // chỉ Admin duyệt
-        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertRedirect()->assertSessionHasNoErrors();
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.approve', $req->id))->assertRedirect()->assertSessionHasNoErrors(); // Học thuật duyệt được (TK-2026-0055)
 
         $req->refresh();
         $this->assertSame('approved', $req->status);

@@ -219,10 +219,8 @@ class BigTestSlaTest extends TestCase
         $this->assertSame('new', $task->status);
         $this->assertSame(0, WorkTask::where('big_test_id', $far->id)->count());
 
-        // Học thuật không còn duyệt đề được; Admin duyệt → việc tự đóng.
-        $this->actingAs($this->academic)->post(route('syllabus.big-tests.approve', $test->id))->assertForbidden();
-        $this->assertSame('new', $task->fresh()->status);
-        $this->actingAs($this->admin)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
+        // Học thuật duyệt đề (TK-2026-0055) → việc tự đóng.
+        $this->actingAs($this->academic)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
         $this->assertSame('completed', $task->fresh()->status);
 
         $this->artisan('bigtests:enforce-sla')->assertSuccessful();

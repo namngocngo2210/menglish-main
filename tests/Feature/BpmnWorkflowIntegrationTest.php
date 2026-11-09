@@ -451,14 +451,13 @@ class BpmnWorkflowIntegrationTest extends TestCase
             'test_type' => 'midterm', 'scheduled_at' => now()->addDays(2), 'room' => 'Lab',
             'is_distributed' => false, 'status' => 'draft',
         ]);
-        // Chỉ Admin duyệt đề / kết quả Big Test (06/10/2026); Quản lý cơ sở, Học thuật không duyệt.
+        // Admin + Học thuật duyệt đề Big Test (TK-2026-0055); kết quả chỉ Admin; Quản lý cơ sở không duyệt.
         $lead = User::factory()->create(['is_active' => true]);
         $lead->assignRole(Roles::ACADEMIC_LEAD);
         $admin = User::factory()->create(['is_active' => true]);
         $admin->assignRole(Roles::ADMIN);
         $this->actingAs($this->manager)->post(route('syllabus.big-tests.approve', $test->id))->assertForbidden();
-        $this->actingAs($lead)->post(route('syllabus.big-tests.approve', $test->id))->assertForbidden();
-        $this->actingAs($admin)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
+        $this->actingAs($lead)->post(route('syllabus.big-tests.approve', $test->id))->assertRedirect();
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), [
             'results' => [[
                 'student_id' => $this->student->id, 'components' => [['name' => 'Nghe', 'score' => 7], ['name' => 'Viết', 'score' => 6]],

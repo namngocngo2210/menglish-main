@@ -1541,7 +1541,7 @@ class SyllabusController extends Controller
             'listTitle' => ['pending' => 'Danh sách chờ duyệt', 'approved' => 'Đã duyệt', 'rejected' => 'Đã từ chối'][$status] ?? 'Tất cả yêu cầu',
             'listUrl' => route('syllabus.adjustment-requests', $listQuery),
             'maxExtraSessions' => SyllabusAdjustmentRequest::MAX_EXTRA_SESSIONS,
-            'canReview' => $user->can(AdminOnlyApprovals::ABILITY), // xem theo quyền ở trên; nút duyệt chỉ Admin
+            'canReview' => $user->can(AdminOnlyApprovals::SYLLABUS_ABILITY), // nút duyệt: Admin + Học thuật (TK-2026-0055)
         ]);
     }
 
@@ -1862,7 +1862,7 @@ class SyllabusController extends Controller
             ->map(fn (Collection $stages) => $stages->pluck('label', 'id'));
 
         $canReview = $user->can('big_test.approve');
-        $canApprove = $user->can(AdminOnlyApprovals::ABILITY); // duyệt / phân phối đề, duyệt order: chỉ Admin (06/10/2026)
+        $canApprove = $user->can(AdminOnlyApprovals::SYLLABUS_ABILITY); // duyệt / phân phối đề, duyệt order: Admin + Học thuật (TK-2026-0055)
         $listQuery = array_filter(['order_search' => $orderSearch, 'orders_page' => $request->query('orders_page')]) + ['order_status' => (string) $orderStatus];
 
         return Inertia::render('Syllabus/BigTestDistribution', [
