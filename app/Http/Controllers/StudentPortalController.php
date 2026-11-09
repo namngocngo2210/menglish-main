@@ -1062,6 +1062,12 @@ class StudentPortalController extends Controller
             $categories[] = 'Khác';
         }
 
+        // One row per student+stage, edited in place: keep CM status/handling data (no delete/reset path).
+        $existing = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')
+            ->where('data->student_id', (string) $validated['student_id'])
+            ->where('data->stage_name', $validated['stage_name'])
+            ->first();
+
         AcademicRecord::updateOrCreate(
             [
                 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback',
@@ -1070,10 +1076,10 @@ class StudentPortalController extends Controller
             ],
             [
                 'module' => 'student_portal',
-                'record_code' => 'FB-'.strtoupper(Str::random(6)),
+                'record_code' => $existing?->record_code ?? 'FB-'.strtoupper(Str::random(6)),
                 'title' => 'Feedback chặng: '.$validated['stage_name'].' - '.$studentName,
-                'status' => 'submitted',
-                'data' => [
+                'status' => $existing?->status ?? 'submitted',
+                'data' => array_merge($existing?->data ?? [], [
                     'student_id' => (string) $validated['student_id'],
                     'student_name' => $studentName,
                     'stage_name' => $validated['stage_name'],
@@ -1085,24 +1091,12 @@ class StudentPortalController extends Controller
                     'fb_khac' => ! empty($validated['fb_khac']),
                     'noi_dung_feedback' => $validated['noi_dung_feedback'] ?? '',
                     'submitted_at' => now()->format('d/m/Y H:i'),
-                ],
+                ]),
                 'user_id' => Auth::id(),
             ]
         );
 
         return back()->with('feedback_success', true)->with('success', 'Đã ghi nhận feedback thành công! Bạn có thể điều chỉnh bất cứ lúc nào trong thời gian đợt mở.');
-    }
-
-    /**
-     * CRUD: Xóa feedback chặng học (MH #7)
-     */
-    public function deleteFeedback($id)
-    {
-        $record = AcademicRecord::findOrFail($id);
-        $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback');
-        $record->delete();
-
-        return back()->with('success', 'Đã xóa feedback thành công! Trạng thái đã được đặt lại ban đầu.');
     }
 
     // ─────────────────────────────────────────────

@@ -400,7 +400,6 @@ Route::middleware('auth')->group(function () {
         // Step 7: Phụ huynh gửi Feedback chặng học (MH6)
         Route::get('/feedback/{studentId?}', [StudentPortalController::class, 'studentFeedback'])->name('student.feedback');
         Route::post('/feedback/submit', [StudentPortalController::class, 'submitFeedback'])->name('student.feedback.store');
-        Route::delete('/feedback/{id}/destroy', [StudentPortalController::class, 'deleteFeedback'])->name('student.feedback.destroy');
 
         // Luyện tập (ngân hàng câu hỏi): quyền theo học viên kiểm tra trong controller. Route lượt làm đặt trước /practice/{studentId?}.
         Route::post('/practice/start', [PracticeController::class, 'start'])->name('student.practice.start');
