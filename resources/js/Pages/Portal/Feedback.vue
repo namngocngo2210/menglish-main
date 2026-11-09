@@ -215,7 +215,7 @@ function validateForm(event) {
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 shadow-2xs">
+                <div v-if="hasClass" class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 shadow-2xs">
                     <div class="mb-1.5 flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Chặng học đã hoàn thành</span>
                         <UiBadge color="neutral" pill>Đã đóng</UiBadge>
