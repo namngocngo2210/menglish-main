@@ -337,6 +337,7 @@ class TeacherPortalController extends Controller
                     'checkin_overdue' => $s->status !== 'cancelled' && now()->gt($s->checkinDeadline()) && ! $weekCheckedIn->has($s->id),
                 ])->values()->all(),
             ])->values()->all(),
+            'penaltyWidget' => app(\App\Services\TeacherPenaltyWidgetService::class)->forTeacher($teacher),
             'attention' => app(\App\Services\TeacherAttentionService::class)->forTeacher($teacher)->map(fn (array $r) => [
                 'id' => $r['score']->id,
                 'student_name' => $r['score']->student?->name,
