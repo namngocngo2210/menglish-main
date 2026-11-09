@@ -31,8 +31,38 @@ class MiniTestScore extends Model
         'skill_scores' => 'array',
     ];
 
-    /** 4 kỹ năng của mini test (mockup "Nhập điểm mini test"). */
+    /** 4 kỹ năng của dữ liệu cũ (trước TK-2026-0049); chỉ dùng để đọc lại bản ghi cũ. */
     public const SKILLS = ['listening' => 'Nghe', 'speaking' => 'Nói', 'reading' => 'Đọc', 'writing' => 'Viết'];
+
+    /** Bản ghi mới (TK-2026-0049): thành phần [{name, score}] tự do, không có thang; bản ghi cũ là map kỹ năng => điểm /max_score. */
+    public function isFreeScale(): bool
+    {
+        return collect((array) $this->skill_scores)->contains(fn ($i) => is_array($i));
+    }
+
+    /**
+     * Thành phần điểm dạng danh sách [{name, score}]. Bản ghi cũ lưu dạng {listening: 8, ...} vẫn đọc được, không cần migrate.
+     *
+     * @return list<array{name: string, score: float}>
+     */
+    public function components(): array
+    {
+        $out = [];
+        foreach ((array) $this->skill_scores as $key => $item) {
+            if (is_array($item)) {
+                $name = trim((string) ($item['name'] ?? ''));
+                $score = $item['score'] ?? null;
+            } else {
+                $name = self::SKILLS[$key] ?? (string) $key;
+                $score = $item;
+            }
+            if ($name !== '' && $score !== null && $score !== '') {
+                $out[] = ['name' => $name, 'score' => (float) $score];
+            }
+        }
+
+        return $out;
+    }
 
     protected static function booted(): void
     {

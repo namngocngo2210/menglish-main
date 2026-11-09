@@ -67,7 +67,8 @@ class SupportListService
 
     public function syncMiniTest(MiniTestScore $score): void
     {
-        $max = (float) $score->max_score;
+        // Điểm tự do không có thang → không quy đổi, không tự vào danh sách bổ trợ (TK-2026-0049).
+        $max = $score->isFreeScale() ? 0.0 : (float) $score->max_score;
         $scaled = $max > 0 ? round((float) $score->score / $max * 10, 2) : null;
         if ($scaled === null || $scaled >= self::SCORE_THRESHOLD) {
             $this->forget(self::SOURCE_MINI_TEST, $score->id);
