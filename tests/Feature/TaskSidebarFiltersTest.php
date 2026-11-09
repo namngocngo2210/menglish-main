@@ -177,8 +177,8 @@ class TaskSidebarFiltersTest extends TestCase
         $this->assertSame(1, $page['counts']['assigned']);
         $this->assertSame(1, $page['counts']['overdue']);
         $this->assertSame(0, $page['counts']['pending']);
-        // Nút "Chờ xác nhận" vẫn đếm việc Admin cần duyệt.
-        $this->assertSame(1, $page['counts']['approvals']);
+        // Nút "Chờ xác nhận" chỉ đếm việc mình là người xác nhận (R-13): Admin không phải người giao / GV chính nên không có.
+        $this->assertSame(0, $page['counts']['approvals']);
         $this->assertEqualsCanonicalizing([$admin->id, $ta->id], collect($page['assignees'])->pluck('value')->all());
     }
 

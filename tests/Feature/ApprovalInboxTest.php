@@ -290,24 +290,23 @@ class ApprovalInboxTest extends TestCase
             'branch_id' => $this->branchA->id, 'due_date' => today(), 'task_type' => 'one_time', 'status' => 'pending_confirmation',
         ]);
 
-        // Học thuật / người giao việc không còn duyệt: 403 ở hộp duyệt, service cũng không cho xử lý.
+        // Học thuật không còn duyệt đề xuất giáo trình: 403 ở hộp duyệt.
         $this->modal($lead)->post(route('approvals.bulk'), ['action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}"]])
             ->assertForbidden();
-        $this->actingAs($creator);
-        $this->assertFalse(app(ApprovalInboxService::class)->process($creator, 'approve', ["work_task:{$task->id}"])[0]['ok']);
         $this->assertSame('pending', $proposal->fresh()->status);
+
+        // R-13: việc chờ xác nhận không gắn lớp chỉ người giao xác nhận — Admin không xử lý được qua hộp duyệt.
+        $this->actingAs($admin);
+        $this->assertFalse(app(ApprovalInboxService::class)->process($admin, 'approve', ["work_task:{$task->id}"])[0]['ok']);
         $this->assertSame('pending_confirmation', $task->fresh()->status);
 
-        // Admin duyệt cả hai qua hộp duyệt, đi đúng đường nghiệp vụ của màn gốc.
+        // Admin duyệt đề xuất giáo trình qua hộp duyệt, đi đúng đường nghiệp vụ của màn gốc.
         $this->flushHeaders()->modal($admin)->post(route('approvals.bulk'), [
-            'action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}", "work_task:{$task->id}"],
+            'action' => 'approve', 'items' => ["syllabus_proposal:{$proposal->id}"],
         ])->assertRedirect(route('approvals.index'));
         $proposal->refresh();
         $this->assertSame('approved', $proposal->status);
         $this->assertSame($admin->id, (int) $proposal->reviewer_id);
-        $task->refresh();
-        $this->assertSame('completed', $task->status);
-        $this->assertSame($admin->id, (int) $task->confirmed_by);
     }
 
     public function test_reject_requires_reason(): void

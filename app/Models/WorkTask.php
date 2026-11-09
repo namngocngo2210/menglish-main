@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use App\Services\FirstMonthCareService;
-use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\DataScope;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class WorkTask extends Model
 {
@@ -337,7 +337,27 @@ class WorkTask extends Model
             ->whereDoesntHave('classReport', fn ($q) => $q->where('status', ClassReport::STATUS_PENDING))
             ->where(fn ($q) => $q->whereNull('assignee_id')->orWhere('assignee_id', '!=', $user->id));
 
-        // Chỉ Admin xác nhận hoàn thành (06/10/2026); người giao việc / work_task.approve không còn duyệt.
-        return AdminOnlyApprovals::allows($user) ? $query->visibleTo($user) : $query->whereRaw('1 = 0');
+        // R-13: việc gắn lớp → GV chính của lớp xác nhận; việc không gắn lớp (hoặc lớp chưa có GV chính) → người giao.
+        $classesOfTeacher = DB::table('classes')->where('teacher_id', $user->id)->select('id');
+        $classesWithTeacher = DB::table('classes')->whereNotNull('teacher_id')->select('id');
+
+        return $query->where(fn ($q) => $q->whereIn('class_id', $classesOfTeacher)
+            ->orWhere(fn ($o) => $o->where('creator_id', $user->id)
+                ->where(fn ($n) => $n->whereNull('class_id')->orWhereNotIn('class_id', $classesWithTeacher))));
+    }
+
+    /** R-13: người xác nhận việc chờ xác nhận — GV chính của lớp (việc gắn lớp), nếu không có thì người giao. */
+    public function confirmerId(): ?int
+    {
+        $teacherId = $this->class_id ? DB::table('classes')->where('id', $this->class_id)->value('teacher_id') : null;
+        $id = $teacherId ?: $this->creator_id;
+
+        return $id ? (int) $id : null;
+    }
+
+    /** Chỉ đúng người xác nhận (R-13); người thực hiện không tự xác nhận. */
+    public function isConfirmableBy(User $user): bool
+    {
+        return (int) $this->assignee_id !== (int) $user->id && $this->confirmerId() === (int) $user->id;
     }
 }
