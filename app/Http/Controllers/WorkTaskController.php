@@ -278,7 +278,13 @@ class WorkTaskController extends Controller
             'branch_id' => 'nullable|exists:branches,id',
             'class_id' => 'nullable|exists:classes,id',
             'time_slot_category' => 'nullable|in:before,during,after',
+            'phat_khi_qua_han' => 'nullable|boolean',
+            'muc_phat_qua_han' => 'nullable|required_if:phat_khi_qua_han,1,true|numeric|gt:0|max:100000000',
+        ], [
+            'muc_phat_qua_han.required_if' => 'Nhập số tiền phạt (> 0) khi bật "Phạt khi quá hạn".',
+            'muc_phat_qua_han.gt' => 'Số tiền phạt phải lớn hơn 0.',
         ]);
+        $penalize = (bool) ($validated['phat_khi_qua_han'] ?? false);
 
         $taskTypeDb = ($validated['taskType'] === 'one-time' || $validated['taskType'] === 'one_time') ? 'one_time' : 'recurring';
 
@@ -311,6 +317,8 @@ class WorkTaskController extends Controller
             'class_id' => $validated['class_id'] ?? null,
             'time_slot_category' => $validated['time_slot_category'] ?? 'during',
             'status' => 'new',
+            'phat_khi_qua_han' => $penalize,
+            'muc_phat_qua_han' => $penalize ? $validated['muc_phat_qua_han'] : null,
         ]);
 
         $this->notifyAssignee($task);

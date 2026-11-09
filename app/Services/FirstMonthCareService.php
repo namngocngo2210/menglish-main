@@ -255,6 +255,7 @@ class FirstMonthCareService
                     'task_type' => 'one_time',
                     'due_date' => $due?->toDateString(),
                     'status' => 'new',
+                    'sla_rule_key' => 'care.first_month',
                 ]);
                 $existing->put($student->id.'-'.$milestone, $task);
 
