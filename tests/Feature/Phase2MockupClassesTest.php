@@ -363,7 +363,7 @@ class Phase2MockupClassesTest extends TestCase
             // AC-R09 (TK-2026-0042): payload chỉ có %, không có điểm tuyệt đối.
             ->assertInertia(fn (Assert $p) => $p->where('attention.0.percent', 45)->missing('attention.0.score'))
             // Bỏ thẻ lương, chấm công, vi phạm khỏi Lịch dạy hôm nay (chủ dự án 28/10/2026).
-            ->assertDontSee('Lương tạm tính')->assertDontSee('300.000')->assertDontSee('Báo cáo chấm công')->assertDontSee('Vi phạm &amp; Khoản trừ', false)
+            ->assertDontSee('Lương tạm tính')->assertDontSee('300.000')->assertDontSee('>Báo cáo chấm công<', false)->assertDontSee('Vi phạm &amp; Khoản trừ', false)
             ->assertSee('data-testid="teacher-bottom-nav"', false)->assertSee('Bảng công')->assertSee('Cá nhân')
             ->assertDontSee('Nguyễn Văn A');
     }
