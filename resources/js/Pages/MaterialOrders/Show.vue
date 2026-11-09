@@ -44,6 +44,10 @@ const rejecting = ref(false);
                 <div v-if="order.processed_at"><dt class="font-caption text-caption text-on-surface-variant">Xử lý lúc</dt><dd>{{ formatDate(order.processed_at, 'd/m/Y H:i') }}</dd></div>
             </dl>
 
+            <div v-if="order.specification" class="rounded-lg bg-surface-container-low p-md">
+                <p class="mb-xs font-label text-label uppercase text-on-surface-variant">Quy cách</p>
+                <p class="whitespace-pre-line break-words font-body-base text-body-base text-on-surface">{{ order.specification }}</p>
+            </div>
             <div v-if="order.description" class="rounded-lg bg-surface-container-low p-md">
                 <p class="mb-xs font-label text-label uppercase text-on-surface-variant">Mô tả</p>
                 <p class="whitespace-pre-line font-body-base text-body-base text-on-surface">{{ order.description }}</p>
