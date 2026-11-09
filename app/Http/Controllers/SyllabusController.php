@@ -1627,6 +1627,9 @@ class SyllabusController extends Controller
 
         $appliedNote = 'Không thay đổi lịch học (yêu cầu không kèm số buổi cần thêm).';
         DB::transaction(function () use ($req, $count, $extension, $targetAssignment, &$appliedNote) {
+            // Re-check under row lock so a retry / double click cannot apply (and shift the date) twice.
+            $this->ensurePending(SyllabusAdjustmentRequest::lockForUpdate()->findOrFail($req->id)->status);
+
             if ($count > 0 && $req->kind === 'postpone') {
                 // Dời tiến độ: không thêm buổi vào TKB — cộng N buổi giãn cho chặng, GV dùng ở nút "Dạy chưa xong".
                 if (! $targetAssignment) {
@@ -1648,6 +1651,12 @@ class SyllabusController extends Controller
                     $req->syllabus_assignment_id ??= $assignment->id;
                     $appliedNote .= " {$assignment->stage_name}: +".count($created).' buổi giãn tiến độ.';
                 }
+            }
+
+            // R-05(c): extra sessions push the expected Big Test date back by the same number of days.
+            if ($count > 0 && $targetAssignment?->expected_big_test_date) {
+                $targetAssignment->update(['expected_big_test_date' => $targetAssignment->expected_big_test_date->copy()->addDays($count)]);
+                $appliedNote .= ' Ngày dự kiến Big Test: '.$targetAssignment->expected_big_test_date->format('d/m/Y').'.';
             }
 
             $req->update([
