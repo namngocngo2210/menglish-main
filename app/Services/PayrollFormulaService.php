@@ -257,35 +257,19 @@ class PayrollFormulaService
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
-    /** Bảng % thưởng tái tục theo số HS nghỉ: [số nghỉ => ['percent' => float, 'pending' => bool]]. */
-    public function renewalTable(): array
-    {
-        $table = PayrollPeriod::payrollSettings()['renewal_table'];
-        ksort($table);
-
-        return $table;
-    }
-
-    /** % thưởng tái tục cho số HS nghỉ; ngoài bảng → beyond_percent (chờ BA). */
-    public function renewalPercent(int $quits): array
-    {
-        $table = $this->renewalTable();
-        if (isset($table[$quits])) {
-            return ['percent' => (float) $table[$quits]['percent'], 'pending' => (bool) $table[$quits]['pending']];
-        }
-
-        return ['percent' => (float) PayrollPeriod::payrollSettings()['renewal_beyond_percent'], 'pending' => true];
-    }
-
     /**
-     * Thưởng tái tục: với mỗi lớp GV phụ trách (GV chính) có HS đầu kỳ: % (theo số HS nghỉ trong kỳ) × doanh thu lớp
-     * (phiếu thu đã duyệt trong kỳ của các khoản học phí gắn lớp, trừ tiền nhận chuyển nhượng).
+     * Renewal bonus for assigned classes with a starting base: any base loss earns zero;
+     * otherwise use the same or increase percentage on approved class revenue.
      *
      * @return array{amount: float, classes: list<array<string, mixed>>}
      */
     public function renewalBonusFor(User $user, CarbonInterface $start, CarbonInterface $end): array
     {
         $classes = ClassModel::where('teacher_id', $user->id)->orderBy('id')->get(['id', 'code', 'name']);
+        $settings = PayrollPeriod::payrollSettings();
+        $startDay = $start->copy()->startOfDay();
+        $endDay = $end->copy()->endOfDay();
+        $lostStatuses = (array) config('payroll.retention.lost_statuses', [Student::STATUS_DROPPED]);
         $rows = [];
         $total = 0.0;
 
@@ -295,16 +279,39 @@ class PayrollFormulaService
                 continue;
             }
             $revenue = $this->classRevenue((int) $class->id, $start, $end);
-            $rate = $this->renewalPercent($retention['lost']);
-            $amount = round($revenue * $rate['percent'] / 100, 0);
+            // First-day enrollments already belong to the base under retentionFor(). Count only
+            // distinct newcomers still active at period end. In-period newcomers who leave
+            // contribute neither growth nor a base loss; later departures do not affect this period.
+            $joined = ClassEnrollment::with('student:id,status,updated_at')
+                ->where('class_id', $class->id)
+                ->whereDate('enrolled_at', '>=', $startDay->toDateString())
+                ->whereDate('enrolled_at', '<=', $endDay->toDateString())
+                ->whereNotIn('student_id', $retention['base_ids'])
+                ->get(['student_id', 'status', 'left_at', 'updated_at'])
+                ->filter(function (ClassEnrollment $enrollment) use ($endDay, $lostStatuses) {
+                    $student = $enrollment->student;
+                    if (! $student) {
+                        return false;
+                    }
+                    $leftAt = $enrollment->left_at
+                        ? $enrollment->left_at->copy()->endOfDay()
+                        : (in_array($enrollment->status, [Student::ENROLLMENT_DROPPED, Student::ENROLLMENT_TRANSFERRED], true) ? $enrollment->updated_at : null);
+                    $lostAt = in_array($student->status, $lostStatuses, true) ? $student->updated_at : null;
+
+                    return (! $leftAt || $leftAt->gt($endDay)) && (! $lostAt || $lostAt->gt($endDay));
+                })->pluck('student_id')->unique()->count();
+            $tier = $retention['lost'] > 0 ? 'dropped' : ($joined > 0 ? 'increase' : 'same');
+            $percent = $tier === 'dropped' ? 0.0 : $settings['renewal_'.$tier.'_percent'];
+            $amount = round($revenue * $percent / 100, 0);
             $total += $amount;
             $rows[] = [
                 'class_id' => (int) $class->id,
                 'class' => trim(($class->code ? $class->code.' — ' : '').$class->name),
                 'base' => $retention['base'],
                 'quits' => $retention['lost'],
-                'percent' => $rate['percent'],
-                'pending' => $rate['pending'],
+                'percent' => $percent,
+                'tier' => $tier,
+                'joined' => $joined,
                 'revenue' => $revenue,
                 'amount' => $amount,
             ];
@@ -359,6 +366,8 @@ class PayrollFormulaService
             'code' => $criterion->code, 'group' => $criterion->group_name, 'name' => $criterion->name,
             'weight' => (float) $criterion->weight, 'score' => (float) ($scores->get($criterion->id)?->score ?? 0),
             'amount' => $amountOf($criterion),
+            'critical' => (bool) $scores->get($criterion->id)?->critical_error,
+            'critical_note' => $scores->get($criterion->id)?->critical_note,
         ])->values()->all();
 
         return [

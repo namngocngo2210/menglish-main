@@ -358,23 +358,18 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Từ HS thứ')->assertSee('Để trống = không giới hạn')
             ->assertSee('Lưu cấu hình');
 
-        // Tab thưởng tái tục: bảng % theo số HS nghỉ (A6), lưu riêng.
+        // Renewal settings are editable independently of commission tiers.
         $this->actingAs($this->admin)->get(route('payroll.config.commission-tiers', ['tab' => 'renewal']))
-            ->assertOk()
-            ->assertSee('Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ')
-            ->assertSee('Số HS nghỉ trong lớp')
-            ->assertSee('chờ BA');
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Payroll/Config/Commissions')
+                ->where('renewalSamePercent', 1)->where('renewalIncreasePercent', 1.5));
         $this->actingAs($this->admin)->post(route('payroll.config.renewal.store'), [
-            'renewal' => [
-                ['quits' => 0, 'percent' => 1, 'pending' => 0],
-                ['quits' => 1, 'percent' => 0.7, 'pending' => 0],
-                ['quits' => 2, 'percent' => 0.5, 'pending' => 1],
-            ],
-            'renewal_beyond_percent' => 0,
-        ])->assertRedirect(route('payroll.config.commission-tiers', ['tab' => 'renewal']));
-        $table = PayrollPeriod::payrollSettings()['renewal_table'];
-        $this->assertEquals(0.5, $table[2]['percent']);
-        $this->assertTrue($table[2]['pending']);
+            'renewal_same_percent' => 1.2,
+            'renewal_increase_percent' => 1.8,
+        ])->assertRedirect(route('payroll.config.commission-tiers', ['tab' => 'renewal']))->assertSessionHasNoErrors();
+        $settings = PayrollPeriod::payrollSettings();
+        $this->assertSame(1.2, $settings['renewal_same_percent']);
+        $this->assertSame(1.8, $settings['renewal_increase_percent']);
     }
 
     private function period(int $month = 8, string $status = 'draft'): PayrollPeriod

@@ -5,7 +5,7 @@
  * của tôi); việc tồn ngày trước hiện thành danh sách báo xong được ngay; 3 ca 01 Trước / 02 Trong / 03 Sau giờ học nằm thành
  * 3 cột trên máy tính, trên điện thoại chọn ca bằng thanh chọn nhanh. Quy tắc hoàn thành + bảng màu trạng thái nằm sau nút "i".
  * Admin / quản lý / học vụ chọn xem trợ giảng bất kỳ trong phạm vi.
- * Hoàn thành: có ảnh → hoàn thành ngay; không ảnh → chờ Admin xác nhận (quyết định ở server).
+ * Hoàn thành: có ảnh → hoàn thành ngay; không ảnh → chờ GV chính / người giao xác nhận (quyết định ở server).
  */
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -96,7 +96,7 @@ function openReport(event) {
                     <h1 class="font-h2 text-h2 text-on-surface">{{ title }}</h1>
                     <span class="rounded-full bg-primary-container px-sm py-[2px] font-caption text-caption font-semibold text-white">Trợ giảng</span>
                     <UiInfo title="Quy tắc hoàn thành nhiệm vụ" width="96" label="Quy tắc hoàn thành nhiệm vụ">
-                        <p><strong class="text-on-surface">Đầu việc không gắn lớp:</strong> đính kèm ảnh minh chứng sẽ <strong class="text-tertiary">hoàn thành ngay</strong>. Không có ảnh thì chuyển sang <strong class="text-warning">chờ xác nhận</strong> (Admin xác nhận ở màn duyệt).</p>
+                        <p><strong class="text-on-surface">Đầu việc không gắn lớp:</strong> đính kèm ảnh minh chứng sẽ <strong class="text-tertiary">hoàn thành ngay</strong>. Không có ảnh thì chuyển sang <strong class="text-warning">chờ xác nhận</strong> (người giao việc xác nhận ở màn duyệt).</p>
                         <p><strong class="text-on-surface">Đầu việc trực lớp:</strong> bấm <strong class="text-primary">Nộp báo cáo trực lớp</strong> để gửi thông tin chi tiết của buổi học.</p>
                         <p class="pt-xs font-semibold uppercase text-on-surface">Mã màu trạng thái</p>
                         <div class="flex flex-wrap gap-xs">
@@ -365,7 +365,7 @@ function openReport(event) {
                     <input id="ta_proof" type="file" name="proof_image" accept="image/*" class="sr-only" @change="proofName = $event.target.files[0]?.name || ''" />
                     <UiErrors :messages="[errors.proof_image, errors.proof_image_url]" />
                 </div>
-                <UiAlert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ Admin xác nhận</strong>.</UiAlert>
+                <UiAlert type="info"><strong>Lưu ý:</strong> Có ảnh đính kèm, nhiệm vụ sẽ được <strong>hoàn thành ngay</strong>. Nếu không có ảnh, trạng thái sẽ chuyển sang <strong>chờ GV chính / người giao xác nhận</strong>.</UiAlert>
                 <UiTextarea id="ta_note" name="note" label="Ghi chú (tùy chọn)" :rows="3" placeholder="Kết quả hoặc vấn đề phát sinh..." />
             </UiForm>
             <template #footer>

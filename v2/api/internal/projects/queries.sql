@@ -146,9 +146,9 @@ UPDATE syllabus.milestones SET deleted_at = now(), updated_at = now() WHERE id =
 -- ───────────────────────── Cập nhật tiến độ ─────────────────────────
 
 -- name: CreateUpdate :one
-INSERT INTO syllabus.project_updates (project_id, milestone_id, user_id, quantity_done, content, difficulties, links, marks_complete)
+INSERT INTO syllabus.project_updates (project_id, milestone_id, user_id, quantity_done, content, difficulties, links, marks_complete, created_at)
 VALUES (sqlc.arg(project_id), sqlc.narg(milestone_id), sqlc.arg(user_id), sqlc.narg(quantity_done), sqlc.arg(content),
-        sqlc.narg(difficulties), sqlc.arg(links)::text[], sqlc.arg(marks_complete))
+        sqlc.narg(difficulties), sqlc.arg(links)::text[], sqlc.arg(marks_complete), sqlc.arg(created_at))
 RETURNING id;
 
 -- name: ProjectUpdates :many

@@ -299,7 +299,7 @@ class StudentPortalController extends Controller
                 'name' => $mt->name,
                 'test_date' => $mt->test_date?->format('d/m/Y'),
                 'score' => self::trimScore($mt->score),
-                'max_score' => self::trimScore($mt->max_score),
+                'max_score' => $mt->isFreeScale() ? null : self::trimScore($mt->max_score),
                 'note' => $mt->note,
                 'skills' => collect($mt->skill_scores ?? [])
                     ->map(fn ($score, $key) => is_array($score)
@@ -994,6 +994,34 @@ class StudentPortalController extends Controller
             'user_id' => Auth::id(),
         ]);
 
+        // R-10 AC-S06: đúng 1 thông báo xác nhận cho HS mỗi khảo sát (gửi lại/retry không tạo thêm)
+        // Kênh Cổng HS đọc: AcademicRecord màn 05_danh_sach_thong_bao; record_code xác định theo HS + tiêu đề.
+        AcademicRecord::firstOrCreate(
+            [
+                'screen_key' => PortalNotifications::SCREEN_KEY,
+                'record_code' => 'SURVEY-CONFIRM-'.$student->id.'-'.substr(sha1($validated['survey_title']), 0, 12),
+            ],
+            [
+                'module' => 'student_portal',
+                'title' => 'Đã nhận khảo sát của bạn',
+                'status' => 'active',
+                'data' => [
+                    'type' => 'survey_submitted',
+                    'title' => 'Đã nhận khảo sát của bạn',
+                    'content' => 'Trung tâm đã nhận khảo sát "'.$validated['survey_title'].'" của '.$studentName.'. Cảm ơn bạn đã phản hồi!',
+                    'unread' => true,
+                    'icon' => 'fact_check',
+                    'bg_color' => 'bg-primary-container/10',
+                    'text_color' => 'text-primary',
+                    'created_at' => now()->format('d/m/Y H:i'),
+                    'student_id' => (string) $student->id,
+                    'student_name' => $studentName,
+                    'survey_title' => $validated['survey_title'],
+                ],
+                'user_id' => Auth::id(),
+            ]
+        );
+
         return back()->with('success', 'Cảm ơn bạn đã gửi khảo sát! Trung tâm sẽ tiếp nhận và cải thiện chất lượng dịch vụ.');
     }
 
@@ -1017,10 +1045,12 @@ class StudentPortalController extends Controller
         [$students, $student] = $this->getActiveStudent($studentId);
 
         // Chặng đang học của lớp (giao chặng); chưa có chặng thì là góp ý chung.
-        $stageName = ($student?->current_class_id
+        // Chưa xếp lớp → góp ý chung, không hiển thị lớp/chặng (R-09 AC-R08).
+        $hasClass = (bool) $student?->current_class_id;
+        $stageName = ($hasClass
             ? SyllabusAssignment::where('class_id', $student->current_class_id)->where('status', 'in_progress')->latest()->value('stage_name')
             : null) ?: 'Góp ý chung';
-        $className = $student?->currentClass?->name ?? 'Chưa xếp lớp';
+        $className = $hasClass ? ($student->currentClass?->name ?? '') : '';
 
         // Lấy feedback đã gửi của chặng này từ CSDL
         $lastFeedback = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')
@@ -1054,6 +1084,7 @@ class StudentPortalController extends Controller
             ] : null,
             'stageName' => $stageName,
             'className' => $className,
+            'hasClass' => $hasClass,
             'showSuccess' => session()->has('success') || session('feedback_success'),
             'feedbackSuccess' => (bool) session('feedback_success'),
         ]);
@@ -1066,7 +1097,7 @@ class StudentPortalController extends Controller
     {
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
-            'stage_name' => 'required|string',
+            'stage_name' => 'nullable|string',
             'muc_do_hai_long' => 'nullable|integer|min:0|max:5',
             'fb_hoc_thuat' => 'nullable|string',
             'fb_giao_vien' => 'nullable|string',
@@ -1086,6 +1117,10 @@ class StudentPortalController extends Controller
         $this->authorizeStudent($student);
         $studentName = $student->name;
 
+        // Chưa xếp lớp → feedback không gắn chặng (chặng rỗng), bất kể client gửi gì.
+        $stageName = $student->current_class_id ? ($validated['stage_name'] ?? '') : '';
+        $stageLabel = $stageName !== '' ? 'chặng: '.$stageName : 'chung';
+
         $categories = [];
         if (! empty($validated['fb_hoc_thuat'])) {
             $categories[] = 'Học thuật';
@@ -1100,25 +1135,25 @@ class StudentPortalController extends Controller
         // One row per student+stage, edited in place: keep CM status/handling data (no delete/reset path).
         $existing = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')
             ->where('data->student_id', (string) $validated['student_id'])
-            ->where('data->stage_name', $validated['stage_name'])
+            ->where('data->stage_name', $stageName)
             ->first();
 
         AcademicRecord::updateOrCreate(
             [
                 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback',
                 'data->student_id' => (string) $validated['student_id'],
-                'data->stage_name' => $validated['stage_name'],
+                'data->stage_name' => $stageName,
             ],
             [
                 'module' => 'student_portal',
                 'record_code' => $existing?->record_code ?? 'FB-'.strtoupper(Str::random(6)),
-                'title' => 'Feedback chặng: '.$validated['stage_name'].' - '.$studentName,
+                'title' => 'Feedback '.$stageLabel.' - '.$studentName,
                 'status' => $existing?->status ?? 'submitted',
                 'data' => array_merge($existing?->data ?? [], [
                     'student_id' => (string) $validated['student_id'],
                     'student_name' => $studentName,
-                    'stage_name' => $validated['stage_name'],
-                    'class_name' => $student->currentClass?->name,
+                    'stage_name' => $stageName,
+                    'class_name' => $student->current_class_id ? $student->currentClass?->name : null,
                     'muc_do_hai_long' => $rating,
                     'categories' => $categories,
                     'fb_hoc_thuat' => ! empty($validated['fb_hoc_thuat']),

@@ -36,7 +36,7 @@ Hiện trạng (khảo sát 23/10/2026):
 6. **Kho syllabus** (xem & sửa bản gốc) chỉ **Học thuật + Quản lý + Admin**. Học vụ không sửa bản gốc nhưng **xem được**
    Kho syllabus và mọi tài liệu (chỉ đọc) để order in ấn (chốt 23/10/2026). **Giao chặng: chỉ Học thuật** (đổi 23/10/2026
    theo Bước 3 — Học vụ thôi giao chặng, vẫn xem danh sách chặng của lớp, giữ Big Test / order).
-7. GV chỉ xem bài giảng **buổi hôm nay**, của chặng lớp đang học (giai đoạn 3).
+7. GV xem được bài giảng **mọi buổi của chặng được giao** (R-03 AC-S03, TK-2026-0061); buổi hôm nay là mặc định. Tải file vẫn khóa (TK-2026-0040).
 
 ## 3. Giai đoạn 1 — Kho syllabus
 
@@ -182,7 +182,7 @@ Hiện trạng (khảo sát 23/10/2026):
 | Bước 3, 11 | Học thuật chọn chương trình → chặng → lớp → ngày bắt đầu; lớp có syllabus riêng xếp theo buổi; chặng kế giao tay | 2 |
 | Bước 4, câu 4 | GV XÁC NHẬN nhận syllabus; 24h chưa xác nhận → nhắc 1 lần GV + Học thuật + Quản lý | 2 |
 | Bước 5, câu 3, câu 8 | Sửa riêng cho lớp (cờ Chỉnh sửa thủ công + lý do) → báo GV (ĐÃ XEM); sửa gốc áp cho mọi lớp đang chạy, bản sửa riêng không lan sang lớp khác; Học thuật sửa → GV nhận thông báo | 2 |
-| Bước 6, câu 2, câu 12 | GV xem buổi hôm nay, bấm **Đã dạy** (ghi chú chậm / nhanh); lớp hủy buổi → lịch tự dời; GV muốn đổi tiến độ → **Customize syllabus** (xin giãn / dời), Học thuật duyệt; link PPT / Quizizz chỉ GV lớp được giao thấy | 3 |
+| Bước 6, câu 2, câu 12 | GV xem các buổi của chặng được giao (mặc định buổi hôm nay), bấm **Đã dạy** (ghi chú chậm / nhanh); lớp hủy buổi → lịch tự dời; GV muốn đổi tiến độ → **Customize syllabus** (xin giãn / dời), Học thuật duyệt; link PPT / Quizizz chỉ GV lớp được giao thấy | 3 |
 | Bước 7, câu 5 | Nút ORDER luôn ở góc màn GV, sáng / nhấp nháy khi tới mốc; in ấn → vận hành cơ sở, đề test → Học thuật; xử lý trước ≥ 3 buổi trước test | 4 |
 | Bước 8–10, câu 1, 9, 10 | Còn N buổi đến buổi cuối chặng **hoặc tới mốc "Báo chuẩn bị" đã đánh dấu trong syllabus** → thông báo + việc cho Học thuật (NHẬN VIỆC → Đang làm, hạn = buổi cuối chặng, quá hạn đỏ + nhắc hằng ngày, HOÀN THÀNH → báo cáo tuần; Quản lý + người làm xem & ghi chú); việc giao theo cơ sở và lớp | 4 |
 | Câu 6, câu 11 | Mini test ở buổi đầu Unit sau, Big Test là buổi riêng (đã có trong form Sheet 1); sản phẩm đầu ra của buổi test = điểm → nút nhập điểm từ buổi test | 3 |
@@ -311,7 +311,7 @@ thu hồi tự động.
 
 - GV chọn lớp mình dạy (GV chính / GVNN / TG / dạy thay buổi hôm nay). Chỉ hiện khi lớp **có buổi học hôm nay**; hiện
   **buổi hiện tại** (bản hiệu lực): loại buổi, unit, content, quy trình, hoạt động gợi ý 1–2, homework 3 giỏ, link PPT /
-  PPT GVNN / Quizizz / đề, sản phẩm đầu ra, ghi chú, tài liệu buổi. Không xem được buổi khác (quyết định 7, câu 12).
+  PPT GVNN / Quizizz / đề, sản phẩm đầu ra, ghi chú, tài liệu buổi. Xem được mọi buổi của chặng được giao (R-03 AC-S03, TK-2026-0061), không xem chặng khác; tải file vẫn khóa (TK-2026-0040).
 - Nút **Đã dạy** (GV / GVNN của lớp): ô ghi chú tiến độ (chậm / nhanh — đề xuất Bước 6). Ghi dòng `lesson` gắn buổi học
   hôm nay. Lớp còn buổi giãn đã duyệt → thêm lựa chọn "Dạy chưa xong — dùng 1 buổi giãn" (ghi dòng `extra`, buổi syllabus
   giữ nguyên). Buổi học đã qua chưa bấm → banner "Buổi dd/mm chưa đánh dấu Đã dạy" (bấm được cho buổi đó).

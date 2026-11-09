@@ -316,9 +316,8 @@ class Phase2AcceptanceTest extends TestCase
             'due_date' => $examAt->copy()->subDays(BigTestOrder::leadDays())->startOfDay(), 'note' => 'Đề cuối chặng 1', 'status' => 'pending',
         ]);
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
-        // Chỉ Admin duyệt order đề (06/10/2026): Học vụ (không có big_test.approve) và Học thuật đều bị chặn.
+        // Duyệt order đề: Admin + Học thuật (TK-2026-0055); Học vụ (không có big_test.approve) bị chặn.
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
-        $this->actingAs($this->lead)->post(route('syllabus.big-tests.orders.approve', $order->id), ['test_link' => 'https://drive.test/de'])->assertForbidden();
 
         $this->actingAs($this->lead)->post(route('syllabus.big-tests.store'), [
             'title' => 'Big Test chặng 1', 'class_id' => $class->id, 'test_type' => 'stage_end', 'scheduled_at' => $examAt->format('Y-m-d H:i'), 'room' => 'P202',
@@ -412,7 +411,11 @@ class Phase2AcceptanceTest extends TestCase
                     && collect($rows)->every(fn ($a) => (int) StudentAttendance::find($a['id'])?->student_id === $s1->id))
                 ->where('bigTestResults', fn ($results) => collect($results)->count() === 1
                     && BigTestResult::find(collect($results)->first()['id'])?->status === 'sent'));
-        $this->actingAs($studentUser)->get(route('portal.student.home', ['studentId' => $s2->id]))->assertForbidden();
+        $this->actingAs($studentUser)->get(route('portal.student.home', ['studentId' => $s2->id]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Home')
+                ->where('student.id', $s1->id)
+                ->where('student.code', $s1->code)
+                ->where('student.name', $s1->name));
         $this->actingAs($studentUser)->get(route('portal.student.homework'))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Portal/Homework')
                 ->where('miniTests', fn ($scores) => collect($scores)->count() === 1)

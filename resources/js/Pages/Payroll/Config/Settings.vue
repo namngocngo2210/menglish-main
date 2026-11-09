@@ -1,34 +1,15 @@
 <script setup>
-/**
- * Cấu hình tham số lương: BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục theo số HS nghỉ
- * (thêm / xoá mốc ngay trên form; mốc chưa chốt đánh dấu "chờ BA").
- */
-import { computed, reactive } from 'vue';
-import { usePage } from '@inertiajs/vue3';
-
+// Payroll parameters, including renewal percentages for academic staff.
 defineOptions({ layout: { title: 'Cấu hình Tham số Lương' } });
 
-const props = defineProps({
+defineProps({
     settings: { type: Object, required: true },
-    renewalRows: { type: Array, default: () => [] },
-});
-
-const page = usePage();
-const rows = reactive(props.renewalRows.map((row) => ({ ...row })));
-const renewalError = computed(() => {
-    const errors = page.props.errors ?? {};
-    return errors.renewal ?? null;
-});
-const renewalRowError = computed(() => {
-    const errors = page.props.errors ?? {};
-    const key = Object.keys(errors).find((k) => k.startsWith('renewal.'));
-    return key ? errors[key] : null;
 });
 </script>
 
 <template>
     <div>
-        <UiPageHeader title="Cấu hình Tham số Lương" icon="tune" :back="route('payroll.periods.index')" description="BHXH / Công đoàn Full-time, quỹ KPI Học vụ, bảng % thưởng tái tục.">
+        <UiPageHeader title="Cấu hình Tham số Lương" icon="tune" :back="route('payroll.periods.index')" description="BHXH / Công đoàn Full-time, quỹ KPI Học vụ, tỷ lệ thưởng tái tục.">
             <template #actions>
                 <UiButton variant="secondary" icon="military_tech" :href="route('payroll.config.kpi-tiers')">Bảng bậc KPI giữ HS</UiButton>
             </template>
@@ -83,39 +64,12 @@ const renewalRowError = computed(() => {
                     </div>
 
                     <div class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-xs font-bold text-on-surface-variant">Thưởng tái tục — % doanh thu lớp theo số HS nghỉ trong kỳ</h3>
-                                <p class="text-xs text-on-surface-variant">BA mới chốt: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc khác đánh dấu <strong>chờ BA</strong> cho tới khi có bảng đầy đủ.</p>
-                            </div>
-                            <UiButton variant="secondary" size="sm" @click="rows.push({ quits: rows.length, percent: 0, pending: true })">+ Thêm mốc</UiButton>
+                        <h3 class="text-xs font-bold text-on-surface-variant">Thưởng tái tục — % doanh thu lớp</h3>
+                        <p class="text-xs text-on-surface-variant">Chỉ áp dụng cho Học vụ, trên các lớp mình phụ trách có HS đầu kỳ. Có bất kỳ HS đầu kỳ nào nghỉ trong kỳ → 0%. Không có HS nghỉ: giữ nguyên số HS → tỷ lệ giữ nguyên; có HS mới vào trong kỳ còn học cuối kỳ, số HS cuối kỳ tăng so với đầu kỳ → tỷ lệ tăng HS. Tỷ lệ tăng số HS phải lớn hơn tỷ lệ giữ nguyên số HS.</p>
+                        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                            <UiInput id="renewal_same_percent" type="number" name="renewal_same_percent" label="Giữ nguyên số HS (%)" min="0" max="100" step="any" required :value="settings.renewal_same_percent" class="font-mono" />
+                            <UiInput id="renewal_increase_percent" type="number" name="renewal_increase_percent" label="Tăng số HS (%)" min="0" max="100" step="any" required :value="settings.renewal_increase_percent" class="font-mono" />
                         </div>
-                        <table class="w-full text-xs">
-                            <thead>
-                                <tr class="text-left text-xs uppercase text-on-surface-variant">
-                                    <th class="py-1">Số HS nghỉ</th><th class="py-1">% doanh thu lớp</th><th class="py-1">Chờ BA</th><th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(row, i) in rows" :key="i">
-                                    <td class="py-1 pr-2"><input v-model="row.quits" type="number" min="0" :name="`renewal[${i}][quits]`" :aria-label="`Số HS nghỉ, dòng ${i + 1}`" class="w-24 rounded-lg border border-surface-container-highest px-2 py-1.5 font-mono text-xs" /></td>
-                                    <td class="py-1 pr-2"><input v-model="row.percent" type="number" min="0" max="100" step="0.05" :name="`renewal[${i}][percent]`" :aria-label="`% doanh thu lớp, dòng ${i + 1}`" class="w-28 rounded-lg border border-surface-container-highest px-2 py-1.5 font-mono text-xs" /></td>
-                                    <td class="py-1 pr-2">
-                                        <input type="hidden" :name="`renewal[${i}][pending]`" :value="row.pending ? 1 : 0" />
-                                        <input v-model="row.pending" type="checkbox" :aria-label="`Chờ BA, dòng ${i + 1}`" class="rounded border-outline-variant" />
-                                        <span v-show="row.pending" class="ml-1 text-xs font-semibold text-warning">chờ BA</span>
-                                    </td>
-                                    <td class="py-1 text-right"><UiButton variant="danger-text" size="sm" @click="rows.splice(i, 1)">Xoá</UiButton></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div class="flex items-center gap-2">
-                            <label for="renewal_beyond_percent" class="text-xs font-semibold text-on-surface-variant">Nghỉ nhiều hơn các mốc trên:</label>
-                            <input id="renewal_beyond_percent" type="number" name="renewal_beyond_percent" min="0" max="100" step="0.05" :value="settings.renewal_beyond_percent" class="w-28 rounded-lg border border-surface-container-highest px-2 py-1.5 font-mono text-xs" />
-                            <span class="text-xs text-on-surface-variant">% (chờ BA)</span>
-                        </div>
-                        <p v-if="renewalError" class="mt-1 text-xs text-error">{{ renewalError }}</p>
-                        <p v-if="renewalRowError" class="mt-1 text-xs text-error">{{ renewalRowError }}</p>
                     </div>
                 </div>
 

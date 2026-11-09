@@ -174,7 +174,8 @@ class SyllabusDocument extends Model
 
     public function canDownload(User $user): bool
     {
-        return self::userSeesAll($user) || ($this->downloadable && $this->isVisibleTo($user));
+        // GV/TG (cổng giáo viên/trợ giảng) luôn chỉ xem qua viewer (TK-2026-0040); cờ `downloadable` cũ bị bỏ qua.
+        return self::userSeesAll($user);
     }
 
     public function getKindAttribute(): string

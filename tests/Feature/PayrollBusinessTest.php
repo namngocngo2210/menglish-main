@@ -533,16 +533,16 @@ class PayrollBusinessTest extends TestCase
             'insurance_rate_percent' => 11.5,
             'union_rate_percent' => 1,
             'academic_kpi_fund' => 2500000,
-            'renewal' => [['quits' => 0, 'percent' => 1.2, 'pending' => 0], ['quits' => 1, 'percent' => 0.8, 'pending' => 1]],
-            'renewal_beyond_percent' => 0.1,
+            'renewal_same_percent' => 1.2,
+            'renewal_increase_percent' => 1.8,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $settings = PayrollPeriod::payrollSettings();
         $this->assertSame(11.5, $settings['insurance_rate_percent']);
         $this->assertSame(1.0, $settings['union_rate_percent']);
         $this->assertSame(2500000.0, $settings['academic_kpi_fund']);
-        $this->assertSame([0 => ['percent' => 1.2, 'pending' => false], 1 => ['percent' => 0.8, 'pending' => true]], $settings['renewal_table']);
-        $this->assertSame(0.1, $settings['renewal_beyond_percent']);
+        $this->assertSame(1.2, $settings['renewal_same_percent']);
+        $this->assertSame(1.8, $settings['renewal_increase_percent']);
     }
 
     public function test_mark_paid_locks_period_and_records(): void

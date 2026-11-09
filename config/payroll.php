@@ -100,18 +100,10 @@ return [
         ],
     ],
 
-    // ── Thưởng tái tục: chỉ Học vụ (academic_staff, TK-0015) ─────────────────────────
-    // % × doanh thu lớp trong kỳ, % tra theo SỐ HS NGHỈ (Thôi học) trong kỳ của lớp.
-    // BA mới chốt 2 mốc: giữ đủ 100% → 1%, nghỉ 1 HS → 0,7%. Các mốc còn lại CHỜ BA: để 0%.
+    // Renewal bonus: academic staff only, based on retention and growth of their assigned classes.
     'renewal_bonus' => [
-        'table' => [
-            0 => ['percent' => 1.0, 'pending' => false],
-            1 => ['percent' => 0.7, 'pending' => false],
-            2 => ['percent' => 0.0, 'pending' => true],
-            3 => ['percent' => 0.0, 'pending' => true],
-        ],
-        // Nghỉ nhiều hơn mốc lớn nhất trong bảng → % này (chờ BA).
-        'beyond_percent' => 0.0,
+        'same_percent' => 1.0,
+        'increase_percent' => 1.5,
     ],
 
 ];

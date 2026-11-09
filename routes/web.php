@@ -165,6 +165,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', 'home')->name('home');
         Route::post('/', 'punch')->middleware('throttle:20,1')->name('punch');
         Route::get('/lich-su', 'history')->name('history');
+        Route::get('/bao-cao-thang', 'monthlyReport')->name('monthly-report');
+        Route::post('/bao-cao-thang', 'storeMonthlyReport')->name('monthly-report.store');
         Route::get('/don', 'requests')->name('requests');
         Route::post('/don', 'storeRequest')->name('requests.store');
         Route::post('/don/{attendanceRequest}/rut', 'cancelRequest')->whereNumber('attendanceRequest')->name('requests.cancel');
@@ -595,16 +597,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/teacher-adjust', [SyllabusController::class, 'teacherAdjust'])->name('teacher-adjust');
         Route::get('/adjustment-requests', [SyllabusController::class, 'adjustmentRequests'])->name('adjustment-requests');
         Route::post('/adjustment-requests', [SyllabusController::class, 'storeAdjustmentRequest'])->middleware('can:syllabus.propose_adjustment')->name('adjustment-requests.store');
-        Route::post('/adjustment-requests/{id}/approve', [SyllabusController::class, 'approveAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('adjustment-requests.approve');
-        Route::post('/adjustment-requests/{id}/reject', [SyllabusController::class, 'rejectAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('adjustment-requests.reject');
+        Route::post('/adjustment-requests/{id}/approve', [SyllabusController::class, 'approveAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->middleware('can:'.AdminOnlyApprovals::SYLLABUS_ABILITY)->name('adjustment-requests.approve');
+        Route::post('/adjustment-requests/{id}/reject', [SyllabusController::class, 'rejectAdjustmentRequest'])->middleware('can:syllabus.approve_adjustment')->middleware('can:'.AdminOnlyApprovals::SYLLABUS_ABILITY)->name('adjustment-requests.reject');
         Route::get('/teaching-stages', [SyllabusController::class, 'teachingStages'])->name('teaching-stages');
         Route::post('/assignments/{id}/expected-big-test-date', [SyllabusController::class, 'updateExpectedBigTestDate'])->whereNumber('id')->name('assignments.expected-date');
         Route::get('/big-tests/distribution', [SyllabusController::class, 'bigTestDistribution'])->name('big-tests.distribution');
         Route::post('/big-tests/{id}/stage', [SyllabusController::class, 'assignBigTestStage'])->whereNumber('id')->middleware('can:big_test.approve')->name('big-tests.stage');
         Route::post('/big-tests/distribution', [SyllabusController::class, 'storeBigTest'])->middleware('can:syllabus.manage')->name('big-tests.store');
-        Route::post('/big-tests/{id}/approve', [SyllabusController::class, 'approveAndDistributeBigTest'])->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('big-tests.approve');
-        Route::post('/big-tests/orders/{id}/approve', [SyllabusController::class, 'approveBigTestOrder'])->whereNumber('id')->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('big-tests.orders.approve');
-        Route::post('/big-tests/orders/{id}/reject', [SyllabusController::class, 'rejectBigTestOrder'])->whereNumber('id')->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('big-tests.orders.reject');
+        Route::post('/big-tests/{id}/approve', [SyllabusController::class, 'approveAndDistributeBigTest'])->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::SYLLABUS_ABILITY)->name('big-tests.approve');
+        Route::post('/big-tests/orders/{id}/approve', [SyllabusController::class, 'approveBigTestOrder'])->whereNumber('id')->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::SYLLABUS_ABILITY)->name('big-tests.orders.approve');
+        Route::post('/big-tests/orders/{id}/reject', [SyllabusController::class, 'rejectBigTestOrder'])->whereNumber('id')->middleware('can:big_test.approve')->middleware('can:'.AdminOnlyApprovals::SYLLABUS_ABILITY)->name('big-tests.orders.reject');
         Route::get('/big-tests/schedules', [SyllabusController::class, 'bigTestSchedules'])->name('big-tests.schedules');
         Route::post('/big-tests/{id}/remind', [SyllabusController::class, 'sendBigTestReminder'])->middleware('can:syllabus.manage')->name('big-tests.remind');
         Route::get('/big-tests/results/{id?}', [SyllabusController::class, 'bigTestResults'])->name('big-tests.results');
@@ -813,12 +815,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/complete', [WorkTaskController::class, 'completeTask'])->name('complete');
         Route::get('/class-reports/create', [WorkTaskController::class, 'createClassReport'])->name('class-reports.create');
         Route::post('/class-reports', [WorkTaskController::class, 'storeClassReport'])->name('class-reports.store');
-        // Xác nhận / trả lại việc và báo cáo trực lớp: chỉ Admin (AdminOnlyApprovals), không tự duyệt — kiểm tra thêm trong controller.
+        // Xác nhận / trả lại việc và báo cáo trực lớp: chỉ người xác nhận theo R-13 (GV chính của lớp / người giao việc) — kiểm tra trong controller (403).
         Route::get('/manual-approvals', [WorkTaskController::class, 'manualApprovals'])->name('manual-approvals');
-        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('approve');
-        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('reject');
-        Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('class-reports.approve');
-        Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->middleware('can:'.AdminOnlyApprovals::ABILITY)->name('class-reports.reject');
+        Route::post('/{id}/approve', [WorkTaskController::class, 'approveTask'])->name('approve');
+        Route::post('/{id}/reject', [WorkTaskController::class, 'rejectTask'])->name('reject');
+        Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->name('class-reports.approve');
+        Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->name('class-reports.reject');
         Route::get('/schedule-config', [WorkTaskController::class, 'scheduleConfig'])->name('schedule-config');
         Route::post('/schedule-config', [WorkTaskController::class, 'updateScheduleConfig'])->middleware('can:work_task.assign')->name('schedule-config.update');
         Route::get('/support-sessions', [WorkTaskController::class, 'supportSessions'])->name('support-sessions');
@@ -1008,6 +1010,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/mine', 'mine')->middleware('can:'.\App\Models\KpiCriterion::OWN_ABILITY)->name('mine');
         Route::get('/evaluate/{userId}', 'evaluate')->middleware('can:kpi.view')->name('evaluate');
         Route::post('/evaluate/{userId}', 'evaluateStore')->middleware('can:kpi.confirm')->name('evaluate.store');
+        Route::post('/evaluate/{userId}/critical', 'evaluateCritical')->middleware('can:kpi.manage')->name('evaluate.critical');
         Route::get('/attendance-review', 'attendanceReview')->middleware('can:kpi.view')->name('attendance-review');
         Route::post('/attendance-review/{id}', 'reviewAttendance')->middleware('can:kpi.confirm')->name('attendance-review.update');
     });

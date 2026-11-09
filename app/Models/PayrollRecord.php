@@ -400,7 +400,7 @@ class PayrollRecord extends Model
             }
             if ((float) $this->renew_bonus != 0.0 || ! empty(data_get($this->calculation_details, 'renewal.classes'))) {
                 $lines[] = ['key' => 'renew_bonus', 'label' => 'Thưởng tái tục', 'amount' => (float) $this->renew_bonus,
-                    'hint' => '% theo số HS nghỉ của lớp phụ trách × doanh thu lớp trong kỳ'];
+                    'hint' => 'Chỉ Học vụ: lớp phụ trách có HS nghỉ → 0%; không có HS nghỉ → % giữ nguyên hoặc tăng HS × doanh thu lớp trong kỳ'];
             }
         }
 

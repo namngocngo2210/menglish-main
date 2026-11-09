@@ -505,7 +505,7 @@ class DemoPhase4Seeder extends Seeder
             'assignee' => $this->staff['teacher_cg']->id, 'dueDate' => $due, 'taskType' => 'one_time', 'branch_id' => $this->branches['CG'],
             'class_id' => $this->classes['CG-FAM1']->id,
         ]);
-        // Chiều ngược: GV → Học vụ (work_task.request), Học vụ làm xong gửi chờ xác nhận, Admin xác nhận (chỉ Admin duyệt).
+        // Chiều ngược: GV → Học vụ (work_task.request), Học vụ làm xong gửi chờ xác nhận, người giao (GV) xác nhận (R-13).
         $this->asUser($this->staff['teacher_cg'], WorkTaskController::class, 'store', [
             'taskTitle' => 'Đề nghị in thêm 5 bộ giáo trình FAM 1 '.self::MARKER, 'taskDescription' => 'Lớp có 2 học viên mới chưa có sách.',
             'assignee' => $this->staff['academic_cg']->id, 'dueDate' => $due, 'taskType' => 'one_time', 'branch_id' => $this->branches['CG'],
@@ -516,7 +516,7 @@ class DemoPhase4Seeder extends Seeder
         Carbon::setTestNow(now()->addHours(2));
         $this->asUser($this->staff['academic_cg'], WorkTaskController::class, 'updateStatus', ['status' => 'pending_confirmation', 'note' => 'Đã in và để ở quầy lễ tân.'], ['id' => $request->id]);
         Carbon::setTestNow(now()->addHours(1));
-        $this->asUser($this->staff['admin'], WorkTaskController::class, 'approveTask', [], ['id' => $request->id]);
+        $this->asUser($this->staff['teacher_cg'], WorkTaskController::class, 'approveTask', [], ['id' => $request->id]);
         // TA → Quản lý (chiều ngược, còn mở).
         $this->asUser($this->staff['assistant_bd'], WorkTaskController::class, 'store', [
             'taskTitle' => 'Báo hỏng loa phòng 2, nhờ thay trước buổi tới '.self::MARKER,
@@ -545,7 +545,7 @@ class DemoPhase4Seeder extends Seeder
         $this->asUser($this->staff['assistant_bd'], WorkTaskController::class, 'completeTask', ['note' => 'Đã mở phòng 17:15.', 'proof_image_url' => 'https://menglish.edu.vn/demo/phong-hoc.jpg'], ['id' => $shifts['before']->id]);
         $this->asUser($this->staff['assistant_bd'], WorkTaskController::class, 'completeTask', ['note' => 'Kèm 3 bạn đọc chậm.'], ['id' => $shifts['during']->id]);
 
-        // Báo cáo trực lớp: có ảnh bảng → tự hoàn thành; không ảnh → chờ Admin xác nhận.
+        // Báo cáo trực lớp: có ảnh bảng → tự hoàn thành; không ảnh → chờ GV chính / người giao xác nhận (R-13).
         $this->asUser($this->staff['assistant_cg'], WorkTaskController::class, 'storeClassReport', [
             'class_id' => $this->classes['CG-FAM1']->id, 'session_name' => 'Buổi trực '.$this->realNow->format('d/m').' '.self::MARKER,
             'hom_nay_hoc_gi' => 'Unit 5: Animals — từ vựng + mẫu câu "It has…"', 'nhat_ky_day' => 'Lớp đi đủ, 2 bạn cần luyện phát âm.',

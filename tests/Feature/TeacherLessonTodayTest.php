@@ -67,6 +67,32 @@ class TeacherLessonTodayTest extends TestCase
             ->assertSessionHasErrors('class_session_id');
     }
 
+    /** GV-TL-03 (TK-2026-0061): xem nội dung mọi buổi của chặng được giao, kể cả ngày không có buổi học; chỉ xem. */
+    public function test_teacher_can_view_any_lesson_of_assigned_stage_read_only(): void
+    {
+        $this->today->update(['status' => 'cancelled']);
+        $stageLessonIds = SyllabusLesson::whereHas('unit', fn ($q) => $q->where('stage_id', $this->stage1->id))->pluck('id')->all();
+
+        $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id, 'lesson' => $this->lesson(2)->id]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('session', null)
+                ->where('lesson.session_no', 2)
+                ->where('lesson.data.content', 'Nội dung buổi 2')
+                ->where('viewing_other', true)
+                ->where('can_mark', false)
+                ->has('stage_lessons', count($stageLessonIds))
+                ->etc());
+    }
+
+    public function test_teacher_cannot_view_lesson_outside_assigned_stage(): void
+    {
+        $outside = SyllabusLesson::whereHas('unit', fn ($q) => $q->where('stage_id', $this->stage2->id))->firstOrFail();
+
+        $this->actingAs($this->teacher)->get(route('teacher.lesson-today', ['class' => $this->class->id, 'lesson' => $outside->id]))
+            ->assertNotFound();
+    }
+
     public function test_mark_taught_advances_and_records_pace_note(): void
     {
         $this->actingAs($this->teacher)->post(route('teacher.lesson-today.taught', $this->class->id), [

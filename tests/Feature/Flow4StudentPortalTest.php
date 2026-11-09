@@ -343,6 +343,33 @@ class Flow4StudentPortalTest extends TestCase
     }
 
     /**
+     * HS-KS-02 / R-10 AC-S06: gửi khảo sát tạo đúng 1 thông báo xác nhận, gửi lại không nhân đôi.
+     */
+    public function test_submit_survey_creates_single_confirmation_notification()
+    {
+        $payload = [
+            'student_id' => $this->student->id,
+            'survey_title' => 'Khảo sát tháng 10',
+            'feedback' => 'Phòng học sạch sẽ.',
+        ];
+
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
+
+        $this->actingAs($this->user)->get(route('portal.student.notifications', $this->student->id))
+            ->assertInertia(fn ($page) => $page
+                ->component('Portal/Notifications')
+                ->has('notifications', 1)
+                ->where('notifications.0.title', 'Đã nhận khảo sát của bạn')
+                ->where('notifications.0.unread', true));
+        $this->assertSame(0, \App\Models\AdminNotification::where('type', 'survey_submitted')->count());
+
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), ['survey_title' => 'Khảo sát khác'] + $payload);
+        $this->actingAs($this->user)->get(route('portal.student.notifications', $this->student->id))
+            ->assertInertia(fn ($page) => $page->has('notifications', 2));
+    }
+
+    /**
      * Flow 4 - Step 7: Phụ huynh gửi Feedback chặng học (MH6)
      */
     public function test_flow_4_step_7_feedback_renders_successfully()
@@ -394,6 +421,28 @@ class Flow4StudentPortalTest extends TestCase
             'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback',
             'status' => 'submitted',
         ]);
+    }
+
+    /**
+     * HS-FB-10 / R-09 AC-R08: no class -> general form, no class/stage shown, feedback not tied to a stage.
+     */
+    public function test_feedback_without_class_is_general_and_not_attached_to_stage()
+    {
+        $this->student->update(['current_class_id' => null]);
+
+        $this->actingAs($this->user)->get(route('portal.student.feedback', ['studentId' => $this->student->id]))
+            ->assertStatus(200)
+            ->assertInertia(fn ($page) => $page->where('hasClass', false)->where('className', '')->where('stageName', 'Góp ý chung'));
+
+        $this->actingAs($this->user)->post(route('portal.student.feedback.store'), [
+            'student_id' => $this->student->id,
+            'stage_name' => 'Chặng 2: forged',
+            'muc_do_hai_long' => 4,
+        ])->assertSessionHasNoErrors();
+
+        $record = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')->firstOrFail();
+        $this->assertSame('', $record->data['stage_name']);
+        $this->assertNull($record->data['class_name']);
     }
 
     /**
@@ -566,6 +615,32 @@ class Flow4StudentPortalTest extends TestCase
             ->assertOk()
             ->assertDontSee('Giáo viên giảng dạy nhiệt tình')
             ->assertSee('Không có nội dung chi tiết.');
+    }
+
+    public function test_portal_ignores_another_student_id_for_student_accounts()
+    {
+        $other = Student::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'Trần Thị Khác',
+            'code' => 'HV-00999',
+            'phone' => '0911222333',
+            'status' => 'active',
+            'branch_id' => $this->student->branch_id,
+        ]);
+
+        foreach (['home', 'homework', 'pronunciation', 'notifications', 'survey', 'feedback'] as $screen) {
+            $this->actingAs($this->user)
+                ->get(route('portal.student.'.$screen, ['studentId' => $other->id]))
+                ->assertOk()
+                ->assertSee('Nguyễn Văn A')
+                ->assertDontSee('Trần Thị Khác');
+        }
+
+        $this->actingAs($this->user)
+            ->get(route('portal.app-shell', ['student_id' => $other->id]))
+            ->assertOk()
+            ->assertSee('Nguyễn Văn A')
+            ->assertDontSee('Trần Thị Khác');
     }
 
     /** File MP3 tối thiểu (header ID3) để đuôi file suy ra từ nội dung là mp3. */

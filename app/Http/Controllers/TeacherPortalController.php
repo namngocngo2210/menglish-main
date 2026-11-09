@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
+use App\Models\AttendanceMonthlyReport;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassEnrollment;
@@ -260,11 +261,15 @@ class TeacherPortalController extends Controller
         $todayDate = Carbon::parse($today);
         $weekdayLong = [1 => 'Thứ Hai', 2 => 'Thứ Ba', 3 => 'Thứ Tư', 4 => 'Thứ Năm', 5 => 'Thứ Sáu', 6 => 'Thứ Bảy', 7 => 'Chủ Nhật'];
 
+        $attendanceReportPending = AttendanceMonthlyReport::pendingMonth($teacher->id, now());
+
         return Inertia::render('Teacher/Home', [
             'teacherName' => $teacher->name,
             'todayLabel' => $weekdayLong[$todayDate->isoWeekday()].', '.$todayDate->format('d/m'),
             'stats' => $stats,
             'todo' => [
+                'attendance_report_pending' => $attendanceReportPending,
+                'attendance_report_url' => route('my-attendance.monthly-report', ['month' => $attendanceReportPending]),
                 'reports_pending' => $reportsPending->count(),
                 'report_url' => $firstReport ? route('classes.session-report', ['id' => $firstReport->class_id, 'session' => $firstReport->id]) : null,
             ],
@@ -1281,7 +1286,6 @@ class TeacherPortalController extends Controller
 
         return Inertia::render('Teacher/Scores', [
             'classroom' => ['id' => $class->id, 'name' => $class->name, 'code' => $class->code],
-            'skills' => MiniTestScore::SKILLS,
             'units' => $units->map(fn ($u) => ['value' => $u->id, 'label' => 'Unit '.$u->unit_number.': '.$u->title])->values()->all(),
             'unitId' => $unit?->id,
             'testName' => $testName,
@@ -1290,8 +1294,7 @@ class TeacherPortalController extends Controller
             // Tham số giữ Unit / tên bài khi bấm "Sửa" / "Nhập" một học sinh.
             'rowParams' => array_filter(['classId' => $class->id, 'unit_id' => $unit?->id, 'name' => $unit ? null : $testName]),
             'current' => [
-                'max_score' => $current?->max_score ? $fmt($current->max_score) : '10',
-                'skills' => collect(MiniTestScore::SKILLS)->map(fn ($label, $key) => isset($current?->skill_scores[$key]) ? $fmt($current->skill_scores[$key]) : '')->all(),
+                'components' => collect($current?->components())->map(fn ($c) => ['name' => $c['name'], 'score' => (string) $c['score']])->values()->all(),
                 'note' => $current?->note,
             ],
             'students' => $class->students->map(function (Student $student) use ($existing, $fmt) {
@@ -1301,9 +1304,9 @@ class TeacherPortalController extends Controller
                     'id' => $student->id,
                     'name' => $student->name,
                     'has_score' => (bool) $sc,
-                    'skills' => collect(MiniTestScore::SKILLS)->map(fn ($label, $key) => $fmt($sc?->skill_scores[$key] ?? null))->all(),
-                    'total' => $sc ? $fmt($sc->score).'/'.$fmt($sc->max_score) : null,
-                    'low' => $sc && (float) $sc->max_score > 0 && (float) $sc->score * 10 < (float) $sc->max_score * 7,
+                    'components' => $sc ? collect($sc->components())->map(fn ($c) => $c['name'].': '.$fmt($c['score']))->implode(' · ') : '',
+                    'total' => $sc ? $fmt($sc->score).($sc->isFreeScale() ? '' : '/'.$fmt($sc->max_score)) : null,
+                    'low' => $sc && ! $sc->isFreeScale() && (float) $sc->max_score > 0 && (float) $sc->score * 10 < (float) $sc->max_score * 7,
                 ];
             })->values()->all(),
             'scoredCount' => $existing->count(),
@@ -1321,26 +1324,27 @@ class TeacherPortalController extends Controller
         $class = ClassModel::findOrFail($classId);
         $this->authorizeTeaching($class);
 
-        // Form theo mockup: 1 học sinh + 4 kỹ năng.
-        if ($request->has('skills')) {
+        // Form: 1 học sinh + các thành phần điểm GV tự đặt tên/số lượng (TK-2026-0049). Không kiểm tra thang điểm.
+        if ($request->has('components')) {
             $validated = $request->validate([
                 'unit_id' => 'nullable|integer',
                 'name' => 'nullable|string|max:255',
                 'student_id' => 'required|integer',
                 'test_date' => 'nullable|date',
-                'max_score' => 'nullable|numeric|min:1|max:100',
-                'skills' => 'required|array',
-                'skills.*' => 'nullable|numeric|min:0',
+                'components' => 'required|array|min:1',
+                'components.*.name' => 'nullable|string|max:100',
+                'components.*.score' => 'nullable|numeric|min:0',
                 'note' => 'nullable|string|max:1000',
-            ], ['student_id.required' => 'Vui lòng chọn học sinh.']);
-            $max = (float) ($validated['max_score'] ?? 10);
-            $skills = collect(array_keys(MiniTestScore::SKILLS))->mapWithKeys(fn ($k) => [$k => $validated['skills'][$k] ?? null]);
-            if ($skills->contains(fn ($v) => $v === null || $v === '')) {
-                return back()->withInput()->withErrors(['skills' => 'Cần nhập đủ điểm 4 kỹ năng.']);
+            ], ['student_id.required' => 'Vui lòng chọn học sinh.', 'components.required' => 'Cần nhập ít nhất 1 thành phần điểm.']);
+            // Dòng trống hoàn toàn bị bỏ qua; dòng thiếu tên hoặc thiếu điểm là lỗi.
+            $components = collect($validated['components'])
+                ->map(fn ($c) => ['name' => trim((string) ($c['name'] ?? '')), 'score' => $c['score'] ?? null])
+                ->reject(fn ($c) => $c['name'] === '' && ($c['score'] === null || $c['score'] === ''))
+                ->values();
+            if ($components->isEmpty() || $components->contains(fn ($c) => $c['name'] === '' || $c['score'] === null || $c['score'] === '')) {
+                return back()->withInput()->withErrors(['components' => 'Cần nhập ít nhất 1 thành phần điểm, mỗi thành phần phải có đủ tên và điểm.']);
             }
-            if ($skills->contains(fn ($v) => (float) $v > $max)) {
-                return back()->withInput()->withErrors(['skills' => 'Điểm kỹ năng không được vượt quá điểm tối đa ('.$max.').']);
-            }
+            $components = $components->map(fn ($c) => ['name' => $c['name'], 'score' => (float) $c['score']]);
             $unit = filled($validated['unit_id'] ?? null)
                 ? app(\App\Services\SessionLessonService::class)->unitsForClass($class)->firstWhere('id', (int) $validated['unit_id'])
                 : null;
@@ -1358,9 +1362,9 @@ class TeacherPortalController extends Controller
                 [
                     'user_id' => Auth::id(),
                     'syllabus_unit_id' => $unit?->id,
-                    'score' => round($skills->avg(fn ($v) => (float) $v), 2),
-                    'max_score' => $max,
-                    'skill_scores' => $skills->map(fn ($v) => (float) $v)->all(),
+                    'score' => round($components->avg('score'), 2),
+                    'max_score' => 10, // cột NOT NULL các báo cáo đang dùng; điểm tổng = trung bình thành phần, GV không nhập thang
+                    'skill_scores' => $components->all(),
                     'test_date' => $validated['test_date'] ?? now()->toDateString(),
                     'note' => $validated['note'] ?? null,
                 ]

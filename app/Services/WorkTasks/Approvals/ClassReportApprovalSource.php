@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 /**
- * Báo cáo trực lớp (không ảnh) chờ xác nhận (màn tasks.manual-approvals, mục báo cáo): chỉ Admin xác nhận
- * (ClassReport::isConfirmableBy, 06/10/2026); người nộp không tự xác nhận.
+ * Báo cáo trực lớp (không ảnh) chờ xác nhận (màn tasks.manual-approvals, mục báo cáo): GV chính của lớp xác nhận
+ * (ClassReport::isConfirmableBy, R-13); người nộp không tự xác nhận.
  */
 class ClassReportApprovalSource extends QueryApprovalSource
 {
@@ -49,7 +49,7 @@ class ClassReportApprovalSource extends QueryApprovalSource
     {
         return ClassReport::query()
             ->where('status', ClassReport::STATUS_PENDING)
-            ->where('reporter_id', '!=', $user->id); // chỉ Admin xác nhận (ClassReport::isConfirmableBy)
+            ->where('reporter_id', '!=', $user->id); // GV chính của lớp xác nhận, R-13 (ClassReport::isConfirmableBy)
     }
 
     protected function with(): array

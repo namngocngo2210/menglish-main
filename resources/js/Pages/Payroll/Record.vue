@@ -286,7 +286,13 @@ function sessionNote(ts) {
                                         <span class="font-mono">{{ money(group.amount) }} đ</span>
                                     </p>
                                     <ul class="ml-md list-disc font-body-small text-body-small text-on-surface-variant">
-                                        <li v-for="(item, i) in group.items" :key="i">{{ item.code }} {{ item.name }} — điểm {{ pct(item.score) }}% × trọng số {{ pct(item.weight) }}% = {{ money(item.amount) }} đ</li>
+                                        <li v-for="(item, i) in group.items" :key="i">
+                                            {{ item.code }} {{ item.name }} — điểm {{ pct(item.score) }}% × trọng số {{ pct(item.weight) }}% = {{ money(item.amount) }} đ
+                                            <template v-if="item.critical">
+                                                <UiBadge color="error" :title="item.critical_note">Lỗi nghiêm trọng — 0%</UiBadge>
+                                                <span v-if="item.critical_note" class="block font-caption text-caption text-error">{{ item.critical_note }}</span>
+                                            </template>
+                                        </li>
                                     </ul>
                                 </div>
                                 <p v-if="!kpiGroups.length" class="font-body-small text-body-small text-on-surface-variant">Chưa có đánh giá KPI tháng {{ period.month }}/{{ period.year }} được chốt.</p>
@@ -474,12 +480,13 @@ function sessionNote(ts) {
                 <UiDataTable v-if="renewalClasses.length">
                     <template #header><h3 class="font-h3 text-h3 text-on-surface">Thưởng tái tục theo lớp</h3></template>
                     <table>
-                        <thead><tr><th>Lớp</th><th class="text-right">HS nghỉ</th><th class="text-right">%</th><th class="text-right">Doanh thu lớp</th><th class="text-right">Thưởng</th></tr></thead>
+                        <thead><tr><th>Lớp</th><th class="text-right">HS nghỉ</th><th class="text-right">HS mới còn học</th><th class="text-right">%</th><th class="text-right">Doanh thu lớp</th><th class="text-right">Thưởng</th></tr></thead>
                         <tbody>
                             <tr v-for="(row, i) in renewalClasses" :key="i">
                                 <td>{{ row.class }} <span class="block font-caption text-caption text-on-surface-variant">{{ row.base }} HS đầu kỳ</span></td>
                                 <td class="text-right font-code text-code">{{ row.quits }}</td>
-                                <td class="text-right font-code text-code">{{ pct(row.percent) }}%<span v-if="row.pending" class="block font-caption text-caption text-warning">chờ BA</span></td>
+                                <td class="text-right font-code text-code">{{ row.joined ?? '—' }}</td>
+                                <td class="text-right font-code text-code">{{ pct(row.percent) }}%<span v-if="row.tier" class="block font-caption text-caption text-on-surface-variant">{{ { dropped: 'Có HS nghỉ', same: 'Giữ nguyên số HS', increase: 'Tăng số HS' }[row.tier] }}</span></td>
                                 <td><UiMoney :value="row.revenue" suffix="đ" /></td>
                                 <td><UiMoney :value="row.amount" suffix="đ" /></td>
                             </tr>

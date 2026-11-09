@@ -5,13 +5,21 @@ Luồng: **Đang tính → Đã chốt → Đã gửi GV xem → Đã trả** (`
 | Trạng thái | Thao tác tiếp theo | Quyền | Phạm vi khóa |
 |---|---|---|---|
 | **Đang tính** (`draft`) | Chốt bảng lương → Đã chốt | `payroll.approve` | Được đồng bộ, tính lại và sửa phiếu lương; nhân sự chưa xem được phiếu của mình. |
-| **Đã chốt** (`closed`) | Mở lại để tính lại → Đang tính; hoặc Gửi GV xem → Đã gửi GV xem | `payroll.approve` | Đóng băng số tiền: không tính lại hoặc sửa phiếu. Dữ liệu nguồn vẫn sửa được; chưa tất toán phạt / hoa hồng hoặc gửi thông báo. |
+| **Đã chốt** (`closed`) | Mở lại để tính lại → Đang tính; hoặc Gửi GV xem → Đã gửi GV xem | `payroll.approve` | Đóng băng số tiền: không tính lại hoặc sửa phiếu. Dữ liệu nguồn ngoài phiếu KPI vẫn sửa được; chưa tất toán phạt / hoa hồng hoặc gửi thông báo. |
 | **Đã gửi GV xem** (`published`) | Đánh dấu đã trả → Đã trả | `payroll.mark_paid` | Khóa phiếu và dữ liệu nguồn của kỳ (chấm công, phạt, đơn giá…). Nhân sự xem được phiếu của mình; phạt được đóng dấu đã trừ, hoa hồng được tất toán và thông báo được gửi. |
 | **Đã trả** (`paid`) | Hoàn tất | — | Giữ nguyên khóa; không mở lại. Trả ngoài ngày 10–15 tháng sau chỉ cảnh báo. |
 
 Chỉ chốt sau khi đã tính ít nhất một lần, qua hạn chốt công / lỗi, không có lần tính nền đang chờ, không còn KPI chờ chốt, dữ liệu khớp lần tính gần nhất và không có nhân sự bị khấu trừ lớn hơn thu nhập (thực lĩnh trước giới hạn âm). Nếu dữ liệu nguồn đổi sau khi chốt, phải **Mở lại → Đồng bộ & Tính lại → Chốt bảng lương** rồi mới **Gửi GV xem**. Mỗi lần chuyển trạng thái được ghi lịch sử cùng người thao tác và thời gian. Không có thao tác mở lại sau khi đã gửi GV xem hoặc đã trả.
 
 Chuyển đổi dữ liệu cũ: `draft` và `reviewing` → `draft`; `approved` → `published`; `paid` giữ nguyên. Kỳ `approved` trước đây đã khóa dữ liệu, trừ phạt, tất toán hoa hồng và hiện trong **Lương của tôi**, nên phải chuyển sang **Đã gửi GV xem**; chuyển về **Đã chốt** sẽ mở khóa dữ liệu đã tất toán. Chỉ các kỳ đổi giá trị trạng thái mới có dòng lịch sử chuyển đổi, với ghi chú “Chuyển đổi trạng thái cũ (TK-0016)”.
+
+## Lỗi nghiêm trọng KPI Học vụ (TK-2026-0034)
+
+Admin có quyền `kpi.manage` được đánh dấu / bỏ đánh dấu **lỗi nghiêm trọng** trên từng tiêu chí phiếu KPI Học vụ chính, trong phạm vi nhân sự được xem; không tự đánh dấu phiếu của mình. Đánh dấu phải có lý do tối đa 500 ký tự, lưu người và thời gian thao tác cùng nhật ký. Tiêu chí bị đánh dấu đạt **0%** dù số liệu đạt 100%.
+
+Phiếu đã duyệt lưu lại điểm trước khi đánh dấu để khôi phục khi bỏ dấu; phiếu chờ duyệt tính 0% ngay và giữ 0 khi duyệt. Tổng phiếu tính lại theo trọng số, bỏ mục Không phát sinh và giữ quy tắc loại trừ. Phiếu KPI bị khóa khi kỳ lương **Đã chốt / Đã gửi GV xem / Đã trả**; kỳ Đã chốt phải Mở lại trước khi sửa.
+
+Thao tác không tự tính lại lương. Bấm **Đồng bộ & Tính lại** để cập nhật tiền và thông tin lỗi nghiêm trọng vào phiếu lương. Ví dụ quỹ 2.000.000đ, phiếu 85% = 1.700.000đ; đánh dấu mục trọng số 10% đang đạt 100% → phiếu 75% = 1.500.000đ. Mục lỗi nghiêm trọng cũ chưa lưu điểm trước đó không thể tự khôi phục điểm đã mất.
 
 ## Khấu trừ vượt thu nhập (TK-0017)
 

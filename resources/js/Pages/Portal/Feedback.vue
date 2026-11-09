@@ -18,6 +18,7 @@ const props = defineProps({
     lastFeedback: { type: Object, default: null },
     stageName: { type: String, default: '' },
     className: { type: String, default: '' },
+    hasClass: { type: Boolean, default: true },
     showSuccess: { type: Boolean, default: false },
     feedbackSuccess: { type: Boolean, default: false },
 });
@@ -76,7 +77,7 @@ function validateForm(event) {
 
     <!-- Khung điện thoại -->
     <div class="relative mx-auto my-4 flex min-h-[844px] max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-surface-container-lowest pb-24 shadow-2xl md:min-h-0 md:max-w-4xl md:pb-6 md:shadow-sm">
-        <PortalTopHeader :student="student" :students="students" title="Feedback chặng" show-back :back-url="route('portal.student.survey', params)" />
+        <PortalTopHeader :student="student" title="Feedback chặng" show-back :back-url="route('portal.student.survey', params)" />
 
         <div class="flex items-center border-b border-surface-container-highest bg-surface-container-low px-3 pt-2">
             <Link :href="route('portal.student.survey', params)" class="flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2 text-xs font-semibold text-on-surface-variant transition hover:text-on-surface">
@@ -112,7 +113,10 @@ function validateForm(event) {
                 </UiAlert>
 
                 <!-- Tên chặng đang mở thu thập (chỉ đọc, R-02) -->
-                <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-3.5 shadow-2xs">
+                <div v-if="!hasClass" class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-3.5 shadow-2xs">
+                    <h3 class="text-xs font-bold text-on-surface">Góp ý chung</h3>
+                </div>
+                <div v-else class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-3.5 shadow-2xs">
                     <div class="mb-1.5 flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Chặng học đang mở thu thập</span>
                         <UiBadge color="success" pill>Đang mở thu thập</UiBadge>
@@ -132,7 +136,7 @@ function validateForm(event) {
                 <div @submit.capture="validateForm">
                     <UiForm :action="route('portal.student.feedback.store')" method="post" class="space-y-4">
                         <input type="hidden" name="student_id" :value="student?.id ?? 1" />
-                        <input type="hidden" name="stage_name" :value="stageName" />
+                        <input v-if="hasClass" type="hidden" name="stage_name" :value="stageName" />
                         <input type="hidden" name="muc_do_hai_long" :value="rating" />
 
                         <!-- 1. Mức hài lòng 1–5 sao (R-04) -->
@@ -211,7 +215,7 @@ function validateForm(event) {
                     </div>
                 </div>
 
-                <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 shadow-2xs">
+                <div v-if="hasClass" class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 shadow-2xs">
                     <div class="mb-1.5 flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Chặng học đã hoàn thành</span>
                         <UiBadge color="neutral" pill>Đã đóng</UiBadge>
