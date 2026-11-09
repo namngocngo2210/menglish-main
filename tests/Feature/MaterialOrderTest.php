@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AdminNotification;
 use App\Models\Branch;
+use App\Models\ClassModel;
 use App\Models\MaterialOrder;
 use App\Models\User;
 use App\Services\MaterialOrderService;
@@ -47,6 +48,17 @@ class MaterialOrderTest extends TestCase
         $user->assignRole($role);
 
         return $user;
+    }
+
+    private function classFor(User $teacher): ClassModel
+    {
+        return ClassModel::create([
+            'code' => 'MO-'.$teacher->id,
+            'name' => 'Material order class',
+            'branch_id' => $teacher->branch_id,
+            'teacher_id' => $teacher->id,
+            'status' => 'active',
+        ]);
     }
 
     private function payload(array $overrides = []): array
@@ -95,7 +107,8 @@ class MaterialOrderTest extends TestCase
         $lead = $this->user('academic_lead');
 
         $this->actingAs($teacher)->from(route('material-orders.index'))
-            ->post(route('material-orders.store'), $this->payload())
+            ->post(route('material-orders.store'), $this->payload(['class_id' => $this->classFor($teacher)->id]))
+            ->assertSessionHasNoErrors()
             ->assertRedirect(route('material-orders.index'))
             ->assertSessionMissing('warning');
 
@@ -128,12 +141,14 @@ class MaterialOrderTest extends TestCase
     {
         $teacher = $this->user('teacher');
 
+        $class = $this->classFor($teacher);
+
         // Dùng ngày mai: hạn là 15:00 hôm nay, hiện 09:00 nên còn hạn; dùng hôm nay: hạn 15:00 hôm qua → trễ.
-        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['use_date' => '2026-10-08']))
+        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['class_id' => $class->id, 'use_date' => '2026-10-08']))
             ->assertSessionMissing('warning');
         $this->assertFalse(MaterialOrder::firstOrFail()->created_late);
 
-        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['use_date' => '2026-10-07', 'title' => 'Gấp']))
+        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['class_id' => $class->id, 'use_date' => '2026-10-07', 'title' => 'Gấp']))
             ->assertSessionHas('warning')
             ->assertSessionHasNoErrors();
 
@@ -147,6 +162,150 @@ class MaterialOrderTest extends TestCase
                 ->component('MaterialOrders/Index')
                 ->where('orders.total', 2)
                 ->where('orders.data.0.created_late', true));
+    }
+
+    public function test_props_and_printing_require_a_class(): void
+    {
+        $teacher = $this->user('teacher');
+
+        foreach (['props', 'printing'] as $category) {
+            foreach ([[], ['class_id' => null]] as $classData) {
+                $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                    'category' => $category, ...$classData,
+                ]))->assertSessionHasErrors(['class_id' => 'Vui lòng chọn lớp cho order Đạo cụ / In ấn.']);
+            }
+        }
+
+        $this->assertSame(0, MaterialOrder::count());
+    }
+
+    public function test_foreign_teacher_and_academic_can_be_created_without_a_class(): void
+    {
+        $teacher = $this->user('teacher');
+
+        foreach (['foreign_teacher', 'academic'] as $category) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                'category' => $category,
+            ]))->assertRedirect()->assertSessionHasNoErrors();
+
+            $this->assertNull(MaterialOrder::where('category', $category)->sole()->class_id);
+        }
+    }
+
+    public function test_yesterday_is_rejected_for_every_category(): void
+    {
+        $teacher = $this->user('teacher');
+        $class = $this->classFor($teacher);
+
+        foreach (array_keys(MaterialOrder::CATEGORIES) as $category) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                'category' => $category,
+                'class_id' => $class->id,
+                'use_date' => today()->subDay()->toDateString(),
+            ]))->assertSessionHasErrors(['use_date' => 'Ngày sử dụng không được ở quá khứ.']);
+        }
+
+        $this->assertSame(0, MaterialOrder::count());
+    }
+
+    public function test_today_is_accepted_for_every_category(): void
+    {
+        $teacher = $this->user('teacher');
+        $class = $this->classFor($teacher);
+        $this->travelTo(Carbon::parse('2026-10-08 00:30:00', config('app.timezone')));
+
+        foreach (array_keys(MaterialOrder::CATEGORIES) as $category) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                'category' => $category,
+                'class_id' => $class->id,
+                'use_date' => '2026-10-08',
+            ]))->assertRedirect()->assertSessionHasNoErrors();
+
+            $this->assertSame('2026-10-08', MaterialOrder::where('category', $category)->sole()->use_date->toDateString());
+        }
+    }
+
+    public function test_class_must_be_visible_to_the_teacher(): void
+    {
+        $teacher = $this->user('teacher');
+        $otherClass = $this->classFor($this->user('teacher'));
+
+        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+            'class_id' => $otherClass->id,
+        ]))->assertSessionHasErrors(['class_id' => 'Lớp học không nằm trong phạm vi của bạn.']);
+
+        $this->assertSame(0, MaterialOrder::count());
+    }
+
+    public function test_printing_stores_specification_and_exposes_it_on_show(): void
+    {
+        $teacher = $this->user('teacher');
+        $specification = 'A4, 2 mặt, đen trắng, đóng quyển';
+
+        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+            'category' => 'printing',
+            'class_id' => $this->classFor($teacher)->id,
+            'specification' => $specification,
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+
+        $order = MaterialOrder::sole();
+        $this->assertSame($specification, $order->specification);
+        $this->actingAs($teacher)->get(route('material-orders.show', $order))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('order.specification', $specification));
+    }
+
+    public function test_non_printing_orders_ignore_specification(): void
+    {
+        $teacher = $this->user('teacher');
+        $class = $this->classFor($teacher);
+
+        foreach (['props', 'foreign_teacher', 'academic'] as $category) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                'category' => $category,
+                'class_id' => $class->id,
+                'specification' => 'A4, 2 mặt',
+            ]))->assertRedirect()->assertSessionHasNoErrors();
+
+            $this->assertNull(MaterialOrder::where('category', $category)->sole()->specification);
+        }
+    }
+
+    public function test_printing_specification_is_optional(): void
+    {
+        $teacher = $this->user('teacher');
+        $class = $this->classFor($teacher);
+
+        foreach ([[], ['specification' => null]] as $specificationData) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                'category' => 'printing',
+                'class_id' => $class->id,
+                ...$specificationData,
+            ]))->assertRedirect()->assertSessionHasNoErrors();
+        }
+
+        $this->assertSame(2, MaterialOrder::whereNull('specification')->count());
+    }
+
+    public function test_specification_must_be_a_string_of_at_most_500_characters(): void
+    {
+        $teacher = $this->user('teacher');
+        $class = $this->classFor($teacher);
+
+        foreach ([str_repeat('a', 501), ['A4']] as $specification) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+                'category' => 'printing',
+                'class_id' => $class->id,
+                'specification' => $specification,
+            ]))->assertSessionHasErrors('specification');
+        }
+
+        $this->assertSame(0, MaterialOrder::count());
+        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload([
+            'category' => 'printing',
+            'class_id' => $class->id,
+            'specification' => str_repeat('a', 500),
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame(str_repeat('a', 500), MaterialOrder::sole()->specification);
     }
 
     public function test_mark_overdue_switches_status_notifies_once_and_is_idempotent(): void
@@ -316,7 +475,7 @@ class MaterialOrderTest extends TestCase
 
         // Giáo viên chỉ chọn được chi nhánh của mình.
         $teacher = $this->user('teacher', $this->cg);
-        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['branch_id' => $this->hd->id]))->assertSessionHasErrors('branch_id');
+        $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['class_id' => $this->classFor($teacher)->id, 'branch_id' => $this->hd->id]))->assertSessionHasErrors('branch_id');
         $this->actingAs($teacher)->get(route('material-orders.create'), self::MODAL)->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('MaterialOrders/Create')->where('asModal', true)->has('branches', 1));
     }

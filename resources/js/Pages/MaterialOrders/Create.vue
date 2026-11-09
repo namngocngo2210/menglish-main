@@ -21,6 +21,7 @@ const category = ref('props');
 const branchId = ref(props.defaultBranchId);
 const useDate = ref('');
 
+const requiresClass = computed(() => ['props', 'printing'].includes(category.value));
 const classOptions = computed(() => props.classes.filter((c) => !branchId.value || c.branch_id === Number(branchId.value)));
 
 // Hạn xử lý dự kiến (giờ địa phương, dựng từ Y-m-d để khỏi lệch múi giờ).
@@ -52,10 +53,11 @@ const rule = computed(() =>
             </div>
             <UiInput name="title" label="Nội dung order" required maxlength="255" placeholder="VD: Flashcard unit 5, in 20 bộ đề..." />
             <UiTextarea name="description" label="Mô tả chi tiết" :rows="3" maxlength="2000" />
+            <UiInput v-if="category === 'printing'" name="specification" label="Quy cách" maxlength="500" hint="Khổ giấy, in 1 hay 2 mặt, màu hay đen trắng, đóng quyển..." />
             <div class="grid grid-cols-1 gap-md sm:grid-cols-3">
                 <UiDate v-model="useDate" name="use_date" label="Ngày sử dụng" required />
                 <UiInput type="number" name="quantity" label="Số lượng" min="1" />
-                <UiSelect name="class_id" label="Lớp (nếu có)" placeholder="-- Không gắn lớp --" :options="classOptions" />
+                <UiSelect name="class_id" :label="requiresClass ? 'Lớp' : 'Lớp (nếu có)'" :required="requiresClass" :placeholder="requiresClass ? '-- Chọn lớp --' : '-- Không gắn lớp --'" :options="classOptions" />
             </div>
             <UiAlert type="info" title="Hạn xử lý">
                 {{ rule }}

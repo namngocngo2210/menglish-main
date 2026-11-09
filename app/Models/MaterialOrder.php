@@ -60,7 +60,7 @@ class MaterialOrder extends Model
     public const OPEN_STATUSES = [self::STATUS_PENDING, self::STATUS_PROCESSING, self::STATUS_OVERDUE];
 
     protected $fillable = [
-        'code', 'branch_id', 'class_id', 'requester_id', 'category', 'title', 'description', 'quantity',
+        'code', 'branch_id', 'class_id', 'requester_id', 'category', 'title', 'description', 'specification', 'quantity',
         'use_date', 'due_at', 'status', 'created_late', 'processed_by', 'processed_at', 'processed_late',
         'processor_note', 'reject_reason', 'syllabus_assignment_id', 'syllabus_lesson_id',
     ];

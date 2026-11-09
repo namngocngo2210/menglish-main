@@ -92,11 +92,15 @@ class MaterialOrderController extends Controller
         $data = $request->validate([
             'category' => ['required', Rule::in(array_keys(MaterialOrder::CATEGORIES))],
             'branch_id' => ['required', 'integer', Rule::in($branchIds)],
-            'class_id' => ['nullable', 'integer', Rule::exists('classes', 'id')->whereNull('deleted_at')],
+            'class_id' => ['required_if:category,props,printing', 'nullable', 'integer', Rule::exists('classes', 'id')->whereNull('deleted_at')],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'specification' => ['nullable', 'string', 'max:500'],
             'quantity' => ['nullable', 'integer', 'min:1', 'max:100000'],
-            'use_date' => ['required', 'date'],
+            'use_date' => ['required', 'date', 'after_or_equal:today'],
+        ], [
+            'class_id.required_if' => 'Vui lòng chọn lớp cho order Đạo cụ / In ấn.',
+            'use_date.after_or_equal' => 'Ngày sử dụng không được ở quá khứ.',
         ]);
         // Lớp gắn order phải nằm trong phạm vi Lớp học của người tạo (như danh sách lớp trên form).
         if (! empty($data['class_id']) && ! ClassModel::query()->visibleTo($user)->whereKey($data['class_id'])->exists()) {
@@ -128,6 +132,7 @@ class MaterialOrderController extends Controller
             'order' => [
                 ...$this->row($materialOrder),
                 'description' => $materialOrder->description,
+                'specification' => $materialOrder->specification,
                 'processor_note' => $materialOrder->processor_note,
                 'reject_reason' => $materialOrder->reject_reason,
                 'processed_by' => $materialOrder->processor?->name,
