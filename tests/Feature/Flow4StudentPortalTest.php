@@ -5,9 +5,13 @@ namespace Tests\Feature;
 use App\Models\AcademicRecord;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\Course;
+use App\Models\CourseLevel;
 use App\Models\Homework;
 use App\Models\Student;
 use App\Models\StudentTuition;
+use App\Models\SyllabusCurriculum;
+use App\Models\SyllabusDocument;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
@@ -178,16 +182,79 @@ class Flow4StudentPortalTest extends TestCase
         $response = $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]));
         $response->assertStatus(200);
         $response->assertSee('Luyện phát âm');
-        // Không còn danh sách bài mẫu viết cứng: bài nghe lấy từ file nghe giáo viên gửi kèm bài tập của lớp.
-        $response->assertSee('Bài nghe của lớp');
+        // Bài nghe mẫu lấy từ tài liệu giáo trình audio của chương trình lớp (TK-2026-0075).
+        $response->assertSee('Bài nghe mẫu');
         $response->assertDontSee('Unit 1: Greetings');
-        $response->assertSee('Lớp chưa có file nghe');
+        $response->assertSee('Chương trình chưa có audio mẫu');
         $response->assertSee('Bài đang luyện');
         $response->assertSee('Nộp bài ghi âm');
         $response->assertSee('Lịch sử của bạn');
         // Phase 4: không còn lịch sử/điểm "AI" giả khi chưa có bài nộp.
         $response->assertDontSee('Điểm AI');
         $response->assertSee('Chưa có bài ghi âm');
+    }
+
+    /** Gắn lớp của học viên vào giáo trình qua trình độ khóa học (chương trình lớp). */
+    private function linkClassToCurriculum(string $code): SyllabusCurriculum
+    {
+        $curriculum = SyllabusCurriculum::create(['code' => $code, 'title' => "Giáo trình {$code}", 'version' => 'v1.0']);
+        $level = CourseLevel::create(['code' => "L-{$code}", 'name' => "Level {$code}", 'target' => 'IELTS', 'is_active' => true, 'syllabus_curriculum_id' => $curriculum->id]);
+        $course = Course::create(['code' => "C-{$code}", 'name' => "Course {$code}", 'is_active' => true, 'course_level_id' => $level->id]);
+        $this->class->update(['course_id' => $course->id]);
+
+        return $curriculum;
+    }
+
+    private function makeSyllabusDocument(SyllabusCurriculum $curriculum, string $title, string $ext): SyllabusDocument
+    {
+        $path = SyllabusDocument::DIRECTORY."/{$title}.{$ext}";
+        Storage::disk(SyllabusDocument::DISK)->put($path, 'fake-audio');
+
+        return SyllabusDocument::create([
+            'curriculum_id' => $curriculum->id, 'title' => $title, 'file_path' => $path,
+            'original_name' => "{$title}.{$ext}", 'extension' => $ext, 'size_bytes' => 10,
+        ]);
+    }
+
+    public function test_pronunciation_sample_audio_comes_from_program_audio_documents_only(): void
+    {
+        Storage::fake(SyllabusDocument::DISK);
+        $curriculum = $this->linkClassToCurriculum('P1');
+        $other = SyllabusCurriculum::create(['code' => 'OTH', 'title' => 'Giáo trình khác', 'version' => 'v1.0']);
+        $this->makeSyllabusDocument($curriculum, 'Unit 1 Listening', 'mp3');
+        $this->makeSyllabusDocument($curriculum, 'Unit 2 Listening', 'wav');
+        $this->makeSyllabusDocument($curriculum, 'Workbook', 'pdf');
+        $this->makeSyllabusDocument($other, 'Other Program Audio', 'mp3');
+        // Nguồn cũ (file nghe đính kèm bài tập) không còn được dùng.
+        Homework::create(['class_id' => $this->class->id, 'title' => 'Old HW Audio', 'audio_path' => 'homework/old.mp3']);
+
+        $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('practiceItems', 2)
+                ->where('practiceItems.0.title', 'Unit 1 Listening')
+                ->where('practiceItems.1.title', 'Unit 2 Listening'));
+    }
+
+    public function test_pronunciation_sample_audio_empty_without_documents_even_with_homework_audio(): void
+    {
+        $this->linkClassToCurriculum('P2');
+        Homework::create(['class_id' => $this->class->id, 'title' => 'Old HW Audio', 'audio_path' => 'homework/old.mp3']);
+
+        $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->has('practiceItems', 0))
+            ->assertSee('Chương trình chưa có audio mẫu');
+    }
+
+    public function test_pronunciation_sample_file_streams_only_for_own_program(): void
+    {
+        Storage::fake(SyllabusDocument::DISK);
+        $curriculum = $this->linkClassToCurriculum('P3');
+        $mine = $this->makeSyllabusDocument($curriculum, 'Mine', 'mp3');
+        $other = $this->makeSyllabusDocument(SyllabusCurriculum::create(['code' => 'OT3', 'title' => 'X', 'version' => 'v1.0']), 'Theirs', 'mp3');
+
+        $this->actingAs($this->user)->get(route('portal.student.pronunciation.sample', ['document' => $mine->id, 'studentId' => $this->student->id]))->assertOk();
+        $this->actingAs($this->user)->get(route('portal.student.pronunciation.sample', ['document' => $other->id, 'studentId' => $this->student->id]))->assertNotFound();
     }
 
     /**
@@ -473,19 +540,6 @@ class Flow4StudentPortalTest extends TestCase
         ])->assertSessionHasErrors('audio_file');
 
         $this->assertDatabaseMissing('academic_records', ['screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/04_luyen_phat_am']);
-    }
-
-    public function test_pronunciation_lists_listening_files_of_the_students_classes()
-    {
-        Homework::create(['class_id' => $this->class->id, 'title' => 'Listening Unit 3', 'audio_path' => 'homework_audio/u3.mp3']);
-        Homework::create(['class_id' => ClassModel::create(['name' => 'Lớp khác', 'code' => 'OTHER', 'max_capacity' => 10, 'status' => 'active'])->id,
-            'title' => 'Listening lớp khác', 'audio_path' => 'homework_audio/x.mp3']);
-
-        $this->actingAs($this->user)->get(route('portal.student.pronunciation', ['studentId' => $this->student->id]))
-            ->assertOk()
-            ->assertSee('Listening Unit 3')
-            ->assertSee('storage/homework_audio/u3.mp3', false)
-            ->assertDontSee('Listening lớp khác');
     }
 
     public function test_student_only_account_opens_the_portal_instead_of_the_staff_dashboard()

@@ -383,6 +383,7 @@ Route::middleware('auth')->group(function () {
 
         // Step 4: Luyện phát âm & Thu âm giọng nói AI
         Route::get('/pronunciation/{studentId?}', [StudentPortalController::class, 'studentPronunciation'])->name('student.pronunciation');
+        Route::get('/pronunciation/sample/{document}/{studentId?}', [StudentPortalController::class, 'pronunciationSample'])->whereNumber('document')->name('student.pronunciation.sample');
         Route::post('/pronunciation/record', [StudentPortalController::class, 'submitPronunciation'])->name('student.pronunciation.store');
         Route::delete('/pronunciation/{id}/destroy', [StudentPortalController::class, 'deletePronunciation'])->name('student.pronunciation.destroy');
 
