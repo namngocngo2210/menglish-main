@@ -162,7 +162,8 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Chọn đối tượng xem')
             ->assertSee('Kéo thả file vào đây hoặc')
             ->assertSee('Chọn file từ máy tính')
-            ->assertSee('Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.');
+            ->assertDontSee('Khóa tải xuống')
+            ->assertDontSee('Cho phép GV/TG tải về');
 
         // Chặng phải thuộc giáo trình đã chọn
         $other = SyllabusCurriculum::create(['code' => 'CUR-OT', 'title' => 'Khác', 'version' => 'v1']);

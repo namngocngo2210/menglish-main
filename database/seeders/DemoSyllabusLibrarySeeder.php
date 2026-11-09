@@ -200,7 +200,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             return;
         }
 
-        foreach ($documents as [$title, $sample, $target, $teachers, $assistants, $downloadable]) {
+        foreach ($documents as [$title, $sample, $target, $teachers, $assistants]) {
             [$kind, $number] = explode(':', $target) + [1 => null];
             $this->asUser($this->lead, SyllabusController::class, 'storeDocument', [
                 'curriculum_id' => $curriculum->id,
@@ -210,7 +210,6 @@ class DemoSyllabusLibrarySeeder extends Seeder
                 'file' => $this->sampleFile($sample),
                 'visible_to_teachers' => $teachers,
                 'visible_to_assistants' => $assistants,
-                'downloadable' => $downloadable,
             ]);
         }
     }
@@ -473,7 +472,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
                 throw new RuntimeException('DemoSyllabusLibrarySeeder: gói Flyers lỗi: '.implode(' ', $plan->errors));
             }
             Auth::setUser($this->lead); // lịch sử thay đổi ghi người import như khi import trên web
-            app(SyllabusImporter::class)->import($plan, $this->lead, ['visible_to_teachers' => true, 'visible_to_assistants' => true, 'downloadable' => true]);
+            app(SyllabusImporter::class)->import($plan, $this->lead, ['visible_to_teachers' => true, 'visible_to_assistants' => true]);
         } finally {
             File::deleteDirectory($dir);
         }

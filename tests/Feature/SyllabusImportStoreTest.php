@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class SyllabusImportStoreTest extends TestCase
 {
-    private const VISIBILITY = ['visible_to_teachers' => true, 'visible_to_assistants' => false, 'downloadable' => true];
+    private const VISIBILITY = ['visible_to_teachers' => true, 'visible_to_assistants' => false];
 
     protected function setUp(): void
     {

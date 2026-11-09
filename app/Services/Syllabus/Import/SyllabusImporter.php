@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Storage;
 class SyllabusImporter
 {
     /**
-     * @param  array{visible_to_teachers?: bool, visible_to_assistants?: bool, downloadable?: bool}  $visibility
+     * @param  array{visible_to_teachers?: bool, visible_to_assistants?: bool}  $visibility
      *
      * @throws SyllabusImportException khi mã giáo trình đã tồn tại
      */
@@ -138,7 +138,6 @@ class SyllabusImporter
             'size_bytes' => $size,
             'visible_to_teachers' => (bool) ($visibility['visible_to_teachers'] ?? false),
             'visible_to_assistants' => (bool) ($visibility['visible_to_assistants'] ?? false),
-            'downloadable' => (bool) ($visibility['downloadable'] ?? false),
             'uploaded_by' => $user->id,
         ]);
     }

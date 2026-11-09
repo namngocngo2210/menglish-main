@@ -83,7 +83,6 @@ class SyllabusController extends Controller
             'file' => ['required', 'file', 'max:'.SyllabusDocument::MAX_KB],
             'visible_to_teachers' => ['nullable', 'boolean'],
             'visible_to_assistants' => ['nullable', 'boolean'],
-            'downloadable' => ['nullable', 'boolean'],
         ], [
             'file.required' => 'Vui lòng chọn file tài liệu.',
             'file.max' => 'Dung lượng file tối đa 100 MB.',
@@ -113,7 +112,6 @@ class SyllabusController extends Controller
             'size_bytes' => $size,
             'visible_to_teachers' => $request->boolean('visible_to_teachers'),
             'visible_to_assistants' => $request->boolean('visible_to_assistants'),
-            'downloadable' => $request->boolean('downloadable'),
             'uploaded_by' => Auth::id(),
         ]);
 
@@ -291,7 +289,7 @@ class SyllabusController extends Controller
             'extension' => $doc->extension,
             'size_human' => $doc->size_human,
             'audience_labels' => $doc->audience_labels,
-            'downloadable' => (bool) $doc->downloadable,
+            'downloadable' => $doc->canDownload(Auth::user()),
             'view_url' => route('syllabus.documents.file', $doc->id),
             'download_url' => route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]),
         ];
