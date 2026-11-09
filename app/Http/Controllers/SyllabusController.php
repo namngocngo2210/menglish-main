@@ -1183,7 +1183,16 @@ class SyllabusController extends Controller
 
     public function teacherPropose(Request $request)
     {
-        $curriculums = SyllabusCurriculum::with(['lessons.unit'])->orderBy('title')->get();
+        $scope = $this->proposalScope($request->user());
+        $curriculums = SyllabusCurriculum::with(['lessons.unit'])
+            ->when($scope !== null, fn ($q) => $q->whereIn('id', $scope->keys()))
+            ->orderBy('title')->get()
+            ->each(function (SyllabusCurriculum $c) use ($scope) {
+                $stageIds = $scope?->get($c->id);
+                if ($stageIds) {
+                    $c->setRelation('lessons', $c->lessons->filter(fn ($l) => $l->unit && in_array($l->unit->stage_id, $stageIds, true))->values());
+                }
+            });
         $status = $request->query('status');
         $proposals = SyllabusChangeProposal::with(['curriculum', 'unit', 'lesson'])
             ->where('user_id', $request->user()->id)
@@ -1214,6 +1223,21 @@ class SyllabusController extends Controller
         ]);
     }
 
+    /**
+     * Phạm vi đề xuất sửa giáo trình của GV: [curriculum_id => [stage_id, ...]] theo các chặng đang mở được giao cho họ
+     * (stage_id rỗng = bản ghi cũ không gắn chặng → cả giáo trình). Người duyệt đề xuất: null = không giới hạn.
+     */
+    private function proposalScope(\App\Models\User $user): ?\Illuminate\Support\Collection
+    {
+        if ($user->can('syllabus.approve_adjustment')) {
+            return null;
+        }
+
+        return SyllabusAssignment::open()->where('user_id', $user->id)->get(['curriculum_id', 'stage_id'])
+            ->groupBy('curriculum_id')
+            ->map(fn ($rows) => $rows->contains(fn ($r) => ! $r->stage_id) ? [] : $rows->pluck('stage_id')->all());
+    }
+
     public function storeProposal(Request $request)
     {
         $validated = $request->validate([
@@ -1233,6 +1257,13 @@ class SyllabusController extends Controller
         // Chọn buổi học → gắn luôn Unit của buổi đó.
         if (! empty($validated['lesson_id'])) {
             $validated['unit_id'] = SyllabusLesson::whereKey($validated['lesson_id'])->value('unit_id');
+        }
+        // GV chỉ đề xuất trong chặng được giao (R-01a AC-S01), kiểm tra phía server.
+        $scope = $this->proposalScope($request->user());
+        if ($scope !== null) {
+            $stageIds = $scope->get((int) $validated['curriculum_id']);
+            abort_if($stageIds === null, 403, 'Giáo trình này không thuộc chặng được giao cho bạn.');
+            abort_if($stageIds && ! empty($validated['unit_id']) && ! in_array((int) SyllabusUnit::whereKey($validated['unit_id'])->value('stage_id'), $stageIds, true), 403, 'Buổi/Unit này không thuộc chặng được giao cho bạn.');
         }
 
         $attachmentPath = null;
