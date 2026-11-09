@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\ResolvesPortalStudent;
 use App\Models\AcademicRecord;
+use App\Models\AdminNotification;
 use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
@@ -958,6 +959,22 @@ class StudentPortalController extends Controller
             ],
             'user_id' => Auth::id(),
         ]);
+
+        // R-10 AC-S06: đúng 1 thông báo xác nhận cho HS mỗi khảo sát (gửi lại/retry không tạo thêm)
+        AdminNotification::firstOrCreate(
+            [
+                'user_id' => Auth::id(),
+                'type' => 'survey_submitted',
+                'data->student_id' => (string) $student->id,
+                'data->survey_title' => $validated['survey_title'],
+            ],
+            [
+                'title' => 'Đã nhận khảo sát của bạn',
+                'message' => 'Trung tâm đã nhận khảo sát "'.$validated['survey_title'].'" của '.$studentName.'. Cảm ơn bạn đã phản hồi!',
+                'data' => ['student_id' => (string) $student->id, 'survey_title' => $validated['survey_title']],
+                'is_read' => false,
+            ]
+        );
 
         return back()->with('success', 'Cảm ơn bạn đã gửi khảo sát! Trung tâm sẽ tiếp nhận và cải thiện chất lượng dịch vụ.');
     }

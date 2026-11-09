@@ -276,6 +276,26 @@ class Flow4StudentPortalTest extends TestCase
     }
 
     /**
+     * HS-KS-02 / R-10 AC-S06: gửi khảo sát tạo đúng 1 thông báo xác nhận, gửi lại không nhân đôi.
+     */
+    public function test_submit_survey_creates_single_confirmation_notification()
+    {
+        $payload = [
+            'student_id' => $this->student->id,
+            'survey_title' => 'Khảo sát tháng 10',
+            'feedback' => 'Phòng học sạch sẽ.',
+        ];
+
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), $payload)->assertSessionHasNoErrors();
+
+        $this->assertSame(1, \App\Models\AdminNotification::where('user_id', $this->user->id)->where('type', 'survey_submitted')->count());
+
+        $this->actingAs($this->user)->post(route('portal.student.survey.store'), ['survey_title' => 'Khảo sát khác'] + $payload);
+        $this->assertSame(2, \App\Models\AdminNotification::where('type', 'survey_submitted')->count());
+    }
+
+    /**
      * Flow 4 - Step 7: Phụ huynh gửi Feedback chặng học (MH6)
      */
     public function test_flow_4_step_7_feedback_renders_successfully()
