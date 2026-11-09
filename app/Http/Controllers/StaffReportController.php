@@ -28,6 +28,7 @@ use App\Support\MonthlyReportDue;
 use App\Support\ReportPeriod;
 use App\Support\Roles;
 use App\Support\StaffType;
+use App\Support\TimesheetReminder;
 use App\Support\Ui;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
@@ -57,7 +58,6 @@ class StaffReportController extends Controller
 {
     /**
      * Báo cáo có cấu trúc: khóa = staff_reports.kind; type = loại kỳ (ngày / tuần / tháng / quý) cho màn tổng hợp; route màn nhập.
-     * `tab` = false: không có tab riêng (phần chấm công tháng nằm trong màn báo cáo tháng của giáo viên).
      */
     public const STRUCTURED = [
         'daily_ops' => ['label' => 'Báo cáo ngày', 'type' => 'daily', 'route' => 'reports.periodic.daily', 'for' => 'Học vụ / Học thuật'],
@@ -66,7 +66,7 @@ class StaffReportController extends Controller
         'academic_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.academic-monthly', 'for' => 'Học thuật'],
         'academic_quarterly' => ['label' => 'Báo cáo quý', 'type' => 'quarterly', 'route' => 'reports.periodic.academic-quarterly', 'for' => 'Học thuật'],
         'teacher_monthly' => ['label' => 'Báo cáo tháng', 'type' => 'monthly', 'route' => 'reports.periodic.teacher-monthly', 'for' => 'giáo viên'],
-        'teacher_attendance' => ['label' => 'Báo cáo chấm công tháng', 'type' => 'monthly', 'route' => 'reports.periodic.teacher-monthly', 'for' => 'giáo viên', 'tab' => false],
+        'teacher_attendance' => ['label' => 'Báo cáo chấm công tháng', 'type' => 'monthly', 'route' => 'reports.periodic.timesheet-monthly', 'for' => 'Học vụ / Học thuật'],
     ];
 
     /**
@@ -1423,19 +1423,44 @@ class StaffReportController extends Controller
         return back()->with('success', ($status === 'draft' ? 'Đã lưu nháp báo cáo ' : 'Đã nộp báo cáo giảng dạy ').mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
     }
 
-    /** Báo cáo chấm công tháng của giáo viên (khối đầu màn 03/17): ghi chú tùy chọn, mỗi tháng 1 bản. */
+    /** Báo cáo chấm công tháng riêng cho Học vụ / Học thuật. */
+    public function timesheetMonthly(Request $request): Response|RedirectResponse
+    {
+        if ($redirect = $this->redirectUnlessStructured('teacher_attendance')) {
+            return $redirect;
+        }
+        $month = min(ReportPeriod::pick($request->input('month'), ReportPeriod::MONTH_PATTERN, ReportPeriod::currentMonth()), ReportPeriod::currentMonth());
+        $report = $this->structuredReport('teacher_attendance', $month);
+
+        return Inertia::render('Reports/TimesheetMonthly', [
+            'tabs' => $this->reportTabs(Auth::user(), 'teacher_attendance'),
+            'month' => $month,
+            'monthLabel' => ReportPeriod::monthLabel($month),
+            'months' => ReportPeriod::monthOptions(),
+            'note' => $report?->data['note'] ?? null,
+            'submitted_at' => $report?->updated_at?->toIso8601String(),
+            'pending' => TimesheetReminder::links(Auth::user(), today()),
+        ]);
+    }
+
+    /** Chấm công tháng GV / Học vụ / Học thuật: ghi chú tùy chọn, mỗi tháng 1 bản. */
     public function teacherAttendanceStore(Request $request): RedirectResponse
     {
-        $this->guardStructured('teacher_monthly');
+        $this->guard();
+        abort_unless(TimesheetReminder::eligible(Auth::user()), 403, 'Báo cáo này không thuộc vai trò của bạn.');
         $data = $request->validate([
-            'month' => ['required', 'regex:'.ReportPeriod::MONTH_PATTERN],
+            'month' => ['required', 'regex:'.ReportPeriod::MONTH_PATTERN, function (string $attribute, mixed $value, \Closure $fail) {
+                if (is_string($value) && $value > ReportPeriod::currentMonth()) {
+                    $fail('Không thể nộp báo cáo chấm công cho tháng chưa tới.');
+                }
+            }],
             'note' => ['nullable', 'string', 'max:5000'],
         ]);
         $note = filled($data['note'] ?? null) ? trim($data['note']) : null;
         [$from] = ReportPeriod::monthRange($data['month']);
 
         $this->saveStructured('teacher_attendance', $data['month'], 'Báo cáo chấm công — '.ReportPeriod::monthLabel($data['month']),
-            $from->toDateString(), ['note' => $note], $note ?? 'Không có ghi chú thêm.');
+            $from->toDateString(), ['note' => $note], $note ?? 'Không có ghi chú thêm.')->touch();
 
         return back()->with('success', 'Đã nộp báo cáo chấm công '.mb_strtolower(ReportPeriod::monthLabel($data['month'])).'.');
     }
@@ -1726,7 +1751,11 @@ class StaffReportController extends Controller
             default => 'month',
         };
 
-        return route(self::STRUCTURED[$report->kind]['route'], [$param => $report->period_key]);
+        $route = $report->kind === 'teacher_attendance' && $report->user
+            && ! in_array('teacher_attendance', StaffType::structuredReports($report->user), true)
+            ? 'reports.periodic.teacher-monthly' : self::STRUCTURED[$report->kind]['route'];
+
+        return route($route, [$param => $report->period_key]);
     }
 
     /** Báo cáo Admin kiểm tra được (không phải nhật ký, không phải nháp), trong phạm vi người xem. */
