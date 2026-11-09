@@ -41,6 +41,14 @@ class TeacherLessonController extends Controller
         $taughtRow = $today && $timeline ? $timeline['rows']->firstWhere('taught_session_id', $today->id) : null;
         $todayMarked = $today && ClassLessonProgress::where('class_session_id', $today->id)->where('syllabus_assignment_id', $assignment?->id)->exists();
         $row = $today && $timeline ? ($taughtRow ?? ($todayMarked ? null : $timeline['current'])) : null;
+        // TK-2026-0061: GV chọn xem nội dung mọi buổi của chặng được giao (chỉ xem); buổi ngoài chặng → 404.
+        $viewing = false;
+        if ($request->filled('lesson')) {
+            $picked = $timeline ? $timeline['rows']->first(fn (array $r) => $r['lesson']->id === $request->integer('lesson')) : null;
+            abort_unless($picked, 404);
+            $viewing = ! $row || $picked['lesson']->id !== $row['lesson']->id;
+            $row = $picked;
+        }
         // Chặng chưa XÁC NHẬN thì chưa được bấm "Đã dạy" (docs/luong-giao-vien.md); người xác nhận được thấy nút ngay tại đây.
         $confirmed = $assignment?->isConfirmed() ?? false;
         $canMark = $assignment && $confirmed && $this->canMark($user, $class, $assignment, $today);
@@ -57,13 +65,16 @@ class TeacherLessonController extends Controller
             ] : null,
             'session' => $today ? ['id' => $today->id, 'time' => $today->start_time?->format('H:i').' – '.$today->end_time?->format('H:i')] : null,
             'lesson' => $row ? $this->lessonPayload($row, $class, $user) : null,
+            'viewing_other' => $viewing,
+            'stage_lessons' => $timeline ? $timeline['rows']->map(fn (array $r) => ['id' => $r['lesson']->id, 'session_no' => $r['lesson']->session_no,
+                'title' => $r['data']['title'] ?? null, 'taught' => $r['taught_at'] !== null])->values() : [],
             'taught_today' => $todayMarked,
             'finished' => $timeline && $timeline['current'] === null,
             // Nộp báo cáo buổi = ghi nhận "Đã dạy" (chủ dự án 27/10/2026): mỗi buổi chưa ghi nhận dẫn tới báo cáo buổi đó.
             'unmarked' => $timeline ? $timeline['unmarked_sessions']->map(fn (ClassSession $s) => ['id' => $s->id, 'date' => $s->date->toDateString(),
                 'report_url' => route('classes.session-report', ['id' => $class->id, 'session' => $s->id])])->values() : [],
             // Dạy hết buổi của chặng: buổi còn lại ghi là buổi ôn / Big Test (không cần buổi giãn).
-            'can_mark' => $canMark && $today !== null && ! $todayMarked,
+            'can_mark' => $canMark && $today !== null && ! $todayMarked && ! $viewing,
             'can_mark_past' => $assignment && $confirmed && $this->canMark($user, $class, $assignment, null),
             'report_url' => $today ? route('classes.session-report', ['id' => $class->id, 'session' => $today->id]) : null,
             'confirmed' => $confirmed,

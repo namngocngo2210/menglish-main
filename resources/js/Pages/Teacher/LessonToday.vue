@@ -17,6 +17,8 @@ const props = defineProps({
     assignment: { type: Object, default: null },
     session: { type: Object, default: null },
     lesson: { type: Object, default: null },
+    viewing_other: { type: Boolean, default: false },
+    stage_lessons: { type: Array, default: () => [] },
     taught_today: { type: Boolean, default: false },
     finished: { type: Boolean, default: false },
     unmarked: { type: Array, default: () => [] },
@@ -87,7 +89,13 @@ const hasLinks = computed(() => props.lesson && links.some(linkUrl));
         <UiEmptyState v-if="classes.length && !assignment" icon="menu_book" title="Lớp chưa được giao chặng" description="Học thuật giao chặng cho lớp thì bài giảng của buổi học hôm nay sẽ hiện ở đây." />
 
         <template v-else-if="classes.length">
-            <UiAlert v-if="!session" type="info">Hôm nay lớp không có buổi học — GV chỉ xem bài giảng của buổi học hôm nay.</UiAlert>
+            <!-- TK-2026-0061: chọn xem nội dung mọi buổi của chặng được giao (chỉ xem, không đánh dấu Đã dạy). -->
+            <GetForm v-if="stage_lessons.length" :action="route('teacher.lesson-today')">
+                <input type="hidden" name="class" :value="classId">
+                <UiSelect name="lesson" inline-label="Xem buổi" :value="lesson?.id" :options="stage_lessons.map((l) => ({ value: l.id, label: `Buổi ${l.session_no}: ${l.title || ''}${l.taught ? ' ✓' : ''}` }))" />
+            </GetForm>
+            <UiAlert v-if="viewing_other" type="info">Bạn đang xem nội dung buổi khác của chặng (chỉ xem).</UiAlert>
+            <UiAlert v-if="!session && !lesson" type="info">Hôm nay lớp không có buổi học — chọn buổi của chặng ở trên để xem nội dung.</UiAlert>
             <UiAlert v-else-if="finished && !lesson" type="success">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <span>Lớp đã dạy hết các buổi của chặng — ôn tập và tổ chức Big Test cuối chặng.</span>
@@ -99,7 +107,7 @@ const hasLinks = computed(() => props.lesson && links.some(linkUrl));
             <section v-if="lesson" class="space-y-4 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-3 border-b border-surface-container-highest pb-3">
                     <div>
-                        <p class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle">{{ session.time }} · {{ lesson.unit }}</p>
+                        <p class="text-xs font-bold uppercase tracking-wider text-on-surface-subtle">{{ session && !viewing_other ? session.time + ' · ' : '' }}{{ lesson.unit }}</p>
                         <h2 class="font-h3 text-h3 text-on-surface">Buổi {{ lesson.session_no }}: {{ lesson.data.title }}</h2>
                         <div class="mt-1 flex flex-wrap gap-1">
                             <UiBadge v-if="lesson.data.lesson_type !== 'lesson'" color="warning">{{ lesson.type_label }}</UiBadge>
