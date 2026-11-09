@@ -200,7 +200,7 @@ class DemoSyllabusLibrarySeeder extends Seeder
             return;
         }
 
-        foreach ($documents as [$title, $sample, $target, $teachers, $assistants, $downloadable]) {
+        foreach ($documents as [$title, $sample, $target, $teachers, $assistants]) {
             [$kind, $number] = explode(':', $target) + [1 => null];
             $this->asUser($this->lead, SyllabusController::class, 'storeDocument', [
                 'curriculum_id' => $curriculum->id,
