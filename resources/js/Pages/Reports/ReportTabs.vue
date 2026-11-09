@@ -4,6 +4,7 @@
  * `segmented`: nút gạt đặt cạnh ô chọn ngày ở đầu trang (báo cáo ngày, thiết kế 27/10/2026).
  */
 import { Link } from '@inertiajs/vue3';
+import TimesheetReminder from './TimesheetReminder.vue';
 
 defineProps({
     tabs: { type: Array, default: () => [] },
@@ -12,6 +13,7 @@ defineProps({
 </script>
 
 <template>
+    <TimesheetReminder v-if="!segmented" />
     <nav v-if="segmented && tabs.length > 1" class="inline-flex gap-0.5 rounded-xl border border-surface-variant bg-surface-container-lowest p-0.5" aria-label="Loại báo cáo">
         <Link
             v-for="tab in tabs"

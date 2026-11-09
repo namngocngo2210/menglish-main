@@ -6,6 +6,7 @@ use App\Http\Concerns\RendersModals;
 use App\Support\Navigation\AppShell;
 use App\Support\PermissionCatalog;
 use App\Support\RoleSwitcher;
+use App\Support\TimesheetReminder;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -58,6 +59,13 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'shell' => fn () => app(AppShell::class)->for($request->user(), $request),
+            'timesheetReminder' => function () use ($request) {
+                if (! $request->routeIs('dashboard', 'reports.my', 'reports.periodic.*') || ! $request->user()) {
+                    return null;
+                }
+
+                return TimesheetReminder::links($request->user(), today()) ?: null;
+            },
             'can' => fn () => $this->abilities($request),
             'flash' => fn () => $this->flash($request),
             'tempPassword' => fn () => $request->hasSession() ? $request->session()->get('temporary_password') : null,

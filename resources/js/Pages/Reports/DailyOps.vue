@@ -15,6 +15,7 @@ import { Link, router } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { alertCount, attentionGroups, classTable, hasValue, isQuiet, leftoverDetails, quietSummary, shiftDate } from '@/lib/dailyReport';
 import ReportTabs from './ReportTabs.vue';
+import TimesheetReminder from './TimesheetReminder.vue';
 import ReportHistory from './ReportHistory.vue';
 import LegacyReports from './LegacyReports.vue';
 import DailyMetric from './DailyMetric.vue';
@@ -121,6 +122,7 @@ const jump = (key) => {
 </script>
 
 <template>
+    <TimesheetReminder />
     <UiPageHeader :title="`Báo cáo ngày ${audience}`">
         <template #breadcrumbs>Báo cáo của tôi</template>
         <template #meta>
