@@ -20,6 +20,7 @@ defineProps({
 });
 
 const isRecurring = ref(false);
+const penalize = ref(false);
 const frequencies = [
     { value: 'daily', label: 'Hàng ngày' },
     { value: 'weekly', label: 'Hàng tuần' },
@@ -47,6 +48,11 @@ const frequencies = [
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiSelect id="modal-task-assignee" name="assignee" label="Người nhận" required placeholder="Chọn nhân sự..." :options="users" />
                 <UiDate id="modal-task-dueDate" name="dueDate" label="Hạn hoàn thành" required :value="defaultDueDate" />
+            </div>
+            <div class="space-y-sm">
+                <input type="hidden" name="phat_khi_qua_han" value="0" />
+                <UiCheckbox v-model="penalize" name="phat_khi_qua_han" value="1" label="Phạt khi quá hạn" hint="Bật: việc quá hạn tự lập biên bản phạt (Đã chốt phạt) và trừ vào lương người nhận." />
+                <UiInput v-if="penalize" id="modal-task-muc_phat_qua_han" name="muc_phat_qua_han" type="number" label="Số tiền phạt (VNĐ)" required min="1" step="1" placeholder="Ví dụ 50000" />
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiSelect id="modal-task-branch_id" name="branch_id" label="Chi nhánh" placeholder="-- Không chỉ định --" :options="branches" />

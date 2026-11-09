@@ -45,6 +45,7 @@ class SlaBreachService
                 'due_date' => $dueAt->toDateString(),
                 'due_time' => $dueAt->format('H:i'),
                 'status' => 'new',
+                'sla_rule_key' => $rule, // Nguồn phạt = mốc SLA này (breach() lập biên bản); job quá hạn việc giao tay bỏ qua.
             ]);
             $event->update(['work_task_id' => $workTask->id]);
             AdminNotification::create([
