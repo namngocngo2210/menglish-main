@@ -1493,8 +1493,8 @@ func (q *Queries) HourlyRatesFor(ctx context.Context, ids []uuid.UUID) ([]HrTeac
 }
 
 const insertAdjustment = `-- name: InsertAdjustment :exec
-INSERT INTO hr.commission_adjustments (user_id, refund_request_id, student_id, amount, reason, created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO hr.commission_adjustments (user_id, refund_request_id, student_id, amount, reason, created_by, created_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type InsertAdjustmentParams struct {
@@ -1504,6 +1504,7 @@ type InsertAdjustmentParams struct {
 	Amount          int64
 	Reason          string
 	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
 }
 
 func (q *Queries) InsertAdjustment(ctx context.Context, arg InsertAdjustmentParams) error {
@@ -1514,6 +1515,7 @@ func (q *Queries) InsertAdjustment(ctx context.Context, arg InsertAdjustmentPara
 		arg.Amount,
 		arg.Reason,
 		arg.CreatedBy,
+		arg.CreatedAt,
 	)
 	return err
 }

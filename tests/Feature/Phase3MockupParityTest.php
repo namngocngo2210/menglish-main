@@ -459,7 +459,7 @@ class Phase3MockupParityTest extends TestCase
         ]);
         $ft = \App\Models\PayrollRecord::create([
             'payroll_period_id' => $period->id, 'user_id' => $ftTeacher->id, 'department' => 'fulltime', 'employee_type' => 'fulltime',
-            'salary_role' => 'teacher_fulltime', 'kpi_source' => 'manual', 'base_salary' => 15000000, 'base_salary_paid' => 15000000, 'insurance_deduction' => 1575000,
+            'salary_role' => 'teacher_fulltime', 'kpi_source' => 'retention', 'base_salary' => 15000000, 'base_salary_paid' => 15000000, 'insurance_deduction' => 1575000,
             'union_deduction' => 75000, 'net_salary' => 13350000,
         ]);
         $hv = \App\Models\PayrollRecord::create([
@@ -483,7 +483,6 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('GV-0492')->assertSee('Kỳ lương 08/2026')->assertSee('Giáo viên (Part-time)')->assertSee('Đang tính')
             ->assertSee('Chốt bảng lương')
             ->assertSee('Số buổi dạy')->assertSee('Đơn giá cơ bản')->assertSee('150.000đ')->assertSee('Thành tiền')
-            ->assertSee('Bậc KPI giữ học sinh')->assertSee('Đơn giá KPI (đ/hs/tháng)')->assertSee('Gợi ý: 15.000 / 20.000 / 25.000đ/hs/tháng')
             ->assertSee('Số học sinh duy trì')->assertSee('9 / 10 HS')->assertSee('Chốt KPI')
             ->assertSee('Phụ cấp mở rộng')->assertSee('Lớp GVNN đan xen')->assertSee('Hỗ trợ thỏa thuận')->assertSee('Phụ cấp gửi xe')->assertSee('Thưởng khác')
             ->assertSee('Chi tiết buổi dạy')->assertSee('Ca 17:30-19:00')->assertSee('Dạy thay')
@@ -493,11 +492,11 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('PHIẾU LƯƠNG THÁNG 08/2026')->assertSee('BẢN TẠM TÍNH (chưa duyệt)')->assertSee('Người nhận')
             ->assertDontSee('Công đoàn (');
 
-        // "Chốt KPI" = chọn bậc trên cùng form phiếu lương.
-        $this->actingAs($this->admin)->post(route('payroll.records.adjust', $pt->id), ['retention_tier' => 20000, 'intent' => 'kpi', 'lines' => []])
+        // Finalize the automatic progressive proposal.
+        $this->actingAs($this->admin)->post(route('payroll.records.finalize-kpi', $pt->id))
             ->assertSessionHasNoErrors();
         $this->assertSame('done', $pt->fresh()->kpi_state[0]);
-        $this->assertEquals(180000, (float) $pt->fresh()->kpi_bonus);
+        $this->assertEquals(245000, (float) $pt->fresh()->kpi_bonus);
 
         // GV Full-time
         $this->actingAs($this->admin)->get(route('payroll.records.show', $ft->id))
@@ -543,11 +542,11 @@ class Phase3MockupParityTest extends TestCase
         $period = $this->period(9);
         $other = Branch::create(['name' => 'Cơ sở Khác P3', 'code' => 'OT3', 'is_active' => true]);
         $teacherB = $this->userWithRole('teacher_parttime', ['name' => 'GV Hạng Hai', 'branch_id' => $other->id]);
-        foreach ([[$this->teacher, 45, 20000], [$teacherB, 30, 15000]] as [$user, $kept, $tier]) {
+        foreach ([[$this->teacher, 45], [$teacherB, 30]] as [$user, $kept]) {
             \App\Models\PayrollRecord::create([
                 'payroll_period_id' => $period->id, 'user_id' => $user->id, 'department' => 'teacher', 'employee_type' => 'parttime',
                 'salary_role' => 'teacher_parttime', 'kpi_source' => 'retention', 'retention_base_students' => $kept, 'retention_students' => $kept,
-                'retention_tier' => $tier, 'kpi_bonus' => $kept * $tier, 'base_salary' => 0, 'net_salary' => 9999000,
+                'kpi_finalized_at' => now(), 'kpi_bonus' => app(\App\Services\PayrollFormulaService::class)->retentionKpi($kept, 0)['amount'], 'base_salary' => 0, 'net_salary' => 9999000,
             ]);
         }
 
@@ -558,7 +557,7 @@ class Phase3MockupParityTest extends TestCase
             ->assertSee('Kỳ lương')->assertSee('Chi nhánh')
             ->assertSeeInOrder(['Hạng', 'Nhân viên', 'Chi nhánh', 'Số HS Giữ', 'Đơn giá (VNĐ/hs)', 'Tổng KPI'])
             ->assertSeeInOrder(['GV Mockup P3', 'GV Hạng Hai'])
-            ->assertSee('900.000')
+            ->assertSee('1.325.000')
             ->assertSee('Số liệu tạm tính — kỳ chưa gửi GV xem')
             ->assertDontSee('9.999.000'); // không lộ thực nhận
 

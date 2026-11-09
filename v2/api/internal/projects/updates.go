@@ -162,6 +162,7 @@ func (s *Service) CreateUpdate(ctx context.Context, actor *iam.Access, projectID
 		id, err := q.CreateUpdate(ctx, projectsdb.CreateUpdateParams{
 			ProjectID: projectID, MilestoneID: mid, UserID: &actor.UserID, QuantityDone: qty, Content: *content,
 			Difficulties: difficulties, Links: links, MarksComplete: in.MarksComplete,
+			CreatedAt: s.now(),
 		})
 		if err != nil {
 			return err

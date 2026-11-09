@@ -162,7 +162,8 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Chọn đối tượng xem')
             ->assertSee('Kéo thả file vào đây hoặc')
             ->assertSee('Chọn file từ máy tính')
-            ->assertSee('Khóa tải xuống — Giáo viên chỉ được phép xem trực tuyến để bảo vệ tài liệu.');
+            ->assertDontSee('Khóa tải xuống')
+            ->assertDontSee('Cho phép GV/TG tải về');
 
         // Chặng phải thuộc giáo trình đã chọn
         $other = SyllabusCurriculum::create(['code' => 'CUR-OT', 'title' => 'Khác', 'version' => 'v1']);
@@ -553,8 +554,9 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Link video bài thi')
             ->assertSee('https://video.example.com/bt-mk-1.mp4')
             ->assertSee('Nhận xét của giáo viên/HT')
-            ->assertSee('Tổng điểm (Big Test)')
-            ->assertSee('7.8')
+            ->assertSee('Kết quả (Big Test)')
+            ->assertSee('8.5') // dữ liệu cũ 4 kỹ năng vẫn hiện; không còn điểm tổng (TK-2026-0056)
+            ->assertDontSee('Tổng điểm')
             ->assertSee('Còn 3 ngày')        // hạn trả KQ = ngày thi + 7 ngày
             ->assertSee('Trạng thái dữ liệu')
             ->assertSee('Người gửi kết quả')
@@ -578,7 +580,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $this->assertSame('sent', $scored->fresh()->status);
         $this->assertTrue($scored->fresh()->parent_notified);
         $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $assignment->fresh()->status);
-        $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
+        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
 
         $this->actingAs($this->academic)->get($page)->assertOk()->assertSee('Đã báo phụ huynh')->assertDontSee('Duyệt &amp; Đã báo phụ huynh', false);
     }

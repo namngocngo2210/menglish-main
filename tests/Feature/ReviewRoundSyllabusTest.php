@@ -67,13 +67,13 @@ class ReviewRoundSyllabusTest extends TestCase
     public function test_saving_draft_keeps_rows_already_sent_for_review(): void
     {
         $test = $this->bigTest();
-        $scores = ['listening_score' => 7, 'reading_score' => 7, 'writing_score' => 7, 'speaking_score' => 7];
+        $scores = ['components' => [['name' => 'Nghe', 'score' => 7], ['name' => 'Nói', 'score' => 7]]];
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), [
             'action' => 'submit', 'results' => [['student_id' => $this->s1->id] + $scores],
         ])->assertSessionHasNoErrors();
 
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), [
-            'action' => 'draft', 'results' => [['student_id' => $this->s1->id] + $scores, ['student_id' => $this->s2->id, 'listening_score' => 6]],
+            'action' => 'draft', 'results' => [['student_id' => $this->s1->id] + $scores, ['student_id' => $this->s2->id, 'components' => [['name' => 'Nghe', 'score' => 6]]]],
         ])->assertSessionHasNoErrors();
 
         $this->assertSame('pending_review', BigTestResult::where('student_id', $this->s1->id)->value('status'));

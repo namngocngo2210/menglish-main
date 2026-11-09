@@ -99,8 +99,6 @@ function formatSize(bytes) {
                     <UiCheckbox name="visible_to_teachers" value="1" :checked="true" label="Giáo viên xem được" />
                     <input type="hidden" name="visible_to_assistants" value="0" />
                     <UiCheckbox name="visible_to_assistants" value="1" label="Trợ giảng xem được" />
-                    <input type="hidden" name="downloadable" value="0" />
-                    <UiCheckbox name="downloadable" value="1" label="Cho tải về" />
                 </fieldset>
 
                 <UiAlert type="info" title="File gồm">

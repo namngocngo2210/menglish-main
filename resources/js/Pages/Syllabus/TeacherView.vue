@@ -153,8 +153,7 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
                             <td class="text-on-surface-variant">{{ doc.place || '—' }}</td>
                             <td class="whitespace-nowrap font-code text-body-small uppercase">{{ doc.extension }} · {{ doc.size_human }}</td>
                             <td class="whitespace-nowrap">
-                                <UiBadge v-if="doc.can_download" color="success">Có thể tải</UiBadge>
-                                <UiBadge v-else color="error">Chỉ xem</UiBadge>
+                                <UiBadge v-if="!doc.can_download" color="error">Chỉ xem</UiBadge>
                             </td>
                             <td class="whitespace-nowrap">
                                 <span v-if="doc.viewed" class="inline-flex items-center gap-xs text-tertiary"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">check_circle</span>Đã xem</span>
@@ -259,7 +258,6 @@ const chipIcon = { open: 'play_circle', done: 'check_circle', todo: 'lock' };
                 <div class="flex items-center gap-2">
                     <UiBadge v-if="!selected.can_download" color="warning" :dot="false" pill><span class="material-symbols-outlined text-[14px]">shield</span>Bảo mật nội dung</UiBadge>
                     <UiButton v-if="selected.kind !== 'pdf'" variant="ghost" size="sm" icon="fullscreen" title="Toàn màn hình" @click="fullscreen" />
-                    <UiButton v-if="selected.can_download" variant="secondary" size="sm" icon="download" :href="route('syllabus.documents.file', { id: selected.id, download: 1 })" native>Tải về</UiButton>
                 </div>
             </div>
             <PdfAnnotator v-if="selected.kind === 'pdf'" :src="fileUrl" :title="selected.title" :watermark="selected.watermark" :active="viewerOpen" />

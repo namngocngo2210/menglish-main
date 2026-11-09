@@ -328,7 +328,7 @@ func (c Commissions) RecordClawback(ctx context.Context, tx pgx.Tx, refundID, st
 	return q.InsertAdjustment(ctx, payrolldb.InsertAdjustmentParams{
 		UserID: ownerID, RefundRequestID: &refundID, StudentID: &studentID, Amount: -amount,
 		Reason:    fmt.Sprintf("Thu hồi hoa hồng do hoàn phí %s (học viên %s)", ref, name),
-		CreatedBy: &approver,
+		CreatedBy: &approver, CreatedAt: c.s.now(),
 	})
 }
 
@@ -372,7 +372,7 @@ func (c Commissions) CancellationClawback(ctx context.Context, tx pgx.Tx, receip
 	if err := q.InsertAdjustment(ctx, payrolldb.InsertAdjustmentParams{
 		UserID: it.UserID, StudentID: it.StudentID, Amount: -it.Amount,
 		Reason:    fmt.Sprintf("Thu hồi hoa hồng do hủy hóa đơn %s (phiếu %s) sau khi kỳ lương %s đã duyệt", invoice, r.Code, period),
-		CreatedBy: &approver,
+		CreatedBy: &approver, CreatedAt: c.s.now(),
 	}); err != nil {
 		return nil, err
 	}

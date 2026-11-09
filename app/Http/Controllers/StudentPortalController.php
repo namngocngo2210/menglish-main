@@ -15,6 +15,7 @@ use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\Survey;
 use App\Models\SyllabusAssignment;
+use App\Models\SyllabusDocument;
 use App\Services\Homework\HomeworkStats;
 use App\Services\SafeUploadService;
 use App\Services\SessionLessonService;
@@ -228,7 +229,7 @@ class StudentPortalController extends Controller
             'paymentHistory' => $paymentHistory,
             'learningProgress' => [
                 ...$learningProgress,
-                'latest_big_test' => $learningProgress['latest_big_test']?->overall_score,
+                'latest_big_test' => $learningProgress['latest_big_test']?->scoreSummary() ?: null,
             ],
             'upcomingDays' => self::UPCOMING_DAYS,
             'upcomingSessions' => $upcomingSessions->map(fn (ClassSession $s) => [
@@ -251,11 +252,7 @@ class StudentPortalController extends Controller
                 'id' => $r->id,
                 'title' => $r->bigTest?->title ?? 'Big Test',
                 'is_absent' => (bool) $r->is_absent,
-                'overall_score' => $r->overall_score,
-                'listening_score' => $r->listening_score,
-                'reading_score' => $r->reading_score,
-                'writing_score' => $r->writing_score,
-                'speaking_score' => $r->speaking_score,
+                'components' => $r->scoreComponents(),
                 'progress_note' => $r->progress_note,
             ])->values()->all(),
             'studentClasses' => $studentClasses->pluck('name')->values()->all(),
@@ -317,7 +314,9 @@ class StudentPortalController extends Controller
                 'title' => $bt->bigTest?->title ?? 'Big Test',
                 'scheduled_at' => $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—',
                 'is_absent' => (bool) $bt->is_absent,
-                'overall_score' => $bt->overall_score,
+                // A make-up score is entered on this same row (is_absent cleared); absent here means none approved yet.
+                'makeup_notice' => $bt->is_absent ? BigTestResult::MAKEUP_NOTICE : null,
+                'components' => $bt->scoreComponents(),
             ])->values()->all(),
             // BTVN GV giao theo từng buổi, nộp theo giỏ (docs/kho-syllabus.md §10) — không còn hạng mục nộp tự do.
             'assignments' => $this->assignedHomework($homeworks, $oldClassIds),
@@ -705,19 +704,13 @@ class StudentPortalController extends Controller
             ->latest()
             ->get();
 
-        // Bài nghe mẫu: file nghe giáo viên đính kèm bài tập của các lớp học viên đang học.
+        // Bài nghe mẫu: tài liệu giáo trình dạng audio của chương trình các lớp học viên đang học (TK-2026-0075).
         $practiceItems = $student
-            ? Homework::with('classModel:id,name')
-                ->whereIn('class_id', $student->activeClassIds())
-                ->whereNotNull('audio_path')
-                ->latest()
-                ->limit(20)
-                ->get()
-                ->map(fn (Homework $homework) => [
-                    'title' => $homework->title,
-                    'class_name' => $homework->classModel?->name,
-                    'audio_url' => asset('storage/'.$homework->audio_path),
-                ])
+            ? $this->pronunciationSampleDocuments($student)->map(fn (SyllabusDocument $doc) => [
+                'title' => $doc->title,
+                'class_name' => $doc->curriculum?->title,
+                'audio_url' => route('portal.student.pronunciation.sample', ['document' => $doc->id, 'studentId' => $student->id]),
+            ])
             : collect();
 
         return Inertia::render('Portal/Pronunciation', [
@@ -734,6 +727,38 @@ class StudentPortalController extends Controller
             ])->values()->all(),
             'practiceItems' => $practiceItems->values()->all(),
         ]);
+    }
+
+    /** Tài liệu giáo trình audio của chương trình (giáo trình của trình độ khóa học / chặng đang mở) các lớp học viên đang học. */
+    private function pronunciationSampleDocuments(Student $student): Collection
+    {
+        $classIds = $student->activeClassIds();
+        $curriculumIds = ClassModel::with('course.level:id,syllabus_curriculum_id')->whereIn('id', $classIds)->get()
+            ->map(fn (ClassModel $class) => $class->course?->level?->syllabus_curriculum_id)
+            ->merge(SyllabusAssignment::open()->whereIn('class_id', $classIds)->pluck('curriculum_id'))
+            ->filter()->unique()->values();
+
+        return SyllabusDocument::with('curriculum:id,title')
+            ->whereIn('curriculum_id', $curriculumIds)
+            ->whereIn('extension', ['mp3', 'wav', 'm4a', 'ogg'])
+            ->orderBy('title')
+            ->get();
+    }
+
+    /** Phát file audio mẫu (disk riêng tư) cho học viên của chương trình đó. */
+    public function pronunciationSample(int $document, $studentId = null)
+    {
+        [, $student] = $this->getActiveStudent($studentId);
+        abort_unless($student, 404);
+        $doc = $this->pronunciationSampleDocuments($student)->firstWhere('id', $document);
+        $disk = Storage::disk(SyllabusDocument::DISK);
+        abort_unless($doc && $disk->exists($doc->file_path), 404);
+
+        if (config('filesystems.disks.local.driver') !== 'local') {
+            return redirect()->away($disk->temporaryUrl($doc->file_path, now()->addMinutes(30)));
+        }
+
+        return response()->file($disk->path($doc->file_path), ['X-Content-Type-Options' => 'nosniff', 'Cache-Control' => 'private, max-age=3600']);
     }
 
     /**
@@ -1066,6 +1091,12 @@ class StudentPortalController extends Controller
             $categories[] = 'Khác';
         }
 
+        // One row per student+stage, edited in place: keep CM status/handling data (no delete/reset path).
+        $existing = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')
+            ->where('data->student_id', (string) $validated['student_id'])
+            ->where('data->stage_name', $validated['stage_name'])
+            ->first();
+
         AcademicRecord::updateOrCreate(
             [
                 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback',
@@ -1074,10 +1105,10 @@ class StudentPortalController extends Controller
             ],
             [
                 'module' => 'student_portal',
-                'record_code' => 'FB-'.strtoupper(Str::random(6)),
+                'record_code' => $existing?->record_code ?? 'FB-'.strtoupper(Str::random(6)),
                 'title' => 'Feedback chặng: '.$validated['stage_name'].' - '.$studentName,
-                'status' => 'submitted',
-                'data' => [
+                'status' => $existing?->status ?? 'submitted',
+                'data' => array_merge($existing?->data ?? [], [
                     'student_id' => (string) $validated['student_id'],
                     'student_name' => $studentName,
                     'stage_name' => $validated['stage_name'],
@@ -1089,24 +1120,12 @@ class StudentPortalController extends Controller
                     'fb_khac' => ! empty($validated['fb_khac']),
                     'noi_dung_feedback' => $validated['noi_dung_feedback'] ?? '',
                     'submitted_at' => now()->format('d/m/Y H:i'),
-                ],
+                ]),
                 'user_id' => Auth::id(),
             ]
         );
 
         return back()->with('feedback_success', true)->with('success', 'Đã ghi nhận feedback thành công! Bạn có thể điều chỉnh bất cứ lúc nào trong thời gian đợt mở.');
-    }
-
-    /**
-     * CRUD: Xóa feedback chặng học (MH #7)
-     */
-    public function deleteFeedback($id)
-    {
-        $record = AcademicRecord::findOrFail($id);
-        $this->authorizeStudentRecord($record, '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback');
-        $record->delete();
-
-        return back()->with('success', 'Đã xóa feedback thành công! Trạng thái đã được đặt lại ban đầu.');
     }
 
     // ─────────────────────────────────────────────

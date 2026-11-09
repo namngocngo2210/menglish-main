@@ -289,8 +289,13 @@ function switchStudent(event) {
                                 <h4 class="text-xs font-bold text-on-surface">{{ bt.title }}</h4>
                                 <p class="font-mono text-xs text-on-surface-subtle">Ngày thi: {{ bt.scheduled_at }}</p>
                             </div>
-                            <UiBadge v-if="bt.is_absent" color="neutral" pill>Vắng thi</UiBadge>
-                            <div v-else class="font-mono text-lg font-black text-primary">{{ bt.overall_score }}</div>
+                            <div v-if="bt.is_absent" class="flex flex-col items-end gap-1 text-right">
+                                <UiBadge color="neutral" pill>Vắng thi</UiBadge>
+                                <p v-if="bt.makeup_notice" class="max-w-xs text-xs text-warning" data-makeup-notice>{{ bt.makeup_notice }}</p>
+                            </div>
+                            <div v-else class="flex flex-wrap justify-end gap-x-3 text-xs text-on-surface-variant">
+                                <span v-for="c in bt.components" :key="c.name">{{ c.name }} <b class="font-mono text-primary">{{ c.score }}</b></span>
+                            </div>
                         </div>
                         <UiEmptyState v-if="!miniTests.length && !bigTestResults.length" class="rounded-xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="school" title="Chưa có điểm kiểm tra nào." />
                     </div>

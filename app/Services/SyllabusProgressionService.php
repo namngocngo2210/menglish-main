@@ -12,6 +12,7 @@ use App\Models\SyllabusLesson;
 use App\Models\SyllabusStage;
 use App\Models\User;
 use App\Services\Syllabus\ClassSyllabus;
+use App\Services\Syllabus\StageSchedule;
 use App\Services\Syllabus\SyllabusNotifier;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
@@ -26,8 +27,8 @@ use Illuminate\Validation\ValidationException;
  *  2. Chặng đóng khi Big Test của chặng (big_tests.syllabus_stage_id + class_id) đã được duyệt VÀ gửi phụ huynh:
  *     mọi kết quả đều "Đã gửi PH", học viên vắng thi chỉ cần "Đã duyệt" (không có điểm để gửi);
  *     không còn kết quả nháp / chờ duyệt.
- *  3. Đóng chặng **không** tự mở chặng kế tiếp (quy trình syllabus Bước 11, docs/kho-syllabus.md §7.3): còn chặng kế →
- *     báo Học thuật giao chặng tiếp; không còn chặng kế → đánh dấu lớp đã học xong giáo trình (curriculum_completed_at).
+ *  3. (R-07) Kết quả có điểm đầu tiên được Duyệt & Gửi đóng chặng và tự mở chặng kế (tạo bản ghi nếu thiếu);
+ *     không còn chặng kế → đánh dấu lớp đã học xong giáo trình (curriculum_completed_at). Vắng thi không kích hoạt.
  *  4. Học thuật được mở/đóng tay (bắt buộc lý do) để xử lý ngoại lệ.
  */
 class SyllabusProgressionService
@@ -207,7 +208,50 @@ class SyllabusProgressionService
             return null;
         }
 
-        return $this->close($assignment, $actor, "Big Test {$test->code} đã được duyệt và gửi kết quả cho phụ huynh.", $test);
+        return $this->closeAndAdvance($assignment, $actor, "Big Test {$test->code} đã được duyệt và gửi kết quả cho phụ huynh.", $test);
+    }
+
+    /**
+     * R-07: kết quả Big Test CÓ ĐIỂM đầu tiên được Duyệt & Gửi → đóng chặng của Big Test và mở chặng kế cho lớp
+     * (tạo bản ghi giao chặng nếu chưa có). Gọi lại là no-op (chặng đã đóng). Vắng thi không kích hoạt (R-08).
+     *
+     * @return array{closed: SyllabusAssignment, next: ?SyllabusAssignment, finished: bool}|null
+     */
+    public function onScoredApproval(BigTest $test, ?User $actor = null): ?array
+    {
+        if (! $test->class_id || ! $test->syllabus_stage_id) {
+            return null;
+        }
+        $assignment = SyllabusAssignment::open()
+            ->where('class_id', $test->class_id)
+            ->where('stage_id', $test->syllabus_stage_id)
+            ->first();
+
+        return $assignment
+            ? $this->closeAndAdvance($assignment, $actor, "Big Test {$test->code}: kết quả có điểm đầu tiên đã được duyệt và gửi.", $test)
+            : null;
+    }
+
+    /** Đóng chặng rồi mở chặng kế (nếu còn); hết chặng thì đánh dấu lớp học xong giáo trình. */
+    private function closeAndAdvance(SyllabusAssignment $assignment, ?User $actor, string $reason, BigTest $test): array
+    {
+        return DB::transaction(function () use ($assignment, $actor, $reason, $test) {
+            $assignment->loadMissing(['stage', 'classModel']);
+            $nextStage = $assignment->stage?->next();
+            $outcome = $this->close($assignment, $actor, $reason, $test, notifyNext: ! $nextStage);
+            if ($nextStage && $assignment->classModel) {
+                $start = today();
+                $planned = max(1, $nextStage->lessons()->count());
+                $outcome['next'] = $this->open($assignment->classModel, $nextStage, $assignment->user_id, $actor, 'Tự mở sau khi '.$reason, [
+                    'start_date' => $start,
+                    'planned_sessions' => $planned,
+                    'deadline' => app(StageSchedule::class)->endDate($assignment->classModel, $start, $planned),
+                ]);
+                app(SyllabusNotifier::class)->stageAssigned($outcome['next']);
+            }
+
+            return $outcome;
+        });
     }
 
     /** Câu thông báo ngắn cho kết quả syncBigTest (dùng trong flash message). */
@@ -218,9 +262,11 @@ class SyllabusProgressionService
         }
         $closed = $outcome['closed'];
 
-        return $outcome['finished']
-            ? " Đã đóng {$closed->stage_name} — lớp đã hoàn thành giáo trình."
-            : " Đã đóng {$closed->stage_name} — Học thuật giao chặng tiếp theo cho lớp.";
+        if ($outcome['finished']) {
+            return " Đã đóng {$closed->stage_name} — lớp đã hoàn thành giáo trình.";
+        }
+
+        return " Đã đóng {$closed->stage_name} — đã mở {$outcome['next']?->stage_name} cho lớp.";
     }
 
     /**

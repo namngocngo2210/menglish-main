@@ -30,7 +30,7 @@ Yêu cầu:
 4. **Siết định dạng tài liệu** ở `SyllabusDocument::ALLOWED_EXTENSIONS`. Tài liệu Office đã tải lên trước đây giữ
    nguyên. **Không sửa v2** trong đợt này (cảnh báo `v2-parity` không chặn).
 5. Test logic thuần của lớp vẽ bằng **`node --test`** (có sẵn trong Node ≥ 20, không thêm dependency).
-6. **Chống sao chép tài liệu "Chỉ xem"** (`downloadable = false`): watermark định danh **vẽ thẳng vào ảnh trang PDF**
+6. **Chống sao chép tài liệu "Chỉ xem"** (GV/TG, không có quyền thư viện): watermark định danh **vẽ thẳng vào ảnh trang PDF**
    (tên · mã nhân viên · thời điểm mở, lặp kín trang) để truy vết ảnh chụp; chặn in, menu chuột phải, `Ctrl/⌘+P`,
    `Ctrl/⌘+S` trên khung xem. Tài liệu được phép tải về không bật.
 
@@ -58,7 +58,7 @@ Yêu cầu:
 - `Pages/Syllabus/Documents.vue`: `accept` chỉ còn PDF / ảnh / audio / video; dòng hướng dẫn: "Hỗ trợ PDF, ảnh, audio,
   video (tối đa 100MB). Slide / Word hãy xuất sang PDF trước khi tải lên."
 - Tài liệu Office cũ: không xoá, không đổi. `getKindAttribute` / `inline_viewable` / `documentFile` giữ nguyên nên vẫn
-  hiện trong danh sách và tải được nếu `downloadable`.
+  hiện trong danh sách và không tải được với GV/TG (403; TK-2026-0040).
 
 ### 3.2. Thành phần giao diện
 
@@ -136,7 +136,7 @@ Yêu cầu:
 
 - PHPUnit (`tests/Feature/Phase2SyllabusTest.php`):
   - upload `.pptx` / `.docx` / `.xlsx` → lỗi validation; `.pdf` vẫn nhận;
-  - tài liệu Office cũ (tạo thẳng trong DB) vẫn hiện ở TeacherView và tải được khi `downloadable`;
+  - tài liệu Office cũ (tạo thẳng trong DB) vẫn hiện ở TeacherView và không tải được với GV/TG (403, bỏ qua cờ `downloadable` cũ);
   - TeacherView mở tài liệu PDF → HTML (SSR) có khung annotator, không còn `<iframe>`;
   - `selected.watermark` chứa tên giáo viên khi "Chỉ xem", `null` khi được tải về.
 - `node --test` (`resources/js/lib/annotations.test.js`): hit-test từng loại hình (trúng / trượt theo dung sai), lịch sử

@@ -233,29 +233,82 @@ class Phase2BigTestTest extends TestCase
 
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.results.store', $test->id), [
             'results' => [
-                ['student_id' => $present->id, 'listening_score' => 8, 'reading_score' => 7, 'writing_score' => 6, 'speaking_score' => 7,
+                ['student_id' => $present->id, 'components' => [['name' => 'Nghe', 'score' => 8], ['name' => 'Viết', 'score' => 6]],
                     'video_url' => 'https://video.example.com/hv-r1.mp4', 'progress_note' => 'Tốt'],
-                ['student_id' => $absent->id, 'is_absent' => '1', 'listening_score' => '', 'reading_score' => '', 'writing_score' => '', 'speaking_score' => ''],
+                ['student_id' => $absent->id, 'is_absent' => '1', 'components' => [['name' => '', 'score' => '']]],
             ],
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $presentResult = BigTestResult::where('student_id', $present->id)->firstOrFail();
         $this->assertSame('https://video.example.com/hv-r1.mp4', $presentResult->video_url);
-        $this->assertEquals(7.0, (float) $presentResult->overall_score);
+        $this->assertNull($presentResult->overall_score);
         $this->assertFalse($presentResult->is_absent);
 
         $absentResult = BigTestResult::where('student_id', $absent->id)->firstOrFail();
         $this->assertTrue($absentResult->is_absent);
         $this->assertNull($absentResult->overall_score);
-        $this->assertNull($absentResult->listening_score);
+        $this->assertSame([], $absentResult->scoreComponents());
 
         // Vắng thi mà vẫn nhập điểm thì bị chặn
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.results.store', $test->id), [
-            'results' => [['student_id' => $absent->id, 'is_absent' => '1', 'listening_score' => 5, 'reading_score' => 5, 'writing_score' => 5, 'speaking_score' => 5]],
+            'results' => [['student_id' => $absent->id, 'is_absent' => '1', 'components' => [['name' => 'Nghe', 'score' => 5]]]],
         ])->assertSessionHasErrors('results');
 
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', $test->id))
             ->assertOk()->assertSee('Vắng thi')->assertSee('https://video.example.com/hv-r1.mp4', false);
+    }
+
+    /** TC GV-BG-02 (US R-09): GV tự đặt thành phần điểm, không giới hạn thang, không tự tính Overall/xếp loại. */
+    public function test_gv_bg_02_teacher_enters_free_components_without_max_or_overall(): void
+    {
+        $test = $this->makeTest($this->classA, 'BT-FREE', now()->subDay());
+        $s1 = Student::create(['code' => 'HV-F1', 'name' => 'HV Tự Do', 'phone' => '0911', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
+        $s2 = Student::create(['code' => 'HV-F2', 'name' => 'HV Một Mục', 'phone' => '0912', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
+        $store = fn (array $rows) => $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.results.store', $test->id), ['results' => $rows]);
+
+        // Trang nhập điểm: thành phần động, không còn 4 cột kỹ năng / Overall / thang 10.
+        $this->actingAs($this->teacherA)->get(route('syllabus.big-tests.results', $test->id))->assertOk()
+            ->assertSee('Thành phần điểm')->assertSee('Thêm thành phần')
+            ->assertDontSee('Overall')->assertDontSee('Listening')->assertDontSee('Điểm Trung Bình Cả Lớp');
+
+        // Điểm 25 và 150 (> 10) hợp lệ; số lượng/tên thành phần khác nhau giữa học viên; dòng trống bị bỏ qua.
+        $store([
+            ['student_id' => $s1->id, 'components' => [['name' => 'Từ vựng', 'score' => 25], ['name' => 'Ngữ pháp', 'score' => 150], ['name' => '', 'score' => '']]],
+            ['student_id' => $s2->id, 'components' => [['name' => 'Tổng', 'score' => 9]]],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $r1 = BigTestResult::where('student_id', $s1->id)->firstOrFail();
+        $this->assertSame([['name' => 'Từ vựng', 'score' => 25.0], ['name' => 'Ngữ pháp', 'score' => 150.0]], $r1->scoreComponents());
+        $this->assertNull($r1->overall_score);
+        $this->assertNull($r1->listening_score);
+        $this->assertSame('pending_review', $r1->status);
+
+        // Thiếu tên hoặc thiếu điểm → từ chối, không ghi.
+        $store([['student_id' => $s1->id, 'components' => [['name' => 'Nghe', 'score' => '']]]])->assertSessionHasErrors('results');
+        $store([['student_id' => $s1->id, 'components' => [['name' => '', 'score' => 7]]]])->assertSessionHasErrors('results');
+        $this->assertSame(2, BigTestResult::count());
+
+        // Hiển thị lại thành phần đã lưu cho người duyệt (không có điểm tổng).
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $r1->id]))
+            ->assertOk()->assertSee('Từ vựng')->assertSee('Ngữ pháp')->assertSee('150');
+    }
+
+    public function test_legacy_four_skill_big_test_result_stays_readable(): void
+    {
+        $test = $this->makeTest($this->classA, 'BT-LEGACY', now()->subDay());
+        $s = Student::create(['code' => 'HV-L1', 'name' => 'HV Điểm Cũ', 'phone' => '0913', 'current_class_id' => $this->classA->id, 'status' => 'studying']);
+        $legacy = BigTestResult::create([
+            'big_test_id' => $test->id, 'student_id' => $s->id, 'listening_score' => 8, 'reading_score' => 7,
+            'writing_score' => 6.5, 'speaking_score' => 7.5, 'overall_score' => 7.3, 'status' => 'approved',
+        ]);
+
+        $this->assertSame(
+            [['name' => 'Nghe', 'score' => 8.0], ['name' => 'Đọc', 'score' => 7.0], ['name' => 'Viết', 'score' => 6.5], ['name' => 'Nói', 'score' => 7.5]],
+            $legacy->scoreComponents()
+        );
+        $this->actingAs($this->academic)->get(route('syllabus.big-tests.results', ['id' => $test->id, 'result' => $legacy->id]))
+            ->assertOk()->assertSee('Nghe')->assertSee('Viết')->assertSee('6.5');
+        // Dữ liệu cũ không bị đụng khi chỉ xem; cột cũ còn nguyên.
+        $this->assertEquals(7.3, (float) $legacy->fresh()->overall_score);
     }
 
     public function test_results_page_has_per_student_send_button_and_sent_column(): void
@@ -304,7 +357,7 @@ class Phase2BigTestTest extends TestCase
 
         $response = $this->actingAs($parent)->get(route('portal.student.home', ['studentId' => $student->id]));
         $response->assertOk();
-        // Props trang Vue: learningProgress.latest_big_test là điểm tổng của bài Big Test gần nhất.
-        $this->assertEquals(7.3, (float) $response->viewData('page')['props']['learningProgress']['latest_big_test']);
+        // Props trang Vue: learningProgress.latest_big_test là điểm các thành phần của bài Big Test gần nhất (dữ liệu cũ 4 kỹ năng vẫn đọc được).
+        $this->assertSame('Nghe 7 · Đọc 7 · Viết 8 · Nói 7.2', $response->viewData('page')['props']['learningProgress']['latest_big_test']);
     }
 }

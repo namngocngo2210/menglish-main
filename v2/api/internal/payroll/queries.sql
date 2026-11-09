@@ -690,8 +690,8 @@ SELECT a.id, a.amount, a.reason, a.created_at, s.full_name AS student_name FROM 
 LEFT JOIN academic.students s ON s.id = a.student_id WHERE a.payroll_record_id = $1 ORDER BY a.created_at, a.id;
 
 -- name: InsertAdjustment :exec
-INSERT INTO hr.commission_adjustments (user_id, refund_request_id, student_id, amount, reason, created_by)
-VALUES (@user_id, @refund_request_id, @student_id, @amount, @reason, @created_by);
+INSERT INTO hr.commission_adjustments (user_id, refund_request_id, student_id, amount, reason, created_by, created_at)
+VALUES (@user_id, @refund_request_id, @student_id, @amount, @reason, @created_by, @created_at);
 
 -- name: StudentItems :many
 -- Khoản hoa hồng (chưa hủy) của học viên cho một người nhận, kèm trạng thái kỳ đã trả.

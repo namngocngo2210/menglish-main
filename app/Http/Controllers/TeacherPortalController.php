@@ -337,14 +337,15 @@ class TeacherPortalController extends Controller
                     'checkin_overdue' => $s->status !== 'cancelled' && now()->gt($s->checkinDeadline()) && ! $weekCheckedIn->has($s->id),
                 ])->values()->all(),
             ])->values()->all(),
-            'attention' => $this->attentionScores($teacher)->map(fn (MiniTestScore $score) => [
-                'id' => $score->id,
-                'student_name' => $score->student?->name,
-                'class_name' => $score->classModel?->name,
-                'name' => $score->name,
+            'penaltyWidget' => app(\App\Services\TeacherPenaltyWidgetService::class)->forTeacher($teacher),
+            'attention' => app(\App\Services\TeacherAttentionService::class)->forTeacher($teacher)->map(fn (array $r) => [
+                'id' => $r['score']->id,
+                'student_name' => $r['score']->student?->name,
+                'class_name' => $r['class_name'],
+                'name' => $r['score']->name,
                 // AC-R09 (TK-2026-0042): chỉ gửi %, không gửi điểm tuyệt đối.
-                'percent' => (int) round((float) $score->score / (float) $score->max_score * 100),
-            ])->values()->all(),
+                'percent' => $r['percent'],
+            ])->all(),
         ]);
     }
 
@@ -379,22 +380,6 @@ class TeacherPortalController extends Controller
     private static function trimNumber(mixed $value): string
     {
         return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
-    }
-
-    /** Học sinh cần chú ý ở trang chủ GV: Mini Test dưới 7/10 trong 30 ngày, các lớp mình dạy / trợ giảng / GVNN. */
-    private function attentionScores(User $teacher): Collection
-    {
-        $classIds = ClassModel::query()->where(fn ($q) => $q->where('teacher_id', $teacher->id)
-            ->orWhere('foreign_teacher_id', $teacher->id)->orWhere('assistant_id', $teacher->id))->pluck('id');
-
-        return MiniTestScore::with(['student:id,name', 'classModel:id,name'])
-            ->whereIn('class_id', $classIds)
-            ->whereDate('test_date', '>=', now()->subDays(30)->toDateString())
-            ->where('max_score', '>', 0)
-            ->whereRaw('score * 10 < max_score * 7')
-            ->latest('test_date')
-            ->limit(5)
-            ->get();
     }
 
     /**
@@ -1651,11 +1636,7 @@ class TeacherPortalController extends Controller
                 'student_name' => $r->student?->name,
                 'test_title' => $r->bigTest?->title,
                 'class_name' => $r->bigTest?->classModel?->name,
-                'listening_score' => $r->listening_score,
-                'reading_score' => $r->reading_score,
-                'writing_score' => $r->writing_score,
-                'speaking_score' => $r->speaking_score,
-                'overall_score' => $r->overall_score,
+                'components' => $r->scoreComponents(),
                 'approved' => $r->status === 'approved',
             ]),
         ]);
