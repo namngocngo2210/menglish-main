@@ -382,11 +382,11 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Xin thêm')
             ->assertSee(route('syllabus.adjustment-requests', ['status' => 'pending', 'request' => $req->id]))
             ->assertDontSee('Lý do xin giãn tiến độ');
-        // Học thuật xem chi tiết, không còn luồng từ chối; chỉ Admin duyệt / từ chối (06/10/2026).
+        // Học thuật và Admin đều thấy luồng duyệt / từ chối (TK-2026-0055).
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['request' => $req->id]))->assertOk()
             ->assertSee('Chi tiết yêu cầu')
             ->assertSee('Lý do xin giãn tiến độ')
-            ->assertDontSee('Lý do từ chối (Bắt buộc)');
+            ->assertSee('Lý do từ chối (Bắt buộc)');
         $this->actingAs($this->admin)->get(route('syllabus.adjustment-requests', ['request' => $req->id]))->assertOk()
             ->assertSee('Chi tiết yêu cầu')
             ->assertSee('Lý do xin giãn tiến độ')
@@ -397,8 +397,7 @@ class Phase2MockupSyllabusTest extends TestCase
         $req->forceFill(['created_at' => now()->subHours(SyllabusAdjustmentRequest::slaHours() + 1)])->save();
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('Quá hạn');
 
-        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertForbidden();
-        $this->actingAs($this->admin)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();
+        $this->actingAs($this->academic)->post(route('syllabus.adjustment-requests.reject', $req->id), ['rejection_reason' => 'Chưa đủ căn cứ'])->assertRedirect();
         // Mặc định lọc "chờ duyệt"; "Tất cả" vẫn thấy yêu cầu đã xử lý
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests'))->assertOk()->assertSee('0 yêu cầu');
         $this->actingAs($this->academic)->get(route('syllabus.adjustment-requests', ['status' => 'all', 'request' => $req->id]))->assertOk()->assertSee('Chưa đủ căn cứ');
@@ -443,14 +442,8 @@ class Phase2MockupSyllabusTest extends TestCase
             ->assertSee('Cảnh báo SLA')
             ->assertSee(e(route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'pending'])), false)
             ->assertDontSee('CLASS ID: MK-01');
-        // Học thuật xem order đề; form duyệt / từ chối chỉ hiện cho Admin (06/10/2026).
+        // Học thuật và Admin đều thấy form duyệt / từ chối order (TK-2026-0055).
         $this->actingAs($this->academic)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
-            ->assertSee('CLASS ID: MK-01')
-            ->assertSee('Yêu cầu từ Giáo viên')
-            ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
-            ->assertDontSee('Link đề Big Test (Folder lớp)')
-            ->assertDontSee('Phê duyệt &amp; Phân phối', false);
-        $this->actingAs($this->admin)->get(route('syllabus.big-tests.distribution', ['order' => $order->id]))->assertOk()
             ->assertSee('CLASS ID: MK-01')
             ->assertSee('Yêu cầu từ Giáo viên')
             ->assertSee('Nhờ chuẩn bị đề tập trung Speaking')
