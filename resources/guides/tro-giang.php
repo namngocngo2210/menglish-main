@@ -23,7 +23,7 @@ return [
                 'Mở trang **Nhiệm vụ hằng ngày**. Bấm tên từng ca (**Trước giờ học**, **Trong giờ học**, **Sau giờ học**) để mở hoặc thu gọn danh sách.',
                 'Làm xong một nhiệm vụ, bấm **Hoàn thành** trên thẻ nhiệm vụ đó (nhiệm vụ trễ hạn có nút **Hoàn thành gấp**).',
                 'Trong hộp **Cập nhật tiến độ**, bấm **Nhấn để tải ảnh lên** để chụp hoặc chọn ảnh bằng chứng, thêm ghi chú nếu cần.',
-                'Bấm **Xác nhận**. Có ảnh thì nhiệm vụ hoàn thành ngay; không có ảnh thì chuyển sang chờ Admin xác nhận.',
+                'Bấm **Xác nhận**. Có ảnh thì nhiệm vụ hoàn thành ngay; không có ảnh thì chuyển sang chờ xác nhận: GV chính của lớp xác nhận (nhiệm vụ không gắn lớp thì người giao việc xác nhận).',
                 'Muốn xem ngày khác, chọn ở ô **Ngày**; bấm **Hôm nay** để quay lại.',
             ],
             'tips' => [
@@ -50,7 +50,7 @@ return [
                 'Có học sinh cần kèm thêm thì bấm **Thêm học sinh cần bổ trợ**, ghi lý do và kế hoạch xử lý. Cuối cùng bấm **Nộp báo cáo**.',
             ],
             'tips' => [
-                'Ảnh không bắt buộc. Có ít nhất 1 ảnh, nhiệm vụ trực lớp tự hoàn thành; không có ảnh, nhiệm vụ chờ Admin xác nhận.',
+                'Ảnh không bắt buộc. Có ít nhất 1 ảnh, nhiệm vụ trực lớp tự hoàn thành; không có ảnh, nhiệm vụ chờ xác nhận: GV chính của lớp xác nhận (nhiệm vụ không gắn lớp thì người giao việc xác nhận).',
             ],
         ],
         [
