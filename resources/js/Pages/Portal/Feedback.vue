@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Phụ huynh gửi feedback chặng học (MH #7): mức hài lòng 1–5 sao, lĩnh vực góp ý, nội dung — cần ít nhất 1 mục (R-04).
- * Đã gửi thì sửa / cập nhật được, hoặc xóa để nhập lại. Có sẵn giao diện "đợt đã đóng" (chỉ xem) và "chưa có đợt nào mở".
+ * Đã gửi thì sửa / cập nhật được. Không có chức năng xóa: chỉ sửa tại chỗ. Có sẵn giao diện "đợt đã đóng" (chỉ xem) và "chưa có đợt nào mở".
  */
 import { computed, ref, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -197,13 +197,6 @@ function validateForm(event) {
                     </UiForm>
                 </div>
 
-                <div v-if="hasSaved" v-show="viewState === 'form-updated'" class="pt-1">
-                    <UiForm :action="route('portal.student.feedback.destroy', { id: lastFeedback.id })" method="delete" confirm="Xóa bản feedback này?" confirm-label="Xóa" danger>
-                        <UiButton type="submit" variant="danger-text" icon="delete_sweep" class="w-full">
-                            <span>Xóa phản hồi đã lưu &amp; nhập lại</span>
-                        </UiButton>
-                    </UiForm>
-                </div>
             </div>
 
             <!-- VIEW 2: CHỈ XEM KHI ĐỢT THU THẬP ĐÃ ĐÓNG (AC-R06b) -->

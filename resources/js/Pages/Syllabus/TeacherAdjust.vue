@@ -89,10 +89,7 @@ function sent() {
             <p class="font-body-small text-body-small text-on-surface-variant">Bạn hiện không có chặng học nào đang mở để gửi yêu cầu.</p>
         </div>
         <UiForm v-else id="new-adjustment-form" :action="route('syllabus.adjustment-requests.store')" method="post" class="space-y-md" reset-on-success @success="sent">
-            <UiSelect label="Lớp học / Chặng học" name="class_id" value="" required>
-                <option disabled value="">Chọn lớp/chặng cần xin giãn</option>
-                <option v-for="cl in classes" :key="cl.value" :value="cl.value">{{ cl.label }}</option>
-            </UiSelect>
+            <UiSelect label="Lớp học / Chặng học" name="class_id" value="" placeholder="Chọn lớp/chặng cần xin giãn" :options="classes" required />
 
             <UiField label="Loại điều chỉnh" name="kind" required>
                 <div class="grid grid-cols-1 gap-sm sm:grid-cols-2">

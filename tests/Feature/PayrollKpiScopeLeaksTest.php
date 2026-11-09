@@ -76,7 +76,7 @@ class PayrollKpiScopeLeaksTest extends TestCase
             'kpi_source' => PayrollRecord::KPI_RETENTION,
             'retention_students' => 7,
             'retention_base_students' => 8,
-            'retention_tier' => 50000,
+            'kpi_finalized_at' => now(),
             'kpi_bonus' => $bonus,
         ]);
     }

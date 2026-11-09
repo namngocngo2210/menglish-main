@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -372,12 +373,28 @@ class KpiController extends Controller
         return [min(12, max(1, (int) $request->input('month', now()->month))), (int) $request->input('year', now()->year)];
     }
 
-    /** Kỳ lương của tháng đã gửi GV xem / đã trả thì khóa toàn bộ dữ liệu lương, gồm phiếu KPI tháng đó (phiếu quý: tháng cuối quý). */
+    /** Freeze KPI changes once payroll is closed, published or paid (quarterly sheets use the final month). */
     private function periodLocked(int $month, int $year, int $months = 1): bool
     {
         $monthStart = Carbon::create($year, $month, 1)->addMonths(max(1, $months) - 1);
 
-        return PayrollPeriod::isLockedFor($monthStart) || PayrollPeriod::isLockedFor($monthStart->copy()->endOfMonth());
+        return PayrollPeriod::whereIn('status', PayrollPeriod::FROZEN_STATUSES)
+            ->where(function ($query) use ($monthStart) {
+                foreach ([$monthStart->toDateString(), $monthStart->copy()->endOfMonth()->toDateString()] as $day) {
+                    $query->orWhere(fn ($q) => $q->whereDate('start_date', '<=', $day)->whereDate('end_date', '>=', $day));
+                }
+            })->exists();
+    }
+
+    /** Lock in the same order as payroll calculation and reject frozen periods before any KPI write. */
+    private function lockPeriod(array $period): void
+    {
+        $periods = PayrollPeriod::whereDate('start_date', '<=', $period['to']->toDateString())
+            ->whereDate('end_date', '>=', $period['to']->copy()->startOfMonth()->toDateString())
+            ->orderBy('id')->lockForUpdate()->get();
+        if ($periods->contains(fn (PayrollPeriod $payroll) => $payroll->isFrozen())) {
+            throw ValidationException::withMessages(['month' => 'Kỳ lương đã chốt / gửi GV xem / đã trả — không thể sửa KPI.']);
+        }
     }
 
     /** Nhãn kỳ phiếu: "Kỳ lương tháng 10/2026" hoặc "Quý 4/2026 (tháng 10–12)". */
@@ -419,6 +436,10 @@ class KpiController extends Controller
             'auto' => $l['auto'],
             'value' => $l['value'],
             'level' => $l['level'],
+            'critical' => $l['critical'] ?? false,
+            'critical_note' => $l['critical_note'] ?? null,
+            'critical_by' => $l['critical_by'] ?? null,
+            'critical_at' => $l['critical_at'] ?? null,
             'allow_na' => (bool) $c->allow_na && ! $l['auto'],
             'na' => $l['na'],
             'cap' => $l['cap'],
@@ -496,6 +517,8 @@ class KpiController extends Controller
             'canClose' => now()->gte($closeOn),
             'closeOn' => $closeOn->format('d/m/Y'),
             'canDecide' => $request->user()->can('kpi.confirm') && ! $isSelf && ! $locked && $status !== KpiEvaluation::STATUS_APPROVED,
+            'canMarkCritical' => $request->user()->can('kpi.manage') && ! $isSelf && ! $locked
+                && $sheet['role'] === Roles::ACADEMIC_STAFF && $track === KpiEvaluation::TRACK_MAIN,
             'groups' => $sheet['lines']->groupBy(fn ($l) => $l['criterion']->group_name ?: 'Chưa phân nhóm')
                 ->map(fn ($lines, $name) => [
                     'name' => $name,
@@ -503,6 +526,79 @@ class KpiController extends Controller
                 ])->values(),
             'backUrl' => route('kpi.monthly', ['period' => sprintf('%04d-%02d', $year, $month)]),
         ]);
+    }
+
+    public function evaluateCritical(Request $request, int $userId, KpiSheetService $sheets)
+    {
+        $this->guard('kpi.manage');
+        $staff = $this->scopedStaff(User::query())->findOrFail($userId);
+        $track = $this->track($request, $staff);
+        abort_if($userId === (int) $request->user()->id, 403, 'Bạn không được tự chấm KPI của chính mình.');
+        abort_unless($track === KpiEvaluation::TRACK_MAIN && KpiSheetService::roleFor($staff, $track) === Roles::ACADEMIC_STAFF, 403);
+        $validated = $request->validate([
+            'month' => 'required|integer|min:1|max:12',
+            'year' => 'required|integer|min:2020|max:2100',
+            'criterion_id' => 'required|integer',
+            'critical' => 'required|boolean',
+            'note' => 'required_if:critical,true|nullable|string|max:500',
+        ], [
+            'note.required_if' => 'Cần ghi lý do đánh dấu lỗi nghiêm trọng.',
+            'note.max' => 'Lý do lỗi nghiêm trọng không được quá 500 ký tự.',
+        ]);
+        $period = KpiSheetService::periodFor($staff, (int) $validated['month'], (int) $validated['year'], $track);
+        $critical = (bool) $validated['critical'];
+
+        DB::transaction(function () use ($request, $staff, $track, $period, $validated, $critical, $sheets) {
+            $this->lockPeriod($period);
+            $evaluation = KpiEvaluation::query()->lockForUpdate()->firstOrCreate(
+                ['user_id' => $staff->id, 'month' => $period['month'], 'year' => $period['year'], 'track' => $track],
+                ['period_months' => $period['months'], 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
+            );
+            $criteria = KpiCriterion::forRole(Roles::ACADEMIC_STAFF)->active()->ordered()->get();
+            if ($evaluation->status === KpiEvaluation::STATUS_APPROVED) {
+                $criteria = $evaluation->scoredCriteria($criteria)['criteria'];
+            }
+            if (! $criteria->contains(fn ($c) => $c->id === (int) $validated['criterion_id'] && $c->role === Roles::ACADEMIC_STAFF)) {
+                throw ValidationException::withMessages(['criterion_id' => 'Tiêu chí không thuộc phiếu KPI Học vụ này.']);
+            }
+
+            $item = $evaluation->items()->firstOrNew(['kpi_criterion_id' => (int) $validated['criterion_id']]);
+            $auditNote = $critical ? trim($validated['note']) : $item->critical_note;
+            if ($critical) {
+                if ($evaluation->status === KpiEvaluation::STATUS_APPROVED) {
+                    if (! $item->critical_error) {
+                        $item->critical_prev_score = $item->score ?? 0;
+                    }
+                    $item->score = 0;
+                }
+                $item->fill([
+                    'critical_error' => true, 'critical_note' => $auditNote,
+                    'critical_marked_by' => $request->user()->id, 'critical_marked_at' => now(),
+                ]);
+            } else {
+                if ($evaluation->status === KpiEvaluation::STATUS_APPROVED && $item->critical_error) {
+                    // Legacy critical items may not have a saved score; keep their existing score in that case.
+                    $item->score = $item->critical_prev_score ?? $item->score;
+                }
+                $item->fill([
+                    'critical_error' => false, 'critical_note' => null, 'critical_marked_by' => null,
+                    'critical_marked_at' => null, 'critical_prev_score' => null,
+                ]);
+            }
+            $item->save();
+
+            $sheet = $sheets->sheet($staff, $period['month'], $period['year'], $evaluation->fresh('items'), $track);
+            $evaluation->update(['total_score' => $sheets->totalFromLines($sheet['lines'])]);
+
+            activity('KPI')->causedBy($request->user())->performedOn($evaluation)
+                ->event($critical ? 'critical_marked' : 'critical_unmarked')
+                ->withProperties([
+                    'evaluation_id' => $evaluation->id, 'criterion_id' => $item->kpi_criterion_id,
+                    'critical' => $critical, 'note' => $auditNote,
+                ])->log($critical ? 'Đánh dấu lỗi nghiêm trọng KPI Học vụ.' : 'Bỏ đánh dấu lỗi nghiêm trọng KPI Học vụ.');
+        });
+
+        return back()->with('success', $critical ? 'Đã đánh dấu lỗi nghiêm trọng KPI.' : 'Đã bỏ đánh dấu lỗi nghiêm trọng KPI.');
     }
 
     public function evaluateStore(Request $request, int $userId, KpiSheetService $sheets)
@@ -540,8 +636,8 @@ class KpiController extends Controller
         $monthStart = Carbon::create($period['year'], $period['month'], 1);
         if ($this->periodLocked($period['month'], $period['year'], $period['months'])) {
             $message = $period['months'] > 1
-                ? 'Kỳ lương tháng cuối '.mb_strtolower($period['label']).' đã gửi GV xem/đã trả — không thể sửa đánh giá KPI của quý này.'
-                : 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã gửi GV xem/đã trả — không thể sửa đánh giá KPI của tháng này.';
+                ? 'Kỳ lương tháng cuối '.mb_strtolower($period['label']).' đã chốt/gửi GV xem/đã trả — không thể sửa đánh giá KPI của quý này.'
+                : 'Kỳ lương tháng '.$monthStart->format('m/Y').' đã chốt/gửi GV xem/đã trả — không thể sửa đánh giá KPI của tháng này.';
 
             return back()->withInput()->withErrors(['month' => $message])->with('error', $message);
         }
@@ -563,6 +659,9 @@ class KpiController extends Controller
         }
 
         $critical = collect($validated['critical'] ?? [])->filter()->keys()->map(fn ($id) => (int) $id)->all();
+        if ($critical) {
+            $this->guard('kpi.manage');
+        }
         $kpiRole = KpiSheetService::roleFor($staff, $track);
         $criteria = $kpiRole ? KpiCriterion::forRole($kpiRole)->active()->get()->keyBy('id') : collect();
 
@@ -573,38 +672,45 @@ class KpiController extends Controller
                 $validated['score'][$criterionId] = $criterion->levelForCount((float) $actual);
             }
         }
-        // "Lỗi nghiêm trọng" đưa % đạt của mục về 0.
-        foreach ($critical as $criterionId) {
-            $validated['score'][$criterionId] = 0;
-        }
-
-        // Điểm tổng theo trọng số: Σ(điểm × trọng số) / Σ trọng số CÁC MỤC ĐANG ÁP DỤNG (mục chưa chấm = 0) —
-        // cùng cách tính với KPI Học vụ trên bảng lương (quỹ × điểm tổng %).
-        $weightedSum = 0;
-        $weightTotal = (float) $criteria->sum('weight');
-        foreach ($validated['score'] as $criterionId => $score) {
-            if (! isset($criteria[$criterionId]) || $score === null || $score === '') {
-                continue;
-            }
-            $weightedSum += (float) $score * (float) $criteria[$criterionId]->weight;
-        }
-        $total = $weightTotal > 0 ? round($weightedSum / $weightTotal, 2) : 0;
-
-        // Phiếu + từng mục ghi cùng lúc: lỗi giữa chừng không để lại phiếu đã chốt thiếu mục.
-        $evaluation = DB::transaction(function () use ($userId, $validated, $total, $criteria, $critical, $action, $track) {
-            $evaluation = KpiEvaluation::updateOrCreate(
+        $evaluation = DB::transaction(function () use ($userId, $validated, $criteria, $critical, $action, $track, $period) {
+            $this->lockPeriod($period);
+            $evaluation = KpiEvaluation::query()->lockForUpdate()->firstOrCreate(
                 ['user_id' => $userId, 'month' => $validated['month'], 'year' => $validated['year'], 'track' => $track],
-                [
-                    'evaluator_id' => Auth::id(),
-                    'total_score' => $total,
-                    'comment' => $validated['comment'] ?? null,
-                    'strengths' => $validated['strengths'] ?? null,
-                    'improvements' => $validated['improvements'] ?? null,
-                    'next_actions' => $validated['next_actions'] ?? null,
-                    'status' => $action === 'draft' ? KpiEvaluation::STATUS_PENDING : KpiEvaluation::STATUS_APPROVED,
-                    'decided_at' => $action === 'draft' ? null : now(),
-                ]
+                ['total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
             );
+            // Ordinary score submissions cannot remove a critical flag; unmark through the managed endpoint.
+            $markedItems = $evaluation->items()->where('critical_error', true)->get();
+            $critical = array_unique(array_merge($critical, $markedItems->pluck('kpi_criterion_id')->map(fn ($id) => (int) $id)->all()));
+            foreach ($markedItems as $item) {
+                $actual = $validated['actual'][$item->kpi_criterion_id] ?? null;
+                $derived = $evaluation->status !== KpiEvaluation::STATUS_APPROVED
+                    && $criteria->get($item->kpi_criterion_id)?->isCountBased() && is_numeric($actual) && (float) $actual >= 0;
+                if ($derived || $item->critical_prev_score === null) {
+                    $item->update(['critical_prev_score' => $derived ? $validated['score'][$item->kpi_criterion_id] : $item->score]);
+                }
+            }
+            foreach ($critical as $criterionId) {
+                $validated['score'][$criterionId] = 0;
+            }
+            $weightedSum = 0;
+            $weightTotal = (float) $criteria->sum('weight');
+            foreach ($validated['score'] as $criterionId => $score) {
+                if (! isset($criteria[$criterionId]) || $score === null || $score === '') {
+                    continue;
+                }
+                $weightedSum += (float) $score * (float) $criteria[$criterionId]->weight;
+            }
+            $total = $weightTotal > 0 ? round($weightedSum / $weightTotal, 2) : 0;
+            $evaluation->update([
+                'evaluator_id' => Auth::id(),
+                'total_score' => $total,
+                'comment' => $validated['comment'] ?? null,
+                'strengths' => $validated['strengths'] ?? null,
+                'improvements' => $validated['improvements'] ?? null,
+                'next_actions' => $validated['next_actions'] ?? null,
+                'status' => $action === 'draft' ? KpiEvaluation::STATUS_PENDING : KpiEvaluation::STATUS_APPROVED,
+                'decided_at' => $action === 'draft' ? null : now(),
+            ]);
 
             foreach ($validated['score'] as $criterionId => $score) {
                 if (! isset($criteria[$criterionId])) {
@@ -616,10 +722,14 @@ class KpiController extends Controller
 
                     continue;
                 }
+                $storedScore = $score;
+                if ($action === 'draft' && in_array((int) $criterionId, $critical, true)) {
+                    $storedScore = $markedItems->firstWhere('kpi_criterion_id', (int) $criterionId)?->critical_prev_score ?? $score;
+                }
                 KpiEvaluationItem::updateOrCreate(
                     ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $criterionId],
                     [
-                        'score' => $score, 'note' => $validated['note'][$criterionId] ?? null,
+                        'score' => $storedScore, 'note' => $validated['note'][$criterionId] ?? null,
                         'actual' => $validated['actual'][$criterionId] ?? null,
                         'critical_error' => in_array((int) $criterionId, $critical, true),
                     ]
@@ -630,6 +740,7 @@ class KpiController extends Controller
         });
 
         $label = $evaluation->status === KpiEvaluation::STATUS_PENDING ? 'Đã lưu nháp đánh giá KPI' : 'Đã chốt KPI tháng';
+        $total = (float) $evaluation->total_score;
 
         return redirect()->route('kpi.monthly', ['month' => $validated['month'], 'year' => $validated['year']])
             ->with('success', "{$label} (Tổng điểm: {$total}%).");
@@ -687,7 +798,8 @@ class KpiController extends Controller
         }
 
         $evaluation = DB::transaction(function () use ($staff, $month, $year, $period, $values, $na, $action, $validated, $sheets, $track, &$errors) {
-            $evaluation = KpiEvaluation::firstOrCreate(
+            $this->lockPeriod($period);
+            $evaluation = KpiEvaluation::query()->lockForUpdate()->firstOrCreate(
                 ['user_id' => $staff->id, 'month' => $month, 'year' => $year, 'track' => $track],
                 ['period_months' => $period['months'], 'total_score' => 0, 'status' => KpiEvaluation::STATUS_PENDING]
             );
@@ -716,16 +828,17 @@ class KpiController extends Controller
                 return null;
             }
             foreach ($sheet['lines'] as $line) {
-                if ($line['value'] === null && ! $line['criterion']->hasRule()) {
+                if ($line['value'] === null && ! $line['criterion']->hasRule() && ! $line['critical']) {
                     continue;   // tiêu chí % cũ chưa chấm: giữ nguyên
                 }
                 KpiEvaluationItem::updateOrCreate(
                     ['kpi_evaluation_id' => $evaluation->id, 'kpi_criterion_id' => $line['criterion']->id],
                     [
                         'actual' => $line['value'] === null ? null : (string) $line['value'],
-                        'score' => $line['level'] ?? 0,
+                        'score' => $action === 'reject' && $line['critical'] ? ($line['critical_prev_score'] ?? 0) : ($line['level'] ?? 0),
                         'evidence' => $line['auto'] ? $line['evidence'] : null,
                         'not_applicable' => $line['na'],
+                        'critical_prev_score' => $line['critical_prev_score'],
                     ]
                 );
             }

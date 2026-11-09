@@ -269,7 +269,7 @@ class Phase2SyllabusTest extends TestCase
         $this->assertSame(['pdf'], SyllabusDocument::pluck('extension')->all());
     }
 
-    public function test_legacy_office_document_still_listed_and_downloadable(): void
+    public function test_legacy_office_document_listed_but_teacher_cannot_download(): void
     {
         Storage::fake('local')->put('syllabus_documents/old.pptx', 'x');
         $doc = SyllabusDocument::create([
@@ -278,21 +278,27 @@ class Phase2SyllabusTest extends TestCase
         ]);
 
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view'))->assertOk()->assertSee('Slide cũ');
-        $this->actingAs($this->teacher)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertOk();
+        // TK-2026-0040: GV không bao giờ tải được file gốc, kể cả khi cờ downloadable cũ = true.
+        $this->actingAs($this->teacher)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertForbidden();
+        $this->actingAs($this->teacher)->get(route('syllabus.documents.file', $doc->id))->assertForbidden();
     }
 
-    public function test_downloadable_document_has_no_watermark(): void
+    public function test_teacher_can_never_download_even_if_legacy_flag_is_set(): void
     {
         Storage::fake('local');
         $this->actingAs($this->academic)->post(route('syllabus.documents.store'), [
-            'curriculum_id' => $this->openFirstStage($this->curriculum())->id, 'title' => 'Tải được', 'file' => $this->pdf(),
+            'curriculum_id' => $this->openFirstStage($this->curriculum())->id, 'title' => 'Chỉ xem', 'file' => $this->pdf(),
             'visible_to_teachers' => '1', 'downloadable' => '1',
         ])->assertSessionHasNoErrors();
         $doc = SyllabusDocument::firstOrFail();
+        $this->assertFalse($doc->downloadable); // tham số downloadable bị bỏ qua khi tạo
 
+        $doc->forceFill(['downloadable' => true])->save(); // dữ liệu cũ
+        $this->actingAs($this->teacher)->get(route('syllabus.documents.file', ['id' => $doc->id, 'download' => 1]))->assertForbidden();
+        $this->actingAs($this->teacher)->get(route('syllabus.documents.file', $doc->id))->assertOk();
         $this->actingAs($this->teacher)->get(route('syllabus.teacher-view', ['document' => $doc->id]))->assertOk()
-            ->assertDontSee('print:hidden', false)
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.id', $doc->id)->where('selected.watermark', null));
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('selected.can_download', false)->where('documents.0.can_download', false)
+                ->whereNot('selected.watermark', null));
     }
 
     public function test_document_upload_rejects_disguised_executable_and_requires_file(): void

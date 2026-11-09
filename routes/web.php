@@ -371,8 +371,6 @@ Route::middleware('auth')->group(function () {
 
         // Step 2: Trang chủ Phụ huynh / Học sinh
         Route::get('/home/{studentId?}', [StudentPortalController::class, 'studentHome'])->name('student.home');
-        Route::post('/student/{id}/update-profile', [StudentPortalController::class, 'updateProfile'])->name('student.profile.update');
-        Route::post('/student/tuition-request', [StudentPortalController::class, 'submitTuitionRequest'])->name('student.tuition.request');
 
         // Step 3: Học tập của tôi — Nộp bài tập
         Route::get('/student-homework/{studentId?}', [StudentPortalController::class, 'studentHomework'])->name('student.homework');
@@ -385,6 +383,7 @@ Route::middleware('auth')->group(function () {
 
         // Step 4: Luyện phát âm & Thu âm giọng nói AI
         Route::get('/pronunciation/{studentId?}', [StudentPortalController::class, 'studentPronunciation'])->name('student.pronunciation');
+        Route::get('/pronunciation/sample/{document}/{studentId?}', [StudentPortalController::class, 'pronunciationSample'])->whereNumber('document')->name('student.pronunciation.sample');
         Route::post('/pronunciation/record', [StudentPortalController::class, 'submitPronunciation'])->name('student.pronunciation.store');
         Route::delete('/pronunciation/{id}/destroy', [StudentPortalController::class, 'deletePronunciation'])->name('student.pronunciation.destroy');
 
@@ -402,7 +401,6 @@ Route::middleware('auth')->group(function () {
         // Step 7: Phụ huynh gửi Feedback chặng học (MH6)
         Route::get('/feedback/{studentId?}', [StudentPortalController::class, 'studentFeedback'])->name('student.feedback');
         Route::post('/feedback/submit', [StudentPortalController::class, 'submitFeedback'])->name('student.feedback.store');
-        Route::delete('/feedback/{id}/destroy', [StudentPortalController::class, 'deleteFeedback'])->name('student.feedback.destroy');
 
         // Luyện tập (ngân hàng câu hỏi): quyền theo học viên kiểm tra trong controller. Route lượt làm đặt trước /practice/{studentId?}.
         Route::post('/practice/start', [PracticeController::class, 'start'])->name('student.practice.start');
@@ -436,6 +434,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/periods/{id}/operations', [PayrollController::class, 'operationsPeriod'])->middleware('can:payroll.view')->name('periods.operations');
         Route::post('/records/{id}/update', [PayrollController::class, 'updateRecord'])->middleware('can:payroll.edit')->name('records.update');
         Route::get('/records/{id}', [PayrollController::class, 'showRecord'])->whereNumber('id')->middleware('can:payroll.view')->name('records.show');
+        Route::post('/records/{id}/finalize-kpi', [PayrollController::class, 'finalizeKpi'])->whereNumber('id')->middleware('can:payroll.edit')->name('records.finalize-kpi');
         Route::post('/records/{id}/adjust', [PayrollController::class, 'adjustRecord'])->whereNumber('id')->middleware('can:payroll.edit')->name('records.adjust');
         Route::get('/timesheets/appsheet', [PayrollController::class, 'appsheetTimesheet'])->middleware('can:attendance_staff.view')->name('timesheets.appsheet');
         Route::get('/timesheets/manual', [PayrollController::class, 'manualTimesheet'])->middleware('can:attendance_staff.manual_record')->name('timesheets.manual');
@@ -449,6 +448,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/timesheets/sync-history', [PayrollController::class, 'syncHistory'])->middleware('can:attendance_staff.sync')->name('timesheets.sync-history');
         Route::get('/timesheets/sync-history/{id}/errors', [PayrollController::class, 'exportSyncErrors'])->whereNumber('id')->middleware('can:attendance_staff.sync')->name('timesheets.sync-history.errors');
         Route::get('/kpi-leaderboard', [PayrollController::class, 'kpiLeaderboard'])->middleware('can:kpi.view')->name('kpi-leaderboard');
+        Route::get('/config/kpi-tiers', [PayrollController::class, 'kpiTiers'])->middleware('can:teacher_rate.manage')->name('config.kpi-tiers');
+        Route::match(['post', 'put'], '/config/kpi-tiers', [PayrollController::class, 'storeKpiTiers'])->middleware('can:teacher_rate.manage')->name('config.kpi-tiers.store');
         Route::get('/config/settings', [PayrollController::class, 'configSettings'])->middleware('can:teacher_rate.manage')->name('config.settings');
         Route::post('/config/settings', [PayrollController::class, 'storeSettings'])->middleware('can:teacher_rate.manage')->name('config.settings.store');
         Route::get('/config/teacher-rates', [PayrollController::class, 'teacherRates'])->middleware('can:teacher_rate.manage')->name('config.teacher-rates');
@@ -461,7 +462,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/config/renewal-bonus', [PayrollController::class, 'storeRenewalTable'])->middleware('can:commission_config.manage')->name('config.renewal.store');
     });
 
-    Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->name('portal.my-salary');
+    Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->middleware('can:portal.staff')->name('portal.my-salary');
 
     // ─────────────────────────────────────────────
     // 5. Kỷ luật & Xử phạt (Epic 8)
@@ -1005,6 +1006,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/mine', 'mine')->middleware('can:'.\App\Models\KpiCriterion::OWN_ABILITY)->name('mine');
         Route::get('/evaluate/{userId}', 'evaluate')->middleware('can:kpi.view')->name('evaluate');
         Route::post('/evaluate/{userId}', 'evaluateStore')->middleware('can:kpi.confirm')->name('evaluate.store');
+        Route::post('/evaluate/{userId}/critical', 'evaluateCritical')->middleware('can:kpi.manage')->name('evaluate.critical');
         Route::get('/attendance-review', 'attendanceReview')->middleware('can:kpi.view')->name('attendance-review');
         Route::post('/attendance-review/{id}', 'reviewAttendance')->middleware('can:kpi.confirm')->name('attendance-review.update');
     });

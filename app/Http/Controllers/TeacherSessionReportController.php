@@ -156,8 +156,11 @@ class TeacherSessionReportController extends Controller
         $user = $request->user();
         abort_unless(TeacherSessionReport::responsibleTeacherId($classSession, $class) === (int) $user->id, 403, 'Chỉ giáo viên chính của buổi nộp báo cáo buổi.');
 
+        // "Lưu nhận xét" (NX R-03 / AC-S02): nhận xét học sinh lưu độc lập, không trường nào bắt buộc, không cần điểm danh / nộp báo cáo.
+        $remarksOnly = $request->boolean('remarks_only');
+
         $validated = $request->validate([
-            'content' => 'required|string|max:5000',
+            'content' => ($remarksOnly ? 'nullable' : 'required').'|string|max:5000',
             'class_situation' => 'nullable|string|max:5000',
             'proposal' => 'nullable|string|max:5000',
             'attention' => 'nullable|array|max:50',
@@ -195,7 +198,7 @@ class TeacherSessionReportController extends Controller
                 throw ValidationException::withMessages(["incidents.{$i}.title" => 'Nhập tiêu đề sự vụ.']);
             }
         }
-        if (! StudentAttendance::where('class_session_id', $classSession->id)->exists()) {
+        if (! $remarksOnly && ! StudentAttendance::where('class_session_id', $classSession->id)->exists()) {
             throw ValidationException::withMessages(['attendance' => 'Cần điểm danh buổi này trước khi nộp báo cáo buổi.']);
         }
 
@@ -221,6 +224,12 @@ class TeacherSessionReportController extends Controller
         })->all();
         $practiceColumns = $practiceColumns->filter()->unique()->values()->all();
 
+        if ($remarksOnly) {
+            $this->saveRemarks($class, $classSession, $user, $remarks, $rosterIds);
+
+            return back()->with('success', 'Đã lưu nhận xét học sinh.');
+        }
+
         $report = TeacherSessionReport::firstOrNew(['class_session_id' => $classSession->id]);
         $report->fill([
             'class_id' => $class->id,
@@ -235,12 +244,7 @@ class TeacherSessionReportController extends Controller
         $created = ! $report->exists;
         $urgent = DB::transaction(function () use ($report, $class, $classSession, $user, $validated, $remarks, $rosterIds) {
             $report->save();
-            // Nhận xét học sinh gửi kèm báo cáo = "Lưu nhận xét" (bản chính thức) ở màn Nhận xét. Không gõ gì và chưa có bản
-            // nhận xét nào → không tạo bản trống (bản trống vẫn tính là "đã gửi nhận xét").
-            $typed = collect($remarks)->flatten()->filter(fn ($v) => filled($v))->isNotEmpty();
-            if ($typed || TeacherPortalController::sessionRemarks($class, $classSession)->isNotEmpty()) {
-                TeacherPortalController::saveSessionRemarks($class, $classSession, (int) $user->id, $remarks, $rosterIds, false);
-            }
+            $this->saveRemarks($class, $classSession, $user, $remarks, $rosterIds);
             // Một danh sách "Học sinh cần chú ý" chung với TA; "Nội dung đã dạy" chỉ GV nhập — báo cáo trực lớp của buổi lấy lại.
             app(SupportListService::class)->syncTeacherReport($report, $classSession);
             ClassReport::where('class_session_id', $classSession->id)->update(['topics_learned' => $report->content]);
@@ -257,6 +261,18 @@ class TeacherSessionReportController extends Controller
         $message .= $this->markTaught($class, $classSession, $user, ! empty($validated['use_extra']));
 
         return redirect()->route('classes.show', ['id' => $class->id, 'tab' => 'sessions'])->with('success', $message);
+    }
+
+    /**
+     * Nhận xét học sinh = "Lưu nhận xét" (bản chính thức). Không gõ gì và chưa có bản nhận xét nào → không tạo bản trống
+     * (bản trống vẫn tính là "đã gửi nhận xét").
+     */
+    private function saveRemarks(ClassModel $class, ClassSession $session, User $user, array $remarks, Collection $rosterIds): void
+    {
+        $typed = collect($remarks)->flatten()->filter(fn ($v) => filled($v))->isNotEmpty();
+        if ($typed || TeacherPortalController::sessionRemarks($class, $session)->isNotEmpty()) {
+            TeacherPortalController::saveSessionRemarks($class, $session, (int) $user->id, $remarks, $rosterIds, false);
+        }
     }
 
     /**

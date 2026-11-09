@@ -402,9 +402,11 @@ class ApprovalInboxTest extends TestCase
         $this->makeTuition($student);
         $outScope = $this->makeStudent($this->branchB);
 
-        $this->actingAs($studentUser)->post(route('portal.student.tuition.request'), [
-            'student_id' => $student->id, 'amount' => 2500000, 'content' => 'CK Vietcombank 25/09',
-        ])->assertSessionHas('success');
+        AcademicRecord::create([
+            'screen_key' => PaymentReportService::SCREEN_KEY, 'module' => 'student_portal', 'record_code' => 'YCHOCPHI-IN',
+            'title' => 'Báo đóng', 'status' => PaymentReportService::STATUS_PENDING, 'user_id' => $studentUser->id,
+            'data' => ['student_id' => (string) $student->id, 'student_name' => $student->name, 'amount' => 2500000, 'content' => 'CK Vietcombank 25/09'],
+        ]);
         AcademicRecord::create([
             'screen_key' => PaymentReportService::SCREEN_KEY, 'module' => 'student_portal', 'record_code' => 'YCHOCPHI-OUT',
             'title' => 'Báo đóng', 'status' => 'pending', 'data' => ['student_id' => (string) $outScope->id, 'amount' => 1000000],

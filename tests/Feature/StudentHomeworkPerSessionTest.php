@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
@@ -115,6 +116,60 @@ class StudentHomeworkPerSessionTest extends TestCase
         $this->actingAs($this->parent)->get(route('portal.student.home', $this->student->id))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('learningProgress.homework_submitted', 1)
                 ->where('learningProgress.homework_total', 3)->etc());
+    }
+
+    public function test_unattached_homework_is_submittable_and_has_no_contradictory_text(): void
+    {
+        // TK-2026-0045: bài không gắn buổi — có hạng mục (items) lẫn bài form cũ (items null, ghi chú "nộp trên Cổng").
+        $withItems = $this->homework(['video' => 'Quay video', 'workbook' => 'Trang 3'], ['title' => 'Không buổi có items']);
+        $legacy = $this->homework([], ['title' => 'Bài form cũ', 'class_note' => 'Hoàn thành và nộp trên Cổng học viên.']);
+        $legacy->forceFill(['items' => null])->save();
+
+        $this->actingAs($this->parent)->get(route('portal.student.homework', $this->student->id))->assertOk()
+            ->assertSee('Không gắn buổi')->assertDontSee('Bài này không cần nộp trên cổng')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('assignments', fn ($cards) => collect($cards)->every(fn ($c) => $c['session'] === null && count($c['baskets']) > 0 && $c['baskets'][0]['upload']))
+                ->where('assignments', fn ($cards) => collect($cards)->firstWhere('id', $legacy->id)['baskets'][0]['key'] === 'paper')
+                ->etc());
+
+        Storage::fake('local');
+        $this->actingAs($this->parent)->post(route('portal.student.homework.basket', [$legacy->id, 'paper']), [
+            'student_id' => $this->student->id, 'file' => UploadedFile::fake()->image('bai.jpg'),
+        ])->assertRedirect();
+        $this->assertDatabaseHas('homework_submissions', ['homework_id' => $legacy->id, 'student_id' => $this->student->id, 'basket' => 'paper']);
+        // Giỏ không có trong bài vẫn bị chặn (guard).
+        $this->actingAs($this->parent)->post(route('portal.student.homework.basket', [$legacy->id, 'video']), ['student_id' => $this->student->id])->assertNotFound();
+    }
+
+    public function test_progress_is_per_session_with_unattached_group(): void
+    {
+        $new = $this->classSession(-1);
+        $old = $this->classSession(-4);
+        $this->homework(['workbook' => 'A', 'video' => 'B'], ['class_session_id' => $new->id, 'quizizz_url' => 'https://quizizz.com/x']); // 3 giỏ, chưa nộp
+        $hwOld = $this->homework(['workbook' => 'C'], ['class_session_id' => $old->id]);
+        $this->submit($hwOld, 'paper');
+        $hwNone = $this->homework(['vocabulary' => 'D', 'video' => 'E']);
+        $this->submit($hwNone, 'video');
+
+        $this->actingAs($this->parent)->get(route('portal.student.homework', $this->student->id))->assertOk()
+            ->assertSee('Đã hoàn thành: 0/3 phần bài tập')->assertSee('Đã hoàn thành: 1/1 phần bài tập')->assertSee('Đã hoàn thành: 1/2 phần bài tập')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('sessionProgress.'.$new->id, ['submitted' => 0, 'total' => 3])
+                ->where('sessionProgress.'.$old->id, ['submitted' => 1, 'total' => 1])
+                ->where('sessionProgress.none', ['submitted' => 1, 'total' => 2])
+                ->etc());
+    }
+
+    public function test_progress_ignores_other_students_submissions(): void
+    {
+        $session = $this->classSession(-1);
+        $hw = $this->homework(['workbook' => 'A'], ['class_session_id' => $session->id]);
+        $other = Student::create(['name' => 'HS B', 'code' => 'HV-PS9', 'phone' => '0930000009', 'status' => 'studying',
+            'current_class_id' => $this->class->id, 'branch_id' => $this->branch->id]);
+        HomeworkSubmission::create(['homework_id' => $hw->id, 'student_id' => $other->id, 'basket' => 'paper', 'status' => 'submitted', 'submitted_at' => now()]);
+
+        $this->actingAs($this->parent)->get(route('portal.student.homework', $this->student->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('sessionProgress.'.$session->id, ['submitted' => 0, 'total' => 1])->etc());
     }
 
     public function test_cannot_submit_into_basket_of_other_class_homework(): void

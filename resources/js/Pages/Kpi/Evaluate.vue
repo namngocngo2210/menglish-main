@@ -7,7 +7,7 @@
  * Duyệt (cần đủ số liệu, từ ngày cuối kỳ) → chốt phiếu; Không duyệt → bắt buộc ghi lý do. Không tự chấm phiếu của mình.
  */
 import { computed, nextTick, reactive, ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { route } from '@/lib/route';
 import { money } from '../Payroll/format';
 
@@ -37,6 +37,7 @@ const props = defineProps({
     canClose: { type: Boolean, default: true },
     closeOn: { type: String, default: '' },
     canDecide: { type: Boolean, default: false },
+    canMarkCritical: { type: Boolean, default: false },
     groups: { type: Array, default: () => [] },
     backUrl: { type: String, default: null },
     asModal: { type: Boolean, default: false },
@@ -69,6 +70,7 @@ const ruleLevel = (rule, n) => {
 };
 const levelOf = (c) => {
     if (isNa(c)) return null;
+    if (c.critical) return 0;
     // Số hệ thống (gồm phiếu quý tính từng tháng rồi lấy trung bình) và phiếu đã duyệt: dùng mức đạt máy chủ đã tính.
     if (!c.count_based || c.auto || props.status === 'confirmed') return c.level;
     const n = valueOf(c);
@@ -98,6 +100,44 @@ const rejecting = ref(false);
 const localError = ref(null);
 const reasonBox = ref(null);
 const transform = (data) => ({ ...data, action: decision.value });
+
+const criticalCriterion = ref(null);
+const criticalNote = ref('');
+const criticalError = ref(null);
+const criticalBusy = ref(false);
+
+function toggleCritical(c) {
+    if (c.critical) return saveCritical(c, false);
+    criticalCriterion.value = criticalCriterion.value === c.id ? null : c.id;
+    criticalNote.value = '';
+    criticalError.value = null;
+}
+function saveCritical(c, critical = true) {
+    if (criticalBusy.value) return;
+    const note = critical ? criticalNote.value.trim() : null;
+    criticalError.value = null;
+    if (critical && !note) {
+        criticalError.value = 'Cần ghi lý do đánh dấu lỗi nghiêm trọng.';
+        return;
+    }
+    if (critical && note.length > 500) {
+        criticalError.value = 'Lý do lỗi nghiêm trọng không được quá 500 ký tự.';
+        return;
+    }
+    criticalBusy.value = true;
+    router.post(route('kpi.evaluate.critical', { userId: props.staff.id }), {
+        month: props.month, year: props.year, criterion_id: c.id,
+        critical, note, track: props.track,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            criticalCriterion.value = null;
+            criticalNote.value = '';
+        },
+        onError: (errors) => { criticalError.value = errors.note ?? null; },
+        onFinish: () => { criticalBusy.value = false; },
+    });
+}
 
 function onApprove(event) {
     decision.value = 'approve';
@@ -237,6 +277,17 @@ const notice = computed(() => {
                             <td class="px-sm py-sm">
                                 <UiBadge v-if="levelOf(c) !== null" :color="levelColor(levelOf(c))" :dot="false">{{ fmt(levelOf(c)) }}%</UiBadge>
                                 <span v-else class="text-on-surface-variant">—</span>
+                                <div v-if="c.critical" class="mt-xs space-y-xs">
+                                    <UiBadge color="error" :title="c.critical_note">Lỗi nghiêm trọng</UiBadge>
+                                    <p v-if="c.critical_note" class="font-caption text-caption text-error">{{ c.critical_note }}</p>
+                                </div>
+                                <template v-if="canMarkCritical">
+                                    <UiButton type="button" variant="danger-text" size="sm" class="mt-xs" :disabled="criticalBusy" @click="toggleCritical(c)">{{ c.critical ? 'Bỏ đánh dấu' : 'Đánh dấu lỗi nghiêm trọng' }}</UiButton>
+                                    <div v-if="criticalCriterion === c.id" class="mt-xs min-w-[240px] space-y-xs">
+                                        <UiTextarea :id="`critical-note-${c.id}`" v-model="criticalNote" label="Lý do lỗi nghiêm trọng" required maxlength="500" :rows="2" :error="criticalError" :disabled="criticalBusy" />
+                                        <UiButton type="button" variant="danger" size="sm" :disabled="criticalBusy" @click="saveCritical(c)">Xác nhận</UiButton>
+                                    </div>
+                                </template>
                             </td>
                             <td v-if="hasFund" class="whitespace-nowrap px-md py-sm text-right tabular-nums">{{ amountOf(c) === null ? '—' : money(amountOf(c)) + ' đ' }}</td>
                         </tr>

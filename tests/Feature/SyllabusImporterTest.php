@@ -22,7 +22,7 @@ class SyllabusImporterTest extends TestCase
 {
     use BuildsSyllabusPackages, RefreshDatabase;
 
-    private const VISIBILITY = ['visible_to_teachers' => true, 'visible_to_assistants' => false, 'downloadable' => true];
+    private const VISIBILITY = ['visible_to_teachers' => true, 'visible_to_assistants' => false];
 
     protected function setUp(): void
     {
@@ -117,7 +117,7 @@ class SyllabusImporterTest extends TestCase
         foreach ($docs as $doc) {
             $this->assertTrue($doc->visible_to_teachers);
             $this->assertFalse($doc->visible_to_assistants);
-            $this->assertTrue($doc->downloadable);
+            $this->assertFalse($doc->downloadable);
             $this->assertSame($user->id, $doc->uploaded_by);
             $this->assertSame('pdf', $doc->extension);
             $this->assertGreaterThan(0, $doc->size_bytes);

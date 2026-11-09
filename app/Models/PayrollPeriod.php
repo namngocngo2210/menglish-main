@@ -240,6 +240,14 @@ class PayrollPeriod extends Model
             || TeacherRate::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             || SystemSetting::where('key', 'like', 'payroll_%')->whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
             || KpiCriterion::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
+            || KpiRetentionTier::whereBetween('updated_at', [$this->calculated_at, now()])->where('updated_at', '>', $this->calculated_at)->exists()
+            // Contract dates determine the teacher's retention band even before the period starts.
+            || $this->records()->where('kpi_source', PayrollRecord::KPI_RETENTION)->where('teaching_concurrent', false)
+                ->with(['user' => fn ($q) => $q->withTrashed()])->get(['user_id', 'calculation_details'])
+                ->contains(fn (PayrollRecord $record) => $record->user
+                    && data_get($record->calculation_details, 'kpi_tier.seniority_months') !== null
+                    && app(PayrollFormulaService::class)->kpiTierBandFor((int) data_get($record->calculation_details, 'kpi_tier.seniority_months'))->first()?->min_seniority_months
+                        !== app(PayrollFormulaService::class)->kpiTierBandFor(app(PayrollFormulaService::class)->seniorityMonths($record->user, $this->end_date))->first()?->min_seniority_months)
             // Biên bản đổi trạng thái sau lần tính (quyết phạt/nộp) hoặc vừa quá hạn nộp mà chưa được trừ
             || $this->payrollPenalties()->whereIn('payroll_record_id', $this->records()->select('id'))->where('updated_at', '>', $this->calculated_at)->exists()
             || $this->payrollPenalties()->deductibleFor($this)->whereNull('payroll_record_id')
@@ -580,19 +588,20 @@ class PayrollPeriod extends Model
                     'rates' => $paysSessions ? $outcomes->pluck('rate')->filter()->unique()->values()->map(fn ($r) => (float) $r)->all() : [],
                     'missing_rate_sessions' => $missingRate,
                 ];
-            } elseif ($isPartTime) {
+            } elseif ($isPartTime || $profile['salary_role'] === Roles::TEACHER_FULLTIME) {
                 $kpiSource = PayrollRecord::KPI_RETENTION;
                 $retentionData = $formula->retentionFor(
                     $formula->retentionClassIds($user, $timesheets->pluck('class_id')->unique()->all()), $start, $end
                 );
                 $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
                 $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
+                $seniority = $formula->seniorityMonths($user, $end);
+                $kpiTier = $formula->retentionKpi($retention['retained'], $seniority);
+                $kpiAuto = $kpiTier['amount'];
+                $details['kpi_tier'] = ['seniority_months' => $seniority, 'parts' => $kpiTier['parts']];
             } else {
                 if ($share !== null) {
-                    // KPI kiêm nhiệm giảng dạy = HS giữ được ở các lớp đã dạy × bậc chọn tay (như KPI giữ HS của GV part-time).
-                    $retentionData = $formula->retentionFor($timesheets->pluck('class_id')->filter()->unique()->values()->all(), $start, $end);
-                    $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
-                    $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
+                    // Học thuật không có KPI giữ HS / KPI giảng dạy (TK-2026-0035, BR-08): chỉ lương đứng lớp.
                     $details['teaching_share'] = ['default_percent' => $share['default_percent'], 'classes' => $share['classes'], 'skipped' => $share['skipped']];
                 }
                 if ($profile['salary_role'] === Roles::ACADEMIC_STAFF) {
@@ -643,7 +652,9 @@ class PayrollPeriod extends Model
                 $allowanceFull = $isAssistant ? 0.0 : (float) $user->monthly_allowance;
                 $allowancePaid = round($allowanceFull * $ratio, 0);
                 $hourly = $standardDays > 0 ? $baseSalary / $standardDays / (float) config('payroll.attendance.hours_per_day', 7) : 0.0;
-                $penalized = $attendanceService->dailyLatePenalized($user);
+                // Full-time lương cơ bản luôn bị trừ giờ muộn chấm công (kể cả GV: ca dạy Full-time không tính theo buổi nên
+                // không phạt 2 lần); chỉ loại TA / GVNN / Học thuật kiêm nhiệm đứng lớp (đi muộn đã tính trên check-in ca dạy).
+                $penalized = ! $paysSessions && ! $isAssistant && ! $isForeignTeacher;
                 $lateMinutes = $penalized ? (int) $workdays['late_minutes'] : 0;
                 $lateDeduction = round($lateMinutes / 60 * $hourly, 0);
                 $details['workdays'] = $workdays + ['ratio' => round($ratio, 6), 'allowance_full' => $allowanceFull];
@@ -663,12 +674,14 @@ class PayrollPeriod extends Model
             // Khoản nhập tay của phiếu (giữ qua các lần tính lại)
             $manualLines = $existing?->manual_lines ?? [];
             $hasManualInput = ! empty($manualLines) || (float) ($existing?->foreign_session_pay ?? 0) > 0
-                || (float) ($existing?->tax_deduction ?? 0) > 0 || $existing?->kpi_manual_amount !== null
-                || ($existing?->retention_tier !== null && $retention['retained'] > 0);
+                || (float) ($existing?->tax_deduction ?? 0) > 0
+                || ($kpiSource === PayrollRecord::KPI_MANUAL && $existing?->kpi_manual_amount !== null)
+                || ($share !== null && $existing?->retention_tier !== null && $retention['retained'] > 0);
 
             // Bỏ qua nhân sự không có khoản nào phát sinh trong kỳ (phạt quá hạn một mình không tạo phiếu — chờ kỳ có lương)
             if ($baseSalary == 0 && $sessions == 0 && $commissionBonus == 0 && $commissionClawback == 0 && $commissionDeferred == 0
-                && $kpiAuto == 0 && $renewal['amount'] == 0 && $foreignSessions == 0 && ! $hasManualInput) {
+                && $kpiAuto == 0 && $renewal['amount'] == 0 && $foreignSessions == 0 && ! $hasManualInput
+                && ($kpiSource !== PayrollRecord::KPI_RETENTION || $retention['retained'] === 0)) {
                 continue;
             }
 
@@ -710,7 +723,8 @@ class PayrollPeriod extends Model
                 'other_bonus' => 0,
                 'calculation_details' => $details,
             ]);
-            // KPI giữ HS (số HS × bậc tay), KPI tự do, phụ cấp / khấu trừ tự do → thực lĩnh
+            $record->setRelation('user', $user)->setRelation('period', $this);
+            // Apply progressive KPI and manual adjustments before computing net pay.
             $record->applyManualInputs();
             $record->notes = $this->autoNote($record);
             $record->save();
