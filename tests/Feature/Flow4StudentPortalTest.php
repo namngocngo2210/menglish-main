@@ -406,26 +406,37 @@ class Flow4StudentPortalTest extends TestCase
     }
 
     /**
-     * Flow 4 - Step 7: Delete feedback record
+     * TK-2026-0064 / HS-FB-04: no delete path; re-submit edits the single row in place and keeps CM handling state.
      */
-    public function test_flow_4_step_7_delete_feedback()
+    public function test_feedback_has_no_delete_route_and_resubmit_keeps_cm_state()
     {
-        $this->actingAs($this->user)->post(route('portal.student.feedback.store'), [
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('portal.student.feedback.destroy'));
+
+        $payload = [
             'student_id' => $this->student->id,
             'stage_name' => 'Chặng 2: Giao tiếp',
             'muc_do_hai_long' => 4,
             'noi_dung_feedback' => 'Tốt',
-        ]);
+        ];
+        $this->actingAs($this->user)->post(route('portal.student.feedback.store'), $payload);
 
-        $fb = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')->first();
-        $this->assertNotNull($fb);
+        $screen = '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback';
+        $fb = AcademicRecord::where('screen_key', $screen)->firstOrFail();
+        $fb->update(['status' => 'cm_handling', 'data' => array_merge($fb->data, ['cm_action' => 'Đã gọi PH'])]);
 
-        $response = $this->actingAs($this->user)->delete(route('portal.student.feedback.destroy', ['id' => $fb->id]), [
-            'student_id' => $this->student->id,
-        ]);
+        $deleteStatus = $this->actingAs($this->user)
+            ->delete('/portal/feedback/'.$fb->id.'/destroy', ['student_id' => $this->student->id])->getStatusCode();
+        $this->assertContains($deleteStatus, [404, 405]);
+        $this->assertNotNull($fb->fresh());
 
-        $response->assertSessionHas('success');
-        $this->assertNull(AcademicRecord::find($fb->id));
+        $this->actingAs($this->user)->post(route('portal.student.feedback.store'), array_merge($payload, ['noi_dung_feedback' => 'Sửa lại']));
+
+        $this->assertSame(1, AcademicRecord::where('screen_key', $screen)->count());
+        $fresh = $fb->fresh();
+        $this->assertSame('cm_handling', $fresh->status);
+        $this->assertSame($fb->record_code, $fresh->record_code);
+        $this->assertSame('Đã gọi PH', $fresh->data['cm_action']);
+        $this->assertSame('Sửa lại', $fresh->data['noi_dung_feedback']);
     }
 
     /**
