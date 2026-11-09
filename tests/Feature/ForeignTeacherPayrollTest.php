@@ -207,10 +207,11 @@ class ForeignTeacherPayrollTest extends TestCase
         $this->assertSame(1, $record->retention_students);
         $this->assertSame(['pending', 'Chưa chốt KPI'], $record->kpi_state);
         $this->actingAs($this->admin)->post(route('payroll.records.finalize-kpi', $record->id))->assertSessionHasNoErrors();
-        $this->assertEquals(50000, $record->fresh()->kpi_bonus);
+        // 1 retained student (TK-2026-0035) x first-tier rate 25,000 (was 2 students / 50,000 before #289).
+        $this->assertEquals(25000, $record->fresh()->kpi_bonus);
         $this->assertSame('done', $record->fresh()->kpi_state[0]);
         $period->calculatePayrollForPeriod();
-        $this->assertEquals(50000, $this->record($period)->kpi_bonus);
+        $this->assertEquals(25000, $this->record($period)->kpi_bonus);
     }
 
     public function test_foreign_session_count_follows_session_assignment_and_legacy_date_fallback(): void
