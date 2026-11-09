@@ -58,7 +58,7 @@ use RuntimeException;
  *   trước nữa, đủ 3/3 mốc chăm sóc → trả trong kỳ tháng trước; 3 khách chốt đầu tháng trước → hoãn (chưa đủ 30 ngày),
  *   tháng này 2 khách đủ 3/3 mốc → trả, 1 khách 2/3 mốc → tiếp tục hoãn. Khách đã trả hoa hồng hoàn phí → giữ nguyên khoản đã trả,
  *   không tạo thu hồi trong kỳ tháng này của Sale.
- * - Bảng % thưởng tái tục (BA chốt 0 nghỉ → 1%, 1 nghỉ → 0,7%; các mốc khác chờ BA).
+ * - Academic staff renewal bonus: 0% for any base loss, 1% for retention, 1.5% for growth.
  * - Kỳ tháng trước: Kế toán tính → nhập bậc KPI giữ HS / KPI tự do / thuế TNCN / phụ cấp → tính lại → Admin chốt và gửi GV xem (khóa).
  *   Kỳ tháng này: Kế toán tính + nhập tay + tính lại, để ở "Đang tính". Hệ thống đã có dữ liệu ghi ở thời điểm thật (sau
  *   mốc gửi GV xem giả lập, vd. production đang chạy thử) thì kỳ tháng trước được tính lại, chốt và gửi GV xem ở thời điểm thật, sau cùng.
@@ -241,7 +241,7 @@ class DemoPhase3Seeder extends Seeder
         $L = $this->lastMonth;
         $C = $this->thisMonth;
 
-        // Cấu hình: bậc hoa hồng mặc định, bảng % thưởng tái tục, đơn giá buổi riêng (có phiên bản cũ / mới).
+        // Configure commission tiers, renewal percentages and versioned personal teaching rates.
         $this->event($L->copy()->subMonthNoOverflow()->setTime(8, 0), fn () => $this->seedPayrollConfig());
 
         // Hoa hồng: K4 đóng phí từ tháng trước nữa để đủ 30 ngày và được trả trong kỳ tháng trước.
@@ -317,16 +317,11 @@ class DemoPhase3Seeder extends Seeder
             }
         }
 
-        // Bảng % thưởng tái tục: BA chốt 0 nghỉ → 1%, 1 nghỉ → 0,7%; 2, 3 nghỉ và vượt bảng chờ BA (0%).
+        // Renewal bonus for academic staff: retention and growth percentages.
         $this->asUser($admin, PayrollController::class, 'storeSettings', [
             'insurance_rate_percent' => 10.5, 'union_rate_percent' => 0.5, 'academic_kpi_fund' => 2000000,
-            'renewal' => [
-                ['quits' => 0, 'percent' => 1, 'pending' => 0],
-                ['quits' => 1, 'percent' => 0.7, 'pending' => 0],
-                ['quits' => 2, 'percent' => 0, 'pending' => 1],
-                ['quits' => 3, 'percent' => 0, 'pending' => 1],
-            ],
-            'renewal_beyond_percent' => 0,
+            'renewal_same_percent' => 1,
+            'renewal_increase_percent' => 1.5,
         ]);
 
         // Đơn giá riêng (Quản lý cơ sở — teacher_rate.manage): mỗi lần đổi giá là 1 phiên bản theo ngày hiệu lực.

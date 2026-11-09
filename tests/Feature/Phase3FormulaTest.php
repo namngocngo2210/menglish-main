@@ -17,6 +17,7 @@ use App\Models\PayrollRecord;
 use App\Models\Penalty;
 use App\Models\Student;
 use App\Models\StudentTuition;
+use App\Models\SystemSetting;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\TuitionReceipt;
@@ -698,67 +699,141 @@ class Phase3FormulaTest extends TestCase
 
     // ───────────── F. Thưởng tái tục ─────────────
 
-    public function test_renewal_bonus_uses_quit_count_table_times_class_revenue(): void
+    public function test_renewal_bonus_uses_retention_and_growth_tiers_times_class_revenue(): void
     {
-        // Thưởng tái tục chỉ cho Học vụ (TK-0015); lớp phụ trách = lớp có teacher_id là nhân sự đó.
-        $teacher = $this->userWithRole('academic_staff', ['name' => 'Học vụ Chủ Nhiệm', 'base_salary' => 9000000]);
-        $this->attendFullMonth($teacher, 9);
-        $classA = $this->classFor($teacher, 'TT-A'); // giữ đủ → 1%
-        $classB = $this->classFor($teacher, 'TT-B'); // nghỉ 1 → 0,7%
-        $classC = $this->classFor($teacher, 'TT-C'); // nghỉ 2 → chờ BA (0%)
+        $staff = $this->userWithRole('academic_staff', ['base_salary' => 9000000]);
+        $this->attendFullMonth($staff, 9);
+        $same = $this->classFor($staff, 'TT-SAME');
+        $dropped = $this->classFor($staff, 'TT-DROP');
+        $increase = $this->classFor($staff, 'TT-UP');
+        $a = $this->enrolledStudent($same);
+        $b = $this->enrolledStudent($dropped);
+        $c = $this->enrolledStudent($increase);
+        $this->dropOn($b, '2026-09-12');
+        $this->enrolledStudent($dropped, '2026-09-15'); // Replacement cannot offset a base loss.
+        $this->enrolledStudent($increase, '2026-09-15');
+        $temporary = $this->enrolledStudent($same, '2026-09-10');
+        $this->dropOn($temporary, '2026-09-20'); // Not in the base: no loss and no growth.
+        $this->dropOn($a, '2026-10-03'); // A later departure does not change September.
 
-        $a = collect(range(1, 5))->map(fn () => $this->enrolledStudent($classA));
-        $b = collect(range(1, 4))->map(fn () => $this->enrolledStudent($classB));
-        $c = collect(range(1, 3))->map(fn () => $this->enrolledStudent($classC));
-        $this->dropOn($b[0], '2026-09-12');
-        $this->dropOn($c[0], '2026-09-05');
-        $this->dropOn($c[1], '2026-09-25');
-        $this->dropOn($a[4], '2026-10-03'); // nghỉ sau kỳ: không tính vào tháng 9
-
-        // Doanh thu lớp tháng 9 (phiếu duyệt trong kỳ của khoản học phí gắn lớp)
-        $this->approvedReceipt($this->tuition($a[0], $classA), 12000000, '2026-09-08 10:00:00');
-        $this->approvedReceipt($this->tuition($a[1], $classA), 8000000, '2026-09-18 10:00:00');
-        $this->approvedReceipt($this->tuition($b[1], $classB), 10000000, '2026-09-09 10:00:00');
-        $this->approvedReceipt($this->tuition($c[2], $classC), 5000000, '2026-09-10 10:00:00');
-        $this->approvedReceipt($this->tuition($a[2], $classA), 7000000, '2026-10-02 10:00:00'); // kỳ sau
-        // GV full-time phụ trách lớp giữ đủ HS, có doanh thu → không có thưởng tái tục (TK-0015).
-        $gvFt = $this->userWithRole('teacher_fulltime', ['name' => 'GV Full-time Lớp D', 'base_salary' => 9000000]);
-        $this->attendFullMonth($gvFt, 9);
-        $classD = $this->classFor($gvFt, 'TT-D');
-        $d = $this->enrolledStudent($classD);
-        $this->approvedReceipt($this->tuition($d, $classD), 10000000, '2026-09-11 10:00:00');
+        $this->approvedReceipt($this->tuition($a, $same), 20000000, '2026-09-08 10:00:00');
+        $this->approvedReceipt($this->tuition($b, $dropped), 10000000, '2026-09-09 10:00:00');
+        $this->approvedReceipt($this->tuition($c, $increase), 5000000, '2026-09-10 10:00:00');
+        $this->approvedReceipt($this->tuition($a, $same), 7000000, '2026-10-02 10:00:00');
 
         $this->travelTo(Carbon::parse('2026-10-05 09:00:00'));
         $period = $this->calculate($this->period(9));
-        $record = $this->record($period, $teacher);
-
-        // 1% × 20.000.000 + 0,7% × 10.000.000 + 0% × 5.000.000
-        $this->assertEquals(270000, $record->renew_bonus);
+        $record = $this->record($period, $staff);
+        $this->assertEquals(275000, $record->renew_bonus); // 1% × 20M + 0% × 10M + 1.5% × 5M.
         $rows = collect(data_get($record->calculation_details, 'renewal.classes'))->keyBy('class_id');
-        $this->assertSame(0, $rows[$classA->id]['quits']);
-        $this->assertSame(1, $rows[$classB->id]['quits']);
-        $this->assertSame(2, $rows[$classC->id]['quits']);
-        $this->assertTrue($rows[$classC->id]['pending']);
-        // 9.000.000 + 270.000 − 567.000 − 27.000 (KPI Học vụ chưa chấm → 0)
-        $this->assertEquals(8676000, $record->net_salary);
-        $this->assertEquals(0, $this->record($period, $gvFt)->renew_bonus);
-        $this->assertNull(data_get($this->record($period, $gvFt)->calculation_details, 'renewal'));
-
+        foreach ([
+            [$same, 'same', 0, 0, 1, 200000],
+            [$dropped, 'dropped', 1, 1, 0, 0],
+            [$increase, 'increase', 0, 1, 1.5, 75000],
+        ] as [$class, $tier, $quits, $joined, $percent, $amount]) {
+            $row = $rows[$class->id];
+            $this->assertSame(1, $row['base']);
+            $this->assertSame($tier, $row['tier']);
+            $this->assertSame($quits, $row['quits']);
+            $this->assertSame($joined, $row['joined']);
+            $this->assertEquals($percent, $row['percent']);
+            $this->assertEquals($amount, $row['amount']);
+            $this->assertArrayNotHasKey('pending', $row);
+        }
         $this->actingAs($this->accountant)->get(route('payroll.records.show', $record->id))
-            ->assertOk()->assertSee('Thưởng tái tục theo lớp')->assertSee('chờ BA')->assertSee('270.000');
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Payroll/Record')->has('renewalClasses', 3)
+                ->where('renewalClasses.2.tier', 'increase')->where('renewalClasses.2.joined', 1));
 
-        // Bảng % cấu hình được (Admin): mốc 2 HS nghỉ → 0,5%
-        $this->actingAs($this->admin)->get(route('payroll.config.settings'))->assertOk()->assertSee('chờ BA');
         $this->actingAs($this->admin)->post(route('payroll.config.settings.store'), [
             'insurance_rate_percent' => 10.5, 'union_rate_percent' => 0.5, 'academic_kpi_fund' => 2000000,
-            'renewal' => [
-                ['quits' => 0, 'percent' => 1, 'pending' => 0],
-                ['quits' => 1, 'percent' => 0.7, 'pending' => 0],
-                ['quits' => 2, 'percent' => 0.5, 'pending' => 0],
-            ],
-            'renewal_beyond_percent' => 0,
+            'renewal_same_percent' => 2, 'renewal_increase_percent' => 3,
         ])->assertSessionHasNoErrors();
-        $this->assertEquals(295000, $this->record($this->calculate($period), $teacher)->renew_bonus); // + 0,5% × 5.000.000
+        $this->assertEquals(550000, $this->record($this->calculate($period), $staff)->renew_bonus);
+
+        $this->actingAs($this->admin)->post(route('payroll.config.renewal.store'), [
+            'renewal_same_percent' => 2.5, 'renewal_increase_percent' => 4,
+        ])->assertSessionHasNoErrors();
+        $this->assertEquals(700000, $this->record($this->calculate($period), $staff)->renew_bonus);
+    }
+
+    public function test_renewal_growth_counts_distinct_non_base_students_active_at_period_end(): void
+    {
+        $staff = $this->userWithRole('academic_staff');
+        $class = $this->classFor($staff, 'TT-BOUNDARY');
+        $base = $this->enrolledStudent($class);
+        $this->enrolledStudent($class, '2026-09-01'); // First-day enrollments already belong to the base.
+        ClassEnrollment::create(['student_id' => $base->id, 'class_id' => $class->id, 'enrolled_at' => '2026-09-15', 'status' => 'completed']);
+        $lastDay = $this->enrolledStudent($class, '2026-09-30');
+        ClassEnrollment::create(['student_id' => $lastDay->id, 'class_id' => $class->id, 'enrolled_at' => '2026-09-30', 'status' => 'completed']);
+        $laterDrop = $this->enrolledStudent($class, '2026-09-15');
+        $this->dropOn($laterDrop, '2026-10-03');
+        $this->enrolledStudent($class, '2026-10-01');
+        $temporary = $this->enrolledStudent($class, '2026-09-10');
+        $this->dropOn($temporary, '2026-09-30');
+        $this->approvedReceipt($this->tuition($base, $class), 10000000, '2026-09-10 10:00:00');
+
+        $result = app(PayrollFormulaService::class)->renewalBonusFor($staff, Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
+        $this->assertCount(1, $result['classes']);
+        $this->assertSame(2, $result['classes'][0]['base']);
+        $this->assertSame(0, $result['classes'][0]['quits']);
+        $this->assertSame(2, $result['classes'][0]['joined']);
+        $this->assertSame('increase', $result['classes'][0]['tier']);
+        $this->assertEquals(150000, $result['amount']);
+    }
+
+    public function test_only_academic_staff_payslips_receive_renewal_bonus_and_details(): void
+    {
+        $users = [];
+        foreach (['academic_staff', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'accountant', 'academic_lead', 'sales_consultant', 'foreign_teacher', 'manager', 'admin'] as $role) {
+            $user = $this->userWithRole($role, ['base_salary' => 9000000]);
+            $users[$role] = $user;
+            $class = $this->classFor($user, 'TT-ROLE-'.$user->id);
+            $student = $this->enrolledStudent($class);
+            $this->timesheet($user, $class, '2026-09-10');
+            $this->approvedReceipt($this->tuition($student, $class), 10000000, '2026-09-10 10:00:00');
+        }
+        $period = $this->calculate($this->period(9));
+        foreach ($users as $role => $user) {
+            $record = $this->record($period, $user);
+            $this->assertEquals($role === 'academic_staff' ? 100000 : 0, $record->renew_bonus, $role);
+            if ($role === 'academic_staff') {
+                $this->assertCount(1, data_get($record->calculation_details, 'renewal.classes'));
+            } else {
+                $this->assertArrayNotHasKey('renewal', $record->calculation_details, $role);
+            }
+        }
+    }
+
+    public function test_renewal_settings_reject_invalid_percentages_without_saving(): void
+    {
+        foreach (['payroll.config.settings.store', 'payroll.config.renewal.store'] as $route) {
+            foreach ([
+                [1, 1, 'renewal_increase_percent'],
+                [2, 1, 'renewal_increase_percent'],
+                [-1, 2, 'renewal_same_percent'],
+                [1, 101, 'renewal_increase_percent'],
+                ['invalid', 2, 'renewal_same_percent'],
+                [1, 'invalid', 'renewal_increase_percent'],
+                [101, 102, 'renewal_same_percent'],
+                [0, -1, 'renewal_increase_percent'],
+                ['', '', 'renewal_same_percent'],
+            ] as [$same, $increase, $error]) {
+                $this->actingAs($this->admin)->post(route($route), [
+                    'insurance_rate_percent' => 10.5, 'union_rate_percent' => 0.5, 'academic_kpi_fund' => 2000000,
+                    'renewal_same_percent' => $same, 'renewal_increase_percent' => $increase,
+                ])->assertSessionHasErrors($error);
+                $this->assertFalse(SystemSetting::whereIn('key', ['payroll_renewal_same_percent', 'payroll_renewal_increase_percent'])->exists());
+            }
+            $this->actingAs($this->admin)->post(route($route), [
+                'insurance_rate_percent' => 10.5, 'union_rate_percent' => 0.5, 'academic_kpi_fund' => 2000000,
+                'renewal_same_percent' => 2,
+            ])->assertSessionHasErrors('renewal_increase_percent');
+            $this->actingAs($this->admin)->post(route($route), [
+                'insurance_rate_percent' => 10.5, 'union_rate_percent' => 0.5, 'academic_kpi_fund' => 2000000,
+                'renewal_increase_percent' => 2,
+            ])->assertSessionHasErrors('renewal_same_percent');
+        }
     }
 
     // ───────────── G. Duyệt kỳ vẫn chỉ Admin ─────────────

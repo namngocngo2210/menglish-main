@@ -1696,21 +1696,18 @@ class PayrollController extends Controller
                 'insurance_rate_percent' => $fmt($settings['insurance_rate_percent']),
                 'union_rate_percent' => $fmt($settings['union_rate_percent']),
                 'academic_kpi_fund' => (int) $settings['academic_kpi_fund'],
-                'renewal_beyond_percent' => $fmt($settings['renewal_beyond_percent']),
+                'renewal_same_percent' => $settings['renewal_same_percent'],
+                'renewal_increase_percent' => $settings['renewal_increase_percent'],
                 'late_threshold_minutes' => (int) $settings['late_threshold_minutes'],
                 'late_deduction_per_minute' => (int) $settings['late_deduction_per_minute'],
                 'teaching_share_percent' => $fmt($settings['teaching_share_percent']),
                 'retention_tiers' => collect($settings['retention_tiers'])->map(fn ($t) => Money::format($t, ''))->implode(' / '),
             ],
-            'renewalRows' => collect($settings['renewal_table'])
-                ->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => (bool) $row['pending']])
-                ->values()->all(),
         ]);
     }
 
     /**
-     * Tham số công thức lương Q3: mức lương đóng BHXH và tỉ lệ BHXH / Công đoàn (Full-time), quỹ KPI Học vụ,
-     * bảng % thưởng tái tục theo số HS nghỉ (các mốc chưa được BA chốt đánh dấu "chờ BA").
+     * Save payroll parameters, including the retention and growth percentages for academic staff.
      */
     public function storeSettings(Request $request)
     {
@@ -1722,11 +1719,8 @@ class PayrollController extends Controller
             'insurance_rate_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'union_rate_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'academic_kpi_fund' => ['required', 'numeric', 'min:0'],
-            'renewal' => ['nullable', 'array', 'max:20'],
-            'renewal.*.quits' => ['required', 'integer', 'min:0', 'max:50', 'distinct'],
-            'renewal.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
-            'renewal.*.pending' => ['nullable', 'boolean'],
-            'renewal_beyond_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'renewal_same_percent' => ['required_with:renewal_increase_percent', 'filled', 'numeric', 'min:0', 'max:100'],
+            'renewal_increase_percent' => ['required_with:renewal_same_percent', 'filled', 'numeric', 'min:0', 'max:100', 'gt:renewal_same_percent'],
             'late_threshold_minutes' => ['nullable', 'integer', 'min:1', 'max:120'],
             // Đơn giá trừ mỗi phút đi muộn / về sớm (không báo trước, dưới ngưỡng): BA chốt trong khoảng 4.000–5.000đ.
             'late_deduction_per_minute' => ['nullable', 'numeric', 'min:4000', 'max:5000'],
@@ -1736,7 +1730,7 @@ class PayrollController extends Controller
             'late_deduction_per_minute.max' => 'Đơn giá trừ mỗi phút đi muộn phải từ 4.000đ đến 5.000đ.',
             '*.required' => 'Vui lòng nhập đầy đủ các tham số.',
             'insurance_rate_percent.max' => 'Tỉ lệ BHXH không được vượt quá 100%.',
-            'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
+            'renewal_increase_percent.gt' => 'Tỷ lệ tăng số HS phải lớn hơn tỷ lệ giữ nguyên số HS.',
         ]);
 
         if (filled($validated['insurance_salary_base'] ?? null)) {
@@ -1748,14 +1742,11 @@ class PayrollController extends Controller
         SystemSetting::set('payroll_insurance_rate_percent', $validated['insurance_rate_percent'], 'BHXH trừ trên mức lương đóng BHXH Full-time (%)');
         SystemSetting::set('payroll_union_rate_percent', $validated['union_rate_percent'], 'Công đoàn trừ trên mức lương đóng BHXH Full-time (%)');
         SystemSetting::set('payroll_academic_kpi_fund', $validated['academic_kpi_fund'], 'Quỹ KPI Học vụ mỗi tháng (đ)');
-        if (array_key_exists('renewal', $validated)) {
-            $table = collect($validated['renewal'] ?? [])
-                ->mapWithKeys(fn ($row) => [(int) $row['quits'] => ['percent' => (float) $row['percent'], 'pending' => (bool) ($row['pending'] ?? false)]])
-                ->sortKeys()->all();
-            SystemSetting::set('payroll_renewal_table', $table, 'Thưởng tái tục: % doanh thu lớp theo số HS nghỉ trong kỳ');
-        }
-        if (array_key_exists('renewal_beyond_percent', $validated) && $validated['renewal_beyond_percent'] !== null) {
-            SystemSetting::set('payroll_renewal_beyond_percent', $validated['renewal_beyond_percent'], 'Thưởng tái tục khi số HS nghỉ vượt bảng (%)');
+        if (array_key_exists('renewal_same_percent', $validated)) {
+            DB::transaction(function () use ($validated) {
+                SystemSetting::set('payroll_renewal_same_percent', $validated['renewal_same_percent'], 'Thưởng tái tục Học vụ: giữ nguyên số HS (%)');
+                SystemSetting::set('payroll_renewal_increase_percent', $validated['renewal_increase_percent'], 'Thưởng tái tục Học vụ: tăng số HS (%)');
+            });
         }
 
         if (filled($validated['late_threshold_minutes'] ?? null)) {
@@ -2053,10 +2044,8 @@ class PayrollController extends Controller
             'gateMilestones' => config('payroll.commission.gate_milestones'),
             'today' => now()->toDateString(),
             'tomorrow' => now()->addDay()->toDateString(),
-            'renewalRows' => collect($settings['renewal_table'])
-                ->map(fn ($row, $quits) => ['quits' => $quits, 'percent' => $row['percent'], 'pending' => (bool) $row['pending']])
-                ->values()->all(),
-            'renewalBeyond' => rtrim(rtrim(number_format((float) $settings['renewal_beyond_percent'], 2, '.', ''), '0'), '.'),
+            'renewalSamePercent' => $settings['renewal_same_percent'],
+            'renewalIncreasePercent' => $settings['renewal_increase_percent'],
         ]);
     }
 
@@ -2092,38 +2081,29 @@ class PayrollController extends Controller
         return $max !== null && $max !== '' ? 'Mốc HS thứ '.$from.'–'.$max : 'Mốc từ HS thứ '.$from;
     }
 
-    /**
-     * Tab "Thưởng tái tục" của màn Mốc hoa hồng & thưởng tái tục: bảng % doanh thu lớp theo số HS nghỉ trong kỳ
-     * (A6) + mức khi nghỉ nhiều hơn bảng; các mốc chưa được BA chốt gắn cờ "chờ BA". Áp dụng cho lần tính / tính lại sau.
-     */
+    /** Save renewal percentages for future calculations of open payroll periods. */
     public function storeRenewalTable(Request $request)
     {
         $validated = $request->validate([
-            'renewal' => ['required', 'array', 'min:1', 'max:20'],
-            'renewal.*.quits' => ['required', 'integer', 'min:0', 'max:50', 'distinct'],
-            'renewal.*.percent' => ['required', 'numeric', 'min:0', 'max:100'],
-            'renewal.*.pending' => ['nullable', 'boolean'],
-            'renewal_beyond_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'renewal_same_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            'renewal_increase_percent' => ['required', 'numeric', 'min:0', 'max:100', 'gt:renewal_same_percent'],
         ], [
-            'renewal.required' => 'Cần ít nhất một mốc thưởng tái tục.',
-            'renewal.*.quits.distinct' => 'Mỗi mức số HS nghỉ chỉ được khai báo một lần.',
+            '*.required' => 'Vui lòng nhập đầy đủ các tỷ lệ thưởng tái tục.',
+            'renewal_increase_percent.gt' => 'Tỷ lệ tăng số HS phải lớn hơn tỷ lệ giữ nguyên số HS.',
         ]);
 
-        $before = PayrollPeriod::payrollSettings()['renewal_table'];
-        $table = collect($validated['renewal'])
-            ->mapWithKeys(fn ($row) => [(int) $row['quits'] => ['percent' => (float) $row['percent'], 'pending' => (bool) ($row['pending'] ?? false)]])
-            ->sortKeys()->all();
-        SystemSetting::set('payroll_renewal_table', $table, 'Thưởng tái tục: % doanh thu lớp theo số HS nghỉ trong kỳ');
-        if (($validated['renewal_beyond_percent'] ?? null) !== null) {
-            SystemSetting::set('payroll_renewal_beyond_percent', $validated['renewal_beyond_percent'], 'Thưởng tái tục khi số HS nghỉ vượt bảng (%)');
-        }
-
-        activity('payroll_settings')->causedBy($request->user())
-            ->withProperties(['before' => $before, 'after' => $table])
-            ->log('Cập nhật bảng thưởng tái tục');
+        $settings = PayrollPeriod::payrollSettings();
+        $before = array_intersect_key($settings, $validated);
+        DB::transaction(function () use ($validated, $before, $request) {
+            SystemSetting::set('payroll_renewal_same_percent', $validated['renewal_same_percent'], 'Thưởng tái tục Học vụ: giữ nguyên số HS (%)');
+            SystemSetting::set('payroll_renewal_increase_percent', $validated['renewal_increase_percent'], 'Thưởng tái tục Học vụ: tăng số HS (%)');
+            activity('payroll_settings')->causedBy($request->user())
+                ->withProperties(['before' => $before, 'after' => $validated])
+                ->log('Cập nhật tỷ lệ thưởng tái tục');
+        });
 
         return redirect()->route('payroll.config.commission-tiers', ['tab' => 'renewal'])
-            ->with('status', 'Đã lưu bảng thưởng tái tục — áp dụng cho các lần tính / tính lại kỳ lương sau.');
+            ->with('status', 'Đã lưu tỷ lệ thưởng tái tục — áp dụng khi tính / tính lại kỳ lương đang mở.');
     }
 
     public function storeCommissionTier(Request $request)
