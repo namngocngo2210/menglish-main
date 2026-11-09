@@ -240,15 +240,21 @@ class PayrollFormulaService
     }
 
     /**
-     * Lớp tính KPI giữ HS (TK-2026-0027, BR-05): chỉ lớp GV có ít nhất một ca dạy hợp lệ trong kỳ —
-     * lớp phụ trách nhưng chỉ có ca không hợp lệ (hoặc không có ca) không được tính.
+     * Lớp tính KPI giữ HS (TK-2026-0027 / TK-2026-0035, BR-05): chỉ lớp GV là GV chính (classes.teacher_id; GVNN: foreign_teacher_id) VÀ có ít nhất
+     * một ca dạy hợp lệ trong kỳ — lớp chỉ dạy thay, hoặc phụ trách nhưng không có ca hợp lệ, không được tính.
      *
      * @param  array<int>  $taughtClassIds  lớp của các ca hợp lệ trong kỳ
      * @return array<int>
      */
     public function retentionClassIds(User $user, array $taughtClassIds): array
     {
-        return array_values(array_unique(array_filter(array_map('intval', $taughtClassIds))));
+        $ids = array_values(array_unique(array_filter(array_map('intval', $taughtClassIds))));
+        if ($ids === []) {
+            return [];
+        }
+
+        return ClassModel::withoutGlobalScopes()->whereIn('id', $ids)->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id))
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 
     /** Bảng % thưởng tái tục theo số HS nghỉ: [số nghỉ => ['percent' => float, 'pending' => bool]]. */

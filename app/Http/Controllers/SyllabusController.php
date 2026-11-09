@@ -1448,8 +1448,10 @@ class SyllabusController extends Controller
     {
         $user = $request->user();
         // Mockup: chỉ chọn được lớp đang có chặng mở (giãn tiến độ cho chặng đang học).
+        // GV chỉ thấy chặng mình được giao (bản ghi phân công), không theo buổi dạy / dạy thay.
         $openAssignments = SyllabusAssignment::open()->with('stage')
             ->whereIn('class_id', ClassModel::visibleTo($user)->where('status', '!=', 'cancelled')->select('id'))
+            ->when(! $user->can('syllabus.approve_adjustment'), fn ($q) => $q->where('user_id', $user->id))
             ->get()->keyBy('class_id');
         $classes = ClassModel::whereIn('id', $openAssignments->keys())->orderBy('name')->get();
         $requests = SyllabusAdjustmentRequest::with(['classModel', 'teacher', 'assignment'])
@@ -1569,6 +1571,10 @@ class SyllabusController extends Controller
         abort_unless(ClassModel::visibleTo($user)->whereKey($class->id)->exists(), 403, 'Bạn không phụ trách lớp này.');
         // Giãn tiến độ luôn gắn chặng đang mở (Q4); lớp chưa mở chặng thì không nhận yêu cầu.
         $openAssignmentId = SyllabusAssignment::open()->where('class_id', $class->id)->value('id');
+        // Người gửi không phải người duyệt: chặng đang mở phải được giao đúng cho mình.
+        if ($openAssignmentId && ! $user->can('syllabus.approve_adjustment')) {
+            abort_unless(SyllabusAssignment::whereKey($openAssignmentId)->where('user_id', $user->id)->exists(), 403, 'Chặng đang mở của lớp này không được giao cho bạn.');
+        }
         if (! $openAssignmentId) {
             throw ValidationException::withMessages(['class_id' => "Lớp {$class->name} không có chặng học nào đang mở — không thể xin điều chỉnh tiến độ."]);
         }
@@ -1621,6 +1627,9 @@ class SyllabusController extends Controller
 
         $appliedNote = 'Không thay đổi lịch học (yêu cầu không kèm số buổi cần thêm).';
         DB::transaction(function () use ($req, $count, $extension, $targetAssignment, &$appliedNote) {
+            // Re-check under row lock so a retry / double click cannot apply (and shift the date) twice.
+            $this->ensurePending(SyllabusAdjustmentRequest::lockForUpdate()->findOrFail($req->id)->status);
+
             if ($count > 0 && $req->kind === 'postpone') {
                 // Dời tiến độ: không thêm buổi vào TKB — cộng N buổi giãn cho chặng, GV dùng ở nút "Dạy chưa xong".
                 if (! $targetAssignment) {
@@ -1642,6 +1651,12 @@ class SyllabusController extends Controller
                     $req->syllabus_assignment_id ??= $assignment->id;
                     $appliedNote .= " {$assignment->stage_name}: +".count($created).' buổi giãn tiến độ.';
                 }
+            }
+
+            // R-05(c): extra sessions push the expected Big Test date back by the same number of days.
+            if ($count > 0 && $targetAssignment?->expected_big_test_date) {
+                $targetAssignment->update(['expected_big_test_date' => $targetAssignment->expected_big_test_date->copy()->addDays($count)]);
+                $appliedNote .= ' Ngày dự kiến Big Test: '.$targetAssignment->expected_big_test_date->format('d/m/Y').'.';
             }
 
             $req->update([
@@ -2306,7 +2321,7 @@ class SyllabusController extends Controller
 
         $isApprover = $user->can('big_test.approve');
         $canGradeRole = $user->can('syllabus.update') && ! $isApprover;
-        $taken = $results->where('is_absent', false)->whereNotNull('overall_score');
+        $taken = $results->where('is_absent', false)->filter(fn (BigTestResult $r) => $r->scoreComponents() !== []);
         $resultsByStudent = $results->keyBy('student_id');
         $daysLeft = $test?->resultsDaysLeft();
 
@@ -2329,8 +2344,6 @@ class SyllabusController extends Controller
                 'total' => $results->count(),
                 'taken' => $taken->count(),
                 'absent' => $results->where('is_absent', true)->count(),
-                'avg' => $taken->count() > 0 ? round($taken->avg('overall_score'), 1) : 0,
-                'highest' => $taken->count() > 0 ? $taken->max('overall_score') : 0,
             ],
             'rows' => $students->values()->map(function (Student $student) use ($resultsByStudent) {
                 $res = $resultsByStudent->get($student->id);
@@ -2345,11 +2358,7 @@ class SyllabusController extends Controller
                         'status_label' => $res->status_label,
                         'locked' => $res->isLocked(),
                         'is_absent' => (bool) $res->is_absent,
-                        'listening_score' => $res->listening_score,
-                        'reading_score' => $res->reading_score,
-                        'writing_score' => $res->writing_score,
-                        'speaking_score' => $res->speaking_score,
-                        'overall_score' => $res->overall_score,
+                        'components' => $res->scoreComponents(),
                         'progress_note' => $res->progress_note,
                         'video_url' => $res->video_url,
                         'parent_notified' => (bool) $res->parent_notified,
@@ -2362,11 +2371,7 @@ class SyllabusController extends Controller
                 'student' => $selectedResult->student?->name,
                 'student_code' => $selectedResult->student?->code ?? 'HV-'.$selectedResult->student_id,
                 'is_absent' => (bool) $selectedResult->is_absent,
-                'listening_score' => $selectedResult->listening_score,
-                'reading_score' => $selectedResult->reading_score,
-                'writing_score' => $selectedResult->writing_score,
-                'speaking_score' => $selectedResult->speaking_score,
-                'overall_score' => $selectedResult->overall_score,
+                'components' => $selectedResult->scoreComponents(),
                 'video_url' => $selectedResult->video_url,
                 'progress_note' => $selectedResult->progress_note,
                 'status' => $selectedResult->status,
@@ -2414,13 +2419,17 @@ class SyllabusController extends Controller
 
         $this->markNotified($res);
 
+        // R-07: kết quả có điểm đầu tiên được Duyệt & Gửi đóng chặng và mở chặng kế.
+        $outcome = $progression->onScoredApproval($test->fresh(), Auth::user())
+            ?? $progression->syncBigTest($test->fresh(), Auth::user());
+
         return redirect()->back()->with('status', "Đã duyệt và ghi nhận báo kết quả em {$studentName} cho phụ huynh."
-            .$progression->describe($progression->syncBigTest($test->fresh(), Auth::user())));
+            .$progression->describe($outcome));
     }
 
     /**
      * GV nhập kết quả Big Test. "Lưu nháp" (action=draft): kết quả ở trạng thái Nháp, sửa tiếp được, chưa vào hàng chờ
-     * duyệt của Học thuật, cho phép nhập dở (thiếu kỹ năng). "Gửi duyệt" (mặc định): bắt buộc đủ 4 kỹ năng (hoặc Vắng thi),
+     * duyệt của Học thuật, cho phép nhập dở. "Gửi duyệt" (mặc định): cần ít nhất 1 thành phần điểm (hoặc Vắng thi),
      * chuyển sang Chờ duyệt — kèm các bản nháp còn lại đã đủ điểm của đợt thi.
      */
     public function storeBigTestResults(Request $request, int $id)
@@ -2430,29 +2439,33 @@ class SyllabusController extends Controller
         abort_unless($test->is_distributed, 422, 'Đề thi chưa được duyệt và phân phối.');
         $isDraft = $request->input('action') === 'draft';
 
-        $skills = ['listening_score', 'reading_score', 'writing_score', 'speaking_score'];
-        $rules = [
+        // TK-2026-0056 (US R-09): thành phần điểm GV tự đặt tên/số lượng, không thang tối đa, không tự tính Overall/xếp loại.
+        $validated = $request->validate([
             'action' => ['nullable', 'in:draft,submit'],
             'results' => ['required', 'array'],
             'results.*.student_id' => ['required', 'exists:students,id'],
             'results.*.progress_note' => ['nullable', 'string', 'max:2000'],
             'results.*.video_url' => ['nullable', 'url', 'max:500'],
             'results.*.is_absent' => ['nullable', 'boolean'],
-        ];
-        foreach ($skills as $skill) {
-            // Dòng để trống toàn bộ được bỏ qua; gửi duyệt thì đã nhập một kỹ năng phải nhập đủ 4. Vắng thi đánh dấu riêng.
-            $others = collect($skills)->reject(fn ($s) => $s === $skill)->map(fn ($s) => "results.*.{$s}")->implode(',');
-            $rules["results.*.{$skill}"] = $isDraft
-                ? ['nullable', 'numeric', 'between:0,10']
-                : ['nullable', "required_with:{$others}", 'numeric', 'between:0,10'];
-        }
-        $validated = $request->validate($rules);
+            'results.*.components' => ['nullable', 'array'],
+            'results.*.components.*.name' => ['nullable', 'string', 'max:100'],
+            'results.*.components.*.score' => ['nullable', 'numeric', 'min:0'],
+        ]);
 
         $isAbsent = fn (array $row) => filter_var($row['is_absent'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $hasScore = fn (array $row) => collect($skills)->contains(fn ($s) => isset($row[$s]) && $row[$s] !== '');
-        $rows = collect($validated['results'])->filter(fn (array $row) => $isAbsent($row) || $hasScore($row));
+        // Dòng thành phần trống hoàn toàn bị bỏ qua; dòng thiếu tên hoặc thiếu điểm là lỗi.
+        $components = fn (array $row) => collect($row['components'] ?? [])
+            ->map(fn ($c) => ['name' => trim((string) ($c['name'] ?? '')), 'score' => $c['score'] ?? null])
+            ->reject(fn ($c) => $c['name'] === '' && ($c['score'] === null || $c['score'] === ''))
+            ->values();
+        $rows = collect($validated['results'])
+            ->map(fn (array $row) => $row + ['_components' => $components($row)])
+            ->filter(fn (array $row) => $isAbsent($row) || $row['_components']->isNotEmpty());
 
-        if ($rows->contains(fn (array $row) => $isAbsent($row) && $hasScore($row))) {
+        if ($rows->contains(fn (array $row) => $row['_components']->contains(fn ($c) => $c['name'] === '' || $c['score'] === null || $c['score'] === ''))) {
+            throw ValidationException::withMessages(['results' => 'Mỗi thành phần điểm phải có đủ tên và điểm.']);
+        }
+        if ($rows->contains(fn (array $row) => $isAbsent($row) && $row['_components']->isNotEmpty())) {
             throw ValidationException::withMessages(['results' => 'Học viên đã đánh dấu "Vắng thi" thì không nhập điểm.']);
         }
 
@@ -2484,20 +2497,24 @@ class SyllabusController extends Controller
         // "Lưu nháp" không kéo các dòng đã gửi duyệt về nháp (vẫn nằm trong hàng chờ duyệt của Học thuật).
         $awaitingReview = BigTestResult::where('big_test_id', $test->id)->where('status', 'pending_review')->pluck('student_id')->map(fn ($id) => (int) $id);
         $promoted = 0;
-        DB::transaction(function () use ($rows, $test, $skills, $isAbsent, $status, $isDraft, $pendingDrafts, $awaitingReview, &$promoted) {
+        DB::transaction(function () use ($rows, $test, $isAbsent, $status, $isDraft, $pendingDrafts, $awaitingReview, &$promoted) {
             foreach ($rows as $row) {
                 $rowStatus = $isDraft && $awaitingReview->contains((int) $row['student_id']) ? 'pending_review' : $status;
                 $absent = $isAbsent($row);
-                // Vắng thi: không lưu điểm (null) thay vì 0 để không kéo điểm trung bình.
-                $scores = collect($skills)->mapWithKeys(fn ($s) => [$s => $absent || ! isset($row[$s]) || $row[$s] === '' ? null : $row[$s]]);
-                $complete = $scores->filter(fn ($v) => $v !== null)->count() === count($skills);
+                // Vắng thi: không lưu thành phần. 4 cột kỹ năng + overall_score cũ để trống (bản ghi cũ giữ nguyên khi chưa chấm lại)
+                // vì không còn kỹ năng cố định hay điểm tổng tự tính.
                 BigTestResult::updateOrCreate(
                     ['big_test_id' => $test->id, 'student_id' => $row['student_id']],
-                    $scores->all() + [
+                    [
+                        'components' => $absent ? null : $row['_components']->map(fn ($c) => ['name' => $c['name'], 'score' => (float) $c['score']])->all(),
+                        'listening_score' => null,
+                        'reading_score' => null,
+                        'writing_score' => null,
+                        'speaking_score' => null,
+                        'overall_score' => null,
                         'is_absent' => $absent,
                         'progress_note' => $row['progress_note'] ?? null,
                         'video_url' => $row['video_url'] ?? null,
-                        'overall_score' => $absent || ! $complete ? null : round($scores->avg(), 1),
                         'status' => $rowStatus,
                         'graded_by' => Auth::id(),
                         'approved_by' => null,
@@ -2509,8 +2526,7 @@ class SyllabusController extends Controller
             // Gửi duyệt: các bản nháp còn lại của đợt thi đã đủ điểm (hoặc vắng thi) cũng được gửi luôn.
             if (! $isDraft) {
                 foreach ($pendingDrafts as $draft) {
-                    $complete = $draft->is_absent || collect($skills)->every(fn ($s) => $draft->$s !== null);
-                    if ($complete) {
+                    if ($draft->is_absent || $draft->scoreComponents() !== []) {
                         $draft->update(['status' => 'pending_review', 'graded_by' => $draft->graded_by ?? Auth::id()]);
                         $promoted++;
                     }

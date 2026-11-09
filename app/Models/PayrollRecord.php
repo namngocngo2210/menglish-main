@@ -251,10 +251,6 @@ class PayrollRecord extends Model
             self::KPI_MANUAL => $this->kpi_manual_amount !== null,
             default => null,
         };
-        // Học thuật kiêm nhiệm giảng dạy: còn phải chọn bậc KPI kiêm nhiệm (giữ HS) khi lớp đã dạy có HS đầu kỳ.
-        if ($done === true && $this->teaching_concurrent && (int) $this->retention_base_students > 0 && $this->retention_tier === null) {
-            $done = false;
-        }
 
         return match ($done) {
             true => ['done', 'Đã chốt KPI'],
@@ -398,9 +394,6 @@ class PayrollRecord extends Model
                 $lines[] = ['key' => 'teaching_salary', 'label' => 'Lương đứng lớp ('.(int) $this->teaching_sessions.' buổi)', 'amount' => (float) $this->teaching_salary,
                     'hint' => 'Kiêm nhiệm giảng dạy: mỗi buổi chấm công hợp lệ × % học phí theo buổi của HS trong lớp'
                         .($percent !== null ? ' (mặc định '.rtrim(rtrim(number_format((float) $percent, 2, ',', '.'), '0'), ',').'%)' : '')];
-                $lines[] = ['key' => 'teaching_kpi_bonus', 'label' => 'KPI kiêm nhiệm giảng dạy', 'amount' => (float) $this->teaching_kpi_bonus,
-                    'hint' => (int) $this->retention_students.'/'.(int) $this->retention_base_students.' HS giữ được'
-                        .($this->retention_tier !== null ? ' × '.$money($this->retention_tier).'/HS' : ' — chưa chọn bậc KPI')];
             }
             if ($this->salary_role === 'sales' || (float) $this->commission_bonus != 0.0 || (float) $this->commission_deferred != 0.0) {
                 $lines[] = $this->commissionLine();
@@ -646,10 +639,8 @@ class PayrollRecord extends Model
             $this->kpi_finalized_at = null;
             $this->kpi_finalized_by = null;
         }
-        // KPI kiêm nhiệm giảng dạy (Học thuật): HS giữ được × bậc, tách khỏi KPI Học thuật nhập tay.
-        $this->teaching_kpi_bonus = $this->teaching_concurrent
-            ? round((int) $this->retention_students * (float) ($this->retention_tier ?? 0), 2)
-            : 0;
+        // Học thuật không có KPI giảng dạy (TK-2026-0035); cột giữ cho phiếu cũ, luôn 0.
+        $this->teaching_kpi_bonus = 0;
 
         if ($this->isPartTime()) {
             // Part-time không trừ BHXH / Công đoàn / thuế TNCN (Q3).

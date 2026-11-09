@@ -145,13 +145,20 @@ class ClassRescheduleService
             )
         ));
 
+        // O-37: lớp không có nhiều buổi hơn kế hoạch khóa. Buổi đã diễn ra/được giữ lại tính vào kế hoạch,
+        // nên đổi ca học chỉ sinh phần còn thiếu thay vì sinh lại cả khoảng ngày.
+        $remaining = $this->schedule->remainingLessons($class, $replaceableIds);
+        if ($remaining !== null) {
+            $sessions = array_slice($sessions, 0, $remaining);
+        }
+
         if (count($sessions) > self::MAX_SESSIONS) {
             throw ValidationException::withMessages([
                 'end_date' => 'Thời khóa biểu quá dài ('.count($sessions).' buổi). Giới hạn tối đa '.self::MAX_SESSIONS.' buổi mỗi lần xếp lịch.',
             ]);
         }
 
-        if (empty($sessions) && $keptSessions->isEmpty()) {
+        if (empty($sessions) && $keptSessions->isEmpty() && $remaining !== 0) {
             throw ValidationException::withMessages([
                 'start_date' => 'Không tạo được buổi học nào. Kiểm tra lại khoảng thời gian (chỉ xếp được từ hôm nay trở đi), ngày học trong tuần và lịch nghỉ lễ.',
             ]);

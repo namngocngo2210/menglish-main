@@ -129,6 +129,26 @@ class ClosingWizardRulesTest extends TestCase
         $this->assertStringContainsString($lead->short_code, $task->description);
     }
 
+    public function test_closing_later_mode_with_payment_creates_pending_receipt_and_waits_for_class(): void
+    {
+        $lead = $this->lead('tested');
+
+        // Browser sends class_mode=later with an empty class_id.
+        $this->actingAs($this->sales)->post(route('crm.closing-wizard.store'), $this->payload($lead, [
+            'class_mode' => 'later',
+            'class_id' => '',
+            'course_id' => $this->course->id,
+            'fee_paid_at_closing' => 1,
+            'paid_amount' => 10000000,
+        ]))->assertRedirect(route('crm.customers.won'))->assertSessionHasNoErrors();
+
+        $lead->refresh();
+        $student = Student::findOrFail($lead->converted_student_id);
+        $this->assertSame('waiting_class', $lead->stage);
+        $this->assertNull($student->current_class_id);
+        $this->assertSame('pending', TuitionReceipt::where('student_id', $student->id)->value('status'));
+    }
+
     public function test_closing_with_class_but_unpaid_goes_won_and_creates_fee_reminder_task(): void
     {
         // Q6: không có khái niệm "cọc" — chốt không bắt buộc đóng phí, chưa đóng thì tạo task nhắc thu.

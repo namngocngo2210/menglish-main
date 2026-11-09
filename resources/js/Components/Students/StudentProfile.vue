@@ -548,11 +548,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                                 <thead>
                                     <tr>
                                         <th>Bài test</th>
-                                        <th class="text-center">Nghe</th>
-                                        <th class="text-center">Đọc</th>
-                                        <th class="text-center">Viết</th>
-                                        <th class="text-center">Nói</th>
-                                        <th class="text-center">Tổng</th>
+                                        <th>Điểm thành phần</th>
                                         <th>Trạng thái</th>
                                     </tr>
                                 </thead>
@@ -563,16 +559,8 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                                             <span class="block text-on-surface-variant">{{ bt.date ?? '—' }}</span>
                                             <span v-if="bt.note" class="mt-xs block text-on-surface-variant">{{ bt.note }}</span>
                                         </td>
-                                        <template v-if="bt.is_absent">
-                                            <td colspan="5" class="text-center font-semibold text-error">Vắng thi</td>
-                                        </template>
-                                        <template v-else>
-                                            <td class="text-center font-code">{{ scoreText(bt.listening) }}</td>
-                                            <td class="text-center font-code">{{ scoreText(bt.reading) }}</td>
-                                            <td class="text-center font-code">{{ scoreText(bt.writing) }}</td>
-                                            <td class="text-center font-code">{{ scoreText(bt.speaking) }}</td>
-                                            <td class="text-center font-code font-bold text-primary">{{ scoreText(bt.overall) }}</td>
-                                        </template>
+                                        <td v-if="bt.is_absent" class="font-semibold text-error">Vắng thi</td>
+                                        <td v-else class="font-code">{{ bt.components.length ? bt.components.map((c) => `${c.name}: ${c.score}`).join(' · ') : '—' }}</td>
                                         <td><UiBadge :color="bigTestTone[bt.status] ?? 'neutral'" pill>{{ bt.status_label }}</UiBadge></td>
                                     </tr>
                                 </tbody>

@@ -194,7 +194,7 @@ class ForeignTeacherPayrollTest extends TestCase
             'branch_id' => $this->branch->id, 'status' => 'active']);
         $this->teach($this->foreign, '2026-09-05', ['class_id' => $taught->id]);
         $this->teach($this->foreign, '2026-09-06');
-        // Lớp phân công GVNN + lớp dạy thay không phân công thường xuyên: cả hai có ca hợp lệ nên đều tính giữ HS (TK-2026-0027).
+        // Chỉ lớp phân công GVNN tính giữ HS; lớp dạy thay (không phân công) bị loại (TK-2026-0035, BR-05).
         foreach ([$this->class, $taught] as $index => $class) {
             $student = Student::create(['code' => 'HS-NN-'.$index, 'name' => 'Học sinh GVNN '.$index, 'phone' => '090123456'.$index,
                 'branch_id' => $this->branch->id, 'status' => 'studying', 'current_class_id' => $class->id]);
@@ -204,7 +204,7 @@ class ForeignTeacherPayrollTest extends TestCase
         $period->calculatePayrollForPeriod();
         $record = $this->record($period);
         $this->assertSame(PayrollRecord::KPI_RETENTION, $record->kpi_source);
-        $this->assertSame(2, $record->retention_students);
+        $this->assertSame(1, $record->retention_students);
         $this->assertSame(['pending', 'Chưa chốt KPI'], $record->kpi_state);
         $this->actingAs($this->admin)->post(route('payroll.records.finalize-kpi', $record->id))->assertSessionHasNoErrors();
         $this->assertEquals(50000, $record->fresh()->kpi_bonus);

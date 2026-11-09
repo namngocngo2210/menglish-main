@@ -9,8 +9,6 @@ defineOptions({ layout: { title: 'Bảng điểm Big Test' } });
 defineProps({
     results: { type: Object, required: true },
 });
-
-const show = (v) => (v === null || v === undefined ? '—' : v);
 </script>
 
 <template>
@@ -22,11 +20,7 @@ const show = (v) => (v === null || v === undefined ? '—' : v);
                 <tr>
                     <th>Học viên</th>
                     <th>Kỳ thi / Lớp</th>
-                    <th class="text-center">Nghe</th>
-                    <th class="text-center">Đọc</th>
-                    <th class="text-center">Viết</th>
-                    <th class="text-center">Nói</th>
-                    <th class="text-center">Tổng</th>
+                    <th>Điểm thành phần</th>
                     <th>Trạng thái</th>
                 </tr>
             </thead>
@@ -37,17 +31,13 @@ const show = (v) => (v === null || v === undefined ? '—' : v);
                         <div class="font-semibold text-primary">{{ r.test_title ?? '—' }}</div>
                         <div class="text-xs text-on-surface-subtle">{{ r.class_name }}</div>
                     </td>
-                    <td class="text-center font-mono">{{ show(r.listening_score) }}</td>
-                    <td class="text-center font-mono">{{ show(r.reading_score) }}</td>
-                    <td class="text-center font-mono">{{ show(r.writing_score) }}</td>
-                    <td class="text-center font-mono">{{ show(r.speaking_score) }}</td>
-                    <td class="text-center font-mono font-bold text-primary">{{ show(r.overall_score) }}</td>
+                    <td class="font-mono">{{ r.components.length ? r.components.map((c) => `${c.name}: ${c.score}`).join(' · ') : '—' }}</td>
                     <td>
                         <UiBadge :color="r.approved ? 'success' : 'warning'" pill>{{ r.approved ? 'Đã duyệt' : 'Chờ duyệt' }}</UiBadge>
                     </td>
                 </tr>
                 <tr v-if="!results.data.length">
-                    <td colspan="8"><UiEmptyState icon="military_tech" title="Chưa có kết quả Big Test nào cho các lớp của bạn." /></td>
+                    <td colspan="4"><UiEmptyState icon="military_tech" title="Chưa có kết quả Big Test nào cho các lớp của bạn." /></td>
                 </tr>
             </tbody>
         </table>

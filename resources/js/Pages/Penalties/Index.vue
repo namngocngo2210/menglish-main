@@ -46,7 +46,7 @@ const stepLinks = computed(() => [['', 'Tất cả'], ...Object.entries(props.st
 // Hộp thoại đang mở: "view-5", "explain-5", "decide-5", "remedy-5" hoặc "new-penalty".
 const errored = errors.value.user_id || errors.value.violation_type || errors.value.violation_at || errors.value.evidence || (errors.value.violation_date && !props.lockedPenalty);
 const open = ref(errored && can('violation.create') ? 'new-penalty' : null);
-const decisions = reactive(Object.fromEntries(props.penalties.data.map((pen) => [pen.id, pen.status === 'confirmed' ? 'fine' : 'error'])));
+const decisions = reactive(Object.fromEntries(props.penalties.data.map((pen) => [pen.id, pen.status === 'confirmed' && pen.configured_amount !== 0 ? 'fine' : 'error'])));
 const decisionOptions = [
     { value: 'error', label: 'Chốt lỗi (xác nhận có lỗi, chốt mức phạt sau)' },
     { value: 'fine', label: `Chốt mức phạt (nộp trong ${props.paymentDueDays} ngày, quá hạn trừ lương)` },
@@ -79,7 +79,11 @@ watch(violationType, (value) => {
 });
 const deferPenalty = ref(null);
 const decidable = (pen) => ['pending', 'explained', 'confirmed'].includes(pen.status);
-const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirmed', 'resolved'].includes(pen.status);
+// Mức nhắc nhở theo cấu hình quy chế (0đ): không được quyết phạt tiền (BR-11).
+const isReminder = (pen) => pen.configured_amount === 0 && decidable(pen);
+// Trước khi quyết phạt hiện mức theo cấu hình (nếu có); từ khi quyết phạt hiện số tiền đã chốt.
+const shownAmount = (pen) => (decidable(pen) ? (pen.configured_amount ?? pen.amount) : pen.amount);
+const showAmount = (pen) => shownAmount(pen) > 0 && !['resolved', 'cancelled'].includes(pen.status);
 </script>
 
 <template>
@@ -160,10 +164,11 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                         </td>
                         <td class="text-right">
                             <template v-if="showAmount(pen)">
-                                <UiMoney :value="pen.amount" suffix="đ" />
+                                <UiMoney :value="shownAmount(pen)" suffix="đ" />
                                 <span v-if="pen.due_date && pen.status === 'fined'" class="block font-caption text-caption text-on-surface-variant">Hạn nộp {{ pen.due_date }}</span>
                                 <span v-else-if="pen.paid_at" class="block font-caption text-caption text-tertiary">Nộp {{ pen.paid_at }}</span>
                             </template>
+                            <span v-else-if="isReminder(pen)" class="text-on-surface-variant">Nhắc nhở (0đ)</span>
                             <span v-else-if="pen.status === 'resolved'" class="font-mono">0đ</span>
                             <span v-else class="text-on-surface-variant">---</span>
                         </td>
@@ -236,9 +241,11 @@ const showAmount = (pen) => pen.amount > 0 && !['pending', 'explained', 'confirm
                                         <p><strong>{{ pen.user_name }}</strong> — {{ pen.violation_type }} ({{ pen.category_label }})</p>
                                         <p class="mt-xs">{{ pen.explanation ? `Giải trình: ${pen.explanation}` : 'Nhân sự chưa gửi giải trình.' }}</p>
                                     </div>
-                                    <UiSelect v-model="decisions[pen.id]" name="decision" label="Kết luận" required :options="decisionOptions" />
+                                    <p v-if="isReminder(pen)" class="rounded-lg bg-surface-container-low p-sm font-body-small text-body-small">Lần vi phạm này thuộc mức nhắc nhở theo quy chế phạt — không phạt tiền. Chỉ chọn "Chốt lỗi" hoặc "Đóng - không phạt".</p>
+                                    <UiSelect v-model="decisions[pen.id]" name="decision" label="Kết luận" required :options="isReminder(pen) ? decisionOptions.slice(0, 1) : decisionOptions" />
                                     <div v-show="decisions[pen.id] === 'fine'">
-                                        <UiInput type="number" name="amount" label="Số tiền phạt (VNĐ)" min="1000" step="1000" :value="pen.amount > 0 ? Math.trunc(pen.amount) : null" />
+                                        <!-- Điền sẵn mức theo cấu hình; vẫn cho sửa (chờ BA duyệt), mức nhắc nhở thì không có ô này. -->
+                                        <UiInput type="number" name="amount" label="Số tiền phạt (VNĐ)" min="1000" step="1000" :value="shownAmount(pen) > 0 ? Math.trunc(shownAmount(pen)) : null" />
                                     </div>
                                     <UiTextarea name="decision_note" label="Ghi chú kết luận" rows="2" />
                                 </UiForm>

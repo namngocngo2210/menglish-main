@@ -334,7 +334,7 @@ class PayrollController extends Controller
             (float) $r->teaching_salary,
             $kpiSources[$r->kpi_source] ?? '',
             $r->kpi_state[1],
-            $r->kpi_source === PayrollRecord::KPI_RETENTION || $r->teaching_concurrent ? (int) $r->retention_students.'/'.(int) $r->retention_base_students : '',
+            $r->kpi_source === PayrollRecord::KPI_RETENTION ? (int) $r->retention_students.'/'.(int) $r->retention_base_students : '',
             $r->retention_tier !== null ? (float) $r->retention_tier : '',
             $r->kpi_score !== null ? (float) $r->kpi_score : '',
             (float) $r->kpi_bonus,
@@ -760,10 +760,6 @@ class PayrollController extends Controller
             if ($record->usesQ3Formula()) {
                 if ($record->kpi_source === PayrollRecord::KPI_RETENTION && $record->isPartTime()) {
                     $record->foreign_session_pay = $record->isForeignTeacher() ? 0 : (float) ($validated['foreign_session_pay'] ?? 0);
-                }
-                if ($record->teaching_concurrent) {
-                    // Concurrent teaching keeps the manually selected flat retention rate.
-                    $record->retention_tier = filled($validated['retention_tier'] ?? null) ? (float) $validated['retention_tier'] : null;
                 }
                 if ($record->kpi_source === PayrollRecord::KPI_MANUAL && $record->salary_role !== Roles::TEACHER_FULLTIME) {
                     $record->kpi_manual_amount = filled($validated['kpi_manual_amount'] ?? null) ? (float) $validated['kpi_manual_amount'] : null;

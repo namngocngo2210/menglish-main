@@ -156,6 +156,22 @@ const canSubmit = computed(
         ),
 );
 
+/** Reasons the submit button is locked, shown to the user (no silent block). */
+const missingFields = computed(() =>
+    [
+        [!w.customerId, 'khách hàng (Bước 1)'],
+        [!w.assignLater && !w.classId, 'lớp học (Bước 3) hoặc chọn "Xếp lớp sau"'],
+        [w.assignLater && !w.courseId, 'khóa học (Bước 1)'],
+        [w.baseTuition <= 0, 'học phí'],
+        [w.feePaid && w.paidAmount <= 0 && w.prepaidAmount <= 0, 'số tiền đã thu'],
+        [needsBankAccount.value && !w.selectedBankAccountId, 'tài khoản ngân hàng nhận tiền'],
+        [w.feePaid && w.paidAmount > 0 && w.paymentMethod === 'cash' && !paperMode.value && !String(w.paperInvoiceNumber).trim(), 'số hóa đơn'],
+        [paperMode.value && (!paperNumber.value || !paperPhotoName.value), 'số và ảnh hóa đơn giấy'],
+    ]
+        .filter(([missing]) => missing)
+        .map(([, label]) => label),
+);
+
 // ── Lựa chọn ────────────────────────────────────────────────────────────────────────────────
 const customerOptions = computed(() =>
     props.customers.map((c) => ({ value: c.id, label: `${c.name} (${c.short_code} - ${c.phone}) · ${c.course_interest ?? 'Chưa chọn khóa'} · ${c.stage_label}` })),
@@ -754,7 +770,7 @@ if (w.assignLater) setAssignLater(true);
                         <UiSelect
                             id="closing_class"
                             label="Chọn lớp đang học hoặc sắp khai giảng (còn chỗ)"
-                            required
+                            :required="!w.assignLater"
                             class="font-bold !text-primary-container"
                             :options="classOptions"
                             :model-value="w.classId"
@@ -991,6 +1007,10 @@ if (w.assignLater) setAssignLater(true);
                         rồi tải lại trang này, hoặc chọn khóa / lớp khác.
                     </template>
                     <template v-else>Chọn khóa ở Bước 1 hoặc chọn lớp ở Bước 3.</template>
+                </UiAlert>
+
+                <UiAlert v-if="!canSubmit && !tuitionProblem" type="warning" class="text-xs" data-submit-missing>
+                    Chưa thể hoàn tất, còn thiếu: {{ missingFields.join('; ') }}.
                 </UiAlert>
 
                 <div class="flex items-center justify-between border-t border-surface-container-highest pt-4">

@@ -60,6 +60,7 @@ class HandleInertiaRequests extends Middleware
             'shell' => fn () => app(AppShell::class)->for($request->user(), $request),
             'can' => fn () => $this->abilities($request),
             'flash' => fn () => $this->flash($request),
+            'tempPassword' => fn () => $request->hasSession() ? $request->session()->get('temporary_password') : null,
             'csrf' => fn () => $request->hasSession() ? $request->session()->token() : null,
             'roleSwitcher' => fn () => app(RoleSwitcher::class)->menu($request),
         ];

@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Bảng điểm Big Test. Giáo viên (syllabus.update, không phải người duyệt) nhập điểm 4 kỹ năng / vắng thi / nhận xét / video
+ * Bảng điểm Big Test. Giáo viên (syllabus.update, không phải người duyệt) nhập điểm theo thành phần tự đặt / vắng thi / nhận xét / video
  * rồi "Lưu nháp" hoặc "Gửi duyệt"; người duyệt (big_test.approve) chỉ xem & duyệt, ghi nhận đã báo phụ huynh — không nhập điểm.
  * Mockup 01_Web_Admin/07: xét duyệt kết quả từng học viên trong hộp thoại (?result=; đóng thì bỏ query).
  */
@@ -26,17 +26,28 @@ const props = defineProps({
     resultDeadlineDays: { type: Number, default: 7 },
 });
 
-const skills = { listening_score: 'Nghe', reading_score: 'Đọc', writing_score: 'Viết', speaking_score: 'Nói' };
-const detailSkills = { listening_score: 'Listening', reading_score: 'Reading', writing_score: 'Writing', speaking_score: 'Speaking' };
 const statusColor = { approved: 'success', sent: 'info', pending_review: 'warning' };
 
 // "Vắng thi" theo từng học viên: tích → khoá ô điểm của dòng đó.
 const absent = reactive({});
+// Thành phần điểm GV tự đặt tên/số lượng (TK-2026-0056): mỗi học viên một danh sách [{name, score}], luôn còn ít nhất 1 dòng.
+const components = reactive({});
 function syncAbsent() {
-    props.rows.forEach((r) => (absent[r.student_id] = !!r.result?.is_absent));
+    props.rows.forEach((r) => {
+        absent[r.student_id] = !!r.result?.is_absent;
+        const saved = r.result?.components ?? [];
+        components[r.student_id] = saved.length ? saved.map((c) => ({ name: c.name, score: c.score })) : [{ name: '', score: '' }];
+    });
 }
 syncAbsent();
 watch(() => props.rows, syncAbsent);
+
+const addComponent = (studentId) => components[studentId].push({ name: '', score: '' });
+const removeComponent = (studentId, index) => {
+    components[studentId].splice(index, 1);
+    if (!components[studentId].length) addComponent(studentId);
+};
+const componentText = (list) => (list?.length ? list.map((c) => `${c.name}: ${c.score}`).join(' · ') : '—');
 
 const locked = (row) => !props.canGrade || !!row.result?.locked;
 const hasUnlocked = () => props.rows.some((r) => !r.result?.locked);
@@ -55,7 +66,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
 <template>
     <UiPageHeader
         :title="isApprover ? 'Duyệt kết quả Big Test & báo phụ huynh' : 'Nhập điểm Big Test'"
-        :description="isApprover ? 'Bảng điểm 4 kỹ năng, nhận xét, link video; kết quả đã duyệt hiện ở Cổng Học viên, Học thuật báo phụ huynh rồi bấm Đã báo PH.' : 'Nhập điểm 4 kỹ năng, nhận xét, link video cho lớp mình dạy rồi gửi Học thuật duyệt.'"
+        :description="isApprover ? 'Bảng điểm theo thành phần, nhận xét, link video; kết quả đã duyệt hiện ở Cổng Học viên, Học thuật báo phụ huynh rồi bấm Đã báo PH.' : 'Nhập điểm theo thành phần tự đặt, nhận xét, link video cho lớp mình dạy rồi gửi Học thuật duyệt.'"
         :back="backUrl"
     >
         <template #breadcrumbs>
@@ -94,11 +105,11 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                 </div>
             </div>
 
-            <UiStatCard label="Điểm Trung Bình Cả Lớp" tone="secondary" icon="award_star" :hint="`Dựa trên ${stats.taken} học viên dự thi (${stats.absent} vắng)`">
-                {{ stats.avg }} <span class="text-xs font-normal text-on-surface-subtle">/ 10</span>
+            <UiStatCard label="Đã nhập điểm" tone="secondary" icon="fact_check" :hint="`Tổng số thí sinh: ${stats.total} học viên`">
+                {{ stats.taken }}
             </UiStatCard>
-            <UiStatCard label="Điểm Cao Nhất (Top Score)" tone="success" icon="military_tech" :hint="`Tổng số thí sinh: ${stats.total} học viên`">
-                {{ stats.highest }} <span class="text-xs font-normal text-on-surface-subtle">/ 10</span>
+            <UiStatCard label="Vắng thi" tone="success" icon="person_off" :hint="`Dự thi: ${stats.taken} học viên`">
+                {{ stats.absent }}
             </UiStatCard>
         </div>
 
@@ -129,11 +140,7 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                             <th>Học viên &amp; Mã số</th>
                             <th>Trạng thái</th>
                             <th class="!px-xs text-center">Vắng thi</th>
-                            <th class="!px-xs text-center">Listening</th>
-                            <th class="!px-xs text-center">Reading</th>
-                            <th class="!px-xs text-center">Writing</th>
-                            <th class="!px-xs text-center">Speaking</th>
-                            <th class="bg-primary-container/10 text-center !text-primary">Overall</th>
+                            <th>Thành phần điểm</th>
                             <th>Nhận xét &amp; video</th>
                             <th>Đã báo PH</th>
                         </tr>
@@ -163,23 +170,39 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                                     :aria-label="`Vắng thi — ${row.name}`"
                                 />
                             </td>
-                            <td v-for="(skillLabel, skill) in skills" :key="skill" class="!px-xs text-center">
-                                <input
-                                    type="number"
-                                    step=".1"
-                                    min="0"
-                                    max="10"
-                                    :name="`results[${index}][${skill}]`"
-                                    :value="row.result?.[skill] ?? ''"
-                                    placeholder="—"
-                                    :aria-label="`Điểm ${skillLabel} — ${row.name}`"
-                                    :disabled="absent[row.student_id] || locked(row)"
-                                    class="w-16 rounded border-surface-container-highest text-xs disabled:bg-surface-container-low"
-                                />
-                            </td>
-                            <td class="bg-primary-container/10 text-center font-mono !text-base font-black !text-primary">
-                                <span v-if="row.result?.is_absent" class="text-xs font-bold text-error">Vắng thi</span>
-                                <template v-else>{{ row.result?.overall_score ?? '—' }}</template>
+                            <td class="min-w-[280px] space-y-1">
+                                <span v-if="locked(row)" class="font-mono">{{ row.result?.is_absent ? 'Vắng thi' : componentText(row.result?.components) }}</span>
+                                <template v-else>
+                                    <div v-for="(component, cIndex) in components[row.student_id]" :key="cIndex" class="flex items-center gap-1">
+                                        <input
+                                            v-model="component.name"
+                                            type="text"
+                                            maxlength="100"
+                                            :name="`results[${index}][components][${cIndex}][name]`"
+                                            placeholder="Tên thành phần"
+                                            :aria-label="`Tên thành phần ${cIndex + 1} — ${row.name}`"
+                                            :disabled="absent[row.student_id]"
+                                            class="w-28 rounded border-surface-container-highest text-xs disabled:bg-surface-container-low"
+                                        />
+                                        <input
+                                            v-model="component.score"
+                                            type="number"
+                                            step=".1"
+                                            min="0"
+                                            :name="`results[${index}][components][${cIndex}][score]`"
+                                            placeholder="Điểm"
+                                            :aria-label="`Điểm thành phần ${cIndex + 1} — ${row.name}`"
+                                            :disabled="absent[row.student_id]"
+                                            class="w-16 rounded border-surface-container-highest text-xs disabled:bg-surface-container-low"
+                                        />
+                                        <button type="button" class="text-error disabled:opacity-40" :disabled="absent[row.student_id]" :aria-label="`Xóa thành phần ${cIndex + 1} — ${row.name}`" @click="removeComponent(row.student_id, cIndex)">
+                                            <span class="material-symbols-outlined text-[16px]">close</span>
+                                        </button>
+                                    </div>
+                                    <button type="button" class="flex items-center gap-0.5 text-xs font-semibold text-primary disabled:opacity-40" :disabled="absent[row.student_id]" @click="addComponent(row.student_id)">
+                                        <span class="material-symbols-outlined text-[14px]">add</span>Thêm thành phần
+                                    </button>
+                                </template>
                             </td>
                             <td class="min-w-[180px] space-y-1">
                                 <textarea :name="`results[${index}][progress_note]`" rows="2" :disabled="locked(row)" placeholder="Nhận xét tiến độ" :aria-label="`Nhận xét tiến độ — ${row.name}`" class="w-full rounded border-surface-container-highest text-xs disabled:bg-surface-container-low" :value="row.result?.progress_note ?? ''"></textarea>
@@ -199,14 +222,14 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
                             </td>
                         </tr>
                         <tr v-if="!rows.length">
-                            <td colspan="10">
+                            <td colspan="6">
                                 <UiEmptyState icon="sentiment_neutral" title="Chưa có kết quả thi cho kỳ thi Big Test này." />
                             </td>
                         </tr>
                     </tbody>
                 </table>
                 <div v-if="canGrade && hasUnlocked()" class="flex items-center justify-between gap-3 border-t border-surface-container-highest p-4">
-                    <span class="text-xs text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần đủ 4 kỹ năng. Điểm đã duyệt/đã báo phụ huynh không thể sửa.</span>
+                    <span class="text-xs text-on-surface-variant">Học viên vắng: tích "Vắng thi" (không nhập điểm). Dòng để trống sẽ bỏ qua. Thành phần điểm tự đặt tên/số lượng, không giới hạn thang điểm. "Lưu nháp" chưa gửi Học thuật (sửa tiếp được); "Gửi duyệt" cần ít nhất 1 thành phần. Điểm đã duyệt/đã báo phụ huynh không thể sửa.</span>
                     <div class="flex items-center gap-2">
                         <UiButton type="submit" name="action" value="draft" variant="secondary" icon="draft">Lưu nháp</UiButton>
                         <UiButton type="submit" name="action" value="submit" icon="send">Gửi duyệt</UiButton>
@@ -243,10 +266,11 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
 
                 <section>
                     <h3 class="mb-sm font-label text-label uppercase text-on-surface-variant">Điểm chi tiết</h3>
-                    <div class="grid grid-cols-2 gap-md sm:grid-cols-4">
-                        <div v-for="(label, field) in detailSkills" :key="field" class="flex items-center justify-between rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm">
-                            <span class="font-body-small text-body-small text-on-surface-variant">{{ label }}</span>
-                            <span class="font-h3 text-h3 text-on-surface">{{ selectedResult.is_absent ? '—' : (selectedResult[field] ?? '—') }}</span>
+                    <p v-if="selectedResult.is_absent || !selectedResult.components.length" class="font-body-small text-body-small text-on-surface-variant">{{ selectedResult.is_absent ? 'Vắng thi.' : 'Chưa có điểm.' }}</p>
+                    <div v-else class="grid grid-cols-2 gap-md sm:grid-cols-4">
+                        <div v-for="c in selectedResult.components" :key="c.name" class="flex items-center justify-between rounded-lg border border-outline-variant bg-surface-container-low px-md py-sm">
+                            <span class="font-body-small text-body-small text-on-surface-variant">{{ c.name }}</span>
+                            <span class="font-h3 text-h3 text-on-surface">{{ c.score }}</span>
                         </div>
                     </div>
                     <p class="mb-xs mt-md flex items-center gap-xs font-label text-label text-on-surface-variant"><span class="material-symbols-outlined text-[16px]">link</span>Link video bài thi</p>
@@ -266,12 +290,11 @@ watch(() => props.selectedResult?.id, (id) => (detailOpen.value = !!id));
             <div class="space-y-lg">
                 <section class="space-y-md rounded-lg border border-outline-variant p-md">
                     <div class="flex flex-wrap items-center justify-between gap-sm">
-                        <h3 class="whitespace-nowrap font-h3 text-h3 text-on-surface">Tổng điểm (Big Test)</h3>
+                        <h3 class="whitespace-nowrap font-h3 text-h3 text-on-surface">Kết quả (Big Test)</h3>
                         <UiBadge v-if="test.days_left !== null" :color="test.days_left < 0 ? 'error' : 'warning'" :dot="false" pill title="Hạn trả kết quả">
                             <span class="material-symbols-outlined text-[14px]">timer</span>{{ test.days_left < 0 ? `Quá hạn ${Math.abs(test.days_left)} ngày` : `Còn ${test.days_left} ngày` }}
                         </UiBadge>
                     </div>
-                    <div class="font-h1 text-h1 text-primary">{{ selectedResult.is_absent ? 'Vắng thi' : (selectedResult.overall_score ?? '—') }}</div>
                     <div>
                         <p class="font-caption text-caption text-on-surface-variant">Trạng thái dữ liệu</p>
                         <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ selectedResult.status_label }}</p>

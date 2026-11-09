@@ -446,8 +446,10 @@ class UserController extends Controller
             ->event('updated')
             ->log('Đặt lại mật khẩu (bắt buộc đổi ở lần đăng nhập tới)');
 
-        // Trong môi trường thực tế nên gửi mật khẩu tạm qua email thay vì hiển thị trực tiếp.
-        return back()->with('status', "Đã đặt lại mật khẩu. Mật khẩu tạm thời: {$temporaryPassword}");
+        // Mật khẩu tạm chỉ đi qua flash session (hiện 1 lần trong hộp thoại có nút Sao chép), không lưu/ghi log.
+        return back()
+            ->with('status', 'Đã đặt lại mật khẩu.')
+            ->with('temporary_password', ['user' => $user->name, 'password' => $temporaryPassword]);
     }
 
     /** Gán vai trò: mở từ danh sách nhân sự → modal md; mở thẳng URL → trang đầy đủ. */

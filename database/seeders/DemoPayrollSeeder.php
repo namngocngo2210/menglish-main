@@ -587,6 +587,9 @@ class DemoPayrollSeeder extends Seeder
                     if ($day->dayOfWeekIso !== $weekday || $this->isHoliday($day)) {
                         continue;
                     }
+                    if ($course?->total_lessons && $n >= $course->total_lessons) { // O-37: không quá kế hoạch khóa
+                        break 2;
+                    }
                     ClassSession::create([
                         'class_id' => $class->id, 'branch_id' => $branch->id, 'date' => $day->toDateString(),
                         'shift_name' => $shift, 'type' => ClassSession::TYPE_REGULAR, 'start_time' => $from, 'end_time' => $to,
@@ -796,10 +799,10 @@ class DemoPayrollSeeder extends Seeder
             'user_id' => $user->id, 'work_date' => $day->toDateString(), 'source' => StaffAttendance::SOURCE_REQUEST, 'branch_id' => $user->branch_id,
         ]);
         if ($request->type === StaffAttendanceRequest::TYPE_CORRECTION) {
-            if ($request->check_in_time) {
+            if ($request->check_in_time && ! $row->check_in_photo) {
                 $row->check_in_at = $day->copy()->setTimeFromTimeString((string) $request->check_in_time);
             }
-            if ($request->check_out_time) {
+            if ($request->check_out_time && ! $row->check_out_photo) {
                 $row->check_out_at = $day->copy()->setTimeFromTimeString((string) $request->check_out_time);
             }
             $row->note = 'Bổ sung công đã duyệt: '.$request->reason;
@@ -1306,7 +1309,7 @@ class DemoPayrollSeeder extends Seeder
     }
 
     /**
-     * Bậc KPI giữ học sinh (chỉ Học thuật kiêm nhiệm) khi lớp có học sinh đầu kỳ: người tốt bậc cao nhất, người kém
+     * Bậc KPI giữ học sinh (GV part-time / TA) khi lớp có học sinh đầu kỳ: người tốt bậc cao nhất, người kém
      * bậc thấp nhất, còn lại bậc giữa. Không áp dụng → null.
      */
     private function retentionTier(PayrollRecord $record): ?float
@@ -1469,8 +1472,7 @@ class DemoPayrollSeeder extends Seeder
             ->where(fn ($q) => $q->where(fn ($new) => $new->whereNotIn('user_id', $hadRecord)->whereNull('adjustment_notes'))
                 ->orWhere(fn ($retention) => $retention->where('kpi_source', PayrollRecord::KPI_RETENTION)
                     ->where('retention_students', '>', 0)->whereNull('kpi_finalized_at')
-                    ->whereIn('user_id', array_map(fn ($user) => $user->id, $this->staff)))
-                ->orWhere(fn ($teaching) => $teaching->where('teaching_concurrent', true)->where('retention_base_students', '>', 0)->whereNull('retention_tier')))
+                    ->whereIn('user_id', array_map(fn ($user) => $user->id, $this->staff))))
             ->orderBy('id')->get()
             ->each(fn (PayrollRecord $record) => $this->adjustManual($record, $this->lastMonth));
         $this->at($now);

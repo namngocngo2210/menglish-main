@@ -110,6 +110,8 @@ class PenaltyController extends Controller
                     'status_label' => $pen->status_label,
                     'overdue' => $pen->isOverdue(),
                     'amount' => (float) $pen->amount,
+                    // Mức theo cấu hình quy chế (null = biên bản lập tay): hiển thị / điền sẵn trước khi quyết phạt.
+                    'configured_amount' => $pen->configuredAmount(),
                     'due_date' => $pen->due_date?->format('d/m/Y'),
                     'paid_at' => $pen->paid_at?->format('d/m/Y'),
                     'deduct_from_date' => $pen->deduct_from_date?->toDateString(),
@@ -284,6 +286,11 @@ class PenaltyController extends Controller
 
         $penalty = Penalty::visibleTo($request->user())->findOrFail($id);
         abort_unless($penalty->canBeDecidedBy($request->user()), 403, "Biên bản {$penalty->category_label} do {$penalty->confirmer_label} chốt.");
+
+        // BR-11: lần vi phạm mức nhắc nhở (cấu hình 0đ) chỉ được "Chốt lỗi" / "Đóng - không phạt", không quyết phạt tiền.
+        if ($decision === 'fine' && $penalty->isReminderTier()) {
+            throw ValidationException::withMessages(['amount' => 'Lần vi phạm này thuộc mức nhắc nhở theo quy chế phạt — không được chốt mức phạt có tiền. Chỉ chọn "Chốt lỗi" hoặc "Đóng - không phạt".']);
+        }
 
         $validated = $request->validate([
             'decision' => ['nullable', 'in:error,fine'],

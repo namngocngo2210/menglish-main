@@ -165,7 +165,7 @@ class SyllabusAssignmentConfirmTest extends TestCase
         $this->assertSame('ĐỌC & XÁC NHẬN', AdminNotification::where('user_id', $this->teacher->id)->sole()->action['label']);
     }
 
-    public function test_big_test_completion_closes_stage_without_opening_next_and_notifies_lead(): void
+    public function test_big_test_completion_closes_stage_and_opens_next(): void
     {
         $assignment = $this->openStage($this->stage1);
         $student = Student::create(['code' => 'HV-QT-1', 'name' => 'Học viên QT', 'phone' => '0390000001', 'branch_id' => $this->branch->id, 'class_id' => $this->class->id, 'status' => 'studying']);
@@ -176,10 +176,9 @@ class SyllabusAssignmentConfirmTest extends TestCase
         $outcome = app(SyllabusProgressionService::class)->syncBigTest($test);
 
         $this->assertNotNull($outcome);
-        $this->assertNull($outcome['next']);
+        $this->assertSame($this->stage2->id, $outcome['next']->stage_id);
         $this->assertFalse($assignment->fresh()->isOpen());
-        $this->assertSame(0, SyllabusAssignment::open()->count());
-        $this->assertSame('Lớp Lớp QT 01 đã xong Chặng 1: Làm quen — giao chặng tiếp theo.', AdminNotification::where('user_id', $this->lead->id)->sole()->title);
+        $this->assertSame($this->stage2->id, SyllabusAssignment::open()->sole()->stage_id);
     }
 
     public function test_manual_close_never_opens_next_stage(): void

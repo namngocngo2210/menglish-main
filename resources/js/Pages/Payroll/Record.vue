@@ -307,12 +307,6 @@ function sessionNote(ts) {
                                 </p>
                             </div>
                             <div class="space-y-xs">
-                                <UiSelect v-if="canEdit" name="retention_tier" label="KPI kiêm nhiệm — đơn giá (đ/hs/tháng)" :options="tierOptions" :value="record.retention_tier !== null ? String(Math.trunc(record.retention_tier)) : ''" placeholder="— Chưa chọn bậc —" :hint="tierHint" />
-                                <p v-else class="font-body-medium text-body-medium">KPI kiêm nhiệm: {{ record.retention_tier !== null ? money(record.retention_tier) + 'đ/hs/tháng' : 'chưa chọn bậc' }}</p>
-                                <p class="font-body-small text-body-small text-on-surface-variant">
-                                    Giữ {{ record.retention_students }} / {{ record.retention_base_students }} HS ở các lớp đã dạy{{ record.retention_lost ? ` · nghỉ ${record.retention_lost} HS` : '' }}{{ lostStudents ? ` (${lostStudents})` : '' }}
-                                    = <strong class="font-mono">{{ money(record.teaching_kpi_bonus) }} đ</strong>
-                                </p>
                                 <p v-if="teachingShare.kpi_sheet" class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" data-teaching-kpi-sheet>
                                     Phiếu KPI giảng dạy {{ teachingShare.kpi_sheet.period_label.toLowerCase() }}:
                                     <strong class="font-mono text-on-surface">{{ pct(teachingShare.kpi_sheet.rate) }}%</strong>

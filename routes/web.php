@@ -371,8 +371,6 @@ Route::middleware('auth')->group(function () {
 
         // Step 2: Trang chủ Phụ huynh / Học sinh
         Route::get('/home/{studentId?}', [StudentPortalController::class, 'studentHome'])->name('student.home');
-        Route::post('/student/{id}/update-profile', [StudentPortalController::class, 'updateProfile'])->name('student.profile.update');
-        Route::post('/student/tuition-request', [StudentPortalController::class, 'submitTuitionRequest'])->name('student.tuition.request');
 
         // Step 3: Học tập của tôi — Nộp bài tập
         Route::get('/student-homework/{studentId?}', [StudentPortalController::class, 'studentHomework'])->name('student.homework');
@@ -385,6 +383,7 @@ Route::middleware('auth')->group(function () {
 
         // Step 4: Luyện phát âm & Thu âm giọng nói AI
         Route::get('/pronunciation/{studentId?}', [StudentPortalController::class, 'studentPronunciation'])->name('student.pronunciation');
+        Route::get('/pronunciation/sample/{document}/{studentId?}', [StudentPortalController::class, 'pronunciationSample'])->whereNumber('document')->name('student.pronunciation.sample');
         Route::post('/pronunciation/record', [StudentPortalController::class, 'submitPronunciation'])->name('student.pronunciation.store');
         Route::delete('/pronunciation/{id}/destroy', [StudentPortalController::class, 'deletePronunciation'])->name('student.pronunciation.destroy');
 
@@ -402,7 +401,6 @@ Route::middleware('auth')->group(function () {
         // Step 7: Phụ huynh gửi Feedback chặng học (MH6)
         Route::get('/feedback/{studentId?}', [StudentPortalController::class, 'studentFeedback'])->name('student.feedback');
         Route::post('/feedback/submit', [StudentPortalController::class, 'submitFeedback'])->name('student.feedback.store');
-        Route::delete('/feedback/{id}/destroy', [StudentPortalController::class, 'deleteFeedback'])->name('student.feedback.destroy');
 
         // Luyện tập (ngân hàng câu hỏi): quyền theo học viên kiểm tra trong controller. Route lượt làm đặt trước /practice/{studentId?}.
         Route::post('/practice/start', [PracticeController::class, 'start'])->name('student.practice.start');
@@ -464,7 +462,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/config/renewal-bonus', [PayrollController::class, 'storeRenewalTable'])->middleware('can:commission_config.manage')->name('config.renewal.store');
     });
 
-    Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->name('portal.my-salary');
+    Route::get('/portal/my-salary', [PayrollController::class, 'mySalary'])->middleware('can:portal.staff')->name('portal.my-salary');
 
     // ─────────────────────────────────────────────
     // 5. Kỷ luật & Xử phạt (Epic 8)

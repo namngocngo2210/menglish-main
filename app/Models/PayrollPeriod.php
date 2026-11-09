@@ -601,10 +601,7 @@ class PayrollPeriod extends Model
                 $details['kpi_tier'] = ['seniority_months' => $seniority, 'parts' => $kpiTier['parts']];
             } else {
                 if ($share !== null) {
-                    // Concurrent teaching keeps the manually selected flat retention rate.
-                    $retentionData = $formula->retentionFor($timesheets->pluck('class_id')->filter()->unique()->values()->all(), $start, $end);
-                    $retention = ['base' => $retentionData['base'], 'retained' => $retentionData['retained']];
-                    $details['retention'] = ['base' => $retentionData['base'], 'lost' => $retentionData['lost'], 'retained' => $retentionData['retained'], 'lost_ids' => $retentionData['lost_ids']];
+                    // Học thuật không có KPI giữ HS / KPI giảng dạy (TK-2026-0035, BR-08): chỉ lương đứng lớp.
                     $details['teaching_share'] = ['default_percent' => $share['default_percent'], 'classes' => $share['classes'], 'skipped' => $share['skipped']];
                 }
                 if ($profile['salary_role'] === Roles::ACADEMIC_STAFF) {
@@ -655,7 +652,9 @@ class PayrollPeriod extends Model
                 $allowanceFull = $isAssistant ? 0.0 : (float) $user->monthly_allowance;
                 $allowancePaid = round($allowanceFull * $ratio, 0);
                 $hourly = $standardDays > 0 ? $baseSalary / $standardDays / (float) config('payroll.attendance.hours_per_day', 7) : 0.0;
-                $penalized = $attendanceService->dailyLatePenalized($user);
+                // Full-time lương cơ bản luôn bị trừ giờ muộn chấm công (kể cả GV: ca dạy Full-time không tính theo buổi nên
+                // không phạt 2 lần); chỉ loại TA / GVNN / Học thuật kiêm nhiệm đứng lớp (đi muộn đã tính trên check-in ca dạy).
+                $penalized = ! $paysSessions && ! $isAssistant && ! $isForeignTeacher;
                 $lateMinutes = $penalized ? (int) $workdays['late_minutes'] : 0;
                 $lateDeduction = round($lateMinutes / 60 * $hourly, 0);
                 $details['workdays'] = $workdays + ['ratio' => round($ratio, 6), 'allowance_full' => $allowanceFull];
