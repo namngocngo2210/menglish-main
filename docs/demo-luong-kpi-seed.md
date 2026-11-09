@@ -42,8 +42,9 @@
 4. Không làm: chăm sóc tháng đầu quá hạn tháng trước (`FirstMonthCareService::run` quét mọi học viên, tác dụng phụ lớn).
 5. Sale **không có quyền `staff_report.submit`** (`config/access.php`) nên không nộp báo cáo ngày trên hệ thống: tiêu chí
    "Báo cáo ngày nộp muộn" của bộ KPI mẫu Sale chuyển sang điền tay (không giả lập luồng hệ thống không cho phép).
-6. Lớp K27 / K28 có học viên → phiếu lương GV part-time / GVNN / TA tính KPI giữ học sinh; Admin chọn bậc khi nhập tay
-   (`retentionTier`: người tốt bậc cao, người kém bậc thấp) để kỳ tháng trước duyệt được.
+6. GV Part-time / Full-time / GVNN tự tính KPI giữ học sinh lũy tiến theo bảng bậc và thâm niên; demo gọi thao tác
+   **Chốt KPI** cho phiếu có HS giữ được. 0 HS là Không áp dụng; Trợ giảng không có KPI giữ HS. Bậc chọn tay
+   (`retentionTier`) chỉ còn dành cho Học thuật kiêm nhiệm. Xem [công thức và ví dụ](luong-giao-vien.md#kpi-giữ-học-sinh-lũy-tiến-tk-2026-0023).
 
 ## GVNN — TK-0019
 
@@ -56,8 +57,8 @@
   đơn giá phút hiệu lực ngày dạy**. Ca nhập tay không có buổi trên lịch lấy số giờ công × 60. Đến muộn không rút ngắn phút theo
   lịch; vắng không có ca hợp lệ thì không có lương ca đó, không thêm phạt.
 - Không tính thuế TNCN, phạt đi muộn / quên chấm công / vắng hoặc biên bản tự động cho GVNN. Biên bản chuyên môn lập tay cho
-  `gv.native1` vẫn qua giải trình / quyết phạt và được trừ khi đủ điều kiện. KPI giữ học sinh vẫn chọn bậc tay; chưa chọn bậc
-  cần thiết thì phiếu chờ chốt KPI.
+  `gv.native1` vẫn qua giải trình / quyết phạt và được trừ khi đủ điều kiện. KPI giữ học sinh tính lũy tiến; có HS giữ được và chưa
+  chốt số tiền đề xuất thì phiếu chờ chốt KPI. Tính lại đổi tiền sẽ tự bỏ chốt.
 - Khoản **Buổi có GVNN** thuộc phiếu GV Việt Nam, đếm theo từng buổi được gán `class_sessions.foreign_teacher_id` và có ca công
   GVNN hợp lệ cùng lớp / ngày; Kế toán nhập tiền tay. Phiếu của chính GVNN có khoản này bằng 0. Thiếu đơn giá phút hiệu lực
   thì tiền ca bằng 0 và có cảnh báo; không quy đổi đơn giá giờ / buổi hoặc lấy đơn giá chung.

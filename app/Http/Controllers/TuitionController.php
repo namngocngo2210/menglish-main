@@ -1627,7 +1627,7 @@ class TuitionController extends Controller
         }
 
         $receipt = $result;
-        $receipt->load(['tuition.student', 'student']);
+        $receipt->load(['tuition.student', 'tuition.classModel.course', 'student']);
         $invoiceNumber = $receipt->invoice_number;
 
         $student = $receipt->tuition?->student ?? $receipt->student;
@@ -1655,7 +1655,18 @@ class TuitionController extends Controller
             Log::warning('Lỗi tạo thông báo duyệt phiếu thu: '.$e->getMessage());
         }
 
-        $portalMessage = 'Trung tâm MEnglish xác nhận đã nhận thanh toán học phí thành công số tiền '.Money::format((float) $receipt->amount)." cho học viên {$studentName} (HĐĐT: {$invoiceNumber}). Cảm ơn Quý phụ huynh!";
+        // Tên khóa chỉ có khi phiếu có phần học phí; phiếu chỉ phụ phí thì hiện lý do phụ phí (TK-2026-0065).
+        $class = $receipt->tuition?->classModel;
+        $courseName = $receipt->tuitionPortion() > 0 ? ($class?->course?->name ?? $class?->name) : null;
+        $surchargeReason = (float) $receipt->surcharge_amount > 0 ? trim((string) $receipt->surcharge_reason) : '';
+        $detail = '';
+        if ($courseName) {
+            $detail .= " khóa {$courseName}";
+        }
+        if ($surchargeReason !== '') {
+            $detail .= $courseName ? ", phụ phí: {$surchargeReason}" : " (phụ phí: {$surchargeReason})";
+        }
+        $portalMessage = 'Trung tâm MEnglish xác nhận đã nhận thanh toán học phí thành công số tiền '.Money::format((float) $receipt->amount)." cho học viên {$studentName}{$detail} (HĐĐT: {$invoiceNumber}). Cảm ơn Quý phụ huynh!";
         try {
             AcademicRecord::create([
                 'screen_key' => '04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao',

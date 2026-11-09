@@ -19,6 +19,7 @@ import ToastHost from './Shell/ToastHost.vue';
 import ConfirmDialogHost from './Shell/ConfirmDialogHost.vue';
 import RemoteModalHost from './Shell/RemoteModalHost.vue';
 import OrderButton from './Shell/OrderButton.vue';
+import TempPasswordDialog from './Shell/TempPasswordDialog.vue';
 
 const props = defineProps({
     shell: { type: Object, default: null },
@@ -79,6 +80,7 @@ const settingsSections = computed(() => props.shell?.settings ?? []);
 
     <OrderButton v-if="shell?.order" :order="shell.order" />
     <ToastHost :flash="flash" />
+    <TempPasswordDialog />
     <ConfirmDialogHost />
     <RemoteModalHost />
 </template>

@@ -2,8 +2,8 @@
 
 /**
  * Order học liệu — hiển thị hạn xử lý (app/Models/MaterialOrder.php).
- * Hạn xử lý (ngày N đầu tháng cho order GVNN / học liệu học thuật, giờ chốt ngày hôm trước cho đạo cụ / in ấn)
- * nằm ở trang Cấu hình SLA: material.monthly_deadline, material.day_before_cutoff (config/sla.php).
+ * Hạn xử lý (00:00 ngày 1 của tháng dùng cho order GVNN / học liệu học thuật; đạo cụ / in ấn: giờ chốt ngày hôm trước)
+ * giờ chốt đạo cụ / in ấn nằm ở trang Cấu hình SLA: material.day_before_cutoff (config/sla.php).
  */
 return [
 

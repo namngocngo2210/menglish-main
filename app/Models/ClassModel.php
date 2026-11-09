@@ -68,7 +68,7 @@ class ClassModel extends Model
      * tất cả; giáo viên / GVNN / trợ giảng chỉ thấy lớp mình phụ trách hoặc có
      * buổi dạy; vai trò khác (học viên...) không thấy lớp nào.
      */
-    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    public function scopeVisibleTo(Builder $query, ?User $user, bool $withSessions = true): Builder
     {
         if (! $user) {
             return $query->whereRaw('1 = 0');
@@ -91,8 +91,13 @@ class ClassModel extends Model
             $grantedClassIds = array_merge($grantedClassIds, $user->scopedOverrideIds('class', $action, UserPermissionOverride::SCOPE_CLASS));
         }
 
-        return $query->where(function (Builder $query) use ($user, $managedBranchIds, $grantedBranchIds, $grantedClassIds) {
+        return $query->where(function (Builder $query) use ($user, $managedBranchIds, $grantedBranchIds, $grantedClassIds, $withSessions) {
             $query->taughtBy($user);
+
+            // Dạy thay theo buổi: chỉ mở quyền truy cập lớp (phạm vi buổi), không đưa vào danh sách "đang dạy".
+            if ($withSessions) {
+                $query->orWhereHas('sessions', fn (Builder $sessions) => $sessions->forStaff($user->id));
+            }
 
             if (! empty($managedBranchIds)) {
                 $query->orWhereIn('branch_id', $managedBranchIds);
@@ -106,13 +111,16 @@ class ClassModel extends Model
         });
     }
 
-    /** Lớp người này dạy: GV chính / trợ giảng / GVNN của lớp, hoặc dạy / trợ giảng / dạy thay theo buổi ("Lớp của tôi"). */
+    /**
+     * Lớp người này dạy ("Lớp của tôi", "Chặng đang dạy"): GV chính / trợ giảng / GVNN của lớp, hoặc GV được giao
+     * chặng đang mở của lớp (bản ghi syllabus_assignments, kể cả chờ xác nhận). Dạy thay theo buổi KHÔNG tính.
+     */
     public function scopeTaughtBy(Builder $query, User $user): Builder
     {
         return $query->where(fn (Builder $q) => $q->where('teacher_id', $user->id)
             ->orWhere('assistant_id', $user->id)
             ->orWhere('foreign_teacher_id', $user->id)
-            ->orWhereHas('sessions', fn (Builder $sessions) => $sessions->forStaff($user->id)));
+            ->orWhereHas('syllabusAssignments', fn (Builder $a) => $a->open()->where('user_id', $user->id)));
     }
 
     /**

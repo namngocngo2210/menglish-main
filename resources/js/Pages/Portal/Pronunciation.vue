@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Luyện phát âm (MH #4): bài nghe của lớp (file nghe GV đính kèm bài tập), ghi âm thật bằng micro (MediaRecorder) —
+ * Luyện phát âm (MH #4): bài nghe mẫu (tài liệu giáo trình audio của chương trình lớp), ghi âm thật bằng micro (MediaRecorder) —
  * file ghi âm gắn vào ô file ẩn của form nộp bài — và lịch sử bài đã nộp (giáo viên chấm).
  */
 import { computed, onBeforeUnmount, ref } from 'vue';
@@ -123,11 +123,11 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="w-full flex-1 space-y-4 overflow-y-auto p-4">
-            <!-- 1. Bài nghe mẫu = file nghe giáo viên đính kèm bài tập của lớp -->
+            <!-- 1. Bài nghe mẫu = tài liệu giáo trình audio của chương trình lớp -->
             <section class="space-y-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-2xs">
                 <div>
-                    <h2 class="text-sm font-bold text-on-surface">Bài nghe của lớp</h2>
-                    <p class="mt-0.5 text-xs text-on-surface-variant">File nghe giáo viên gửi kèm bài tập. Nghe, chọn bài rồi thu âm theo.</p>
+                    <h2 class="text-sm font-bold text-on-surface">Bài nghe mẫu</h2>
+                    <p class="mt-0.5 text-xs text-on-surface-variant">Tài liệu audio của giáo trình lớp. Nghe, chọn bài rồi thu âm theo.</p>
                 </div>
 
                 <div class="space-y-2">
@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
                         </div>
                         <audio controls preload="none" class="mt-2 h-8 w-full" :src="item.audio_url"></audio>
                     </div>
-                    <UiEmptyState v-if="!practiceItems.length" icon="headphones" title="Lớp chưa có file nghe" description="Khi giáo viên gửi bài tập kèm file nghe, bài sẽ hiện ở đây. Bạn vẫn có thể tự đặt tên bài và thu âm." />
+                    <UiEmptyState v-if="!practiceItems.length" icon="headphones" title="Chương trình chưa có audio mẫu" description="Khi giáo trình của lớp có tài liệu audio, bài sẽ hiện ở đây. Bạn vẫn có thể tự đặt tên bài và thu âm." />
                 </div>
             </section>
 
