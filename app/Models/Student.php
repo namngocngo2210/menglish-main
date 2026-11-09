@@ -293,6 +293,18 @@ class Student extends Model
             ->all();
     }
 
+    /** @return list<int> All enrolled classes, including transfer history and the current class. */
+    public function historyClassIds(): array
+    {
+        return $this->enrollments()->pluck('class_id')
+            ->push($this->current_class_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function practiceAttempts(): HasMany
     {
         return $this->hasMany(PracticeAttempt::class, 'student_id');

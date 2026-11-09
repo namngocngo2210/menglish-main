@@ -99,7 +99,7 @@ class DemoPhase2SeederTest extends TestCase
         $this->assertNotNull(SyllabusAssignment::open()->where('class_id', $cg1->id)->value('big_test_reminded_for'));
         $this->assertSame(0, Student::where('code', 'like', 'HV-DEMO-%')->where('status', 'studying')->whereNull('parent_phone')->count(), 'HV demo có SĐT phụ huynh.');
         $this->assertTrue(AdminNotification::where('type', 'big_test_upcoming')->exists(), 'Nhắc lịch Big Test 7 ngày.');
-        foreach ([SupportListService::SOURCE_ATTENDANCE, SupportListService::SOURCE_MINI_TEST, SupportListService::SOURCE_BIG_TEST] as $source) {
+        foreach ([SupportListService::SOURCE_ATTENDANCE, SupportListService::SOURCE_MINI_TEST] as $source) { // Big Test không còn tự xếp loại → không tự vào bổ trợ (TK-2026-0056)
             $this->assertTrue(ClassReportStudentSupport::where('source', $source)->exists(), "Danh sách bổ trợ thiếu nguồn {$source}.");
         }
         $this->assertTrue(WorkTask::whereNotNull('care_milestone')->exists(), 'Có việc chăm sóc tháng đầu.');

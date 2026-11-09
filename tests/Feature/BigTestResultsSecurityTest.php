@@ -89,8 +89,8 @@ class BigTestResultsSecurityTest extends TestCase
     private function scoreRow(Student $student, float $score = 7): array
     {
         return [
-            'student_id' => $student->id, 'listening_score' => $score, 'reading_score' => $score,
-            'writing_score' => $score, 'speaking_score' => $score, 'progress_note' => 'Tốt',
+            'student_id' => $student->id, 'components' => [['name' => 'Nghe', 'score' => $score], ['name' => 'Đọc', 'score' => $score]],
+            'progress_note' => 'Tốt',
         ];
     }
 
@@ -252,7 +252,7 @@ class BigTestResultsSecurityTest extends TestCase
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.results.store', $this->testA->id), [
             'results' => [
                 $this->scoreRow($this->studentA),
-                ['student_id' => $absent->id, 'listening_score' => '', 'reading_score' => '', 'writing_score' => '', 'speaking_score' => '', 'progress_note' => ''],
+                ['student_id' => $absent->id, 'components' => [['name' => '', 'score' => '']], 'progress_note' => ''],
             ],
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -263,8 +263,8 @@ class BigTestResultsSecurityTest extends TestCase
     public function test_partially_filled_row_is_rejected(): void
     {
         $this->actingAs($this->teacherA)->post(route('syllabus.big-tests.results.store', $this->testA->id), [
-            'results' => [['student_id' => $this->studentA->id, 'listening_score' => 7, 'reading_score' => '', 'writing_score' => '', 'speaking_score' => '']],
-        ])->assertSessionHasErrors('results.0.reading_score');
+            'results' => [['student_id' => $this->studentA->id, 'components' => [['name' => 'Nghe', 'score' => 7], ['name' => 'Đọc', 'score' => '']]]],
+        ])->assertSessionHasErrors('results');
 
         $this->assertDatabaseCount('big_test_results', 0);
     }

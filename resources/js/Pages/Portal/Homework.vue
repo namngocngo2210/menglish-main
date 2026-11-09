@@ -27,6 +27,7 @@ const props = defineProps({
     bigTestResults: { type: Array, default: () => [] },
     assignments: { type: Array, default: () => [] },
     sessionProgress: { type: Object, default: () => ({}) },
+    emptySessions: { type: Array, default: () => [] },
 });
 
 const REMARK_FIELDS = {
@@ -46,7 +47,27 @@ const groups = computed(() => {
         if (!map.has(key)) map.set(key, { key, session: hw.session, class_name: hw.class_name, items: [], progress: props.sessionProgress[key] });
         map.get(key).items.push(hw);
     }
-    return [...map.values()];
+    const list = [...map.values()];
+    for (const es of props.emptySessions) {
+        const group = {
+            key: es.id,
+            session: { id: es.id, label: es.label, date: es.date, lesson: es.lesson },
+            class_name: es.class_name,
+            items: [],
+        };
+        const olderIndex = list.findIndex((g) => g.session?.date && g.session.date < es.date);
+        if (olderIndex !== -1) {
+            list.splice(olderIndex, 0, group);
+        } else {
+            const noneIndex = list.findIndex((g) => !g.session || g.key === 'none');
+            if (noneIndex !== -1) {
+                list.splice(noneIndex, 0, group);
+            } else {
+                list.push(group);
+            }
+        }
+    }
+    return list;
 });
 const dueLabel = (hw) => (hw.due_at ? formatDate(hw.due_at, 'd/m/Y H:i') : hw.due_date ? formatDate(hw.due_date) : 'Không giới hạn');
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
@@ -137,10 +158,22 @@ function switchStudent(event) {
                             <div class="h-full rounded-full bg-tertiary transition-all duration-300" :style="{ width: percentOf(group.progress) + '%' }"></div>
                         </div>
                     </div>
+                    <div
+                        v-if="!group.items.length"
+                        class="flex flex-col gap-1 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs"
+                        data-testid="homework-empty-session"
+                    >
+                        <p class="text-xs font-bold text-on-surface">
+                            {{ group.class_name }} · {{ group.session?.label }} · {{ formatDate(group.session?.date) }}
+                        </p>
+                        <p v-if="group.session?.lesson" class="text-xs text-on-surface-variant">{{ group.session.lesson }}</p>
+                        <p class="text-xs text-on-surface-subtle">Chưa có bài tập được giao</p>
+                    </div>
                     <div v-for="hw in group.items" :key="hw.id" class="flex flex-col gap-2 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs" data-testid="assigned-homework">
                         <div>
                             <div class="flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant" data-testid="homework-session">
                                 <span class="font-bold text-primary">{{ hw.class_name }}</span>
+                                <UiBadge v-if="hw.readonly" color="neutral" pill>Lớp cũ · chỉ xem</UiBadge>
                                 <template v-if="hw.session">
                                     <span aria-hidden="true">·</span>
                                     <span class="font-bold text-on-surface">{{ hw.session.label }}</span>
@@ -168,17 +201,19 @@ function switchStudent(event) {
                             <div class="mt-2 flex flex-wrap items-center gap-2">
                                 <a v-if="b.link" :href="b.link" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-bold text-secondary hover:underline">Mở Quizizz <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span></a>
                                 <a v-if="b.submission?.file_url" :href="b.submission.file_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-bold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">attachment</span>{{ b.submission.original_name ?? 'Bài đã nộp' }}</a>
-                                <UiButton v-if="b.upload" size="sm" :variant="b.submission ? 'secondary' : 'primary'" icon="upload" class="ml-auto" @click="openBasket(hw, b)">{{ b.submission ? 'Nộp lại' : 'Nộp bài' }}</UiButton>
-                                <UiForm v-else-if="!b.submission" :action="route('portal.student.homework.basket', [hw.id, b.key])" method="post" class="ml-auto">
-                                    <input type="hidden" name="student_id" :value="student?.id" />
-                                    <UiButton type="submit" size="sm" icon="task_alt">Đã làm</UiButton>
-                                </UiForm>
+                                <template v-if="!hw.readonly">
+                                    <UiButton v-if="b.upload" size="sm" :variant="b.submission ? 'secondary' : 'primary'" icon="upload" class="ml-auto" @click="openBasket(hw, b)">{{ b.submission ? 'Nộp lại' : 'Nộp bài' }}</UiButton>
+                                    <UiForm v-else-if="!b.submission" :action="route('portal.student.homework.basket', [hw.id, b.key])" method="post" class="ml-auto">
+                                        <input type="hidden" name="student_id" :value="student?.id" />
+                                        <UiButton type="submit" size="sm" icon="task_alt">Đã làm</UiButton>
+                                    </UiForm>
+                                </template>
                             </div>
                         </div>
                     </div>
                     </template>
 
-                    <UiEmptyState v-if="!assignments.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="assignment" title="Chưa có bài tập về nhà được giao" description="Bài tập giáo viên giao theo từng buổi học sẽ hiện ở đây để nộp." />
+                    <UiEmptyState v-if="!assignments.length && !emptySessions.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="assignment" title="Chưa có bài tập về nhà được giao" description="Bài tập giáo viên giao theo từng buổi học sẽ hiện ở đây để nộp." />
                 </section>
 
                 <!-- 2. NHẬN XÉT BUỔI HỌC -->
@@ -192,7 +227,11 @@ function switchStudent(event) {
                         <div class="flex items-start justify-between gap-2">
                             <div>
                                 <p class="text-sm font-bold text-on-surface">{{ item.label }}</p>
-                                <p class="text-xs text-on-surface-subtle">{{ item.class_name }}<template v-if="item.teacher"> · GV {{ item.teacher }}</template></p>
+                                <p class="text-xs text-on-surface-subtle">
+                                    <span>{{ item.class_name }}</span>
+                                    <UiBadge v-if="item.readonly" color="neutral" pill class="ml-1.5">Lớp cũ · chỉ xem</UiBadge>
+                                    <template v-if="item.teacher"> · GV {{ item.teacher }}</template>
+                                </p>
                             </div>
                             <UiBadge v-if="item.remark" color="success" pill>Đã nhận xét</UiBadge>
                             <UiBadge v-else color="neutral" pill>Chưa có nhận xét</UiBadge>
@@ -218,7 +257,7 @@ function switchStudent(event) {
                             </div>
                         </template>
                         <p v-else class="text-xs text-on-surface-subtle">Giáo viên chưa gửi nhận xét cho buổi này.</p>
-                        <SessionRating v-if="student && (item.can_rate || item.feedback || item.absent)" :student-id="student.id" :card="item" :categories="feedbackCategories" />
+                        <SessionRating v-if="!item.readonly && student && (item.can_rate || item.feedback || item.absent)" :student-id="student.id" :card="item" :categories="feedbackCategories" />
                     </div>
                     <UiEmptyState v-if="!remarks.length" class="rounded-2xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="insights" title="Chưa có buổi học nào gần đây." />
                 </section>
@@ -230,20 +269,33 @@ function switchStudent(event) {
                         <h2 class="text-base font-bold text-on-surface">Bảng điểm</h2>
                     </div>
                     <div class="flex flex-col gap-2">
-                        <div v-for="mt in miniTests" :key="'mt' + mt.id" class="flex items-center justify-between rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs">
-                            <div>
-                                <h4 class="text-xs font-bold text-on-surface">{{ mt.name }}</h4>
-                                <p class="font-mono text-xs text-on-surface-subtle">Ngày thi: {{ mt.test_date }}</p>
+                        <div v-for="mt in miniTests" :key="'mt' + mt.id" class="flex flex-col gap-2 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs">
+                            <div class="flex items-center justify-between gap-2">
+                                <div>
+                                    <h4 class="text-xs font-bold text-on-surface">{{ mt.name }}</h4>
+                                    <p class="font-mono text-xs text-on-surface-subtle">Ngày thi: {{ mt.test_date }}</p>
+                                </div>
+                                <div class="font-mono text-lg font-black text-primary">{{ mt.score }}<span class="text-xs text-on-surface-subtle">/{{ mt.max_score }}</span></div>
                             </div>
-                            <div class="font-mono text-lg font-black text-primary">{{ mt.score }}<span class="text-xs text-on-surface-subtle">/{{ mt.max_score }}</span></div>
+                            <div v-if="mt.skills?.length" class="flex flex-wrap items-center gap-1.5">
+                                <span v-for="s in mt.skills" :key="s.name" class="rounded-md bg-surface-container px-2 py-0.5 text-xs text-on-surface-variant">
+                                    {{ s.name }} {{ s.score }}
+                                </span>
+                            </div>
+                            <p v-if="mt.note" class="text-xs text-on-surface-variant">Nhận xét GV: {{ mt.note }}</p>
                         </div>
                         <div v-for="bt in bigTestResults" :key="'bt' + bt.id" class="flex items-center justify-between rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-2xs">
                             <div>
                                 <h4 class="text-xs font-bold text-on-surface">{{ bt.title }}</h4>
                                 <p class="font-mono text-xs text-on-surface-subtle">Ngày thi: {{ bt.scheduled_at }}</p>
                             </div>
-                            <UiBadge v-if="bt.is_absent" color="neutral" pill>Vắng thi</UiBadge>
-                            <div v-else class="font-mono text-lg font-black text-primary">{{ bt.overall_score }}</div>
+                            <div v-if="bt.is_absent" class="flex flex-col items-end gap-1 text-right">
+                                <UiBadge color="neutral" pill>Vắng thi</UiBadge>
+                                <p v-if="bt.makeup_notice" class="max-w-xs text-xs text-warning" data-makeup-notice>{{ bt.makeup_notice }}</p>
+                            </div>
+                            <div v-else class="flex flex-wrap justify-end gap-x-3 text-xs text-on-surface-variant">
+                                <span v-for="c in bt.components" :key="c.name">{{ c.name }} <b class="font-mono text-primary">{{ c.score }}</b></span>
+                            </div>
                         </div>
                         <UiEmptyState v-if="!miniTests.length && !bigTestResults.length" class="rounded-xl border border-dashed border-surface-container-highest bg-surface-container-low" icon="school" title="Chưa có điểm kiểm tra nào." />
                     </div>

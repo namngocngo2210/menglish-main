@@ -189,7 +189,7 @@ class Phase2FinalGapsTest extends TestCase
         // GV nhập được kết quả ngay (đề đã phân phối).
         $s = $this->student('HV-P2F-3');
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), ['results' => [
-            ['student_id' => $s->id, 'listening_score' => 8, 'reading_score' => 8, 'writing_score' => 8, 'speaking_score' => 8],
+            ['student_id' => $s->id, 'components' => [['name' => 'Nghe', 'score' => 8]]],
         ]])->assertSessionHasNoErrors();
         $this->assertSame('pending_review', BigTestResult::sole()->status);
 
@@ -236,9 +236,9 @@ class Phase2FinalGapsTest extends TestCase
 
         // Lưu nháp: cho phép nhập dở, giữ cờ vắng thi, không vào hàng chờ duyệt, không vào danh sách bổ trợ.
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), ['action' => 'draft', 'results' => [
-            ['student_id' => $a->id, 'listening_score' => 5, 'reading_score' => 5, 'writing_score' => 5, 'speaking_score' => 5],
+            ['student_id' => $a->id, 'components' => [['name' => 'Nghe', 'score' => 5], ['name' => 'Nói', 'score' => 5]]],
             ['student_id' => $b->id, 'is_absent' => 1],
-            ['student_id' => $c->id, 'listening_score' => 9],
+            ['student_id' => $c->id, 'components' => [['name' => 'Nghe', 'score' => 9]]],
         ]])->assertSessionHasNoErrors()->assertSessionHas('status', fn ($m) => str_contains($m, 'nháp'));
         $this->assertSame(3, BigTestResult::where('status', 'draft')->count());
         $this->assertTrue(BigTestResult::where('student_id', $b->id)->value('is_absent'));
@@ -259,25 +259,26 @@ class Phase2FinalGapsTest extends TestCase
         // Bản nháp sửa tiếp được; GV thấy nút Lưu nháp / Gửi duyệt.
         $this->actingAs($this->teacher)->get(route('syllabus.big-tests.results', $test->id))->assertOk()->assertSee('Lưu nháp')->assertSee('Gửi duyệt');
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), ['action' => 'draft', 'results' => [
-            ['student_id' => $a->id, 'listening_score' => 6, 'reading_score' => 6, 'writing_score' => 6, 'speaking_score' => 6],
+            ['student_id' => $a->id, 'components' => [['name' => 'Nghe', 'score' => 6]]],
         ]])->assertSessionHasNoErrors();
-        $this->assertEquals(6.0, (float) $draftA->fresh()->overall_score);
+        $this->assertSame([['name' => 'Nghe', 'score' => 6.0]], $draftA->fresh()->scoreComponents());
+        $this->assertNull($draftA->fresh()->overall_score, 'Không còn điểm Overall tự tính.');
 
-        // Gửi duyệt: dòng thiếu kỹ năng bị chặn; gửi đủ thì cả bản nháp đủ điểm còn lại (vắng thi) cũng chờ duyệt.
+        // Gửi duyệt: thành phần thiếu điểm bị chặn; gửi đủ thì các bản nháp còn lại có điểm / vắng thi cũng chờ duyệt.
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), ['action' => 'submit', 'results' => [
-            ['student_id' => $c->id, 'listening_score' => 9],
-        ]])->assertSessionHasErrors('results.0.reading_score');
+            ['student_id' => $c->id, 'components' => [['name' => 'Nghe', 'score' => 9], ['name' => 'Đọc', 'score' => '']]],
+        ]])->assertSessionHasErrors('results');
         $this->actingAs($this->teacher)->post(route('syllabus.big-tests.results.store', $test->id), ['action' => 'submit', 'results' => [
-            ['student_id' => $a->id, 'listening_score' => 6, 'reading_score' => 6, 'writing_score' => 6, 'speaking_score' => 6],
-        ]])->assertSessionHasNoErrors()->assertSessionHas('status', fn ($m) => str_contains($m, 'Còn 1 bản nháp'));
+            ['student_id' => $a->id, 'components' => [['name' => 'Nghe', 'score' => 6]]],
+        ]])->assertSessionHasNoErrors()->assertSessionHas('status', fn ($m) => ! str_contains($m, 'Còn '));
         $this->assertSame('pending_review', $draftA->fresh()->status);
         $this->assertSame('pending_review', BigTestResult::where('student_id', $b->id)->value('status'));
         $this->assertTrue(BigTestResult::where('student_id', $b->id)->value('is_absent'));
-        $this->assertSame('draft', BigTestResult::where('student_id', $c->id)->value('status'));
-        $this->assertTrue(ClassReportStudentSupport::where('source', SupportListService::SOURCE_BIG_TEST)->where('student_id', $a->id)->exists());
+        $this->assertSame('pending_review', BigTestResult::where('student_id', $c->id)->value('status'));
+        $this->assertFalse(ClassReportStudentSupport::where('source', SupportListService::SOURCE_BIG_TEST)->exists(), 'Không tự xếp loại điểm thấp vào bổ trợ.');
 
         $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
-        $this->assertSame(2, BigTestResult::where('status', 'approved')->count());
+        $this->assertSame(3, BigTestResult::where('status', 'approved')->count());
     }
 
     // ── 5. Giãn tiến độ cần chặng đang mở ────────────────────────────────────

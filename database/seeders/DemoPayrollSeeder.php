@@ -799,10 +799,10 @@ class DemoPayrollSeeder extends Seeder
             'user_id' => $user->id, 'work_date' => $day->toDateString(), 'source' => StaffAttendance::SOURCE_REQUEST, 'branch_id' => $user->branch_id,
         ]);
         if ($request->type === StaffAttendanceRequest::TYPE_CORRECTION) {
-            if ($request->check_in_time) {
+            if ($request->check_in_time && ! $row->check_in_photo) {
                 $row->check_in_at = $day->copy()->setTimeFromTimeString((string) $request->check_in_time);
             }
-            if ($request->check_out_time) {
+            if ($request->check_out_time && ! $row->check_out_photo) {
                 $row->check_out_at = $day->copy()->setTimeFromTimeString((string) $request->check_out_time);
             }
             $row->note = 'Bổ sung công đã duyệt: '.$request->reason;

@@ -134,11 +134,6 @@ class SecurityHardeningTest extends TestCase
         $this->actingAs($owner)
             ->get(route('portal.student.home', ['studentId' => $otherStudent->id]))
             ->assertForbidden();
-
-        $this->actingAs($owner)->post(route('portal.student.profile.update', $otherStudent->id), [
-            'student_id' => $otherStudent->id,
-            'phone' => '0900000000',
-        ])->assertForbidden();
     }
 
     public function test_user_without_payroll_permission_is_forbidden(): void

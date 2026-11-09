@@ -623,24 +623,15 @@ final class Overview
         ];
     }
 
-    /** Học sinh có mini test dưới 7/10 trong 30 ngày qua ở lớp mình dạy. */
+    /** Học sinh cần chú ý: mini test tạo mới nhất dưới ngưỡng nguong_diem_can_chu_y_pct, chỉ ở lớp hiện tại của HS. */
     private function attentionStudents(): array
     {
-        $userId = (int) $this->user->id;
-        $classIds = ClassModel::query()->where(fn ($q) => $q->where('teacher_id', $userId)
-            ->orWhere('foreign_teacher_id', $userId)->orWhere('assistant_id', $userId))->pluck('id');
-
-        return MiniTestScore::with(['student:id,name', 'classModel:id,name'])
-            ->whereIn('class_id', $classIds)
-            ->whereDate('test_date', '>=', now()->subDays(30)->toDateString())
-            ->where('max_score', '>', 0)
-            ->whereRaw('score * 10 < max_score * 7')
-            ->latest('test_date')->limit(5)->get()
-            ->map(fn (MiniTestScore $s) => [
-                'name' => $s->student?->name ?? 'Học sinh',
-                'class' => $s->classModel?->name,
-                'why' => ($s->name ? $s->name.': ' : 'Mini test: ').rtrim(rtrim(number_format((float) $s->score, 1, ',', ''), '0'), ',').'/'.rtrim(rtrim(number_format((float) $s->max_score, 1, ',', ''), '0'), ','),
-            ])->values()->all();
+        return app(\App\Services\TeacherAttentionService::class)->forTeacher($this->user)->map(fn (array $r) => [
+            'name' => $r['score']->student?->name ?? 'Học sinh',
+            'class' => $r['class_name'],
+            // AC-R09 (TK-2026-0042): chỉ hiện %, không hiện điểm tuyệt đối.
+            'why' => ($r['score']->name ? $r['score']->name.': ' : 'Mini test: ').$r['percent'].'%',
+        ])->all();
     }
 
     /**

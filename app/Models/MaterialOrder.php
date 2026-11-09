@@ -15,8 +15,8 @@ use Illuminate\Support\Carbon;
  *
  * Hạn xử lý (config/material_orders.php):
  *  - Đạo cụ, In ấn: 15:00 ngày hôm trước ngày sử dụng — CM (Học vụ) xử lý.
- *  - Order GVNN: 23:59 ngày N của tháng chứa ngày sử dụng — CM xử lý.
- *  - Học liệu học thuật: như GVNN nhưng Trưởng Học thuật xử lý.
+ *  - Học liệu học thuật: 00:00 ngày 1 của tháng chứa ngày sử dụng — Trưởng Học thuật xử lý.
+ *  - Order GVNN: tạm cùng mốc 00:00 ngày 1 (chờ BA xác nhận, TK-2026-0069) — CM xử lý.
  * Tạo trễ (đã quá hạn lúc tạo) vẫn được, chỉ cảnh báo. Quá hạn mà chưa xử lý → job chuyển "Quá hạn"; vẫn xử lý được (ghi trễ).
  */
 class MaterialOrder extends Model
@@ -88,10 +88,8 @@ class MaterialOrder extends Model
             return $use->copy()->subDay()->setTime($hour, $minute);
         }
 
-        // GVNN / học thuật: 23:59 ngày N (SLA material.monthly_deadline) của tháng chứa ngày sử dụng (N không vượt số ngày của tháng).
-        $day = min(max(1, \App\Services\Sla\Sla::value('material.monthly_deadline')), $use->daysInMonth);
-
-        return $use->copy()->day($day)->setTime(23, 59);
+        // GVNN / học thuật: 00:00 ngày 1 của tháng chứa ngày sử dụng (GVNN tạm theo cùng mốc, chờ BA xác nhận).
+        return $use->copy()->startOfMonth();
     }
 
     /** Loại do Học vụ (CM) xử lý theo chi nhánh; còn lại do Trưởng Học thuật. */

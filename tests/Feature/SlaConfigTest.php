@@ -72,7 +72,7 @@ class SlaConfigTest extends TestCase
 
     public function test_bounds_follow_unit_and_rules_without_penalty_ignore_penalty_fields(): void
     {
-        $this->saveSla('material.monthly_deadline', ['value' => 29])->assertSessionHasErrors('value');
+        $this->saveSla('material.day_before_cutoff', ['value' => '25:00'])->assertSessionHasErrors('value');
         $this->saveSla('payroll.close_after', ['value' => 3, 'enabled' => 0, 'penalty' => 1, 'amount' => 90000])->assertSessionHasNoErrors();
 
         $setting = SlaSetting::where('rule_key', 'payroll.close_after')->sole();
