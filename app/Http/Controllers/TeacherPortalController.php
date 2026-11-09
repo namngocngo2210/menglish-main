@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicRecord;
+use App\Models\AttendanceMonthlyReport;
 use App\Models\BigTestOrder;
 use App\Models\BigTestResult;
 use App\Models\ClassEnrollment;
@@ -260,11 +261,15 @@ class TeacherPortalController extends Controller
         $todayDate = Carbon::parse($today);
         $weekdayLong = [1 => 'Thứ Hai', 2 => 'Thứ Ba', 3 => 'Thứ Tư', 4 => 'Thứ Năm', 5 => 'Thứ Sáu', 6 => 'Thứ Bảy', 7 => 'Chủ Nhật'];
 
+        $attendanceReportPending = AttendanceMonthlyReport::pendingMonth($teacher->id, now());
+
         return Inertia::render('Teacher/Home', [
             'teacherName' => $teacher->name,
             'todayLabel' => $weekdayLong[$todayDate->isoWeekday()].', '.$todayDate->format('d/m'),
             'stats' => $stats,
             'todo' => [
+                'attendance_report_pending' => $attendanceReportPending,
+                'attendance_report_url' => route('my-attendance.monthly-report', ['month' => $attendanceReportPending]),
                 'reports_pending' => $reportsPending->count(),
                 'report_url' => $firstReport ? route('classes.session-report', ['id' => $firstReport->class_id, 'session' => $firstReport->id]) : null,
             ],

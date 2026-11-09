@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\AclHelper;
+use App\Models\AttendanceMonthlyReport;
 use App\Models\Branch;
 use App\Models\PayrollPeriod;
 use App\Models\StaffAttendance;
@@ -134,6 +135,46 @@ class MyAttendanceController extends Controller
             'rows' => $rows->map(fn (StaffAttendance $a) => $this->attendanceData($a))->values()->all(),
             'leaves' => $leaves->map(fn (StaffAttendanceRequest $r) => ['id' => $r->id, 'period' => $r->periodLabel(), 'reason' => $r->reason])->values()->all(),
         ]);
+    }
+
+    public function monthlyReport(Request $request): Response
+    {
+        $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $user = $request->user();
+        $today = now();
+        $monthValue = $request->query('month')
+            ?: (AttendanceMonthlyReport::unsubmittedMonths($user->id, $today)[0] ?? $today->format('Y-m'));
+        $month = Carbon::createFromFormat('!Y-m', $monthValue);
+        $report = AttendanceMonthlyReport::query()->where('user_id', $user->id)->where('month', $monthValue)->first();
+
+        return Inertia::render('MyAttendance/MonthlyReport', [
+            'month' => $monthValue,
+            'months' => collect([$today->copy()->startOfMonth()->subMonth(), $today->copy()->startOfMonth()])
+                ->map(fn (Carbon $date) => ['value' => $date->format('Y-m'), 'label' => 'Tháng '.$date->format('m/Y')])->all(),
+            'summary' => $this->attendance->summary($user->id, $month->copy()->startOfMonth(), $month->copy()->endOfMonth()),
+            'report' => $report ? ['submitted_at' => $report->submitted_at->toIso8601String(), 'note' => $report->note] : null,
+        ]);
+    }
+
+    public function storeMonthlyReport(Request $request): RedirectResponse
+    {
+        $today = now();
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m', Rule::in([$today->copy()->startOfMonth()->subMonth()->format('Y-m'), $today->format('Y-m')])],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'month.in' => 'Chỉ được nộp báo cáo tháng hiện tại hoặc tháng trước.',
+            'note.max' => 'Ghi chú không được vượt quá 1000 ký tự.',
+        ]);
+
+        // Temporary: submitted reports are read-only until BA confirms the after-submit flow.
+        AttendanceMonthlyReport::firstOrCreate(
+            ['user_id' => $request->user()->id, 'month' => $validated['month']],
+            ['submitted_at' => $today, 'note' => $validated['note'] ?? null],
+        );
+
+        return redirect()->route('my-attendance.monthly-report', ['month' => $validated['month']])
+            ->with('success', 'Đã nộp báo cáo chấm công.');
     }
 
     /** Xin duyệt: đơn chấm công / nghỉ của tôi + yêu cầu khác theo vai trò. */
