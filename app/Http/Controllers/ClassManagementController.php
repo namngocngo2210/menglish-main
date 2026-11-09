@@ -532,7 +532,7 @@ class ClassManagementController extends Controller
                 (int) $c->teacher_id => 'GV chính',
                 (int) $c->assistant_id => 'Trợ giảng',
                 (int) $c->foreign_teacher_id => 'GVNN',
-                default => 'Dạy thay',
+                default => 'GV được giao chặng',
             } : null,
             'seat' => $c->seatSummary(),
         ]);
