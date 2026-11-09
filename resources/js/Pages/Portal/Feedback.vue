@@ -18,6 +18,7 @@ const props = defineProps({
     lastFeedback: { type: Object, default: null },
     stageName: { type: String, default: '' },
     className: { type: String, default: '' },
+    hasClass: { type: Boolean, default: true },
     showSuccess: { type: Boolean, default: false },
     feedbackSuccess: { type: Boolean, default: false },
 });
@@ -112,7 +113,10 @@ function validateForm(event) {
                 </UiAlert>
 
                 <!-- Tên chặng đang mở thu thập (chỉ đọc, R-02) -->
-                <div class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-3.5 shadow-2xs">
+                <div v-if="!hasClass" class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-3.5 shadow-2xs">
+                    <h3 class="text-xs font-bold text-on-surface">Góp ý chung</h3>
+                </div>
+                <div v-else class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-3.5 shadow-2xs">
                     <div class="mb-1.5 flex items-center justify-between">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Chặng học đang mở thu thập</span>
                         <UiBadge color="success" pill>Đang mở thu thập</UiBadge>
@@ -132,7 +136,7 @@ function validateForm(event) {
                 <div @submit.capture="validateForm">
                     <UiForm :action="route('portal.student.feedback.store')" method="post" class="space-y-4">
                         <input type="hidden" name="student_id" :value="student?.id ?? 1" />
-                        <input type="hidden" name="stage_name" :value="stageName" />
+                        <input v-if="hasClass" type="hidden" name="stage_name" :value="stageName" />
                         <input type="hidden" name="muc_do_hai_long" :value="rating" />
 
                         <!-- 1. Mức hài lòng 1–5 sao (R-04) -->

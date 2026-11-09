@@ -424,6 +424,28 @@ class Flow4StudentPortalTest extends TestCase
     }
 
     /**
+     * HS-FB-10 / R-09 AC-R08: no class -> general form, no class/stage shown, feedback not tied to a stage.
+     */
+    public function test_feedback_without_class_is_general_and_not_attached_to_stage()
+    {
+        $this->student->update(['current_class_id' => null]);
+
+        $this->actingAs($this->user)->get(route('portal.student.feedback', ['studentId' => $this->student->id]))
+            ->assertStatus(200)
+            ->assertInertia(fn ($page) => $page->where('hasClass', false)->where('className', '')->where('stageName', 'Góp ý chung'));
+
+        $this->actingAs($this->user)->post(route('portal.student.feedback.store'), [
+            'student_id' => $this->student->id,
+            'stage_name' => 'Chặng 2: forged',
+            'muc_do_hai_long' => 4,
+        ])->assertSessionHasNoErrors();
+
+        $record = AcademicRecord::where('screen_key', '04_Cong_Phu_Huynh_Hoc_Sinh/07_phu_huynh_gui_feedback')->firstOrFail();
+        $this->assertSame('', $record->data['stage_name']);
+        $this->assertNull($record->data['class_name']);
+    }
+
+    /**
      * Flow 4 - Step 4: Delete pronunciation record
      */
     public function test_flow_4_step_4_delete_pronunciation()
