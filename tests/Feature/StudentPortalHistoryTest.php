@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\TeacherPortalController;
 use App\Models\AcademicRecord;
+use App\Models\BigTest;
+use App\Models\BigTestResult;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\ClassSessionFeedback;
@@ -33,6 +35,31 @@ class StudentPortalHistoryTest extends TestCase
         $this->buildSyllabusWorkflow();
         $this->parent = $this->userWithRole(Roles::STUDENT, 'Parent A');
         $this->student = $this->studentFor($this->parent, 'HISTORY-A');
+    }
+
+    public function test_absent_big_test_shows_makeup_notice_until_score_is_approved(): void
+    {
+        $absentTest = BigTest::create(['code' => 'BTA-1', 'title' => 'BT absent', 'class_id' => $this->class->id, 'test_type' => 'stage_end', 'scheduled_at' => today(), 'room' => 'Lab', 'passcode' => 'PA1', 'status' => 'draft']);
+        $normalTest = BigTest::create(['code' => 'BTA-2', 'title' => 'BT normal', 'class_id' => $this->class->id, 'test_type' => 'stage_end', 'scheduled_at' => today(), 'room' => 'Lab', 'passcode' => 'PA2', 'status' => 'draft']);
+        $absent = BigTestResult::create(['big_test_id' => $absentTest->id, 'student_id' => $this->student->id,
+            'is_absent' => true, 'status' => 'approved', 'approved_at' => now()]);
+        BigTestResult::create(['big_test_id' => $normalTest->id, 'student_id' => $this->student->id,
+            'overall_score' => 7, 'listening_score' => 7, 'status' => 'sent', 'approved_at' => now()->subDay()]);
+        $url = route('portal.student.homework', $this->student->id);
+
+        $this->actingAs($this->parent)->get($url)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('bigTestResults', 2)
+                ->where('bigTestResults.0.is_absent', true)
+                ->where('bigTestResults.0.makeup_notice', BigTestResult::MAKEUP_NOTICE)
+                ->where('bigTestResults.0.components', [])
+                ->where('bigTestResults.1.makeup_notice', null));
+
+        // Make-up score approved & sent: result shown, no notice.
+        $absent->update(['is_absent' => false, 'overall_score' => 8, 'listening_score' => 8, 'status' => 'sent']);
+        $this->actingAs($this->parent)->get($url)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('bigTestResults.0.is_absent', false)
+                ->where('bigTestResults.0.makeup_notice', null)
+                ->has('bigTestResults.0.components', 1));
     }
 
     public function test_mini_test_details_support_both_skill_formats_and_are_private(): void

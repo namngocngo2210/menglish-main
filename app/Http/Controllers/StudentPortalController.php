@@ -313,6 +313,8 @@ class StudentPortalController extends Controller
                 'title' => $bt->bigTest?->title ?? 'Big Test',
                 'scheduled_at' => $bt->bigTest?->scheduled_at?->format('d/m/Y') ?? '—',
                 'is_absent' => (bool) $bt->is_absent,
+                // A make-up score is entered on this same row (is_absent cleared); absent here means none approved yet.
+                'makeup_notice' => $bt->is_absent ? BigTestResult::MAKEUP_NOTICE : null,
                 'components' => $bt->scoreComponents(),
             ])->values()->all(),
             // BTVN GV giao theo từng buổi, nộp theo giỏ (docs/kho-syllabus.md §10) — không còn hạng mục nộp tự do.
