@@ -4,7 +4,7 @@
  * Trên điện thoại: thanh điều hướng đáy là điều hướng chính, ẩn dải tab.
  * Thứ tự khối: Lịch học → Bài tập (truy cập nhanh) → Tiến độ → Điểm danh / Big Test → Học phí → Thông tin học sinh.
  * Hộp thoại: Lịch sử thu học phí (bấm vào thẻ Học phí hoặc nút "Lịch sử": mọi đợt đã nộp, còn nợ sau từng đợt),
- * Báo đóng học phí, Sửa thông tin học viên.
+ * Khu thông tin học viên / học phí chỉ đọc (TK-2026-0039): không có nút Sửa / Báo đóng.
  */
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -33,8 +33,6 @@ const props = defineProps({
 
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
 const historyOpen = ref(false);
-const requestOpen = ref(false);
-const profileOpen = ref(false);
 
 function sessionBadge(s) {
     if (s.cancelled) return ['neutral', 'Nghỉ'];
@@ -106,7 +104,7 @@ function sessionBadge(s) {
                 <div class="grid grid-cols-3 gap-2 text-center">
                     <div class="rounded-xl bg-tertiary/10 p-2"><div class="text-lg font-black text-tertiary">{{ learningProgress.attendance_present }}/{{ learningProgress.attendance_total }}</div><div class="text-xs text-on-surface-variant">Chuyên cần</div></div>
                     <div class="rounded-xl bg-secondary/10 p-2"><div class="text-lg font-black text-secondary">{{ learningProgress.homework_submitted }}/{{ learningProgress.homework_total }}</div><div class="text-xs text-on-surface-variant">Bài tập</div></div>
-                    <div class="rounded-xl bg-primary-container/10 p-2"><div class="text-lg font-black text-primary">{{ learningProgress.latest_big_test ?? '—' }}</div><div class="text-xs text-on-surface-variant">Big Test mới nhất</div></div>
+                    <div class="rounded-xl bg-primary-container/10 p-2"><div class="text-xs font-bold text-primary">{{ learningProgress.latest_big_test ?? '—' }}</div><div class="text-xs text-on-surface-variant">Big Test mới nhất</div></div>
                 </div>
             </div>
 
@@ -138,10 +136,10 @@ function sessionBadge(s) {
                     <div v-for="r in bigTestResults" :key="r.id" class="rounded-xl border border-surface-container-highest px-3 py-2 text-xs">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-on-surface">{{ r.title }}</span>
-                            <span class="font-mono font-black text-primary">{{ r.is_absent ? 'Vắng thi' : r.overall_score }}</span>
+                            <span v-if="r.is_absent" class="font-mono font-black text-primary">Vắng thi</span>
                         </div>
-                        <div v-if="!r.is_absent" class="mt-1 grid grid-cols-4 gap-1 text-center text-xs text-on-surface-variant">
-                            <span>Nghe {{ r.listening_score ?? '—' }}</span><span>Đọc {{ r.reading_score ?? '—' }}</span><span>Viết {{ r.writing_score ?? '—' }}</span><span>Nói {{ r.speaking_score ?? '—' }}</span>
+                        <div v-if="!r.is_absent" class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-on-surface-variant">
+                            <span v-for="c in r.components" :key="c.name">{{ c.name }} <b class="font-mono text-primary">{{ c.score }}</b></span>
                         </div>
                         <p v-if="r.progress_note" class="mt-1 text-xs text-on-surface-variant">{{ r.progress_note }}</p>
                     </div>
@@ -160,9 +158,6 @@ function sessionBadge(s) {
                         Thông tin học phí
                     </h2>
                     <div class="flex items-center gap-1.5">
-                        <button type="button" class="flex items-center gap-1 rounded-full bg-surface-container-lowest/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-xs transition-colors hover:bg-surface-container-lowest/30 active:scale-95" @click="requestOpen = true">
-                            <span class="material-symbols-outlined text-[13px]">send</span> Báo đóng
-                        </button>
                         <button type="button" class="flex items-center gap-1 rounded-full bg-surface-container-lowest/20 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-xs transition-colors hover:bg-surface-container-lowest/30 active:scale-95" @click="historyOpen = true">
                             Lịch sử <span class="material-symbols-outlined text-[14px]">chevron_right</span>
                         </button>
@@ -206,7 +201,6 @@ function sessionBadge(s) {
                         Thông tin học sinh
                     </h2>
                     <div class="flex items-center gap-1.5">
-                        <UiButton variant="secondary" size="sm" icon="edit" @click="profileOpen = true">Sửa</UiButton>
                         <UiBadge color="success" pill>{{ student?.status_label ?? '—' }}</UiBadge>
                     </div>
                 </div>
@@ -253,33 +247,7 @@ function sessionBadge(s) {
             <UiEmptyState v-else icon="receipt_long" title="Chưa có học phí" description="Học viên chưa có khoản học phí nào." />
         </UiModal>
 
-        <!-- Cập nhật thông tin học viên -->
-        <UiModal :show="profileOpen" title="Cập nhật thông tin học viên" max-width="sm" @close="profileOpen = false">
-            <UiForm id="portal-edit-profile-form" :action="route('portal.student.profile.update', student?.id ?? 0)" method="post" class="space-y-3" @success="profileOpen = false">
-                <UiInput name="phone" label="Số điện thoại liên hệ" :value="student?.phone" required />
-                <UiInput name="address" label="Địa chỉ" :value="student?.address" />
-                <UiTextarea name="notes" label="Ghi chú cho trung tâm / giáo viên" :rows="3" :value="student?.notes" placeholder="Ví dụ: Bé hay dị ứng phấn, xin phép vào muộn 5p..." />
-            </UiForm>
-            <template #footer>
-                <UiButton variant="secondary" @click="profileOpen = false">Hủy</UiButton>
-                <UiButton type="submit" form="portal-edit-profile-form">Lưu thay đổi</UiButton>
-            </template>
-        </UiModal>
-
-        <!-- Báo đã nộp học phí -->
-        <UiModal :show="requestOpen" title="Báo đóng học phí" max-width="sm" @close="requestOpen = false">
-            <UiForm id="portal-tuition-request-form" :action="route('portal.student.tuition.request')" method="post" class="space-y-3" reset-on-success @success="requestOpen = false">
-                <input type="hidden" name="student_id" :value="student?.id" />
-                <UiInput type="number" name="amount" label="Số tiền đã chuyển (VNĐ)" :value="debtAmount > 0 ? Math.trunc(debtAmount) : ''" min="1000" required class="font-mono font-bold" />
-                <UiTextarea name="content" label="Nội dung chuyển khoản / Ghi chú" :rows="3" required placeholder="Nhập mã giao dịch ngân hàng hoặc nội dung chuyển tiền..." />
-            </UiForm>
-            <template #footer>
-                <UiButton variant="secondary" @click="requestOpen = false">Hủy</UiButton>
-                <UiButton type="submit" form="portal-tuition-request-form">Gửi xác nhận</UiButton>
-            </template>
-        </UiModal>
-
         <!-- Ẩn khi mở hộp thoại: thanh đáy (z-50, nằm sau trong DOM) che mất phần cuối hộp thoại trên điện thoại. -->
-        <PortalBottomNav v-show="!historyOpen && !requestOpen && !profileOpen" active-tab="home" :student="student" :unread-count="unreadCount" />
+        <PortalBottomNav v-show="!historyOpen" active-tab="home" :student="student" :unread-count="unreadCount" />
     </div>
 </template>

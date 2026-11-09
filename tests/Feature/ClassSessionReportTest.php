@@ -176,6 +176,42 @@ class ClassSessionReportTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con phát biểu tốt')->where('remarkStudents.0.remark.attitude', 'Tốt'));
     }
 
+    public function test_teacher_saves_student_remarks_alone_without_content_or_attendance(): void
+    {
+        $session = $this->makeSession(0);
+        $url = $this->url($session, 'classes.session-report.store');
+
+        // Không trường nào bắt buộc: gửi rỗng không lỗi, không tạo báo cáo / nhận xét trống.
+        $this->actingAs($this->teacher)->post($url, ['remarks_only' => 1])->assertSessionHasNoErrors();
+        $this->assertSame(0, AcademicRecord::where('module', 'teacher_remarks')->count());
+
+        // Chưa có "Nội dung đã dạy", chưa điểm danh vẫn lưu được nhận xét.
+        $this->actingAs($this->teacher)->post($url, ['remarks_only' => 1, 'remarks' => [$this->student->id => ['comment' => 'Con tiến bộ']]])
+            ->assertSessionHasNoErrors()->assertSessionHas('success');
+        $this->assertSame(0, TeacherSessionReport::count());
+        $record = AcademicRecord::where('module', 'teacher_remarks')->where('record_code', TeacherPortalController::remarkRecordCode($session))->sole();
+        $this->assertSame('Con tiến bộ', $record->data[$this->student->id]['comment'] ?? $record->data[(string) $this->student->id]['comment']);
+
+        // Nộp báo cáo vẫn yêu cầu nội dung + điểm danh như cũ.
+        $this->actingAs($this->teacher)->post($url, ['content' => ''])->assertSessionHasErrors('content');
+        $this->actingAs($this->teacher)->post($url, ['content' => 'Unit 1'])->assertSessionHasErrors('attendance');
+
+        // Mở lại báo cáo thấy nhận xét đã lưu.
+        $this->actingAs($this->teacher)->get($this->url($session))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con tiến bộ'));
+    }
+
+    public function test_remarks_only_save_is_forbidden_for_non_main_teacher(): void
+    {
+        $session = $this->makeSession(0);
+        $payload = ['remarks_only' => 1, 'remarks' => [$this->student->id => ['comment' => 'Không được lưu']]];
+
+        $this->actingAs($this->foreign)->post($this->url($session, 'classes.session-report.store'), $payload)->assertForbidden();
+        $other = $this->makeUser('teacher_parttime', 'GV Khác');
+        $this->actingAs($other)->post($this->url($session, 'classes.session-report.store'), $payload)->assertForbidden();
+        $this->assertSame(0, AcademicRecord::where('module', 'teacher_remarks')->count());
+    }
+
     public function test_teacher_and_assistant_share_lesson_content_and_attention_list(): void
     {
         $assistant = $this->makeUser('assistant', 'TA Bình');

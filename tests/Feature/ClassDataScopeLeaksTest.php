@@ -143,6 +143,21 @@ class ClassDataScopeLeaksTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('branches', fn ($branches) => count($branches) === 2));
     }
 
+    /** TK-2026-0041: GV không nhận địa chỉ/SĐT học viên trong payload; quản lý lớp vẫn nhận. */
+    public function test_class_students_tab_hides_address_and_phone_from_teacher_but_not_manager(): void
+    {
+        Student::create(['code' => 'HV-ADDR', 'name' => 'Student Addr', 'phone' => '0911222333', 'address' => 'SECRET-ADDRESS-12 Le Loi',
+            'branch_id' => $this->branchA->id, 'status' => 'studying', 'current_class_id' => $this->classA->id]);
+        $url = route('classes.show', ['id' => $this->classA->id, 'tab' => 'students']);
+
+        $this->actingAs($this->teacherA)->get($url)->assertOk()
+            ->assertDontSee('SECRET-ADDRESS-12')->assertDontSee('0911222333')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('students.0.address', null)->where('students.0.phone', null));
+
+        $this->actingAs($this->managerA)->get($url)->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('students.0.address', 'SECRET-ADDRESS-12 Le Loi')->where('students.0.phone', '0911222333'));
+    }
+
     public function test_staff_without_student_in_scope_does_not_see_other_students_portal_records(): void
     {
         $studentB = Student::create(['code' => 'HV-LKB', 'name' => 'Student Bravo', 'phone' => '0911000099', 'branch_id' => $this->branchB->id, 'status' => 'studying',

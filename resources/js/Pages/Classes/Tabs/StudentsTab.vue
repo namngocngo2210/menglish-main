@@ -26,7 +26,7 @@ defineProps({
                     <th>Họ và tên</th>
                     <th>Ngày sinh</th>
                     <th>Trường học</th>
-                    <th>Địa chỉ</th>
+                    <th v-if="canManage">Địa chỉ</th>
                     <th>Tên phụ huynh</th>
                     <th v-if="canManage" class="font-bold text-primary">SĐT</th>
                     <th>Ghi chú</th>
@@ -41,13 +41,13 @@ defineProps({
                     </td>
                     <td class="font-mono text-on-surface-variant">{{ st.dob ?? '—' }}</td>
                     <td class="text-on-surface-variant">{{ st.target ?? '—' }}</td>
-                    <td class="max-w-[200px] truncate text-on-surface-variant">{{ st.address ?? '—' }}</td>
+                    <td v-if="canManage" class="max-w-[200px] truncate text-on-surface-variant">{{ st.address ?? '—' }}</td>
                     <td class="font-medium text-on-surface">{{ st.parent_name ?? '—' }}</td>
                     <td v-if="canManage" class="font-mono font-bold text-on-surface">{{ st.phone ?? '—' }}</td>
                     <td class="text-on-surface-variant">{{ st.notes ?? '—' }}</td>
                 </tr>
                 <tr v-if="!students.length">
-                    <td colspan="8"><UiEmptyState icon="group_off" title="Chưa có học sinh nào trong lớp." /></td>
+                    <td :colspan="canManage ? 8 : 6"><UiEmptyState icon="group_off" title="Chưa có học sinh nào trong lớp." /></td>
                 </tr>
             </tbody>
         </table>

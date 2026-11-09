@@ -182,15 +182,15 @@ class SyllabusStageProgressionTest extends TestCase
         $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve', $test->id))->assertRedirect();
         $this->assertTrue($first->fresh()->isOpen());
 
-        // Gửi PH 1 học viên: vẫn còn 1 kết quả chưa gửi.
+        // Gửi PH 1 học viên (không qua Duyệt & Gửi): vẫn còn 1 kết quả chưa gửi.
         $resultA = BigTestResult::where('student_id', $a->id)->firstOrFail();
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-single-notified', $resultA->id))->assertRedirect();
         $this->assertTrue($resultA->fresh()->parent_notified);
         $this->assertTrue($first->fresh()->isOpen());
 
-        // Gửi phần còn lại → chặng 1 đóng; không tự mở chặng 2 — Học thuật được báo giao chặng tiếp (Bước 11).
+        // Gửi phần còn lại → chặng 1 đóng, chặng 2 tự mở (R-07).
         $this->actingAs($this->academic)->post(route('syllabus.big-tests.mark-notified', $test->id))
-            ->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'Học thuật giao chặng tiếp theo cho lớp'));
+            ->assertRedirect()->assertSessionHas('status', fn ($m) => str_contains($m, 'đã mở'));
 
         $first->refresh();
         $this->assertSame('completed', $first->status);
@@ -199,8 +199,67 @@ class SyllabusStageProgressionTest extends TestCase
         $this->assertNull($first->open_class_id);
         $this->assertNotNull($test->fresh()->results_completed_at);
 
+        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
+    }
+
+    // ---- TK-2026-0053: kết quả có điểm đầu tiên được Duyệt & Gửi đóng chặng, mở chặng kế ----
+
+    private function approveSend(BigTestResult $r): void
+    {
+        $this->actingAs($this->admin)->post(route('syllabus.big-tests.results.approve-send', $r->id))->assertSessionHasNoErrors();
+    }
+
+    public function test_first_scored_approval_closes_stage_and_creates_next_assignment_for_nine_student_batch(): void
+    {
+        $this->openFirstStage();
+        $test = $this->bigTestFor($this->stages[0], 'BT-9');
+        $results = collect(range(1, 9))->map(fn ($i) => $this->makeResult($test, $this->student("HV-N{$i}"), 'pending_review'));
+        $this->assertSame(0, SyllabusAssignment::where('class_id', $this->class->id)->where('stage_id', $this->stages[1]->id)->count());
+
+        $this->approveSend($results[0]);
+
+        $closed = SyllabusAssignment::where('class_id', $this->class->id)->where('stage_id', $this->stages[0]->id)->firstOrFail();
+        $this->assertSame(SyllabusAssignment::STATUS_CLOSED, $closed->status);
+        $this->assertSame($test->id, (int) $closed->closed_by_big_test_id);
+        $next = SyllabusAssignment::open()->where('class_id', $this->class->id)->firstOrFail();
+        $this->assertSame($this->stages[1]->id, $next->stage_id);
+        $this->assertSame($this->teacher->id, $next->user_id);
+
+        // Các lần duyệt sau: idempotent, không tạo thêm / không đóng chặng 2.
+        foreach ($results->slice(1) as $r) {
+            $this->approveSend($r);
+        }
+        $this->assertSame(2, SyllabusAssignment::where('class_id', $this->class->id)->count());
+        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
+    }
+
+    public function test_absent_approval_does_not_close_stage(): void
+    {
+        $first = $this->openFirstStage();
+        $test = $this->bigTestFor($this->stages[0], 'BT-ABS');
+        $absent = $this->makeResult($test, $this->student('HV-AB1'), 'pending_review', true);
+        $scored = $this->makeResult($test, $this->student('HV-AB2'), 'pending_review');
+
+        $this->approveSend($absent);
+        $this->assertTrue($first->fresh()->isOpen());
+        $this->assertSame(1, SyllabusAssignment::where('class_id', $this->class->id)->count());
+
+        $this->approveSend($scored);
+        $this->assertFalse($first->fresh()->isOpen());
+        $this->assertSame($this->stages[1]->id, SyllabusAssignment::open()->where('class_id', $this->class->id)->value('stage_id'));
+    }
+
+    public function test_first_scored_approval_on_last_stage_finishes_curriculum_without_next(): void
+    {
+        $last = app(SyllabusProgressionService::class)->open($this->class, $this->stages[2], null, $this->academic, 'Test');
+        $test = $this->bigTestFor($this->stages[2], 'BT-LAST2');
+        $this->approveSend($this->makeResult($test, $this->student('HV-LS1'), 'pending_review'));
+        $this->makeResult($test, $this->student('HV-LS2'), 'pending_review');
+
+        $this->assertFalse($last->fresh()->isOpen());
+        $this->assertNotNull($last->fresh()->curriculum_completed_at);
         $this->assertSame(0, SyllabusAssignment::open()->where('class_id', $this->class->id)->count());
-        $this->assertTrue(AdminNotification::where('user_id', $this->academic->id)->where('title', 'like', '%giao chặng tiếp theo%')->exists());
+        $this->assertSame(1, SyllabusAssignment::where('class_id', $this->class->id)->count());
     }
 
     public function test_big_test_of_another_stage_does_not_close_current_stage(): void

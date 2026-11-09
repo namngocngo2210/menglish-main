@@ -15,6 +15,7 @@ use App\Models\SystemSetting;
 use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
+use App\Services\StaffAttendance\StaffAttendanceService;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -667,5 +668,83 @@ class PayrollWorkdayRulesTest extends TestCase
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException) {
         }
         $this->assertSame($before, $this->record($period, $staff)->only(['base_salary_paid', 'insurance_deduction', 'net_salary']));
+    }
+
+    /** Chấm thật = có ảnh khuôn mặt (đơn bù không tạo ảnh). */
+    private function realPunch(StaffAttendance $row, bool $in, bool $out): void
+    {
+        $row->update(['check_in_photo' => $in ? 'staff-attendance/in.jpg' : null, 'check_out_photo' => $out ? 'staff-attendance/out.jpg' : null]);
+    }
+
+    private function applyMakeup(StaffAttendanceRequest $request): void
+    {
+        (new \ReflectionMethod(StaffAttendanceService::class, 'applyApproved'))->invoke(app(StaffAttendanceService::class), $request);
+    }
+
+    /** TK-0025: base 10.000.000, T10 có 27 công chuẩn → công giờ 52.910,05đ; 155 phút = 136.684,30đ (làm tròn đồng: 136.684). */
+    public function test_cumulative_late_minutes_become_one_deduction_line_for_fulltime_teacher(): void
+    {
+        $ftD = $this->fulltime('teacher_fulltime', 10000000);
+        $this->attendFullMonth($ftD, 10);
+        $this->attendDay($ftD, '2026-10-05', '08:20', late: 20);
+        $this->attendDay($ftD, '2026-10-06', '08:45', late: 45);
+        $this->attendDay($ftD, '2026-10-07', '09:30', late: 90);
+        $ftD2 = $this->fulltime('academic_staff', 10000000);
+        $this->attendFullMonth($ftD2, 10);
+        $this->attendDay($ftD2, '2026-10-05', '09:00', late: 60);
+
+        $this->travelTo(Carbon::parse('2026-11-02 09:00:00'));
+        $period = $this->calculate($this->period(10));
+        $a = $this->record($period, $ftD);
+        $b = $this->record($period, $ftD2);
+
+        $this->assertSame(155, data_get($a->calculation_details, 'daily_late.minutes'));
+        $this->assertEquals(136684, $a->late_deduction); // 155/60 × (10.000.000 ÷ 27 ÷ 7) = 136.684,30
+        $this->assertEquals(52910, $b->late_deduction); // 60/60 × 52.910,05
+        foreach ([$a, $b] as $record) {
+            $this->assertCount(1, array_filter($record->deductionLines(), fn ($l) => $l['key'] === 'late_deduction'));
+            $this->assertEquals($record->late_deduction, $this->line($record->deductionLines(), 'late_deduction')['amount']);
+        }
+    }
+
+    /** TK-0026: 06/10 không chấm gì + bù = 1 lần; 13/10 có vào thật 08:20, bù cả vào + ra = chỉ quên ra → tổng 2 lần = 60.000. */
+    public function test_makeup_counts_forgot_punch_once_and_keeps_real_check_in_and_late_minutes(): void
+    {
+        $staff = $this->fulltime('academic_staff', 10000000);
+        $this->branch->update(['work_start_time' => '08:00', 'work_end_time' => '17:00', 'late_grace_minutes' => 0]);
+        $this->attendFullMonth($staff, 10, skip: ['2026-10-06', '2026-10-13']);
+        $this->attendDay($staff, '2026-10-13', '08:20', null, late: 20);
+        $this->realPunch(StaffAttendance::whereDate('work_date', '2026-10-13')->where('user_id', $staff->id)->first(), true, false);
+        $in = $this->correction($staff, '2026-10-06', '07:55', '17:05');
+        $out = $this->correction($staff, '2026-10-13', '08:00', '17:05');
+        $this->travelTo(Carbon::parse('2026-11-02 09:00:00'));
+        $this->applyMakeup($in);
+        $this->applyMakeup($out);
+
+        $row = StaffAttendance::whereDate('work_date', '2026-10-13')->where('user_id', $staff->id)->first();
+        $this->assertSame('08:20', $row->check_in_at->format('H:i')); // giờ vào thật không bị đơn bù ghi đè
+        $this->assertSame(20, $row->late_minutes);
+        $this->assertSame('17:05', $row->check_out_at->format('H:i'));
+
+        $record = $this->record($this->calculate($this->period(10)), $staff);
+        $this->assertSame(2, data_get($record->calculation_details, 'missing_punch.count'));
+        $this->assertSame(1, data_get($record->calculation_details, 'missing_punch.check_in'));
+        $this->assertSame(1, data_get($record->calculation_details, 'missing_punch.check_out'));
+        $this->assertEquals(60000, $record->missing_punch_deduction);
+        $this->assertSame(20, data_get($record->calculation_details, 'daily_late.minutes'));
+        $this->assertEquals(17637, $record->late_deduction); // 20/60 × 52.910,05 = 17.636,68
+    }
+
+    public function test_real_check_out_never_counts_forgot_check_out_even_when_makeup_fills_both(): void
+    {
+        $staff = $this->fulltime('academic_staff', 10000000);
+        $this->attendFullMonth($staff, 10);
+        $this->realPunch(StaffAttendance::whereDate('work_date', '2026-10-08')->where('user_id', $staff->id)->first(), true, true);
+        $this->correction($staff, '2026-10-08', '08:00', '17:00');
+
+        $this->travelTo(Carbon::parse('2026-11-02 09:00:00'));
+        $record = $this->record($this->calculate($this->period(10)), $staff);
+        $this->assertSame(0, data_get($record->calculation_details, 'missing_punch.count', 0));
+        $this->assertEquals(0, $record->missing_punch_deduction);
     }
 }

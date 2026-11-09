@@ -319,15 +319,6 @@ class StaffAttendanceService
 
     public const LATE_PENALTY_CANCEL_NOTE = 'Tự hủy: đi muộn chấm công hằng ngày cộng dồn cả tháng và trừ trên bảng lương, không lập biên bản từng ngày.';
 
-    /**
-     * Đi muộn chấm công hằng ngày có bị trừ lương không: không với GV / TA (giờ phải có mặt theo buổi dạy, đi muộn đã
-     * tính trên check-in ca dạy — tránh phạt 2 lần cho cùng một lần vào lớp muộn).
-     */
-    public function dailyLatePenalized(User $user): bool
-    {
-        return ! ($user->can('portal.teacher') || $user->can('portal.assistant'));
-    }
-
     private function hasApproved(int $userId, string $type, CarbonInterface $date): bool
     {
         $day = $date->toDateString();
@@ -603,10 +594,11 @@ class StaffAttendanceService
                     'source' => StaffAttendance::SOURCE_REQUEST,
                     'branch_id' => $request->branch_id ?? $user->branch_id,
                 ]);
-                if ($request->check_in_time) {
+                // Giờ chấm thật (có ảnh) không bị đơn bù ghi đè: giữ nguyên giờ vào / ra và phút muộn.
+                if ($request->check_in_time && ! $attendance->check_in_photo) {
                     $attendance->check_in_at = $day->copy()->setTimeFromTimeString((string) $request->check_in_time);
                 }
-                if ($request->check_out_time) {
+                if ($request->check_out_time && ! $attendance->check_out_photo) {
                     $attendance->check_out_at = $day->copy()->setTimeFromTimeString((string) $request->check_out_time);
                 }
                 $attendance->note = trim('Bổ sung công đã duyệt: '.$request->reason);
@@ -644,7 +636,7 @@ class StaffAttendanceService
      *   · KHÔNG cộng ngày nghỉ phép đã duyệt (TK-0028, BR-19): đơn nghỉ chỉ để theo dõi, ngày không chấm công không phải ngày công;
      *   · ngày lễ rơi vào ngày làm việc (config payroll.workday.paid_holidays).
      * - Quên chấm công (missing_punches): mỗi lần quên chấm vào / chấm ra — ngày có vào mà không ra (chưa bù), hoặc đơn
-     *   "Bổ sung công" đã duyệt bù giờ vào / giờ ra (mỗi giờ bù = 1 lần). Phạt mỗi lần trên bảng lương.
+     *   "Bổ sung công" đã duyệt (TK-0026): ngày không chấm gì = 1 lần; ngày có chấm thật (ảnh) chỉ tính phần thiếu — có giờ vào thật không tính quên vào, có giờ ra thật không tính quên ra. Phạt mỗi lần trên bảng lương.
      * - Phút đi muộn (late_minutes): tổng late_minutes của các ngày muộn không có phép (StaffAttendance::isLate).
      *
      * @return array<string, mixed>
@@ -680,15 +672,28 @@ class StaffAttendanceService
         }
 
         $range = [$from->toDateString(), $to->toDateString()];
-        // Đơn "Bổ sung công" đã duyệt: ngày được chấm công bù + giờ đã bù (mỗi giờ bù = 1 lần quên chấm).
+        // Đơn "Bổ sung công" đã duyệt: ngày được chấm công bù (cách đếm quên chấm: xem docblock).
         $makeups = StaffAttendanceRequest::query()->approved()->where('user_id', $user->id)
             ->where('type', StaffAttendanceRequest::TYPE_CORRECTION)
             ->overlapping($range[0], $range[1])
             ->get(['date_from', 'check_in_time', 'check_out_time'])
             ->groupBy(fn (StaffAttendanceRequest $r) => $r->date_from->toDateString());
-        foreach ($makeups as $requests) {
-            $result['missing_check_in'] += $requests->contains(fn ($r) => filled($r->check_in_time)) ? 1 : 0;
-            $result['missing_check_out'] += $requests->contains(fn ($r) => filled($r->check_out_time)) ? 1 : 0;
+        // BR-20: ngày không chấm gì mà có đơn bù = 1 lần; ngày có chấm thật chỉ tính phần thiếu (có giờ vào thật không
+        // bao giờ tính quên vào, có giờ ra thật không tính quên ra, dù đơn bù điền cả hai). Chấm thật = có ảnh khuôn mặt.
+        $realPunches = StaffAttendance::query()->where('user_id', $user->id)
+            ->whereDate('work_date', '>=', $range[0])->whereDate('work_date', '<=', $range[1])
+            ->get(['work_date', 'check_in_photo', 'check_out_photo'])
+            ->keyBy(fn (StaffAttendance $a) => $a->work_date->toDateString());
+        foreach ($makeups as $key => $requests) {
+            $realIn = filled($realPunches->get($key)?->check_in_photo);
+            $realOut = filled($realPunches->get($key)?->check_out_photo);
+            if (! $realIn && ! $realOut) {
+                $result[$requests->contains(fn ($r) => filled($r->check_in_time)) ? 'missing_check_in' : 'missing_check_out']++;
+
+                continue;
+            }
+            $result['missing_check_in'] += ! $realIn && $requests->contains(fn ($r) => filled($r->check_in_time)) ? 1 : 0;
+            $result['missing_check_out'] += ! $realOut && $requests->contains(fn ($r) => filled($r->check_out_time)) ? 1 : 0;
         }
 
         $credit = (float) config('payroll.workday.missing_checkout_credit', 0.5);

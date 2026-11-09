@@ -74,17 +74,25 @@ class MaterialOrderTest extends TestCase
         $this->assertSame('2026-10-11 15:00', MaterialOrder::computeDueAt('printing', '2026-10-12')->format('Y-m-d H:i'));
         // Ngày sử dụng mùng 1 → hạn là chiều 30/09 (ngày hôm trước, sang tháng trước).
         $this->assertSame('2026-09-30 15:00', MaterialOrder::computeDueAt('props', '2026-10-01')->format('Y-m-d H:i'));
-        // GVNN / học thuật: 23:59 ngày N (Cấu hình SLA, mặc định 5) của THÁNG chứa ngày sử dụng.
-        $this->assertSame('2026-10-05 23:59', MaterialOrder::computeDueAt('foreign_teacher', '2026-10-20')->format('Y-m-d H:i'));
-        $this->assertSame('2026-11-05 23:59', MaterialOrder::computeDueAt('academic', '2026-11-30')->format('Y-m-d H:i'));
+        // GVNN / học thuật: 00:00 ngày 1 của THÁNG chứa ngày sử dụng (TK-2026-0069, GV-OD-03).
+        $this->assertSame('2026-12-01 00:00', MaterialOrder::computeDueAt('academic', '2026-12-15')->format('Y-m-d H:i'));
+        $this->assertSame('2026-11-01 00:00', MaterialOrder::computeDueAt('foreign_teacher', '2026-11-09')->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-01 00:00', MaterialOrder::computeDueAt('academic', '2026-10-01')->format('Y-m-d H:i'));
+        $this->assertSame('2026-02-01 00:00', MaterialOrder::computeDueAt('academic', '2026-02-28')->format('Y-m-d H:i'));
+    }
 
-        \App\Models\SlaSetting::updateOrCreate(['rule_key' => 'material.monthly_deadline'], ['value' => 10]);
-        \App\Services\Sla\Sla::forget();
-        $this->assertSame('2026-10-10 23:59', MaterialOrder::computeDueAt('foreign_teacher', '2026-10-20')->format('Y-m-d H:i'));
-        // N lớn hơn số ngày của tháng → ngày cuối tháng.
-        \App\Models\SlaSetting::updateOrCreate(['rule_key' => 'material.monthly_deadline'], ['value' => 31]);
-        \App\Services\Sla\Sla::forget();
-        $this->assertSame('2026-02-28 23:59', MaterialOrder::computeDueAt('academic', '2026-02-10')->format('Y-m-d H:i'));
+    public function test_stored_due_at_for_academic_and_foreign_teacher_is_start_of_month(): void
+    {
+        $teacher = $this->user('teacher');
+        $this->user('academic_lead');
+        $this->user('academic_staff', $this->cg, 'CM Cầu Giấy');
+
+        foreach (['academic' => '2026-12-15', 'foreign_teacher' => '2026-11-09'] as $category => $useDate) {
+            $this->actingAs($teacher)->post(route('material-orders.store'), $this->payload(['category' => $category, 'use_date' => $useDate]))
+                ->assertSessionHasNoErrors();
+            $due = MaterialOrder::where('category', $category)->firstOrFail()->due_at;
+            $this->assertSame(substr($useDate, 0, 7).'-01 00:00', $due->format('Y-m-d H:i'));
+        }
     }
 
     public function test_teacher_creates_order_with_code_and_notifies_branch_processors(): void
@@ -156,7 +164,7 @@ class MaterialOrderTest extends TestCase
         $lead = $this->user('academic_lead');
 
         $props = $this->order($teacher, ['use_date' => '2026-10-12']);      // hạn 11/10 15:00
-        $academic = $this->order($teacher, ['category' => 'academic', 'use_date' => '2026-10-20']); // hạn 05/10 23:59 (đã qua)
+        $academic = $this->order($teacher, ['category' => 'academic', 'use_date' => '2026-10-20']); // hạn 01/10 00:00 (đã qua)
         $processing = $this->order($teacher, ['category' => 'printing', 'use_date' => '2026-10-12']);
         $processing->update(['status' => 'processing']);
         $done = $this->order($teacher, ['category' => 'foreign_teacher', 'use_date' => '2026-10-20']);

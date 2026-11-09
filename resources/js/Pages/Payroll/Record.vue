@@ -7,10 +7,11 @@
  * "In phiếu lương / Xuất PDF": bản in Blade (printHtml) ẩn trên màn hình, chỉ hiện khi in.
  */
 import { computed, ref } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import UiForm from '@/Components/ui/UiForm.vue';
 import { useBackLink } from '@/lib/backLink';
 import { route } from '@/lib/route';
+import { confirmDialog } from '@/lib/confirm';
 import { money, trimNumber } from './format';
 import PayslipLines from './PayslipLines.vue';
 import LifecycleActions from './LifecycleActions.vue';
@@ -59,10 +60,29 @@ const isFT = computed(() => props.record.is_full_time);
 const key = computed(() => props.variant.key);
 const statusColor = computed(() => ({ draft: 'info', closed: 'warning', published: 'success', paid: 'secondary' })[props.period.status] ?? 'neutral');
 const statusText = computed(() => props.period.status_label ?? props.period.status);
-const [kpiStateKey, kpiStateLabel] = props.record.kpi_state;
+const kpiStateKey = computed(() => props.record.kpi_state?.[0] ?? 'na');
+const kpiStateLabel = computed(() => props.record.kpi_state?.[1] ?? '');
+const kpiBreakdown = computed(() => {
+    if (kpiStateKey.value === 'na' || !props.record.kpi_tier_parts?.length) {
+        return 'Không áp dụng';
+    }
+    return props.record.kpi_tier_parts
+        .map((p) => `${p.students} HS × ${money(p.rate)}`)
+        .join(' + ');
+});
+
+async function finalizeKpi() {
+    const ok = await confirmDialog({
+        title: 'Chốt KPI giữ học sinh',
+        message: `Xác nhận chốt KPI giữ học sinh cho ${props.record.name ?? 'nhân sự'} với số tiền ${money(props.record.kpi_proposed)} đ?`,
+        confirmLabel: 'Chốt KPI',
+    });
+    if (!ok) return;
+    router.post(route('payroll.records.finalize-kpi', props.record.id), {}, { preserveScroll: true });
+}
 const editLines = ref(props.lines.map((line) => ({ ...line })));
-const tierOptions = computed(() => props.settings.retention_tiers.map((t) => ({ value: String(Math.trunc(t)), label: `${money(t)}đ / HS` })));
-const tierHint = computed(() => 'Gợi ý: ' + props.settings.retention_tiers.map((t) => money(t)).join(' / ') + 'đ/hs/tháng');
+const tierOptions = computed(() => props.settings.retention_tiers?.map((t) => ({ value: String(Math.trunc(t)), label: `${money(t)}đ / HS` })) ?? []);
+const tierHint = computed(() => 'Gợi ý: ' + (props.settings.retention_tiers?.map((t) => money(t)).join(' / ') ?? '') + 'đ/hs/tháng');
 const showAllSessions = ref(false);
 const showTiers = ref(false);
 const showCommissionBlock = computed(
@@ -157,9 +177,12 @@ function sessionNote(ts) {
                     <div :class="['grid grid-cols-1 gap-lg', record.is_assistant ? '' : 'md:grid-cols-2']">
                         <!-- Trợ giảng: không KPI giữ học sinh -->
                         <section v-if="!record.is_assistant" class="rounded-xl border border-outline-variant bg-surface-container-lowest p-lg space-y-md">
-                            <h3 class="font-h3 text-h3 text-on-surface">Bậc KPI giữ học sinh</h3>
-                            <UiSelect v-if="canEdit" name="retention_tier" label="Đơn giá KPI (đ/hs/tháng)" :options="tierOptions" :value="record.retention_tier !== null ? String(Math.trunc(record.retention_tier)) : ''" placeholder="— Chưa chọn bậc —" :hint="tierHint" />
-                            <p v-else class="font-body-medium text-body-medium">Đơn giá KPI: {{ record.retention_tier !== null ? money(record.retention_tier) + 'đ/hs/tháng' : 'chưa chọn bậc' }}</p>
+                            <h3 class="font-h3 text-h3 text-on-surface">KPI giữ học sinh (lũy tiến)</h3>
+                            <div>
+                                <p class="font-body-small text-body-small text-on-surface-variant">KPI đề xuất (tự động)</p>
+                                <p class="font-h3 text-h3 font-mono text-tertiary">{{ money(record.kpi_proposed) }} đ</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ kpiBreakdown }}</p>
+                            </div>
                             <div>
                                 <p class="font-body-small text-body-small text-on-surface-variant">Số học sinh duy trì</p>
                                 <p class="font-h3 text-h3">{{ record.retention_students }} / {{ record.retention_base_students }} HS</p>
@@ -169,7 +192,7 @@ function sessionNote(ts) {
                                 <span :class="['inline-flex items-center gap-xs font-body-small text-body-small', kpiStateKey === 'done' ? 'text-tertiary' : kpiStateKey === 'pending' ? 'text-error' : 'text-on-surface-variant']">
                                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ kpiStateKey === 'done' ? 'check' : 'info' }}</span>{{ kpiStateLabel }}
                                 </span>
-                                <UiButton v-if="canEdit" type="submit" size="sm" name="intent" value="kpi" icon="task_alt">Chốt KPI</UiButton>
+                                <UiButton v-if="canEdit && kpiStateKey === 'pending'" type="button" size="sm" icon="task_alt" @click="finalizeKpi">Chốt KPI</UiButton>
                             </div>
                         </section>
 
@@ -220,7 +243,23 @@ function sessionNote(ts) {
                                 </p>
                                 <p v-else class="font-caption text-caption text-on-surface-variant">Theo hồ sơ nhân sự{{ record.insurance_base === null ? ' · căn cứ tính BHXH, Công đoàn' : '' }}</p>
                             </div>
-                            <template v-if="record.kpi_source === 'manual'">
+                            <div v-if="record.kpi_source === 'retention' && !record.teaching_concurrent" class="rounded-lg bg-surface-container-low p-md space-y-xs">
+                                <div class="flex items-center justify-between">
+                                    <p class="font-body-small text-body-small text-on-surface-variant">Lương KPI (VNĐ) — đề xuất tự động</p>
+                                    <span :class="['inline-flex items-center gap-xs font-body-small text-body-small', kpiStateKey === 'done' ? 'text-tertiary' : kpiStateKey === 'pending' ? 'text-error' : 'text-on-surface-variant']">
+                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ kpiStateKey === 'done' ? 'check' : 'info' }}</span>{{ kpiStateLabel }}
+                                    </span>
+                                </div>
+                                <p class="font-h3 text-h3 font-mono text-tertiary">{{ money(record.kpi_proposed) }} đ</p>
+                                <p class="font-caption text-caption text-on-surface-variant">{{ kpiBreakdown }}</p>
+                                <p class="font-caption text-caption text-on-surface-variant">
+                                    Duy trì {{ record.retention_students }} / {{ record.retention_base_students }} HS{{ record.retention_lost ? ` · nghỉ ${record.retention_lost} HS` : '' }}{{ lostStudents ? ` (${lostStudents})` : '' }}
+                                </p>
+                                <div v-if="canEdit && kpiStateKey === 'pending'" class="pt-xs">
+                                    <UiButton type="button" size="sm" icon="task_alt" @click="finalizeKpi">Chốt KPI</UiButton>
+                                </div>
+                            </div>
+                            <template v-else-if="record.kpi_source === 'manual'">
                                 <UiInput v-if="canEdit" type="number" name="kpi_manual_amount" label="Lương KPI (VNĐ) — nhập tự do" min="0" step="1000" :value="record.kpi_manual_amount !== null ? Math.trunc(record.kpi_manual_amount) : null" :hint="`${kpiStateLabel} · Admin / Kế toán nhập (0đ vẫn tính là đã chốt).`" />
                                 <div v-else class="rounded-lg bg-surface-container-low p-md"><p class="font-body-small text-body-small text-on-surface-variant">Lương KPI (VNĐ)</p><p class="font-h3 text-h3 font-mono">{{ money(record.kpi_bonus) }}</p></div>
                             </template>
@@ -274,12 +313,6 @@ function sessionNote(ts) {
                                 </p>
                             </div>
                             <div class="space-y-xs">
-                                <UiSelect v-if="canEdit" name="retention_tier" label="KPI kiêm nhiệm — đơn giá (đ/hs/tháng)" :options="tierOptions" :value="record.retention_tier !== null ? String(Math.trunc(record.retention_tier)) : ''" placeholder="— Chưa chọn bậc —" :hint="tierHint" />
-                                <p v-else class="font-body-medium text-body-medium">KPI kiêm nhiệm: {{ record.retention_tier !== null ? money(record.retention_tier) + 'đ/hs/tháng' : 'chưa chọn bậc' }}</p>
-                                <p class="font-body-small text-body-small text-on-surface-variant">
-                                    Giữ {{ record.retention_students }} / {{ record.retention_base_students }} HS ở các lớp đã dạy{{ record.retention_lost ? ` · nghỉ ${record.retention_lost} HS` : '' }}{{ lostStudents ? ` (${lostStudents})` : '' }}
-                                    = <strong class="font-mono">{{ money(record.teaching_kpi_bonus) }} đ</strong>
-                                </p>
                                 <p v-if="teachingShare.kpi_sheet" class="flex flex-wrap items-center gap-xs font-body-small text-body-small text-on-surface-variant" data-teaching-kpi-sheet>
                                     Phiếu KPI giảng dạy {{ teachingShare.kpi_sheet.period_label.toLowerCase() }}:
                                     <strong class="font-mono text-on-surface">{{ pct(teachingShare.kpi_sheet.rate) }}%</strong>

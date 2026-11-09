@@ -18,7 +18,7 @@ trait FinalizesPayrollKpi
                 continue;
             }
             match ($record->kpi_source) {
-                PayrollRecord::KPI_RETENTION => $record->forceFill(['retention_tier' => 0])->saveQuietly(),
+                PayrollRecord::KPI_RETENTION => $record->forceFill(['kpi_finalized_at' => now()])->saveQuietly(),
                 PayrollRecord::KPI_ACADEMIC => $record->forceFill(['kpi_score' => 0])->saveQuietly(),
                 default => $record->forceFill(['kpi_manual_amount' => 0])->saveQuietly(),
             };
