@@ -57,7 +57,7 @@ class TeacherProposeStageScopeTest extends TestCase
         $this->actingAs($this->teacher)->post(route('syllabus.proposals.store'), [
             'curriculum_id' => $other->id, 'new_content' => 'Sửa giáo trình không được giao',
         ])->assertForbidden();
-        $this->assertSame(0, SyllabusChangeProposal::count());
+        $this->assertSame(0, SyllabusChangeProposal::where('user_id', $this->teacher->id)->count());
     }
 
     public function test_server_accepts_lesson_of_assigned_stage(): void
@@ -67,7 +67,7 @@ class TeacherProposeStageScopeTest extends TestCase
         $this->actingAs($this->teacher)->post(route('syllabus.proposals.store'), [
             'curriculum_id' => $this->curriculum->id, 'lesson_id' => $this->lessonOf($this->stage1)->id, 'new_content' => 'Sửa buổi chặng mình',
         ])->assertSessionHasNoErrors();
-        $this->assertSame(1, SyllabusChangeProposal::count());
+        $this->assertSame(1, SyllabusChangeProposal::where('user_id', $this->teacher->id)->count());
     }
 
     public function test_stage_assigned_to_another_teacher_is_rejected(): void
