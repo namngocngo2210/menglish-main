@@ -90,6 +90,7 @@ class TuitionReceipt extends Model
         'creator_id',
         'approver_id',
         'approved_at',
+        'submitted_at',
         'deposited_at',
         'deposited_by',
         'status',
@@ -112,6 +113,7 @@ class TuitionReceipt extends Model
         'is_vat_invoice' => 'boolean',
         'payment_date' => 'date',
         'approved_at' => 'datetime',
+        'submitted_at' => 'datetime',
         'deposited_at' => 'datetime',
         'split_details' => 'array',
         'collected_items' => 'array',
@@ -162,6 +164,12 @@ class TuitionReceipt extends Model
     public function depositDeadline(): ?\Carbon\CarbonInterface
     {
         return $this->payment_date?->copy()->setTimeFromTimeString(self::depositCutoff());
+    }
+
+    /** Giờ gửi duyệt gần nhất; phiếu cũ chưa có thì dùng giờ tạo. */
+    public function submitTime(): ?\Carbon\CarbonInterface
+    {
+        return $this->submitted_at ?? $this->created_at;
     }
 
     /** Đã nộp nhưng sau hạn, hoặc chưa nộp mà đã qua hạn. */

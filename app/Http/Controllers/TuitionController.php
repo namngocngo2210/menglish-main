@@ -722,6 +722,7 @@ class TuitionController extends Controller
                     'creator_id' => Auth::id(),
                     'approver_id' => null,
                     'status' => $status,
+                    'submitted_at' => $isDraft ? null : now(),
                     'notes' => $validated['notes'] ?? 'Lập phiếu thu học phí & phụ thu',
                 ] + $sessionFields);
             });
@@ -889,6 +890,8 @@ class TuitionController extends Controller
                     'collected_items' => $surchargeItems ?: null,
                     'notes' => $validated['notes'] ?? $locked->notes,
                     'status' => $isDraft ? TuitionReceipt::STATUS_DRAFT : TuitionReceipt::STATUS_PENDING,
+                    // Mỗi lần gửi duyệt (kể cả gửi lại sau từ chối) ghi lại giờ gửi mới nhất.
+                    'submitted_at' => $isDraft ? $locked->submitted_at : now(),
                     'approver_id' => null,
                     'rejection_reason' => $isDraft ? $locked->rejection_reason : null,
                 ] + $sessionFields);
@@ -1417,7 +1420,7 @@ class TuitionController extends Controller
             });
         }
 
-        $pendingReceipts = $query->latest()->get();
+        $pendingReceipts = $query->orderByRaw('COALESCE(submitted_at, created_at) DESC')->orderByDesc('id')->get();
 
         $selectedReceipt = null;
         if ($request->filled('selected_id')) {
@@ -1480,8 +1483,8 @@ class TuitionController extends Controller
                     'amount' => (float) $rc->amount,
                     'has_surcharge' => $rc->surcharge_amount > 0,
                     'creator_name' => $rc->creator?->name,
-                    'created_at' => $rc->created_at?->format('H:i d/m/Y'),
-                    'created_ago' => $rc->created_at?->diffForHumans(),
+                    'created_at' => $rc->submitTime()?->format('H:i d/m/Y'),
+                    'created_ago' => $rc->submitTime()?->diffForHumans(),
                     'status_color' => $rc->status_color,
                     'status_label' => $rc->status_label,
                     ...$this->depositPayload($rc),
@@ -1495,7 +1498,7 @@ class TuitionController extends Controller
                 'status_color' => $selectedReceipt->status_color,
                 'status_label' => $selectedReceipt->status_label,
                 'invoice_number' => $selectedReceipt->invoice_number,
-                'created_at' => $selectedReceipt->created_at?->format('H:i - d/m/Y'),
+                'created_at' => $selectedReceipt->submitTime()?->format('H:i - d/m/Y'),
                 'creator_name' => $selectedReceipt->creator?->name,
                 'approver_name' => $selectedReceipt->approver?->name,
                 'branch_name' => $st?->branch?->name ?? 'Chưa gán chi nhánh',
