@@ -75,6 +75,7 @@ return [
         ],
 
         'academic_staff' => [
+            'cover.approve',
             // Cây vai trò (chủ dự án 06/10/2026): Học vụ CRU khách (học viên), giáo viên, trợ giảng, Học thuật.
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'user.assign_role.assistant', 'user.assign_role.teacher_fulltime',
@@ -151,6 +152,7 @@ return [
         ],
 
         'teacher_fulltime' => [
+            'cover.request',
             'payroll.view_own',
             'class.view', 'class.teach',
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
@@ -164,6 +166,7 @@ return [
         ],
 
         'teacher_parttime' => [
+            'cover.request',
             'payroll.view_own',
             'class.view', 'class.teach',
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',
@@ -177,6 +180,7 @@ return [
         ],
 
         'foreign_teacher' => [
+            'cover.request',
             'payroll.view_own',
             'class.view', 'class.teach',
             'attendance_student.view', 'attendance_student.record', 'homework.grade', 'entrance_test.examine',

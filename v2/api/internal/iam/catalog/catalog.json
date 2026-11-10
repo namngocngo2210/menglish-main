@@ -582,6 +582,25 @@
             "audience": []
         },
         {
+            "key": "cover",
+            "label": "Tìm giáo viên dạy thay",
+            "group": "academic",
+            "icon": "swap_horiz",
+            "actions": [
+                {
+                    "key": "request",
+                    "label": "Đề xuất dạy thay",
+                    "description": "Tạo yêu cầu tìm giáo viên dạy thay cho buổi học của mình."
+                },
+                {
+                    "key": "approve",
+                    "label": "Duyệt dạy thay",
+                    "description": "Duyệt, mở lại hoặc hủy yêu cầu dạy thay bất kỳ."
+                }
+            ],
+            "audience": []
+        },
+        {
             "key": "question_bank",
             "label": "Ngân hàng câu hỏi",
             "group": "academic",
@@ -1877,6 +1896,7 @@
             "label": "Học vụ (Academic Staff)",
             "short_label": "Học vụ",
             "defaults": [
+                "cover.approve",
                 "user.view",
                 "user.create",
                 "user.update",
@@ -1994,6 +2014,7 @@
             "label": "Giáo viên Fulltime",
             "short_label": "Giáo viên Full-time",
             "defaults": [
+                "cover.request",
                 "payroll.view_own",
                 "class.view",
                 "class.teach",
@@ -2029,6 +2050,7 @@
             "label": "Giáo viên Parttime",
             "short_label": "Giáo viên Part-time",
             "defaults": [
+                "cover.request",
                 "payroll.view_own",
                 "class.view",
                 "class.teach",
@@ -2064,6 +2086,7 @@
             "label": "Giáo viên nước ngoài (GVNN)",
             "short_label": "GVNN",
             "defaults": [
+                "cover.request",
                 "payroll.view_own",
                 "class.view",
                 "class.teach",

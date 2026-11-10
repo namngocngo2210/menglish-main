@@ -196,6 +196,11 @@ class ClassSession extends Model
             ->orWhere('assistant_id', $userId));
     }
 
+    public function coverRequests(): HasMany
+    {
+        return $this->hasMany(CoverRequest::class);
+    }
+
     public function attendances(): HasMany
     {
         return $this->hasMany(StudentAttendance::class, 'class_session_id');
