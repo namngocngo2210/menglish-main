@@ -68,6 +68,7 @@ use App\Http\Controllers\TeacherPortalController;
 use App\Http\Controllers\TeacherSessionReportController;
 use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
+use App\Http\Controllers\TuitionClassRollupController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserGuideController;
@@ -269,6 +270,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');
         Route::post('/receipts/{id}/confirm-deposit', [TuitionController::class, 'confirmDeposit'])->middleware('can:tuition.confirm_deposit')->whereNumber('id')->name('receipts.confirm-deposit');
         Route::post('/receipts/{id}/reject', [TuitionController::class, 'rejectReceiptAction'])->middleware('can:tuition.reject')->name('receipts.reject.action');
+        Route::get('/class-rollup', [TuitionClassRollupController::class, 'index'])->name('class-rollup');
         Route::get('/history', [TuitionController::class, 'history'])->name('history');
         Route::get('/history/export', [TuitionController::class, 'exportHistory'])->name('history.export');
         Route::get('/invoices/cancellations', [TuitionController::class, 'invoiceCancellations'])->name('invoices.cancellations');
