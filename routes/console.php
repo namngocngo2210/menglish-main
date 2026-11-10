@@ -21,6 +21,9 @@ Schedule::command('material-orders:mark-overdue')->everyFifteenMinutes()->withou
 
 Schedule::command('tuition:send-debt-reminders')->dailyAt('08:30');
 
+// Buổi đã đến giờ học mà yêu cầu dạy thay chưa ai được duyệt → nhắc Học vụ tự điểm danh (idempotent, 1 lần / yêu cầu).
+Schedule::command('cover:remind-unfilled')->everyFifteenMinutes();
+
 Schedule::command('bigtests:remind-upcoming')->dailyAt('07:45');
 
 // SLA Big Test (ngưỡng / mức phạt ở Cấu hình SLA): phạt trả kết quả trễ (mặc định 50.000đ/ngày), việc duyệt đề của Học thuật, biên bản GV chưa nhận đề (nhắc duyệt đề hằng ngày nằm ở bigtests:remind-upcoming).
