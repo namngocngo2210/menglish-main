@@ -328,11 +328,15 @@ final class SidebarMenu
                 'label' => 'Học phí',
                 'icon' => 'monetization_on',
                 // Người xử lý nghiệp vụ kế toán (duyệt / trả về phiếu, hủy hóa đơn, hoàn / chuyển phí).
-                'items' => self::anchored(self::TUITION, [
-                    ['label' => 'Công nợ học viên', 'route' => 'tuition.students', 'active' => ['tuition.students', 'tuition.receipts.create', 'tuition.receipts.edit', 'tuition.import*']],
-                    ['label' => 'Lịch sử thu', 'route' => 'tuition.history', 'active' => ['tuition.history*']],
-                    ['label' => 'Quá hạn & Nhắc phí', 'route' => 'tuition.overdue', 'active' => ['tuition.overdue*']],
-                ]),
+                'items' => [
+                    ...self::anchored(self::TUITION, [
+                        ['label' => 'Công nợ học viên', 'route' => 'tuition.students', 'active' => ['tuition.students', 'tuition.receipts.create', 'tuition.receipts.edit', 'tuition.import*']],
+                        ['label' => 'Lịch sử thu', 'route' => 'tuition.history', 'active' => ['tuition.history*']],
+                        ['label' => 'Quá hạn & Nhắc phí', 'route' => 'tuition.overdue', 'active' => ['tuition.overdue*']],
+                    ]),
+                    // Chỉ đọc, theo tuition.view của route (Admin / Quản lý cơ sở / Học vụ / Kế toán) — không neo quyền duyệt.
+                    ['label' => 'Rollup thu theo lớp', 'route' => 'tuition.class-rollup', 'active' => ['tuition.class-rollup*']],
+                ],
                 // Như nút cũ ở header trang Học phí: chỉ cần tuition.create (không neo kế toán).
                 'actions' => [
                     ['label' => 'Nhập Excel', 'route' => 'tuition.import', 'icon' => 'upload_file', 'variant' => 'secondary', 'modal' => 'lg', 'can' => ['tuition.create']],
