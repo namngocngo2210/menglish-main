@@ -428,6 +428,7 @@ final class SidebarMenu
                     ['label' => 'Dự giờ vận hành', 'route' => 'class-quality.operations'],
                     ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],
                     ['label' => 'Feedback buổi học', 'route' => 'class-quality.session-feedback'],
+                    ['label' => 'Feedback phụ huynh', 'route' => 'class-quality.parent-feedback'],
                     ['label' => 'Checklist học phí & feedback', 'route' => 'class-quality.checklist'],
                     ['label' => 'Họp giáo viên', 'route' => 'class-quality.teacher-meetings'],
                     ['label' => 'Dự án học thuật', 'route' => 'academic-projects.report'],

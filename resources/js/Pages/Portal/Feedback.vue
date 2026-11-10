@@ -19,6 +19,7 @@ const props = defineProps({
     stageName: { type: String, default: '' },
     className: { type: String, default: '' },
     hasClass: { type: Boolean, default: true },
+    feedbackOpen: { type: Boolean, default: true },
     showSuccess: { type: Boolean, default: false },
     feedbackSuccess: { type: Boolean, default: false },
 });
@@ -27,7 +28,10 @@ const RATING_LABELS = ['Chưa chọn', 'Rất không hài lòng', 'Không hài l
 const params = computed(() => ({ studentId: props.student?.id ?? null }));
 const hasSaved = computed(() => !!props.lastFeedback);
 // 'form-new' | 'form-updated' | 'state-closed' | 'state-empty'
-const viewState = computed(() => (hasSaved.value ? 'form-updated' : 'form-new'));
+const viewState = computed(() => {
+    if (!props.feedbackOpen) return hasSaved.value ? 'state-closed' : 'state-empty';
+    return hasSaved.value ? 'form-updated' : 'form-new';
+});
 const savedRating = computed(() => props.lastFeedback?.rating ?? 0);
 const savedContent = computed(() => props.lastFeedback?.content ?? '');
 

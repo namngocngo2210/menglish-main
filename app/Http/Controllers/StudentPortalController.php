@@ -1080,9 +1080,12 @@ class StudentPortalController extends Controller
         // Chặng đang học của lớp (giao chặng); chưa có chặng thì là góp ý chung.
         // Chưa xếp lớp → góp ý chung, không hiển thị lớp/chặng (R-09 AC-R08).
         $hasClass = (bool) $student?->current_class_id;
-        $stageName = ($hasClass
-            ? SyllabusAssignment::where('class_id', $student->current_class_id)->where('status', 'in_progress')->latest()->value('stage_name')
-            : null) ?: 'Góp ý chung';
+        $stage = $hasClass
+            ? SyllabusAssignment::where('class_id', $student->current_class_id)->where('status', 'in_progress')->latest()->first(['stage_name', 'feedback_open'])
+            : null;
+        $stageName = $stage?->stage_name ?: 'Góp ý chung';
+        // TK-2026-0058: chặng đang học chỉ nhận feedback khi Học vụ đã mở thu thập; góp ý chung (không chặng) luôn mở.
+        $feedbackOpen = ! $stage || $stage->feedback_open;
         $className = $hasClass ? ($student->currentClass?->name ?? '') : '';
 
         // Lấy feedback đã gửi của chặng này từ CSDL
@@ -1118,6 +1121,7 @@ class StudentPortalController extends Controller
             'stageName' => $stageName,
             'className' => $className,
             'hasClass' => $hasClass,
+            'feedbackOpen' => $feedbackOpen,
             'showSuccess' => session()->has('success') || session('feedback_success'),
             'feedbackSuccess' => (bool) session('feedback_success'),
         ]);
@@ -1152,6 +1156,16 @@ class StudentPortalController extends Controller
 
         // Chưa xếp lớp → feedback không gắn chặng (chặng rỗng), bất kể client gửi gì.
         $stageName = $student->current_class_id ? ($validated['stage_name'] ?? '') : '';
+        // TK-2026-0058: gắn vào chặng đang mở của lớp (không tin tên chặng client gửi); chặng chưa mở thu thập thì từ chối.
+        $openStage = $student->current_class_id
+            ? SyllabusAssignment::where('class_id', $student->current_class_id)->where('status', 'in_progress')->latest()->first(['stage_name', 'feedback_open'])
+            : null;
+        if ($openStage) {
+            if (! $openStage->feedback_open) {
+                return back()->withErrors(['validation' => 'Chặng học hiện chưa mở thu thập feedback. Vui lòng quay lại khi trung tâm mở đợt thu thập.']);
+            }
+            $stageName = $openStage->stage_name;
+        }
         $stageLabel = $stageName !== '' ? 'chặng: '.$stageName : 'chung';
 
         $categories = [];

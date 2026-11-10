@@ -25,6 +25,7 @@ use App\Http\Controllers\MerchandiseStockController;
 use App\Http\Controllers\MockupHubController;
 use App\Http\Controllers\MyAttendanceController;
 use App\Http\Controllers\ObservationController;
+use App\Http\Controllers\ParentFeedbackController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PenaltyController;
 use App\Http\Controllers\PermissionController;
@@ -925,6 +926,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/academic', [ObservationController::class, 'academic'])->name('academic');
         Route::put('/academic', [ObservationController::class, 'saveAcademic'])->middleware('can:class_quality.observe_academic')->name('academic.save');
         Route::get('/session-feedback', [SessionFeedbackController::class, 'index'])->name('session-feedback');
+        Route::get('/parent-feedback', [ParentFeedbackController::class, 'index'])->name('parent-feedback');
+        Route::put('/parent-feedback/stages/{assignment}', [ParentFeedbackController::class, 'toggle'])->whereNumber('assignment')->middleware('can:class_quality.parent_feedback')->name('parent-feedback.toggle');
         Route::get('/checklist', [ClassChecklistController::class, 'index'])->name('checklist');
         Route::put('/checklist', [ClassChecklistController::class, 'save'])->middleware('can:class_quality.checklist')->name('checklist.save');
         Route::get('/teacher-meetings', [TeacherMeetingReportController::class, 'index'])->name('teacher-meetings');
