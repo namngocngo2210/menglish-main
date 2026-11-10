@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AdminNotification;
 use App\Models\ClassSession;
 use App\Models\CoverRequest;
 use App\Models\User;
@@ -25,12 +26,17 @@ class CoverService
                 throw ValidationException::withMessages(['class_session_id' => 'Buổi học đã có yêu cầu dạy thay đang hoạt động.']);
             }
 
-            return $session->coverRequests()->create([
+            $cover = $session->coverRequests()->create([
                 'requested_by' => $user->id,
                 'original_teacher_id' => $session->teacher_id,
                 'reason' => $reason,
                 'status' => 'open',
             ]);
+            // Class name stays hidden until approval, so the broadcast only names the slot.
+            $this->notify(User::permission('class.teach')->pluck('id')->diff([$user->id, $session->teacher_id, $session->foreign_teacher_id]),
+                'cover_opened', 'Cần giáo viên dạy thay '.$this->slot($session), 'Bạn có thể đăng ký dạy thay buổi này.', route('cover.board'));
+
+            return $cover;
         });
     }
 
@@ -50,6 +56,8 @@ class CoverService
                 throw ValidationException::withMessages(['teacher_id' => 'Bạn đã đăng ký dạy thay cho buổi học này.']);
             }
             $request->registrations()->create(['teacher_id' => $teacher->id]);
+            $this->notify(User::permission('cover.approve')->pluck('id')->diff([$teacher->id]),
+                'cover_registered', $teacher->name.' đăng ký dạy thay '.$this->slot($session), 'Vào Dạy thay để duyệt.', route('cover.board'));
 
             return $request;
         });
@@ -93,6 +101,8 @@ class CoverService
                 'approved_by' => $approver->id,
                 'approved_at' => now(),
             ])->save();
+            $this->notify([$registrationTeacherId], 'cover_approved', 'Bạn được duyệt dạy thay '.$this->slot($session), 'Bạn đã được xếp dạy buổi này.', route('teacher.home'));
+            $this->notify([$request->requested_by, $request->original_teacher_id], 'cover_approved', 'Đã có giáo viên dạy thay '.$this->slot($session), 'Yêu cầu dạy thay đã được duyệt.', route('cover.board'));
 
             return $request;
         });
@@ -107,7 +117,9 @@ class CoverService
             if ($request->status !== 'approved') {
                 throw ValidationException::withMessages(['status' => 'Chỉ có thể mở lại yêu cầu đã duyệt.']);
             }
-            $request->classSession()->lockForUpdate()->firstOrFail()->update(['teacher_id' => $request->original_teacher_id]);
+            $session = $request->classSession()->lockForUpdate()->firstOrFail();
+            $session->update(['teacher_id' => $request->original_teacher_id]);
+            $this->notify([$request->approved_user_id], 'cover_reopened', 'Dạy thay '.$this->slot($session).' đã được mở lại', 'Bạn không còn dạy thay buổi này.', route('cover.board'));
             $request->update(['status' => 'open', 'approved_user_id' => null, 'approved_by' => null, 'approved_at' => null]);
 
             return $request;
@@ -121,12 +133,28 @@ class CoverService
             abort_unless((int) $request->requested_by === (int) $user->id || $user->can('cover.approve'), 403);
             $this->ensureActive($request);
             if ($request->status === 'approved') {
-                $request->classSession()->lockForUpdate()->firstOrFail()->update(['teacher_id' => $request->original_teacher_id]);
+                $session = $request->classSession()->lockForUpdate()->firstOrFail();
+                $session->update(['teacher_id' => $request->original_teacher_id]);
+                $this->notify([$request->approved_user_id], 'cover_cancelled', 'Dạy thay '.$this->slot($session).' đã bị hủy', 'Bạn không còn dạy thay buổi này.', route('cover.board'));
             }
             $request->update(['status' => 'cancelled', 'cancelled_at' => now()]);
 
             return $request;
         });
+    }
+
+    private function slot(ClassSession $session): string
+    {
+        return $session->date->format('d/m/Y').' '.$session->start_time->format('H:i');
+    }
+
+    /** @param iterable<int|null> $userIds */
+    private function notify(iterable $userIds, string $type, string $title, string $message, string $link): void
+    {
+        foreach (collect($userIds)->filter()->unique() as $userId) {
+            AdminNotification::create(['user_id' => $userId, 'type' => $type, 'title' => $title, 'message' => $message,
+                'data' => ['link' => $link], 'is_read' => false]);
+        }
     }
 
     private function ensureFuture(ClassSession $session): void

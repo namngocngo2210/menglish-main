@@ -845,6 +845,7 @@ Route::middleware('auth')->group(function () {
     // Cổng Giáo viên: Check-in nhiều ca & Điểm danh lớp
     // ──────────────────────────────────────
     // Cổng GV — Bài giảng hôm nay + nút Đã dạy (docs/kho-syllabus.md §8.3; kiểm tra GV của lớp trong controller).
+    Route::get('/day-thay', [CoverRequestController::class, 'board'])->name('cover.board');
     Route::controller(CoverRequestController::class)->prefix('teacher/cover')->name('teacher.cover.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');

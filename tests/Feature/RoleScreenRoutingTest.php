@@ -61,7 +61,7 @@ class RoleScreenRoutingTest extends TestCase
         $this->assertSame('Lịch dạy hôm nay', $menu['Lớp học'][0]);
         $this->assertNotContains('Nhiệm vụ hôm nay', $menu['Lớp học']);
         // Khách học thử mở từ thẻ ca dạy, không còn tab riêng (chủ dự án 28/10/2026).
-        $this->assertSame(['Lịch dạy hôm nay', 'Lớp của tôi'], $menu['Lớp học']);
+        $this->assertSame(['Lịch dạy hôm nay', 'Lớp của tôi', 'Dạy thay'], $menu['Lớp học']);
         $this->assertContains('Syllabus & tài liệu', $menu['Giáo trình']);
         $this->assertContains('Chặng đang dạy & Order Test', $menu['Giáo trình']);
     }

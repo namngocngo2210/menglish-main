@@ -249,6 +249,8 @@ final class SidebarMenu
                         ['label' => 'Lịch dạy hôm nay', 'route' => 'teacher.home', 'active' => ['teacher.home', 'teacher.attendance*', 'teacher.trial-guests*', 'tasks.support-sessions'], 'can' => ['attendance_student.record']],
                         ['label' => 'Lớp của tôi', 'route' => 'classes.index', 'query' => ['mine' => 1], 'active' => ['classes.index', 'classes.show', 'classes.session-report', 'teacher.lesson-today*', 'portal.teacher.submissions*']],
                     ]),
+                    // Tìm GV dạy thay (TK-2026-0057): GV đề xuất / đăng ký, Admin + Học vụ duyệt; trợ giảng không thấy.
+                    ['label' => 'Dạy thay', 'route' => 'cover.board', 'can' => ['cover.request', 'cover.approve']],
                 ],
                 // Nút chung mọi tab Lớp học (trước nằm ở menu "Tạo mới" trên topbar); quyền theo middleware can:class.create.
                 'actions' => [
