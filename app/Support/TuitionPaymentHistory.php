@@ -53,7 +53,7 @@ class TuitionPaymentHistory
             $tuitionId = $rc->student_tuition_id;
             $debtAfter = null;
             if ($tuitionId !== null && array_key_exists($tuitionId, $remaining)) {
-                $remaining[$tuitionId] -= $rc->tuitionPortion() + (float) $rc->discount_amount;
+                $remaining[$tuitionId] -= $rc->paidContribution() + (float) $rc->discount_amount; // gồm phụ thu (R-10)
                 $debtAfter = max(0, round($remaining[$tuitionId], 2));
             }
             $kind = self::kind($rc);

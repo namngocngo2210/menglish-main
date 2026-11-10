@@ -135,9 +135,42 @@ class TuitionP0FixesTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->tuition->refresh();
-        $this->assertEquals(4500000, (float) $this->tuition->paid_amount);
+        // R-10: paid gồm cả phụ thu (4.500.000 + 150.000).
+        $this->assertEquals(4650000, (float) $this->tuition->paid_amount);
         $this->assertEquals(0, (float) $this->tuition->debt_amount);
         $this->assertSame('paid', $this->tuition->status);
+    }
+
+    public function test_approve_adds_surcharge_to_paid_amount_and_debt_never_negative(): void
+    {
+        // AC-S10: phiếu 4.030.000 (phụ thu 100.000) trên khoản còn 3.930.000 → paid += 4.030.000, nợ 0.
+        $this->tuition->update(['final_amount' => 3930000, 'total_amount' => 3930000, 'paid_amount' => 0, 'debt_amount' => 3930000]);
+        $receipt = TuitionReceipt::create([
+            'receipt_number' => 'PT-AC-S10',
+            'student_tuition_id' => $this->tuition->id,
+            'student_id' => $this->student->id,
+            'amount' => 4030000,
+            'tuition_amount' => 3930000,
+            'surcharge_amount' => 100000,
+            'surcharge_reason' => 'Giáo trình',
+            'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-0002',
+            'payment_date' => now(),
+            'creator_id' => $this->staff->id,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->tuition->refresh();
+        $this->assertEquals(4030000, (float) $this->tuition->paid_amount);
+        $this->assertEquals(0, (float) $this->tuition->debt_amount);
+        $this->assertSame('paid', $this->tuition->status);
+
+        // Hủy duyệt (về trạng thái khác approved) rồi tính lại → trừ đúng, không lệch.
+        $receipt->update(['status' => 'cancelled']);
+        $this->tuition->recalculateDebt();
+        $this->assertEquals(0, (float) $this->tuition->fresh()->paid_amount);
+        $this->assertEquals(3930000, (float) $this->tuition->fresh()->debt_amount);
     }
 
     public function test_surcharge_only_receipt_does_not_reduce_tuition_debt(): void
