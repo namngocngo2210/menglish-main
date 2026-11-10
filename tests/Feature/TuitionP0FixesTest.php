@@ -338,6 +338,28 @@ class TuitionP0FixesTest extends TestCase
         $this->assertEquals(1000000, (float) $receipt->fresh()->amount);
     }
 
+    public function test_submit_wording_is_first_time_for_draft_and_resubmit_for_rejected(): void
+    {
+        $make = fn (string $no, string $status) => TuitionReceipt::create([
+            'receipt_number' => $no, 'student_tuition_id' => $this->tuition->id,
+            'amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001',
+            'creator_id' => $this->staff->id, 'status' => $status,
+        ]);
+        $payload = ['amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
+
+        $draft = $make('PT-W-DRAFT', 'draft');
+        $this->actingAs($this->staff)->get(route('tuition.receipts.edit', $draft->id))
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('editing.status', 'draft'));
+        $this->actingAs($this->staff)->put(route('tuition.receipts.update', $draft->id), $payload)
+            ->assertSessionHas('status', 'Đã gửi duyệt phiếu thu PT-W-DRAFT.');
+
+        $rejected = $make('PT-W-REJ', 'rejected');
+        $this->actingAs($this->staff)->get(route('tuition.receipts.edit', $rejected->id))
+            ->assertInertia(fn (AssertableInertia $p) => $p->where('editing.status', 'rejected'));
+        $this->actingAs($this->staff)->put(route('tuition.receipts.update', $rejected->id), $payload)
+            ->assertSessionHas('status', 'Đã gửi duyệt lại phiếu thu PT-W-REJ.');
+    }
+
     public function test_rejected_today_metric_excludes_drafts(): void
     {
         TuitionReceipt::create([

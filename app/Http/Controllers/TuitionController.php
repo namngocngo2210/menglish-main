@@ -786,6 +786,7 @@ class TuitionController extends Controller
         $receipt = TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id);
         abort_unless((int) $receipt->creator_id === (int) $user->id || $user->isSuperAdmin(), 403, 'Chỉ người lập phiếu mới được sửa phiếu này.');
 
+        $wasRejected = $receipt->status === TuitionReceipt::STATUS_REJECTED;
         $sessionMode = $request->has('session_count');
         if (! $sessionMode && ($amountError = $this->receiptAmountError($validated))) {
             return back()->withErrors($amountError)->withInput();
@@ -915,7 +916,7 @@ class TuitionController extends Controller
 
         $this->notifyReceiptPending($updated, $receipt->tuition?->student ?? $receipt->student);
 
-        return $this->modalSaved("Đã gửi duyệt lại phiếu thu {$updated->receipt_number}.{$paperNote}", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
+        return $this->modalSaved('Đã gửi duyệt '.($wasRejected ? 'lại ' : '')."phiếu thu {$updated->receipt_number}.{$paperNote}", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
     }
 
     /**
