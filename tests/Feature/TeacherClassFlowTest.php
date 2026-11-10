@@ -34,7 +34,7 @@ class TeacherClassFlowTest extends TestCase
         $this->assertSame('Đào tạo', $classes['section']);
         $this->assertSame(
             // Bài giảng, Chấm bài nộp, Khách học thử, Buổi bổ trợ mở từ thẻ ca dạy / Trang lớp (chủ dự án 28/10/2026).
-            ['Lịch dạy hôm nay', 'Lớp của tôi'],
+            ['Lịch dạy hôm nay', 'Lớp của tôi', 'Dạy thay'],
             collect($classes['items'])->pluck('label')->all(),
         );
         $this->assertSame(route('teacher.home'), $classes['url']);
