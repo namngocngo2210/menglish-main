@@ -10,12 +10,13 @@ class CoverRequest extends Model
 {
     protected $fillable = [
         'class_session_id', 'requested_by', 'original_teacher_id', 'reason', 'status',
-        'approved_user_id', 'approved_by', 'approved_at', 'cancelled_at',
+        'approved_user_id', 'approved_by', 'approved_at', 'cancelled_at', 'attendance_reminded_at',
     ];
 
     protected $casts = [
         'approved_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'attendance_reminded_at' => 'datetime',
     ];
 
     public function classSession(): BelongsTo
