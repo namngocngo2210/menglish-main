@@ -2927,7 +2927,7 @@ class TuitionController extends Controller
         $today = now()->startOfDay();
 
         // Thống kê công nợ quá hạn theo chi nhánh / lớp (toàn bộ khoản đang nợ, không theo bộ lọc tìm kiếm).
-        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query()->whereHas('student'), $scope)->with(['branch', 'classModel'])->where('debt_amount', '>', 0)->get();
+        $allDebts = TuitionBranchScope::tuitions(StudentTuition::query()->whereHas('student'), $scope)->with(['branch', 'classModel.branch'])->where('debt_amount', '>', 0)->get();
         $isOverdue = fn (StudentTuition $t) => $t->due_date && $t->due_date->lt($today) && ! $t->remindersPausedOn();
         $statsByBranch = $allDebts->groupBy('branch_id')->map(fn ($items) => [
             'branch_name' => $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
@@ -2935,12 +2935,17 @@ class TuitionController extends Controller
             'count' => $items->count(),
             'overdue_count' => $items->filter($isOverdue)->count(),
         ])->values();
-        $statsByClass = $allDebts->groupBy('class_id')->map(fn ($items) => [
+        // AC-S09: công nợ theo lớp chỉ Admin thấy — vai trò khác không nhận dữ liệu (không chỉ ẩn ở Vue).
+        $showClassStats = (bool) $request->user()?->hasRole(Roles::ADMIN);
+        $statsByClass = ! $showClassStats ? collect() : $allDebts->groupBy('class_id')->map(fn ($items) => [
+            'class_id' => $items->first()->class_id,
             'class_name' => $items->first()->classModel?->name ?? 'Chưa xếp lớp',
             'class_code' => $items->first()->classModel?->code ?? '—',
+            'branch_name' => $items->first()->classModel?->branch?->name ?? $items->first()->branch?->name ?? 'Chưa gán chi nhánh',
             'total_debt' => $items->sum('debt_amount'),
-            'count' => $items->count(),
+            'count' => $items->pluck('student_id')->unique()->count(),
             'overdue_count' => $items->filter($isOverdue)->count(),
+            'max_overdue_days' => (int) $items->filter($isOverdue)->map(fn (StudentTuition $t) => $t->daysOverdue())->max(),
         ])->values();
 
         $branches = TuitionBranchScope::branches($scope)->where('is_active', true)->get();
@@ -2949,6 +2954,7 @@ class TuitionController extends Controller
         return Inertia::render('Tuition/Overdue', [
             ...$this->dueGroupProps($groups),
             'statsByBranch' => $statsByBranch->map(fn ($r) => [...$r, 'total_debt' => (float) $r['total_debt']]),
+            'showClassStats' => $showClassStats,
             'statsByClass' => $statsByClass->map(fn ($r) => [...$r, 'total_debt' => (float) $r['total_debt']]),
             'branches' => $branches->map(fn (Branch $b) => ['value' => $b->id, 'label' => $b->name])->values(),
             'classes' => $classes->map(fn (ClassModel $c) => ['value' => $c->id, 'label' => $c->name.' ('.$c->code.')'])->values(),
