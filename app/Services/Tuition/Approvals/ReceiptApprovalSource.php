@@ -65,7 +65,7 @@ class ReceiptApprovalSource extends QueryApprovalSource
             title: 'Phiếu thu '.$model->receipt_number,
             subtitle: collect([$student?->name ?? $model->payer_name, $method])->filter()->implode(' · '),
             url: route('tuition.receipts.approve', ['status' => TuitionReceipt::STATUS_PENDING, 'selected_id' => $model->id]),
-            createdAt: $model->created_at,
+            createdAt: $model->submitTime(),
             amount: (float) $model->amount,
             meta: array_filter([
                 'Học viên' => $student ? $student->name.' ('.$student->code.')' : $model->payer_name,

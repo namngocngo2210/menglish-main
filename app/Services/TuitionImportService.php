@@ -271,6 +271,7 @@ class TuitionImportService
                             'payment_date' => $row['payment_date'],
                             'creator_id' => $user->id,
                             'status' => TuitionReceipt::STATUS_PENDING,
+                            'submitted_at' => now(),
                             'notes' => trim('Nhập từ Excel (dòng '.$row['line'].'), chờ Kế toán đối soát & duyệt. '.($row['notes'] ?? '')),
                         ]);
                         $result['receipts']++;
