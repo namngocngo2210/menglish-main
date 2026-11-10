@@ -265,7 +265,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/receipts', [TuitionController::class, 'storeReceipt'])->middleware('can:tuition.create')->name('receipts.store');
         Route::get('/receipts/{id}/edit', [TuitionController::class, 'editReceipt'])->middleware('can:tuition.create')->whereNumber('id')->name('receipts.edit');
         Route::put('/receipts/{id}', [TuitionController::class, 'updateReceipt'])->middleware('can:tuition.create')->name('receipts.update');
-        Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->name('receipts.approve');
+        Route::get('/receipts/approve', [TuitionController::class, 'approveReceipt'])->middleware('can:'.AdminOnlyApprovals::TUITION_VIEW_ABILITY)->name('receipts.approve');
         Route::post('/receipts/{id}/approve', [TuitionController::class, 'approveReceiptAction'])->middleware('can:tuition.approve')->name('receipts.approve.action');
         Route::post('/receipts/{id}/confirm-deposit', [TuitionController::class, 'confirmDeposit'])->middleware('can:tuition.confirm_deposit')->whereNumber('id')->name('receipts.confirm-deposit');
         Route::post('/receipts/{id}/reject', [TuitionController::class, 'rejectReceiptAction'])->middleware('can:tuition.reject')->name('receipts.reject.action');
@@ -287,7 +287,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/overdue/{id}/upcoming-remind', [TuitionController::class, 'sendUpcomingReminder'])->middleware('can:tuition.mark_contacted')->name('overdue.upcoming-remind');
         Route::post('/overdue/{id}/contacted', [TuitionController::class, 'markContacted'])->middleware('can:tuition.mark_contacted')->name('overdue.contacted');
         Route::post('/overdue/{id}/report-admin', [TuitionController::class, 'reportOverdueToAdmin'])->middleware('can:tuition.report_overdue')->name('overdue.report-admin');
-        Route::get('/config', [TuitionController::class, 'config'])->name('config');
+        Route::get('/config', [TuitionController::class, 'config'])->middleware('can:invoice_range.manage')->name('config');
         Route::post('/config', [TuitionController::class, 'updateConfig'])->middleware('can:invoice_range.manage')->name('config.update');
         Route::post('/config/ranges', [TuitionController::class, 'storeInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.store');
         Route::post('/config/ranges/{id}/toggle', [TuitionController::class, 'toggleInvoiceRange'])->middleware('can:invoice_range.manage')->name('config.ranges.toggle');

@@ -593,12 +593,12 @@ class Phase4FinanceParityTest extends TestCase
             'amount' => 1000000, 'tuition_amount' => 1000000, 'payment_method' => 'transfer', 'transaction_code' => 'FTPAR999',
             'payment_date' => now(), 'creator_id' => $this->manager->id, 'status' => 'pending',
         ]);
-        $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
+        $this->actingAs($this->admin)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
             ->assertOk()->assertSee('Cần đối chiếu thủ công')->assertSee('Không có ghi chú.')->assertSee('Tự động làm mới')
             ->assertDontSee('Phụ huynh nộp thanh toán đúng số tiền');
 
         SepayTransaction::create(['sepay_id' => 'FTPAR999', 'gateway' => 'VCB', 'transaction_date' => now(), 'account_number' => '0071001234567', 'transfer_type' => 'in', 'transfer_amount' => 1000000, 'content' => 'HV-PAR-001', 'status' => 'unmatched']);
-        $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
+        $this->actingAs($this->admin)->get(route('tuition.receipts.approve', ['selected_id' => $pending->id]))
             ->assertOk()->assertSee('Khớp số tiền &amp; mã giao dịch', false);
     }
 }

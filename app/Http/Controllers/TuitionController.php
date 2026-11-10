@@ -1365,6 +1365,7 @@ class TuitionController extends Controller
 
     public function approveReceipt(Request $request)
     {
+        abort_unless($request->user()?->can(\App\Support\Approvals\AdminOnlyApprovals::TUITION_VIEW_ABILITY), 403);
         $scope = $this->branchScope();
         $scoped = fn () => TuitionBranchScope::receipts(TuitionReceipt::query(), $scope);
         $branches = TuitionBranchScope::branches($scope)->get();
@@ -1584,6 +1585,7 @@ class TuitionController extends Controller
 
     public function approveReceiptAction(Request $request, $id)
     {
+        abort_unless($request->user()?->can('tuition.approve'), 403);
         $user = $request->user();
         abort_unless(TuitionBranchScope::allowsReceipt(TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id), $this->branchScope()), 403, self::OUT_OF_SCOPE);
         $tuitionId = TuitionReceipt::query()->whereKey($id)->value('student_tuition_id');
@@ -1851,6 +1853,7 @@ class TuitionController extends Controller
 
     public function rejectReceiptAction(Request $request, $id)
     {
+        abort_unless($request->user()?->can('tuition.reject'), 403);
         abort_unless(TuitionBranchScope::allowsReceipt(TuitionReceipt::with(['tuition.student.currentClass', 'student.currentClass'])->findOrFail($id), $this->branchScope()), 403, self::OUT_OF_SCOPE);
         $validated = $request->validate([
             'rejection_reason' => 'nullable|string|max:1000',
@@ -3144,6 +3147,7 @@ class TuitionController extends Controller
 
     public function config(Request $request)
     {
+        abort_unless($request->user()?->can('invoice_range.manage'), 403);
         // Người bị giới hạn chi nhánh chỉ thấy dải của chi nhánh mình + dải mặc định; phạm vi "Toàn hệ thống" (tuition.scope_all) thấy tất cả.
         // Sửa dải mặc định (dùng chung) cần `invoice_range.manage_default` (BA 26/09/2026).
         $scope = $this->branchScope();
@@ -3261,6 +3265,7 @@ class TuitionController extends Controller
      */
     public function updateConfig(Request $request)
     {
+        abort_unless($request->user()?->can('invoice_range.manage'), 403);
         $validated = $request->validate([
             'config_id' => 'nullable|integer|exists:invoice_configurations,id',
             'template_code' => 'required|string|max:50',
@@ -3308,6 +3313,7 @@ class TuitionController extends Controller
      */
     public function storeInvoiceRange(Request $request)
     {
+        abort_unless($request->user()?->can('invoice_range.manage'), 403);
         $validated = $request->validate([
             'branch_id' => 'nullable|required_if:kind,paper|exists:branches,id',
             'kind' => 'nullable|in:'.implode(',', array_keys(InvoiceConfiguration::KIND_LABELS)),
@@ -3361,6 +3367,7 @@ class TuitionController extends Controller
     /** Ngừng dùng / dùng lại một dải số. Số đã cấp của dải vẫn giữ nguyên, không cấp lại. */
     public function toggleInvoiceRange($id)
     {
+        abort_unless(Auth::user()?->can('invoice_range.manage'), 403);
         $range = InvoiceConfiguration::findOrFail($id);
         abort_unless($this->canManageRange($range->branch_id), 403, 'Bạn chỉ được cấu hình dải số hóa đơn của chi nhánh mình.');
         $range->update(['is_active' => ! $range->is_active]);

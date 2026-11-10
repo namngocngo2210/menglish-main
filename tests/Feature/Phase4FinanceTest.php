@@ -565,7 +565,7 @@ class Phase4FinanceTest extends TestCase
 
         $manual = $this->pendingReceipt($this->tuition, 2000000, ['payment_method' => 'transfer', 'transaction_code' => 'FT-OTHER-1']);
 
-        $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $manual->id]))
+        $this->actingAs($this->admin)->get(route('tuition.receipts.approve', ['selected_id' => $manual->id]))
             ->assertOk()
             ->assertSee('Có thể trùng giao dịch SePay')
             ->assertSee('confirm_not_duplicate', false);
