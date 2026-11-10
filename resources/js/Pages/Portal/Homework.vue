@@ -28,6 +28,7 @@ const props = defineProps({
     assignments: { type: Array, default: () => [] },
     sessionProgress: { type: Object, default: () => ({}) },
     emptySessions: { type: Array, default: () => [] },
+    roadmapImageUrl: { type: String, default: null },
 });
 
 const REMARK_FIELDS = {
@@ -299,16 +300,8 @@ function checkSize(event) {
                         <h2 class="text-base font-bold text-on-surface">Lộ trình học tập</h2>
                     </div>
                     <div class="rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3 shadow-2xs">
-                        <div class="flex flex-col items-center space-y-2 rounded-xl bg-surface-container-low p-4 text-center">
-                            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary-container/10 text-primary">
-                                <span class="material-symbols-outlined text-[28px]">trending_up</span>
-                            </div>
-                            <h3 class="text-xs font-bold text-on-surface">Lộ trình mục tiêu: IELTS 6.5</h3>
-                            <p class="max-w-[280px] text-xs text-on-surface-variant">Đang học Chặng 2 (Intermediate). Đạt 65% thời lượng chương trình.</p>
-                            <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-container-high">
-                                <div class="h-full rounded-full bg-primary-container" style="width: 65%"></div>
-                            </div>
-                        </div>
+                        <img v-if="roadmapImageUrl" :src="roadmapImageUrl" alt="Lộ trình học tập" class="w-full rounded-xl" />
+                        <UiEmptyState v-else class="rounded-xl bg-surface-container-low" icon="map" title="Chưa cập nhật lộ trình" />
                     </div>
                 </section>
             </div>

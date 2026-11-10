@@ -51,6 +51,9 @@ class WorkTask extends Model
         'sla_breached_at',
         'syllabus_assignment_id',
         'last_reminded_on',
+        'phat_khi_qua_han',
+        'muc_phat_qua_han',
+        'sla_rule_key',
     ];
 
     protected $casts = [
@@ -60,6 +63,8 @@ class WorkTask extends Model
         'sla_breached_at' => 'datetime',
         'last_reminded_on' => 'date',
         'handed_back_at' => 'datetime',
+        'phat_khi_qua_han' => 'boolean',
+        'muc_phat_qua_han' => 'decimal:2',
     ];
 
     protected static function booted(): void
