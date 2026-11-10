@@ -390,6 +390,14 @@ Giỏ của bài tập: `Homework::CATEGORIES` → giỏ (`video` → video; `qu
   buổi hiện tại (Bài tập giấy / Quizizz / Video + link Quizizz).
 - HS nộp (cổng học viên): theo từng bài tập & giỏ — **giấy = ảnh**, **video = video**; Quizizz: HS bấm "Đã làm" (tự khai) —
   không tích hợp API Quizizz (câu 7 "tùy chọn IT").
+- **Quiz (TK-2026-0038, sửa mục trên):** HS làm Quizizz / Google Form rồi bấm **Nộp bài** (ảnh kết quả tùy chọn) → ngay lập tức
+  "Đã nộp", tính vào hoàn thành, không chờ GV; sau đó vẫn có nút **Nộp lại**. Quiz **không chấm điểm** (không có ô điểm / nút
+  Chấm; server từ chối `review` cho giỏ Quizizz). GV **xác nhận tùy chọn** ở Bài nộp của lớp → tab Quiz: ghi người + giờ xác nhận
+  (`confirmed_by`, `confirmed_at`) lên CHÍNH bài nộp của HS, `submitted_at` giữ nguyên. HS nộp lại → xác nhận bị xóa. GV xác nhận
+  khi HS chưa nộp → tạo bài nộp thay HS (`created_by` = GV). Hủy xác nhận: bài do GV tạo → xóa bài (HS về Chưa nộp); bài HS tự
+  nộp → chỉ xóa xác nhận (HS vẫn Đã nộp); chưa có xác nhận → báo "Không có xác nhận nào để hủy". Route
+  `teacher.homework-submissions.quiz-confirm|quiz-cancel` (quyền `homework.grade`, chỉ lớp mình phụ trách). Tab Quiz và bảng theo
+  buổi cùng đọc `homework_submissions` (khoảng 30 ngày mặc định). Migration thêm `confirmed_by`, `confirmed_at`, `created_by`.
 - GV xem bài nộp theo bài tập, đánh dấu "Đã xem" (màn **Bài nộp homework** của Cổng GV). File bài nộp lưu riêng tư, chỉ học
   viên / phụ huynh, GV lớp và nhân sự xem được học viên mở được.
 - Cổng học viên (chủ dự án: nộp bài gắn với BTVN được giao của từng buổi): **chỉ nộp vào giỏ của BTVN GV giao**. Mỗi thẻ hiện

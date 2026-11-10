@@ -56,7 +56,7 @@ class HomeworkStats
      */
     public function matrix(ClassModel $class, Carbon $from, Carbon $to): array
     {
-        $homeworks = $this->homeworks($class, $from, $to)->load('submissions');
+        $homeworks = $this->homeworks($class, $from, $to)->load('submissions.confirmer:id,name');
         $students = $class->rosterStudents();
 
         return [
@@ -84,12 +84,51 @@ class HomeworkStats
                             'submitted_at' => $sub->submitted_at->toIso8601String(),
                             'original_name' => $sub->original_name,
                             'note' => $sub->note,
+                            'confirmed_at' => $sub->confirmed_at?->toIso8601String(),
+                            'confirmed_by' => $sub->confirmer?->name,
                             'file_url' => $sub->file_path ? route('portal.student.homework-file', $sub->id) : null,
                         ] : null];
                     })->all(),
                 ])->values()->all(),
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * Tab "Quiz" (TK-2026-0038): cùng nguồn homework_submissions giỏ Quizizz với bảng theo buổi (F-26) — mỗi bài tập có Quiz × học sinh
+     * của lớp: đã nộp (giờ, ảnh) / đã xác nhận (ai, lúc nào) / chưa nộp. "submitted" đếm mọi bài nộp, kể cả do GV tạo hộ.
+     *
+     * @return array{submitted: int, homeworks: list<array<string, mixed>>}
+     */
+    public function quizBoard(ClassModel $class, Carbon $from, Carbon $to): array
+    {
+        $homeworks = $this->homeworks($class, $from, $to)->filter(fn (Homework $hw) => in_array('quizizz', $hw->baskets(), true))->values();
+        $homeworks->load(['submissions' => fn ($q) => $q->where('basket', 'quizizz')->with('confirmer:id,name')]);
+        $students = $class->rosterStudents();
+
+        $rows = $homeworks->map(fn (Homework $hw) => [
+            'id' => $hw->id,
+            'title' => $hw->title,
+            'created_at' => $hw->created_at->toDateString(),
+            'rows' => $students->map(function ($student) use ($hw) {
+                $sub = $hw->submissions->firstWhere('student_id', $student->id);
+
+                return ['student_id' => $student->id, 'student' => $student->name, 'submission' => $sub ? [
+                    'id' => $sub->id,
+                    'submitted_at' => $sub->submitted_at->toIso8601String(),
+                    'self_submitted' => $sub->created_by === null,
+                    'original_name' => $sub->original_name,
+                    'note' => $sub->note,
+                    'confirmed_at' => $sub->confirmed_at?->toIso8601String(),
+                    'confirmed_by' => $sub->confirmer?->name,
+                    'file_url' => $sub->file_path ? route('portal.student.homework-file', $sub->id) : null,
+                ] : null];
+            })->values()->all(),
+        ])->all();
+
+        $submitted = collect($rows)->sum(fn (array $hw) => collect($hw['rows'])->whereNotNull('submission')->count());
+
+        return ['submitted' => $submitted, 'homeworks' => $rows];
     }
 
     /** @return Collection<int, Homework> bài tập có giỏ, giao trong khoảng ngày */

@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Học tập của tôi — Nộp bài tập (MH #3): bài tập GV giao nộp theo 3 giỏ (giấy = ảnh, video = video, Quizizz = bấm "Đã làm" —
+ * Học tập của tôi — Nộp bài tập (MH #3): bài tập GV giao nộp theo 3 giỏ (giấy = ảnh, video = video, Quizizz = bấm "Nộp bài", ảnh tùy chọn —
  * docs/kho-syllabus.md §10). Mỗi thẻ là BTVN của một buổi (lớp, Buổi N / bài syllabus, ngày học, hạn nộp) — không còn nộp tự do.
  * Nhận xét buổi học (kèm phụ huynh chấm từng buổi), bảng điểm, lộ trình.
  * Nhân sự xem hộ thì quay về danh sách học viên; học viên quay về trang chủ cổng. Trên điện thoại dùng thanh điều hướng đáy.
@@ -188,7 +188,8 @@ function checkSize(event) {
                             <div class="flex items-center justify-between gap-2">
                                 <span class="flex items-center gap-1 font-bold text-on-surface"><span class="material-symbols-outlined text-[16px]" aria-hidden="true">{{ b.icon }}</span>{{ b.label }}</span>
                                 <UiBadge v-if="b.submission?.status === 'reviewed'" color="success" pill>{{ b.submission.score ? 'Điểm: ' + b.submission.score : 'GV đã xem' }}</UiBadge>
-                                <UiBadge v-else-if="b.submission" color="info" pill>{{ b.upload ? 'Đã nộp' : 'Đã làm' }}</UiBadge>
+                                <UiBadge v-else-if="b.submission?.confirmed_at" color="success" pill>Đã nộp · GV đã xác nhận</UiBadge>
+                                <UiBadge v-else-if="b.submission" color="info" pill>Đã nộp</UiBadge>
                                 <UiBadge v-else color="error" pill>Chưa nộp</UiBadge>
                             </div>
                             <p v-if="b.text" class="mt-1 whitespace-pre-line text-on-surface-variant">{{ b.text }}</p>
@@ -197,11 +198,7 @@ function checkSize(event) {
                                 <a v-if="b.link" :href="b.link" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-bold text-secondary hover:underline">Mở Quizizz <span class="material-symbols-outlined text-[14px]" aria-hidden="true">open_in_new</span></a>
                                 <a v-if="b.submission?.file_url" :href="b.submission.file_url" target="_blank" rel="noopener" class="inline-flex items-center gap-1 font-bold text-primary hover:underline"><span class="material-symbols-outlined text-[14px]" aria-hidden="true">attachment</span>{{ b.submission.original_name ?? 'Bài đã nộp' }}</a>
                                 <template v-if="!hw.readonly">
-                                    <UiButton v-if="b.upload" size="sm" :variant="b.submission ? 'secondary' : 'primary'" icon="upload" class="ml-auto" @click="openBasket(hw, b)">{{ b.submission ? 'Nộp lại' : 'Nộp bài' }}</UiButton>
-                                    <UiForm v-else-if="!b.submission" :action="route('portal.student.homework.basket', [hw.id, b.key])" method="post" class="ml-auto">
-                                        <input type="hidden" name="student_id" :value="student?.id" />
-                                        <UiButton type="submit" size="sm" icon="task_alt">Đã làm</UiButton>
-                                    </UiForm>
+                                    <UiButton size="sm" :variant="b.submission ? 'secondary' : 'primary'" icon="upload" class="ml-auto" @click="openBasket(hw, b)">{{ b.submission ? 'Nộp lại' : 'Nộp bài' }}</UiButton>
                                 </template>
                             </div>
                         </div>
@@ -316,7 +313,7 @@ function checkSize(event) {
         <UiModal :show="!!basketOpen" :title="basketOpen ? `${basketOpen.basket.label} — ${basketOpen.hw.session ? `${basketOpen.hw.session.label} (${formatDate(basketOpen.hw.session.date)})` : basketOpen.hw.title}` : ''" max-width="md" @close="basketOpen = null">
             <UiForm v-if="basketOpen" id="homework-basket-form" :key="`${basketOpen.hw.id}-${basketOpen.basket.key}`" :action="route('portal.student.homework.basket', [basketOpen.hw.id, basketOpen.basket.key])" method="post" class="space-y-4 text-xs" @success="basketOpen = null">
                 <input type="hidden" name="student_id" :value="student?.id" />
-                <UiField :label="basketOpen.basket.key === 'video' ? 'Chọn video bài làm' : 'Chụp / chọn ảnh bài làm'" name="file" for="homework-basket-file" :error="fileError">
+                <UiField :label="basketOpen.basket.key === 'video' ? 'Chọn video bài làm' : basketOpen.basket.key === 'quizizz' ? 'Ảnh kết quả Quiz (Tùy chọn)' : 'Chụp / chọn ảnh bài làm'" name="file" for="homework-basket-file" :error="fileError">
                     <input id="homework-basket-file" type="file" name="file" :accept="basketOpen.basket.accept" @change="checkSize" class="w-full rounded-lg border border-outline-variant bg-surface-container-low p-2 text-xs" />
                 </UiField>
                 <UiTextarea name="note" label="Ghi chú gửi thầy cô (Tùy chọn)" :rows="2" />
