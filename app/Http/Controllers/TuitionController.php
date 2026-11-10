@@ -2929,7 +2929,7 @@ class TuitionController extends Controller
             'overdue_count' => $items->filter($isOverdue)->count(),
         ])->values();
         // AC-S09: công nợ theo lớp chỉ Admin thấy — vai trò khác không nhận dữ liệu (không chỉ ẩn ở Vue).
-        $showClassStats = (bool) $request->user()?->isSuperAdmin();
+        $showClassStats = (bool) $request->user()?->hasRole(Roles::ADMIN);
         $statsByClass = ! $showClassStats ? collect() : $allDebts->groupBy('class_id')->map(fn ($items) => [
             'class_id' => $items->first()->class_id,
             'class_name' => $items->first()->classModel?->name ?? 'Chưa xếp lớp',
