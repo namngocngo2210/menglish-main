@@ -122,15 +122,13 @@ class DemoPhase4SeederTest extends TestCase
         $branchManager = User::where('email', 'ketoan2@menglish.edu.vn')->firstOrFail();
         $admin = User::where('email', 'admin@menglish.edu.vn')->firstOrFail();
         $managerBd = User::where('email', 'manager.bd@menglish.edu.vn')->firstOrFail();
-        foreach (['tuition.students', 'tuition.history', 'tuition.invoices.cancellations', 'tuition.refunds',
+        foreach (['tuition.students', 'tuition.receipts.approve', 'tuition.history', 'tuition.invoices.cancellations', 'tuition.refunds',
             'tuition.overdue', 'finance.reports.revenue', 'finance.expenses.index'] as $route) {
             $this->actingAs($branchManager)->get(route($route))->assertOk();
         }
-        // TK-2026-0081/0082: duyệt phiếu thu chỉ Admin, dải số cần invoice_range.manage (Quản lý cơ sở không có).
-        foreach (['tuition.receipts.approve', 'tuition.config'] as $route) {
-            $this->actingAs($branchManager)->get(route($route))->assertForbidden();
-            $this->actingAs($admin)->get(route($route))->assertOk();
-        }
+        // TK-2026-0081/0082: dải số cần invoice_range.manage (Quản lý cơ sở không có).
+        $this->actingAs($branchManager)->get(route('tuition.config'))->assertForbidden();
+        $this->actingAs($admin)->get(route('tuition.config'))->assertOk();
         foreach (['system-config.bank-accounts', 'system-config.debt-reminders'] as $route) {
             $this->actingAs($admin)->get(route($route))->assertOk();
         }

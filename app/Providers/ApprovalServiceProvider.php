@@ -61,6 +61,7 @@ class ApprovalServiceProvider extends ServiceProvider
         Gate::define(self::INBOX_ABILITY, fn (User $user) => $this->app->make(ApprovalInboxService::class)->canView($user));
         // Module "Cần duyệt" + nút duyệt ở màn nghiệp vụ: chỉ Admin.
         Gate::define(AdminOnlyApprovals::ABILITY, fn (User $user) => AdminOnlyApprovals::allows($user));
+        Gate::define(AdminOnlyApprovals::TUITION_VIEW_ABILITY, fn (User $user) => AdminOnlyApprovals::allowsTuitionView($user));
         Gate::define(AdminOnlyApprovals::SYLLABUS_ABILITY, fn (User $user) => AdminOnlyApprovals::allowsSyllabus($user));
 
         $models = collect($this->app->make(ApprovalInboxService::class)->sources())

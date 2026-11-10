@@ -1340,7 +1340,7 @@ class TuitionController extends Controller
 
     public function approveReceipt(Request $request)
     {
-        abort_unless($request->user()?->can('tuition.approve'), 403);
+        abort_unless($request->user()?->can(\App\Support\Approvals\AdminOnlyApprovals::TUITION_VIEW_ABILITY), 403);
         $scope = $this->branchScope();
         $scoped = fn () => TuitionBranchScope::receipts(TuitionReceipt::query(), $scope);
         $branches = TuitionBranchScope::branches($scope)->get();

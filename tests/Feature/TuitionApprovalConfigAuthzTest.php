@@ -34,12 +34,15 @@ class TuitionApprovalConfigAuthzTest extends TestCase
 
     public function test_receipt_approval_screen_and_apis_are_admin_only(): void
     {
-        $this->actingAs($this->user('admin'))->get(route('tuition.receipts.approve'))->assertOk();
-
-        // Quyền duyệt chỉ Admin dùng được (06/10/2026): kể cả Kế toán cũng không.
+        // Mở màn duyệt: Admin + Kế toán (đã gộp vào Quản lý cơ sở). Duyệt / từ chối (POST) chỉ Admin (06/10/2026).
+        foreach (['admin', 'accountant', 'manager'] as $role) {
+            $this->actingAs($this->user($role))->get(route('tuition.receipts.approve'))->assertOk();
+        }
+        foreach (['academic_staff', 'sales_consultant'] as $role) {
+            $this->actingAs($this->user($role))->get(route('tuition.receipts.approve'))->assertForbidden();
+        }
         foreach (['academic_staff', 'manager', 'accountant', 'sales_consultant'] as $role) {
             $u = $this->user($role);
-            $this->actingAs($u)->get(route('tuition.receipts.approve'))->assertForbidden();
             $this->actingAs($u)->post(route('tuition.receipts.approve.action', 999999))->assertForbidden();
             $this->actingAs($u)->post(route('tuition.receipts.reject.action', 999999), ['rejection_reason' => 'x'])->assertForbidden();
         }
@@ -63,6 +66,9 @@ class TuitionApprovalConfigAuthzTest extends TestCase
 
     public function test_receipt_create_page_with_suggested_number_still_works_for_academic(): void
     {
-        $this->actingAs($this->user('academic_staff'))->get(route('tuition.receipts.create'))->assertOk();
+        // Sales không có tuition.view nên không vào được nhóm route Học phí (không đổi trong TK này).
+        foreach (['academic_staff', 'manager'] as $role) {
+            $this->actingAs($this->user($role))->get(route('tuition.receipts.create'))->assertOk();
+        }
     }
 }

@@ -20,6 +20,9 @@ final class AdminOnlyApprovals
     /** TK-2026-0055: duyệt giãn buổi/chặng và order/phân phối Big Test — Admin hoặc Học thuật (academic_lead). */
     public const SYLLABUS_ABILITY = 'approve-syllabus-as-academic';
 
+    /** TK-2026-0081: mở màn Duyệt phiếu thu — Admin hoặc Kế toán (nút duyệt / từ chối vẫn chỉ Admin). */
+    public const TUITION_VIEW_ABILITY = 'view-tuition-approvals';
+
     /** @var list<string> */
     public const PERMISSIONS = [
         'tuition.approve',
@@ -36,6 +39,12 @@ final class AdminOnlyApprovals
     public static function allows(?User $user): bool
     {
         return $user !== null && $user->hasRole(Roles::ADMIN);
+    }
+
+    public static function allowsTuitionView(?User $user): bool
+    {
+        // Vai trò "Kế toán" đã gộp vào Quản lý cơ sở (Roles::RETIRED) nên người làm kế toán hiện mang vai trò manager.
+        return $user !== null && $user->hasAnyRole([Roles::ADMIN, Roles::MANAGER, 'accountant']);
     }
 
     public static function allowsSyllabus(?User $user): bool

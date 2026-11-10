@@ -95,7 +95,7 @@ class FullBpmnSmokeTest extends TestCase
             'student_tuition_id' => $tuition->id, 'amount' => 2000000, 'tuition_amount' => 2000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit',
         ])->assertSessionHasNoErrors()->assertRedirect();
         $receipt = TuitionReceipt::where('student_tuition_id', $tuition->id)->firstOrFail();
-        $this->actingAs($accountant)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]))->assertForbidden();
+        $this->actingAs($accountant)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]))->assertOk();
         $this->actingAs($admin)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]))->assertOk();
         $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertForbidden();
         $this->actingAs($admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
