@@ -4,6 +4,7 @@
  * khoản đang khất nợ / bảo lưu và thống kê công nợ theo chi nhánh / lớp.
  */
 import { computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import DueGroups from './Partials/DueGroups.vue';
 
 defineOptions({ layout: { title: 'Quá hạn & Nhắc phí' } });
@@ -13,6 +14,7 @@ const props = defineProps({
     classes: { type: Array, default: () => [] },
     statsByBranch: { type: Array, default: () => [] },
     statsByClass: { type: Array, default: () => [] },
+    showClassStats: { type: Boolean, default: false },
     paused: { type: Array, default: () => [] },
     seriousOverdue: { type: Array, default: () => [] },
     newOverdue: { type: Array, default: () => [] },
@@ -102,19 +104,20 @@ const dueGroupProps = computed(() => ({
                     </tbody>
                 </table>
             </UiDataTable>
-            <UiDataTable>
+            <UiDataTable v-if="showClassStats">
                 <template #header><h3 class="font-h3 text-h3">Công nợ theo lớp</h3></template>
                 <table>
-                    <thead><tr><th>Lớp</th><th class="text-center">Đang nợ</th><th class="text-center">Quá hạn</th><th class="text-right">Tổng nợ</th></tr></thead>
+                    <thead><tr><th>Lớp</th><th>Chi nhánh</th><th class="text-center">HV chưa đóng đủ</th><th class="text-center">Quá hạn lâu nhất (ngày)</th><th class="text-right">Tổng nợ</th></tr></thead>
                     <tbody>
-                        <tr v-for="(sc, i) in statsByClass" :key="i">
+                        <tr v-for="sc in statsByClass" :key="sc.class_id ?? 'none'" :class="sc.class_id ? 'cursor-pointer hover:bg-surface-container' : ''" @click="sc.class_id && router.get(route('tuition.overdue'), { class_id: sc.class_id })">
                             <td>{{ sc.class_name }} <span class="font-caption text-caption text-on-surface-variant">{{ sc.class_code }}</span></td>
+                            <td>{{ sc.branch_name }}</td>
                             <td class="text-center font-code">{{ sc.count }}</td>
-                            <td class="text-center font-code text-error">{{ sc.overdue_count }}</td>
+                            <td class="text-center font-code text-error">{{ sc.max_overdue_days }}</td>
                             <td><UiMoney :value="sc.total_debt" /></td>
                         </tr>
                         <tr v-if="!statsByClass.length">
-                            <td colspan="4"><UiEmptyState icon="account_balance_wallet" title="Chưa có công nợ." /></td>
+                            <td colspan="5"><UiEmptyState icon="account_balance_wallet" title="Chưa có công nợ." /></td>
                         </tr>
                     </tbody>
                 </table>
