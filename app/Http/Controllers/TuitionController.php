@@ -630,6 +630,9 @@ class TuitionController extends Controller
         }
 
         $surchargeItems = $this->surchargeItemsFrom($request->input('collected_items'));
+        if ($zeroError = $this->zeroSurchargeError($validated, $surchargeItems)) {
+            return back()->withErrors($zeroError)->withInput();
+        }
         if (! $sessionMode && ($surchargeError = $this->surchargeError($validated, $surchargeItems))) {
             return back()->withErrors($surchargeError)->withInput();
         }
@@ -792,6 +795,9 @@ class TuitionController extends Controller
         $surchargeItems = $request->has('collected_items')
             ? $this->surchargeItemsFrom($request->input('collected_items'))
             : array_values(array_filter((array) $receipt->collected_items, fn ($line) => is_array($line) && ($line['source'] ?? null) === 'surcharge'));
+        if ($zeroError = $this->zeroSurchargeError($validated, $surchargeItems)) {
+            return back()->withErrors($zeroError)->withInput();
+        }
         if (! $sessionMode && ($surchargeError = $this->surchargeError($validated, $surchargeItems))) {
             return back()->withErrors($surchargeError)->withInput();
         }
@@ -987,7 +993,8 @@ class TuitionController extends Controller
         }
 
         return [
-            'tuition' => $quote['mode'] === 'contract' ? $openTuition : null,
+            // Phiếu chỉ thu phụ thu/học liệu (0 buổi) không gắn khoản học phí: không đụng công nợ học phí.
+            'tuition' => $quote['mode'] === 'contract' && $sessions > 0 ? $openTuition : null,
             'amount' => $calc['amount'],
             'surcharge' => $calc['surcharge_amount'],
             'surcharge_reason' => $extra > 0 ? ($validated['surcharge_reason'] ?? null) : null,
@@ -1115,6 +1122,21 @@ class TuitionController extends Controller
 
         if ($surcharge - $itemsTotal > 0.009 && trim((string) ($validated['surcharge_reason'] ?? '')) === '') {
             return ['surcharge_reason' => 'Bắt buộc nhập lý do khi có số tiền phụ thu.'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Phụ thu chỉ hợp lệ khi để trống hoặc > 0: có lý do phụ thu mà tiền phụ thu = 0 (và không có hàng hóa) bị chặn cả khi lưu nháp.
+     *
+     * @param  list<array<string, mixed>>  $surchargeItems
+     */
+    private function zeroSurchargeError(array $validated, array $surchargeItems): ?array
+    {
+        $hasReason = trim((string) ($validated['surcharge_reason'] ?? '')) !== '';
+        if ($hasReason && (float) ($validated['surcharge_amount'] ?? 0) <= 0 && $surchargeItems === []) {
+            return ['surcharge_amount' => 'Tiền phụ thu phải lớn hơn 0 (hoặc để trống và xóa lý do phụ thu).'];
         }
 
         return null;

@@ -16,6 +16,7 @@ const invalidReason = computed(() => {
     const st = props.form.state;
     if (props.form.needsDiscountReason && !st.discountReason.trim()) return 'Nhập lý do giảm trừ (không theo ưu đãi có sẵn).';
     if (st.otherFee > 0 && !st.otherFeeReason.trim()) return 'Nhập nội dung khoản thu khác.';
+    if (props.form.surchargeInvalid) return 'Phụ thu phải lớn hơn 0 (hoặc để trống và xóa lý do phụ thu).';
     if (st.surchargeAmount > 0 && !(st.surchargeReason || '').trim()) return 'Nhập lý do phụ thu.';
     return 'Phiếu cần có số tiền từ 1.000 đ (thu buổi, học liệu, phí thi, khoản khác hoặc phụ thu).';
 });

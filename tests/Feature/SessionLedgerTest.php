@@ -270,6 +270,64 @@ class SessionLedgerTest extends TestCase
         $this->assertSame(['paid' => 24, 'used' => 8, 'balance' => 16], app(SessionLedger::class)->forStudent($student));
     }
 
+    /** TK-2026-0079: phiếu chỉ thu phụ thu không gắn khoản học phí và không làm đổi công nợ khi duyệt. */
+    public function test_surcharge_only_receipt_has_no_tuition_and_keeps_debt_on_approve(): void
+    {
+        $student = $this->makeStudent($this->classA, '2026-09-01');
+        $this->sessions($this->classA, ['2026-09-03', '2026-09-05']);
+        $tuition = $this->paidTuition($student, 2000000);
+        $debtBefore = (float) $tuition->fresh()->debt_amount;
+        $this->assertGreaterThan(0, $debtBefore);
+
+        $this->actingAs($this->academic)->post(route('tuition.receipts.store'), [
+            'student_id' => $student->id,
+            'student_tuition_id' => $tuition->id,
+            'session_count' => 0,
+            'surcharge_amount' => 50000,
+            'surcharge_reason' => 'Phí in tài liệu',
+            'amount' => 50000,
+            'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-SB-PT',
+            'submit_action' => 'submit',
+        ])->assertSessionHasNoErrors();
+
+        $receipt = TuitionReceipt::where('student_id', $student->id)->where('amount', 50000)->firstOrFail();
+        $this->assertNull($receipt->student_tuition_id);
+        $this->assertSame(0, (int) $receipt->session_count);
+
+        $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->assertEquals($debtBefore, (float) $tuition->fresh()->debt_amount);
+
+        $this->actingAs($this->admin)->get(route('tuition.students.payments', $student->id))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('payments', fn ($rows) => collect($rows)->where('id', $receipt->id)->every(fn ($row) => $row['tuition_label'] === null)));
+    }
+
+    /** TK-2026-0080: phụ thu = 0 (có lý do) bị chặn ở cả lưu nháp và gửi duyệt; số âm cũng bị chặn. */
+    public function test_zero_or_negative_surcharge_is_rejected_for_draft_and_submit(): void
+    {
+        $student = $this->makeStudent($this->classA, '2026-09-01');
+        $tuition = $this->paidTuition($student, 2000000);
+        $receiptsBefore = TuitionReceipt::count();
+        $base = [
+            'student_id' => $student->id,
+            'student_tuition_id' => $tuition->id,
+            'session_count' => 0,
+            'surcharge_reason' => 'Phí in tài liệu',
+            'amount' => 50000,
+            'payment_method' => 'cash',
+            'paper_invoice_number' => 'HDG-SB-0',
+        ];
+        foreach (['draft', 'submit'] as $action) {
+            $this->actingAs($this->academic)->post(route('tuition.receipts.store'), [...$base, 'surcharge_amount' => 0, 'submit_action' => $action])
+                ->assertSessionHasErrors('surcharge_amount');
+            $this->actingAs($this->academic)->post(route('tuition.receipts.store'), [...$base, 'surcharge_amount' => -10000, 'submit_action' => $action])
+                ->assertSessionHasErrors('surcharge_amount');
+        }
+        $this->assertSame($receiptsBefore, TuitionReceipt::count());
+    }
+
     public function test_balance_above_remaining_collects_zero_and_carries_over(): void
     {
         $classB = $this->makeClass('SB-B');
