@@ -284,14 +284,14 @@ class DemoPhase4Seeder extends Seeder
     {
         $accountant = $this->staff['accountant_cg'];
         foreach (self::BANKS as $code => [$bankCode, $bankName, $number, $location]) {
-            // Kế toán chi nhánh chỉ cấp dải số / TK cho chi nhánh mình (phạm vi chi nhánh của màn Dải số hóa đơn).
+            // Tài khoản ngân hàng do kế toán chi nhánh lập; dải số cần invoice_range.manage nên demo cấp bằng Admin.
             $branchAccountant = $this->staff[$code === 'CG' ? 'accountant_cg' : 'accountant_bd'];
             $this->asUser($branchAccountant, SystemConfigController::class, 'storeBankAccount', [
                 'bank_code' => $bankCode, 'bank_name' => $bankName, 'account_number' => $number,
                 'account_holder' => 'CONG TY CO PHAN GIAO DUC MENGLISH', 'branch_location' => $location.' '.self::MARKER,
                 'branch_ids' => [$this->branches[$code]],
             ]);
-            $this->asUser($branchAccountant, TuitionController::class, 'storeInvoiceRange', [
+            $this->asUser($this->staff['admin'], TuitionController::class, 'storeInvoiceRange', [
                 'branch_id' => $this->branches[$code], 'template_code' => '1/001', 'series_code' => 'C26M'.$code,
                 'start_number' => 1, 'end_number' => 500, 'provider' => 'vnpt',
             ]);
