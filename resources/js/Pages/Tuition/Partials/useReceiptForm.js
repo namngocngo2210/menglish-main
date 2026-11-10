@@ -214,9 +214,15 @@ export function useReceiptForm({
     }
     const removeItem = (index) => state.surchargeLines.splice(index, 1);
 
+    // Phụ thu chỉ hợp lệ khi để trống hoặc > 0: số âm, hoặc có lý do mà không có tiền phụ thu/hàng hóa → chặn.
+    const surchargeInvalid = computed(() => {
+        const amount = Number(state.surchargeAmount) || 0;
+        return amount < 0 || (amount === 0 && !!(state.surchargeReason || '').trim() && state.surchargeLines.length === 0);
+    });
+
     const isValidReceipt = computed(() => {
         const hasMoney = totalAmount.value >= 1000;
-        const surchargeValid = state.surchargeAmount <= 0 || (state.surchargeReason && state.surchargeReason.trim().length > 0);
+        const surchargeValid = !surchargeInvalid.value && (state.surchargeAmount <= 0 || (state.surchargeReason && state.surchargeReason.trim().length > 0));
         const otherValid = !(parseFloat(state.otherFee) > 0) || state.otherFeeReason.trim().length > 0;
         const discountValid = !needsDiscountReason.value || state.discountReason.trim().length > 0;
         const linesValid = state.surchargeLines.every((line) => parseInt(line.quantity) >= 1);
@@ -292,6 +298,7 @@ export function useReceiptForm({
         paperNumber,
         issuedPaperInvoice,
         isValidReceipt,
+        surchargeInvalid,
         transferMemo,
         vietQrUrl,
         onTuitionChange,
