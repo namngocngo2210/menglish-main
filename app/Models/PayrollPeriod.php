@@ -64,6 +64,7 @@ class PayrollPeriod extends Model
         'total_hours',
         'total_amount',
         'calculated_at',
+        'staff_allowlist',
     ];
 
     protected $casts = [
@@ -75,6 +76,7 @@ class PayrollPeriod extends Model
         'total_hours' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'calculated_at' => 'datetime',
+        'staff_allowlist' => 'array',
     ];
 
     public function records(): HasMany
@@ -114,6 +116,11 @@ class PayrollPeriod extends Model
         return in_array($this->status, self::LOCKED_STATUSES, true);
     }
 
+    public function isAllowListed(): bool
+    {
+        return $this->staff_allowlist !== null;
+    }
+
     protected static function booted(): void
     {
         static::saved(fn () => RequestMemo::forget('payroll_periods.'));
@@ -131,6 +138,7 @@ class PayrollPeriod extends Model
 
         // Khoảng ngày của các kỳ đã khoá nạp 1 lần / request (màn chấm công kiểm tra từng dòng).
         $ranges = RequestMemo::remember('payroll_periods.locked', fn () => static::query()
+            ->whereNull('staff_allowlist')
             ->whereIn('status', self::LOCKED_STATUSES)
             ->get(['start_date', 'end_date'])
             ->map(fn (self $period) => [Carbon::parse($period->start_date)->toDateString(), Carbon::parse($period->end_date)->toDateString()]));
@@ -342,6 +350,7 @@ class PayrollPeriod extends Model
         }
 
         return User::with('roles')->where('is_active', true)->staffAccounts()
+            ->when($this->isAllowListed(), fn ($query) => $query->whereIn('id', $this->staff_allowlist))
             ->where('base_salary', '>', 0)
             ->whereNotIn('id', $this->records()->select('user_id'))
             ->get()
@@ -438,6 +447,7 @@ class PayrollPeriod extends Model
         $users = User::withTrashed()->with('roles')
             ->where(fn ($query) => $query->where(fn ($active) => $active->where('is_active', true)->whereNull('deleted_at')->staffAccounts())
                 ->orWhereIn('id', $departedIds))
+            ->when($this->isAllowListed(), fn ($query) => $query->whereIn('id', $this->staff_allowlist))
             ->get();
         // Nạp phân công GVNN từng buổi một lần; ca cũ chưa gắn class_session_id tra theo lớp + ngày.
         $periodSessions = ClassSession::whereBetween('date', [$this->start_date, $this->end_date])
