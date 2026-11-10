@@ -369,6 +369,11 @@
                     "key": "teacher_meeting",
                     "label": "Ghi báo cáo họp giáo viên",
                     "description": "Ghi / sửa / xóa báo cáo họp giáo viên theo tuần."
+                },
+                {
+                    "key": "parent_feedback",
+                    "label": "Mở / đóng thu thập feedback phụ huynh",
+                    "description": "Bật / tắt thu thập feedback phụ huynh theo chặng của lớp (xem danh sách chỉ cần quyền Xem dự giờ & checklist lớp)."
                 }
             ],
             "audience": []
@@ -1941,6 +1946,7 @@
                 "class_quality.view",
                 "class_quality.observe_operations",
                 "class_quality.checklist",
+                "class_quality.parent_feedback",
                 "academic_project.view",
                 "merchandise_stock.view",
                 "merchandise_stock.manage",

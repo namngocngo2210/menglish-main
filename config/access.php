@@ -104,7 +104,7 @@ return [
             // Phòng học: thêm / sửa phòng chi nhánh mình; xóa phòng và danh mục loại phòng chỉ Admin.
             'room.view', 'room.manage', 'room.scope_branch',
             // Dự giờ vận hành (QA) + checklist học phí & feedback theo lớp; đánh giá dự giờ học thuật là việc của Học thuật.
-            'class_quality.view', 'class_quality.observe_operations', 'class_quality.checklist',
+            'class_quality.view', 'class_quality.observe_operations', 'class_quality.checklist', 'class_quality.parent_feedback',
             'academic_project.view',
             // Tồn kho sách chi nhánh mình; ghi sai số hóa đơn giấy tiền mặt thì lập yêu cầu hủy hóa đơn.
             'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch', 'invoice.request_cancel',
