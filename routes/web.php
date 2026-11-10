@@ -12,6 +12,7 @@ use App\Http\Controllers\ClassManagementController;
 use App\Http\Controllers\ClassRosterImportController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CourseLevelController;
+use App\Http\Controllers\CoverRequestController;
 use App\Http\Controllers\CrmController;
 use App\Http\Controllers\CrmImportController;
 use App\Http\Controllers\DashboardController;
@@ -844,6 +845,20 @@ Route::middleware('auth')->group(function () {
     // Cổng Giáo viên: Check-in nhiều ca & Điểm danh lớp
     // ──────────────────────────────────────
     // Cổng GV — Bài giảng hôm nay + nút Đã dạy (docs/kho-syllabus.md §8.3; kiểm tra GV của lớp trong controller).
+    Route::controller(CoverRequestController::class)->prefix('teacher/cover')->name('teacher.cover.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::post('/{coverRequest}/register', 'register')->whereNumber('coverRequest')->name('register');
+        Route::delete('/{coverRequest}/register', 'unregister')->whereNumber('coverRequest')->name('unregister');
+        Route::post('/{coverRequest}/cancel', 'cancel')->whereNumber('coverRequest')->name('cancel');
+    });
+
+    Route::controller(CoverRequestController::class)->prefix('cover-requests')->name('cover-requests.')
+        ->middleware('can:cover.approve')->group(function () {
+            Route::post('/{coverRequest}/approve', 'approve')->whereNumber('coverRequest')->name('approve');
+            Route::post('/{coverRequest}/reopen', 'reopen')->whereNumber('coverRequest')->name('reopen');
+        });
+
     Route::prefix('teacher')->name('teacher.')->group(function () {
         Route::get('/lesson-today', [TeacherLessonController::class, 'show'])->name('lesson-today');
         Route::post('/lesson-today/{class}/taught', [TeacherLessonController::class, 'markTaught'])->whereNumber('class')->name('lesson-today.taught');

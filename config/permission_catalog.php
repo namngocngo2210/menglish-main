@@ -246,6 +246,15 @@ return [
                 'approve_adjustment' => ['Duyệt đề xuất & tiến độ', 'Duyệt / từ chối đề xuất sửa giáo trình, điều chỉnh tiến độ; đóng chặng. Nút duyệt / từ chối giãn buổi và order Big Test: Admin + Học thuật (TK-2026-0055); đề xuất sửa giáo trình chỉ Admin.'],
             ],
         ],
+        'cover' => [
+            'label' => 'Tìm giáo viên dạy thay',
+            'group' => 'academic',
+            'icon' => 'swap_horiz',
+            'actions' => [
+                'request' => ['Đề xuất dạy thay', 'Tạo yêu cầu tìm giáo viên dạy thay cho buổi học của mình.'],
+                'approve' => ['Duyệt dạy thay', 'Duyệt, mở lại hoặc hủy yêu cầu dạy thay bất kỳ.'],
+            ],
+        ],
         'question_bank' => [
             'label' => 'Ngân hàng câu hỏi',
             'group' => 'academic',
