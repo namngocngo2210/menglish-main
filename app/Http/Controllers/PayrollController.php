@@ -272,6 +272,7 @@ class PayrollController extends Controller
     {
         $formula = app(PayrollFormulaService::class);
         $missing = User::with('roles')->where('is_active', true)->staffAccounts()
+            ->when($period->isAllowListed(), fn ($query) => $query->whereIn('id', $period->staff_allowlist))
             ->whereDoesntHave('roles', fn ($r) => $r->where('name', Roles::ADMIN))
             ->whereNotIn('id', $period->records()->select('user_id'))
             ->where('created_at', '<=', $period->end_date->copy()->endOfDay())
@@ -897,6 +898,7 @@ class PayrollController extends Controller
 
         // Khoảng ngày của các kỳ lương đã gửi GV xem/đã trả: màn hình cảnh báo và khóa nút lưu ngay khi chọn ngày.
         $lockedRanges = PayrollPeriod::whereIn('status', PayrollPeriod::LOCKED_STATUSES)
+            ->whereNull('staff_allowlist')
             ->get(['start_date', 'end_date', 'title'])
             ->map(fn (PayrollPeriod $p) => [
                 'from' => Carbon::parse($p->start_date)->toDateString(),
