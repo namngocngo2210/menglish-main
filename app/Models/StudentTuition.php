@@ -188,8 +188,9 @@ class StudentTuition extends Model
 
     /**
      * Tính lại công nợ từ các phiếu đã duyệt (nguồn sự thật duy nhất):
-     * - paid_amount = Σ phần học phí của phiếu approved (amount − surcharge_amount; phụ thu không cấn nợ,
-     *   phiếu hoàn/chuyển nhượng âm tự trừ vào).
+     * - paid_amount = Σ amount của phiếu approved, GỒM cả phụ thu (US duyệt phiếu thu R-10 / AC-S10;
+     *   paid có thể vượt total; phiếu hoàn/chuyển nhượng âm tự trừ vào). Phiếu chỉ-phụ-thu (không có phần
+     *   học phí, R-18) không cộng vào khoản học phí nào.
      * - debt_amount = max(0, final_amount − Σ discount_amount của phiếu approved − paid_amount).
      * Phiếu pending/draft/rejected/cancelled không được tính.
      */
@@ -197,7 +198,7 @@ class StudentTuition extends Model
     {
         $totals = $this->receipts()
             ->where('status', TuitionReceipt::STATUS_APPROVED)
-            ->selectRaw('COALESCE(SUM(amount - COALESCE(surcharge_amount, 0)), 0) AS paid_total')
+            ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(surcharge_amount, 0) > 0 AND amount <= surcharge_amount THEN 0 ELSE amount END), 0) AS paid_total')
             ->selectRaw('COALESCE(SUM(COALESCE(discount_amount, 0)), 0) AS discount_total')
             ->toBase()
             ->first();

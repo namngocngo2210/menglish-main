@@ -205,6 +205,14 @@ class TuitionReceipt extends Model
         return (float) $this->amount - (float) $this->surcharge_amount;
     }
 
+    /** Số tiền phiếu cộng vào paid_amount của khoản học phí: toàn bộ amount (gồm phụ thu, R-10); phiếu chỉ-phụ-thu thì 0 (R-18). */
+    public function paidContribution(): float
+    {
+        $surcharge = (float) $this->surcharge_amount;
+
+        return ($surcharge > 0 && (float) $this->amount <= $surcharge) ? 0.0 : (float) $this->amount;
+    }
+
     /** Phiếu lập theo sổ buổi (có số buổi thu). */
     public function isSessionBased(): bool
     {

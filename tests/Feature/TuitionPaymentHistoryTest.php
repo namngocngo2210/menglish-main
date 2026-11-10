@@ -99,7 +99,7 @@ class TuitionPaymentHistoryTest extends TestCase
 
     public function test_staff_modal_lists_every_installment_with_running_debt(): void
     {
-        $this->assertSame(500000.0, (float) $this->tuition->fresh()->debt_amount);
+        $this->assertSame(0.0, (float) $this->tuition->fresh()->debt_amount);
 
         $this->actingAs($this->accountant())
             ->get(route('tuition.students.payments', $this->student->id))
@@ -109,15 +109,15 @@ class TuitionPaymentHistoryTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Tuition/StudentPayments')
                 ->where('summary.final_amount', 10000000)
-                ->where('summary.paid_amount', 9000000)
-                ->where('summary.debt_amount', 500000)
+                ->where('summary.paid_amount', 9500000) // R-10: gồm phụ thu 500k
+                ->where('summary.debt_amount', 0)
                 ->where('summary.installments', 3)
                 // Mới nhất trên cùng; còn nợ sau từng đợt = 10tr − Σ(tiền cấn học phí + ưu đãi).
                 ->where('payments.0.number', 'PT-DOT-3')
                 ->where('payments.0.title', 'Đợt 3')
-                ->where('payments.0.debt_after', 500000)
+                ->where('payments.0.debt_after', 0)
                 ->where('payments.1.number', 'PT-DOT-2')
-                ->where('payments.1.debt_after', 3000000)
+                ->where('payments.1.debt_after', 2500000)
                 ->where('payments.1.surcharge', 500000)
                 ->where('payments.1.surcharge_detail', 'Mua thêm sách · Sách Starters Plus')
                 ->where('payments.2.title', 'Đợt 1')
@@ -165,8 +165,8 @@ class TuitionPaymentHistoryTest extends TestCase
             ->assertDontSee('Mua thêm sách')
             ->assertDontSee('PT-CHO-DUYET')
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('totalPaid', 9000000)
-                ->where('debtAmount', 500000)
+                ->where('totalPaid', 9500000)
+                ->where('debtAmount', 0)
                 ->has('paymentHistory.payments', 3)
                 ->where('paymentHistory.payments.1.surcharge', 500000)
                 ->missing('paymentHistory.payments.1.surcharge_detail')
@@ -203,8 +203,8 @@ class TuitionPaymentHistoryTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->has('tuitions', 2)
                 ->has('payments', 4)
-                ->where('summary.paid_amount', 11000000)
-                ->where('summary.debt_amount', 4500000)
+                ->where('summary.paid_amount', 11500000)
+                ->where('summary.debt_amount', 4000000)
                 ->where('payments.0.number', 'PT-KHOA-2')
                 ->where('payments.0.tuition_label', 'Movers B1')
                 ->where('payments.0.title', 'Đợt 1')
@@ -220,7 +220,7 @@ class TuitionPaymentHistoryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('tuition.final_amount', 16000000)
-                ->where('tuition.debt_amount', 4500000)
+                ->where('tuition.debt_amount', 4000000)
                 ->has('tuition.receipts', 5)
                 ->where('tuition.receipts.0.number', 'PT-KHOA-2'));
     }
