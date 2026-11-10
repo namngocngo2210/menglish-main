@@ -31,7 +31,7 @@ const modal = useRemoteModal();
 const form = useReceiptForm(props);
 const action = computed(() => (props.editing ? route('tuition.receipts.update', props.editing.id) : route('tuition.receipts.store')));
 const pageTitle = computed(() => (props.editing ? 'Sửa phiếu thu học phí' : 'Lập phiếu thu học phí'));
-const submitLabel = computed(() => (props.editing ? 'Lưu & Gửi duyệt lại' : 'Lưu phiếu thu & Gửi duyệt'));
+const submitLabel = computed(() => (props.editing ? (props.editing.status === 'rejected' ? 'Lưu & Gửi duyệt lại' : 'Lưu & Gửi duyệt') : 'Lưu phiếu thu & Gửi duyệt'));
 const cancelUrl = computed(() => (props.editing ? route('tuition.receipts.approve', { selected_id: props.editing.id }) : route('tuition.students')));
 const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
 </script>
