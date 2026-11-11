@@ -18,6 +18,7 @@ use App\Models\SyllabusUnit;
 use App\Models\SystemCategory;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Models\WorkTaskSeries;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -38,6 +39,7 @@ class Audit
      * không gồm trạng thái nghiệp vụ, tiền, liên kết).
      */
     public const MODELS = [
+        WorkTaskSeries::class => ['log' => 'Công việc', 'label' => 'cấu hình phạt việc lặp', 'undo' => []],
         User::class => [
             'log' => 'Người dùng & Phân quyền',
             'label' => 'tài khoản',

@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +34,7 @@ class WorkTask extends Model
         'lesson_session',
         'time_slot_category',
         'task_type',
+        'series_id',
         'kind',
         'big_test_id',
         'big_test_order_id',
@@ -69,6 +71,12 @@ class WorkTask extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (WorkTask $task) {
+            if ($task->task_type === 'recurring' && $task->series_id === null) {
+                $task->series_id = WorkTaskSeries::create([])->id;
+            }
+        });
+
         // Việc chăm sóc tháng đầu hoàn thành → đánh dấu checklist chăm sóc bên CRM.
         static::updated(function (WorkTask $task) {
             if ($task->care_milestone && $task->wasChanged('status') && $task->status === 'completed') {
@@ -85,6 +93,11 @@ class WorkTask extends Model
     public function student()
     {
         return $this->belongsTo(Student::class, 'student_id');
+    }
+
+    public function series(): BelongsTo
+    {
+        return $this->belongsTo(WorkTaskSeries::class, 'series_id');
     }
 
     public function creator()
@@ -186,45 +199,59 @@ class WorkTask extends Model
         return in_array($this->kind, self::ACADEMIC_SYLLABUS_KINDS, true);
     }
 
-    /**
-     * Tạo lượt kế tiếp của việc lặp (hạn + 1 ngày / 1 tuần / 1 tháng), cùng người giao / người nhận.
-     * Không tạo trùng nếu lượt kế tiếp (cùng tiêu đề, người nhận, hạn) đã có.
-     */
-    public function spawnNextOccurrence(): ?self
+    /** Spawn the next period; resuming may skip missed periods up to the given date. */
+    public function spawnNextOccurrence(?CarbonInterface $notBefore = null): ?self
     {
-        if (! $this->due_date) {
+        if ($this->task_type !== 'recurring' || ! $this->series_id || ! $this->due_date) {
             return null;
         }
-        $next = match ($this->frequency) {
-            'daily' => $this->due_date->copy()->addDay(),
-            'monthly' => $this->due_date->copy()->addMonthNoOverflow(),
-            default => $this->due_date->copy()->addWeek(),
+
+        return DB::transaction(function () use ($notBefore) {
+            // Serialize completion and resume on the same series and read its current configuration.
+            $series = $this->series()->lockForUpdate()->first();
+            if (! $series?->isConfigured()) {
+                return null;
+            }
+
+            // Configuration may already have resumed the series while this completion hook waited.
+            if ($series->tasks()->where('id', '>', $this->id)->exists()) {
+                return null;
+            }
+
+            $next = $this->advanceOccurrenceDate($this->due_date);
+            while ($notBefore && $next->lessThan($notBefore->copy()->startOfDay())) {
+                $next = $this->advanceOccurrenceDate($next);
+            }
+
+            if ($series->tasks()->whereDate('due_date', $next->toDateString())->exists()) {
+                return null;
+            }
+
+            return self::create([
+                'title' => $this->title,
+                'description' => $this->description,
+                'creator_id' => $this->creator_id,
+                'assignee_id' => $this->assignee_id,
+                'branch_id' => $this->branch_id,
+                'class_id' => $this->class_id,
+                'time_slot_category' => $this->time_slot_category,
+                'task_type' => 'recurring',
+                'series_id' => $this->series_id,
+                'frequency' => $this->frequency ?: 'weekly',
+                'due_date' => $next->toDateString(),
+                'due_time' => $this->due_time,
+                'status' => 'new',
+            ]);
+        });
+    }
+
+    private function advanceOccurrenceDate(CarbonInterface $date): CarbonInterface
+    {
+        return match ($this->frequency) {
+            'daily' => $date->copy()->addDay(),
+            'monthly' => $date->copy()->addMonthNoOverflow(),
+            default => $date->copy()->addWeek(),
         };
-
-        $exists = self::query()
-            ->where('title', $this->title)
-            ->where('assignee_id', $this->assignee_id)
-            ->where('task_type', 'recurring')
-            ->whereDate('due_date', $next->toDateString())
-            ->exists();
-        if ($exists) {
-            return null;
-        }
-
-        return self::create([
-            'title' => $this->title,
-            'description' => $this->description,
-            'creator_id' => $this->creator_id,
-            'assignee_id' => $this->assignee_id,
-            'branch_id' => $this->branch_id,
-            'class_id' => $this->class_id,
-            'time_slot_category' => $this->time_slot_category,
-            'task_type' => 'recurring',
-            'frequency' => $this->frequency ?: 'weekly',
-            'due_date' => $next->toDateString(),
-            'due_time' => $this->due_time,
-            'status' => 'new',
-        ]);
     }
 
     /** Thời điểm hết hạn = ngày hạn + giờ hạn (không có giờ → cuối ngày). */
