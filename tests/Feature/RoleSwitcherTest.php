@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Roles;
 use App\Support\RoleSwitcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
@@ -249,6 +250,38 @@ class RoleSwitcherTest extends TestCase
 
         $this->requestLater($session, 60 * 5, unlocked: false);
         $this->assertGuest();
+    }
+
+    public function test_gc_from_any_request_keeps_switched_session_idle_for_hours(): void
+    {
+        config(['session.driver' => 'database', 'session.lifetime' => 120, 'session.lottery' => [100, 100]]);
+        $teacher = $this->makeUser(Roles::TEACHER_PARTTIME, 'GV Một');
+        $session = $this->sessionCookie($this->unlocked()->post(route('role-switcher.switch', $teacher)));
+        DB::table('sessions')->where('user_id', $teacher->id)->update(['last_activity' => now()->subHours(5)->getTimestamp()]);
+        $rowId = DB::table('sessions')->where('user_id', $teacher->id)->value('id');
+
+        // A locked browser's request runs GC with the 120-minute lifetime.
+        app('session')->forgetDrivers();
+        app()->forgetInstance('session.store');
+        \Illuminate\Support\Facades\Auth::forgetGuards();
+        $this->defaultCookies = []; // locked browser: no unlock cookie
+        config(['session.lifetime' => 120]); // the unlocked request raised it in-process; a real locked request starts at 120
+        $this->get(route('login'));
+        $this->assertDatabaseHas('sessions', ['id' => $rowId]);
+
+        $this->requestLater($session, 0, unlocked: true);
+        $this->assertAuthenticatedAs($teacher);
+    }
+
+    public function test_gc_on_production_still_deletes_sessions_older_than_the_lifetime(): void
+    {
+        app()->detectEnvironment(fn () => 'production');
+        config(['session.driver' => 'database', 'session.lifetime' => 120, 'session.lottery' => [100, 100]]);
+        DB::table('sessions')->insert(['id' => 'old', 'payload' => '', 'last_activity' => now()->subHours(5)->getTimestamp()]);
+
+        $this->get(route('login'))->assertOk();
+
+        $this->assertDatabaseMissing('sessions', ['id' => 'old']);
     }
 
     public function test_production_never_gets_long_session_or_cookie(): void
