@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\BankAccount;
 use App\Models\Branch;
+use App\Models\ClassModel;
+use App\Models\Course;
 use App\Models\DebtReminderRule;
 use App\Models\InvoiceCancellation;
 use App\Models\InvoiceConfiguration;
@@ -64,6 +66,12 @@ class Phase4FinanceParityTest extends TestCase
 
         $this->student = $this->makeStudent('HV-PAR-001', 'Nguyễn Hoàn', $this->branch);
         $this->tuition = $this->makeTuition($this->student, 6000000, paid: 3000000);
+
+        // Chuyển nhượng R-07 cần số buổi: lớp 6 buổi, chưa học buổi nào → chuyển toàn bộ 6 buổi = 3.000.000.
+        $course = Course::create(['code' => 'PAR-C', 'name' => 'PAR', 'tuition_fee' => 6000000, 'total_lessons' => 6, 'is_active' => true]);
+        $class = ClassModel::create(['code' => 'PAR-A', 'name' => 'Lớp PAR', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'max_capacity' => 10, 'tuition_fee' => 6000000, 'status' => 'active']);
+        $this->student->update(['current_class_id' => $class->id]);
+        $this->tuition->update(['class_id' => $class->id, 'session_count' => 6]);
     }
 
     private function makeUser(string $role, ?Branch $branch = null, bool $withBranch = true): User
@@ -244,7 +252,8 @@ class Phase4FinanceParityTest extends TestCase
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $transfer->fresh()->status);
         $this->assertFalse((bool) $transfer->fresh()->clawback_commission);
-        $this->assertSame(4200000.0, (float) $targetTuition->fresh()->debt_amount);
+        // Số tiền do server tính (3.000.000) chứ không theo số client/hồ sơ gửi (800.000).
+        $this->assertSame(2000000.0, (float) $targetTuition->fresh()->debt_amount);
     }
 
     public function test_overdue_requests_are_flagged_but_approval_is_not_blocked(): void

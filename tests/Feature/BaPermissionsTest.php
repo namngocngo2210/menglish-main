@@ -501,7 +501,8 @@ class BaPermissionsTest extends TestCase
     private function paidStudent(string $code): Student
     {
         $student = $this->student($code, $this->branch);
-        $tuition = StudentTuition::create(['student_id' => $student->id, 'branch_id' => $this->branch->id, 'total_amount' => 9000000, 'final_amount' => 9000000,
+        $student->update(['current_class_id' => $this->class->id]);
+        $tuition = StudentTuition::create(['student_id' => $student->id, 'branch_id' => $this->branch->id, 'class_id' => $this->class->id, 'session_count' => 24, 'total_amount' => 9000000, 'final_amount' => 9000000,
             'paid_amount' => 0, 'debt_amount' => 9000000, 'due_date' => now()->addDays(10), 'status' => 'unpaid']);
         TuitionReceipt::create([
             'receipt_number' => TuitionReceipt::generateReceiptNumber(), 'student_tuition_id' => $tuition->id, 'student_id' => $student->id,
@@ -513,6 +514,15 @@ class BaPermissionsTest extends TestCase
         return $student;
     }
 
+    /** Học viên nhận còn nợ 9.000.000 (đủ nhận toàn bộ 6.000.000 chuyển nhượng). */
+    private function transferTarget(): Student
+    {
+        $target = $this->student('HV-PQ-NHAN-'.random_int(100, 999), $this->branch, withTuition: true);
+        StudentTuition::where('student_id', $target->id)->update(['total_amount' => 9000000, 'final_amount' => 9000000, 'debt_amount' => 9000000]);
+
+        return $target;
+    }
+
     private function refundRequest(string $type): TuitionRefundRequest
     {
         $student = $this->paidStudent('HV-PQ-'.strtoupper($type).'-'.random_int(100, 999));
@@ -520,7 +530,7 @@ class BaPermissionsTest extends TestCase
 
         return TuitionRefundRequest::create($attributes + match ($type) {
             'refund' => ['refund_amount' => 1000000, 'no_transfer_reason' => 'Không có người nhận chuyển nhượng'],
-            'transfer' => ['refund_amount' => 1000000, 'target_student_id' => $this->student('HV-PQ-NHAN-'.random_int(100, 999), $this->branch, withTuition: true)->id],
+            'transfer' => ['refund_amount' => 1000000, 'target_student_id' => $this->transferTarget()->id],
             default => ['extended_due_date' => now()->addDays(20)->toDateString()],
         });
     }

@@ -104,9 +104,18 @@ const remainingValue = computed(() => {
     const used = Math.min(basis.value.paid, unitPrice.value * (calc.attendedLessons || 0));
     return Math.max(0, Math.round(basis.value.paid - used));
 });
+const targetBasis = computed(() => (calc.targetId ? props.studentFinance[calc.targetId] : null));
+// Người nhận còn nợ ít hơn số tiền chuyển → báo lỗi ngay, khóa nút gửi.
+const targetDebtError = computed(() => {
+    if (calc.actionType !== 'transfer' || !targetBasis.value) return '';
+    return suggestedAmount.value > targetBasis.value.debt
+        ? `Số tiền chuyển nhượng vượt quá công nợ còn lại của học viên nhận (${money(targetBasis.value.debt)}). Vui lòng chọn học viên nhận khác.`
+        : '';
+});
 const adminFee = computed(() => Math.round((remainingValue.value * props.adminFeePercent) / 100));
 const suggestedAmount = computed(() => {
-    if (calc.actionType === 'transfer') return Math.min(remainingValue.value, Math.round(unitPrice.value * remainingLessons.value));
+    // R-07: chuyển nhượng toàn bộ buổi còn lại, số tiền do server tính (đã thu / tổng số buổi × buổi còn lại).
+    if (calc.actionType === 'transfer') return basis.value.transfer_amount || 0;
     if (calc.actionType === 'refund') return Math.max(0, remainingValue.value - adminFee.value);
     return 0;
 });
@@ -120,7 +129,7 @@ function resetFromBasis() {
 resetFromBasis();
 watch(() => calc.selectedStudentId, resetFromBasis);
 watch(
-    () => calc.actionType,
+    () => [calc.actionType, basis.value],
     () => (calc.refundAmount = suggestedAmount.value),
 );
 
@@ -347,6 +356,7 @@ const inputClass =
                         </li>
                         <li v-if="!targetMatches.length" class="p-sm font-body-small text-body-small text-on-surface-variant">Không tìm thấy học viên phù hợp.</li>
                     </ul>
+                    <p v-if="targetDebtError" class="font-body-small text-body-small text-error" role="alert">{{ targetDebtError }}</p>
                     <p v-show="calc.targetId" class="flex items-center gap-xs font-body-small text-body-small text-tertiary">
                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">verified</span>
                         Toàn bộ số buổi dư sẽ được chuyển sang học viên đích kèm giá trị tiền tương ứng (cấn trừ công nợ người nhận).
@@ -399,15 +409,16 @@ const inputClass =
                                 name="refund_amount"
                                 min="0"
                                 :max="basis.paid"
+                                :readonly="calc.actionType === 'transfer'"
                                 :disabled="calc.actionType === 'deferral'"
                                 class="w-44 rounded-lg border border-outline-variant bg-surface-container-lowest px-md py-sm text-right font-code text-code text-on-surface focus:border-primary-container focus:outline-none focus:ring-2 focus:ring-primary-container/50"
                             />
                             <span class="font-body-small text-body-small text-on-surface-variant">VND</span>
-                            <UiButton size="sm" variant="ghost" icon="calculate" title="Tính lại theo chính sách" @click="calc.refundAmount = suggestedAmount">Theo chính sách</UiButton>
+                            <UiButton v-if="calc.actionType === 'refund'" size="sm" variant="ghost" icon="calculate" title="Tính lại theo chính sách" @click="calc.refundAmount = suggestedAmount">Theo chính sách</UiButton>
                         </div>
                     </div>
                     <p class="font-caption text-caption text-on-surface-variant">
-                        Số dư khả dụng tối đa: <strong class="font-code">{{ money(basis.paid) }}</strong> · Đề xuất theo chính sách: <strong class="font-code">{{ money(suggestedAmount) }}</strong>. Khi duyệt hệ thống chặn số tiền vượt số đã nộp.
+                        <template v-if="calc.actionType === 'transfer'">Tự động tính: (đã thu / tổng số buổi) × {{ basis.transfer_sessions }} buổi còn lại; chuyển toàn bộ buổi còn lại, không chuyển một phần. Không lập phiếu thu / không cấp số hóa đơn.</template><template v-else>Số dư khả dụng tối đa: <strong class="font-code">{{ money(basis.paid) }}</strong> · Đề xuất theo chính sách: <strong class="font-code">{{ money(suggestedAmount) }}</strong>. Khi duyệt hệ thống chặn số tiền vượt số đã nộp.</template>
                     </p>
                 </div>
 
@@ -435,7 +446,7 @@ const inputClass =
                     {{ calc.selectedStudentId ? 'Học viên này chưa có hồ sơ học phí nên chưa gửi được yêu cầu.' : 'Chọn học viên nguồn để gửi yêu cầu.' }}
                 </p>
                 <UiButton variant="secondary" @click="requestOpen = false">Hủy</UiButton>
-                <UiButton type="submit" form="refund-request-form" icon="send" :disabled="!basis.has_tuition">Gửi yêu cầu phê duyệt</UiButton>
+                <UiButton type="submit" form="refund-request-form" icon="send" :disabled="!basis.has_tuition || !!targetDebtError || (calc.actionType === 'transfer' && !(basis.transfer_amount > 0))">Gửi yêu cầu phê duyệt</UiButton>
             </template>
         </UiModal>
     </template>
@@ -443,7 +454,10 @@ const inputClass =
     <!-- Hộp duyệt / từ chối từng hồ sơ chờ -->
     <template v-for="rq in pendingRequests" :key="'actions-' + rq.id">
         <UiModal v-if="canApprove(rq)" :show="approving?.id === rq.id" :title="'Duyệt ' + rq.type_label.toLowerCase() + ' — ' + (rq.student?.name ?? '')" max-width="md" @close="approving = null">
-            <UiForm :id="'approve-refund-form-' + rq.id" :action="route('tuition.refunds.approve', rq.id)" method="post" class="space-y-md" @success="approving = null">
+            <UiForm :id="'approve-refund-form-' + rq.id" :action="route('tuition.refunds.approve', rq.id)" method="post" class="space-y-md" @success="approving = null" #default="{ errors }">
+                <UiAlert v-if="Object.keys(errors ?? {}).length" type="error" title="Không duyệt được">
+                    <ul class="list-disc pl-5"><li v-for="(message, key) in errors" :key="key">{{ message }}</li></ul>
+                </UiAlert>
                 <UiAlert v-if="rq.overdue" type="warning">Hồ sơ đã <strong>quá hạn xử lý</strong> (hạn {{ rq.processing_deadline }}). Vẫn duyệt được; hồ sơ giữ cờ "Quá hạn xử lý".</UiAlert>
                 <dl class="grid grid-cols-2 gap-sm font-body-small text-body-small">
                     <dt class="text-on-surface-variant">Học viên</dt>

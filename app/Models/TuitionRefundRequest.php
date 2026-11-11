@@ -71,6 +71,8 @@ class TuitionRefundRequest extends Model
         'clawback_amount',
         'clawback_user_id',
         'approved_at',
+        'balance_adjusted',
+        'transferred_sessions',
     ];
 
     protected $casts = [
@@ -81,6 +83,7 @@ class TuitionRefundRequest extends Model
         'clawback_commission' => 'boolean',
         'clawback_amount' => 'decimal:2',
         'approved_at' => 'datetime',
+        'balance_adjusted' => 'boolean',
         'extended_due_date' => 'date',
         'defer_from' => 'date',
         'defer_to' => 'date',

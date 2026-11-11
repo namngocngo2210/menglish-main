@@ -11,6 +11,7 @@ use App\Models\CrmCustomer;
 use App\Models\InvoiceCancellation;
 use App\Models\SepayTransaction;
 use App\Models\Student;
+use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
 use App\Models\SupportTicket;
 use App\Models\TuitionContactLog;
@@ -258,6 +259,10 @@ class Phase4AcceptanceTest extends TestCase
         Storage::fake(TuitionRefundRequest::PROOF_DISK);
         $this->at('2026-09-08 09:00');
         $this->actingAs($this->sale)->post(route('tuition.refunds.store'), ['student_id' => $s1->id, 'type' => 'refund', 'refund_amount' => 1, 'reason' => 'x'])->assertForbidden();
+        // R-07: S1 (đã thu 9.000.000 / 24 buổi) học 12 buổi → chuyển 12 buổi còn lại = 4.500.000 (server tính, bỏ qua số client gửi).
+        for ($i = 1; $i <= 12; $i++) {
+            StudentAttendance::create(['class_id' => $this->class->id, 'student_id' => $s1->id, 'session_date' => '2026-08-'.sprintf('%02d', $i + 10), 'status' => 'present']);
+        }
         $this->actingAs($this->accountant)->post(route('tuition.refunds.store'), [
             'student_id' => $s1->id, 'type' => 'transfer', 'refund_amount' => 2000000, 'target_student_id' => $s2->id, 'reason' => 'Chuyển buổi dư sang em.',
         ])->assertSessionHasNoErrors();
@@ -294,8 +299,9 @@ class Phase4AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $lateRefund = TuitionRefundRequest::where('student_id', $s1->id)->where('status', 'pending')->sole();
         $t1->refresh();
-        $this->assertSame([6000000.0, 6000000.0, 0.0], [(float) $t1->final_amount, (float) $t1->paid_amount, (float) $t1->debt_amount]);
-        $this->assertEquals(4000000, (float) $t2->fresh()->debt_amount);
+        $this->assertEquals(4500000, (float) $transfer->fresh()->refund_amount);
+        $this->assertSame([3500000.0, 3500000.0, 0.0], [(float) $t1->final_amount, (float) $t1->paid_amount, (float) $t1->debt_amount]);
+        $this->assertEquals(1500000, (float) $t2->fresh()->debt_amount);
         $this->assertSame(0, TuitionReceipt::where('status', 'approved')->whereNull('invoice_number')->count());
         $this->assertSame(0, TuitionReceipt::where('status', 'approved')->where('invoice_number', 'not like', 'N4A-%')->count(), 'Mọi HĐ lấy từ dải chi nhánh A.');
         $this->assertSame(TuitionReceipt::where('invoice_number', 'like', 'N4A-%')->count(), TuitionReceipt::distinct()->count('invoice_number'));
