@@ -275,6 +275,7 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                         <label>
                             <span :class="labelCls">Lý do cần bổ trợ <span class="text-error">*</span></span>
                             <textarea v-model="sup.reason" :name="`supports[${idx}][reason]`" rows="2" placeholder="Mô tả lý do cần bổ trợ..." class="w-full rounded-lg border border-outline-variant px-sm py-xs font-body-small text-body-small"></textarea>
+                            <UiErrors :messages="pick(errors, `supports.${idx}.reason`)" />
                         </label>
                     </div>
                     <label class="block">
