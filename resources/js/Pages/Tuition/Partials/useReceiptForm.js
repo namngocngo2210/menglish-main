@@ -9,6 +9,7 @@
 import { computed, reactive, watch } from 'vue';
 import { promotionApplies, promotionDiscount } from '@/lib/promotion';
 import { calculateSessionReceipt, sessionValue } from '@/lib/sessionReceipt';
+import { receiptSubmitBlockers } from '@/lib/receiptSubmit';
 
 export function useReceiptForm({
     tuitions = [],
@@ -220,14 +221,23 @@ export function useReceiptForm({
         return amount < 0 || (amount === 0 && !!(state.surchargeReason || '').trim() && state.surchargeLines.length === 0);
     });
 
-    const isValidReceipt = computed(() => {
-        const hasMoney = totalAmount.value >= 1000;
-        const surchargeValid = !surchargeInvalid.value && (state.surchargeAmount <= 0 || (state.surchargeReason && state.surchargeReason.trim().length > 0));
-        const otherValid = !(parseFloat(state.otherFee) > 0) || state.otherFeeReason.trim().length > 0;
-        const discountValid = !needsDiscountReason.value || state.discountReason.trim().length > 0;
-        const linesValid = state.surchargeLines.every((line) => parseInt(line.quantity) >= 1);
-        return !!(hasMoney && surchargeValid && otherValid && discountValid && linesValid);
-    });
+    // Mọi điều kiện bắt buộc khi gửi duyệt (nháp không bị chặn): tóm tắt hiển thị từng lý do, nút gửi duyệt khóa khi còn lý do.
+    const submitBlockers = computed(() =>
+        receiptSubmitBlockers({
+            totalAmount: totalAmount.value,
+            needsDiscountReason: needsDiscountReason.value,
+            discountReason: state.discountReason,
+            otherFee: state.otherFee,
+            otherFeeReason: state.otherFeeReason,
+            surchargeInvalid: surchargeInvalid.value,
+            surchargeAmount: state.surchargeAmount,
+            surchargeReason: state.surchargeReason,
+            linesValid: state.surchargeLines.every((line) => parseInt(line.quantity) >= 1),
+            proofRequired: proofRequired.value,
+            hasProof: !!state.proofPreviewUrl,
+        }),
+    );
+    const isValidReceipt = computed(() => submitBlockers.value.length === 0);
 
     // Nội dung CK do server sinh theo mẫu chung (tên + mã học sinh + lớp), xem App\Support\TransferMemo.
     const transferMemo = computed(() => state.currentTuition?.transfer_memo || state.currentStudent?.transfer_memo || '');
@@ -298,6 +308,7 @@ export function useReceiptForm({
         paperNumber,
         issuedPaperInvoice,
         isValidReceipt,
+        submitBlockers,
         surchargeInvalid,
         transferMemo,
         vietQrUrl,

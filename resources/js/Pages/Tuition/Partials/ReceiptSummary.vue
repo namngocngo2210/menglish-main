@@ -11,15 +11,6 @@ const props = defineProps({
 });
 const money = (value) => formatMoney(value || 0);
 const q = computed(() => props.form.quote);
-/** Explain why the receipt cannot be submitted yet. */
-const invalidReason = computed(() => {
-    const st = props.form.state;
-    if (props.form.needsDiscountReason && !st.discountReason.trim()) return 'Nhập lý do giảm trừ (không theo ưu đãi có sẵn).';
-    if (st.otherFee > 0 && !st.otherFeeReason.trim()) return 'Nhập nội dung khoản thu khác.';
-    if (props.form.surchargeInvalid) return 'Phụ thu phải lớn hơn 0 (hoặc để trống và xóa lý do phụ thu).';
-    if (st.surchargeAmount > 0 && !(st.surchargeReason || '').trim()) return 'Nhập lý do phụ thu.';
-    return 'Phiếu cần có số tiền từ 1.000 đ (thu buổi, học liệu, phí thi, khoản khác hoặc phụ thu).';
-});
 </script>
 
 <template>
@@ -74,10 +65,12 @@ const invalidReason = computed(() => {
                     <span class="material-symbols-outlined text-sm text-tertiary">check_circle</span>
                     Hợp lệ để gửi duyệt.
                 </span>
-                <span v-else class="flex items-center gap-1 font-medium text-error">
-                    <span class="material-symbols-outlined text-sm text-error">warning</span>
-                    {{ invalidReason }}
-                </span>
+                <ul v-else data-testid="receipt-blockers" class="space-y-1 font-medium text-error">
+                    <li v-for="reason in form.submitBlockers" :key="reason" class="flex items-start gap-1">
+                        <span class="material-symbols-outlined text-sm text-error" aria-hidden="true">warning</span>
+                        <span>{{ reason }}</span>
+                    </li>
+                </ul>
             </div>
         </div>
         <div v-if="layout === 'page'" class="hidden flex-col gap-3 lg:flex">

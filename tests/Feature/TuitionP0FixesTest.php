@@ -215,6 +215,27 @@ class TuitionP0FixesTest extends TestCase
         $this->assertSame(0, TuitionReceipt::count());
     }
 
+    public function test_transfer_receipt_submit_without_proof_is_rejected_but_draft_is_saved(): void
+    {
+        $payload = ['student_tuition_id' => $this->tuition->id, 'amount' => 2000000, 'payment_method' => 'transfer'];
+
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $payload + ['submit_action' => 'submit'])
+            ->assertSessionHasErrors('proof_image');
+        $this->assertSame(0, TuitionReceipt::count());
+
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $payload + ['submit_action' => 'draft'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('draft', TuitionReceipt::firstOrFail()->status);
+    }
+
+    public function test_receipt_create_page_summary_lists_missing_proof_reason(): void
+    {
+        $this->actingAs($this->staff)->get(route('tuition.receipts.create', ['student_tuition_id' => $this->tuition->id]))
+            ->assertOk()
+            ->assertSee('receipt-blockers', false)
+            ->assertSee('Đính kèm minh chứng thanh toán');
+    }
+
     // ---------------------------------------------------------------------
     // 2. Receipts never skip approval
     // ---------------------------------------------------------------------
