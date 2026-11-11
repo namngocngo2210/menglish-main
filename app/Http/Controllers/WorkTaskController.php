@@ -1311,6 +1311,16 @@ class WorkTaskController extends Controller
         )));
         $hasImage = ! empty($files) || $request->filled('board_image_url');
 
+        // TK-2026-0093: buổi đã có báo cáo → nộp lại chỉ bổ sung ảnh vào báo cáo đó, không tạo dòng mới.
+        $existing = $session ? ClassReport::where('class_session_id', $session->id)->orderBy('id')->first() : null;
+        if ($existing) {
+            if (! $hasImage) {
+                throw ValidationException::withMessages(['board_images' => 'Buổi học này đã có báo cáo trực lớp. Để nộp lại, hãy đính kèm thêm ít nhất 1 ảnh.']);
+            }
+            // Đầu việc gắn với báo cáo cũ (nếu còn mở) được hoàn thành thay cho việc tự tìm.
+            $task ??= $existing->task_id ? $this->reportableTask((int) $existing->task_id, $user) : null;
+        }
+
         // A6 Q8: không ảnh → cần người xác nhận (GV chính; chưa có GV chính → người giao việc).
         $confirmerId = ClassReport::resolveConfirmerId($class, $task, (int) $user->id);
         if (! $hasImage && ! $confirmerId) {
@@ -1333,7 +1343,20 @@ class WorkTaskController extends Controller
             $sessionName = self::sessionLabel($session, app(SessionLessonService::class)->lessonsFor(collect([$session]))[$session->id] ?? null);
         }
 
-        $report = DB::transaction(function () use ($validated, $class, $session, $task, $user, $paths, $hasImage, $confirmerId, $sessionName) {
+        $report = DB::transaction(function () use ($validated, $class, $session, $task, $user, $paths, $hasImage, $confirmerId, $sessionName, $existing) {
+            if ($existing) {
+                // Giữ nguyên task_id / teaching_log; ảnh là bằng chứng nên báo cáo thành Đã xác nhận (cùng luật nộp lần đầu có ảnh).
+                $merged = array_values(array_filter(array_merge((array) ($existing->board_images ?? []), $paths)));
+                $existing->update([
+                    'board_image' => $existing->board_image ?: $merged[0],
+                    'board_images' => $merged,
+                    'has_image' => true,
+                    'status' => ClassReport::STATUS_APPROVED,
+                    'approved_at' => $existing->approved_at ?? now(),
+                    'confirmer_id' => null,
+                ]);
+                $report = $existing;
+            } else {
             $report = ClassReport::create([
                 'task_id' => $task?->id,
                 'class_id' => $class->id,
@@ -1359,6 +1382,7 @@ class WorkTaskController extends Controller
                 'approved_at' => $hasImage ? now() : null,
                 'approved_by' => null,
             ]);
+            }
 
             // Học sinh đã có trong danh sách cần chú ý chung của buổi (vắng / GV / TA khác báo) → không tạo dòng trùng.
             $listed = $session ? app(SupportListService::class)->sessionRows($session)->pluck('student_id')->map(fn ($id) => (int) $id) : collect();

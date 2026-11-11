@@ -161,4 +161,49 @@ class TaskConfirmationR13Test extends TestCase
         $this->actingAs($this->teacher)->post(route('tasks.reject', $task->id), ['admin_note' => 'Thiếu ảnh'])->assertRedirect();
         $this->assertSame('in_progress', $task->fresh()->status);
     }
+
+    /** TK-2026-0093: nộp lại cho buổi đã có báo cáo → bổ sung ảnh vào báo cáo cũ, không tạo dòng mới. */
+    public function test_resubmit_with_photo_appends_to_existing_report_and_completes_linked_task(): void
+    {
+        Storage::fake('public');
+        $task = $this->dutyTask();
+        $payload = $this->sessionPayload($task, ['nhat_ky_day' => 'Lớp ồn']);
+
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload)->assertSessionHasNoErrors();
+        $report = ClassReport::sole();
+        $this->assertSame(ClassReport::STATUS_PENDING, $report->status);
+        $this->assertSame('pending_confirmation', $task->fresh()->status);
+
+        // Lần 2: không gửi task_id kèm ảnh.
+        unset($payload['task_id']);
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + [
+            'board_images' => [UploadedFile::fake()->image('bang.jpg')],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, ClassReport::count());
+        $fresh = $report->fresh();
+        $this->assertCount(1, $fresh->board_images);
+        $this->assertTrue((bool) $fresh->has_image);
+        $this->assertSame($task->id, $fresh->task_id);
+        $this->assertSame($report->teaching_log, $fresh->teaching_log);
+        $this->assertSame(ClassReport::STATUS_APPROVED, $fresh->status);
+        $this->assertSame('completed', $task->fresh()->status);
+
+        // Lần 3: ảnh được nối thêm, không ghi đè.
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload + [
+            'board_images' => [UploadedFile::fake()->image('bang2.jpg')],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(1, ClassReport::count());
+        $this->assertCount(2, $report->fresh()->board_images);
+    }
+
+    public function test_resubmit_without_photo_is_rejected_and_creates_no_row(): void
+    {
+        $task = $this->dutyTask();
+        $payload = $this->sessionPayload($task);
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload)->assertSessionHasNoErrors();
+
+        $this->actingAs($this->ta)->post(route('tasks.class-reports.store'), $payload)->assertSessionHasErrors('board_images');
+        $this->assertSame(1, ClassReport::count());
+    }
 }
