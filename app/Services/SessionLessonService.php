@@ -73,6 +73,21 @@ class SessionLessonService
     }
 
     /**
+     * Bài giảng (syllabus_lesson_id) của đúng các buổi người này được duyệt dạy thay, chỉ tính chặng đang mở của lớp
+     * (TK-2026-0057: dạy thay xem bài / tài liệu của buổi mình dạy, không xem cả chặng).
+     *
+     * @return array<int>
+     */
+    public function coverLessonIdsFor(int $userId): array
+    {
+        $sessions = ClassSession::approvedCoverFor($userId)->where('status', '!=', 'cancelled')->get();
+        $openClassIds = SyllabusAssignment::open()->whereIn('class_id', $sessions->pluck('class_id'))->pluck('class_id')->map(fn ($id) => (int) $id)->all();
+
+        return collect($this->lessonsFor($sessions->filter(fn (ClassSession $s) => in_array((int) $s->class_id, $openClassIds, true))))
+            ->pluck('lesson_id')->filter()->map(fn ($id) => (int) $id)->values()->all();
+    }
+
+    /**
      * @param  array<int>  $classIds
      * @return array<int, array{start: Carbon, sessions: array<int, SyllabusLesson>}> lớp có chặng đang mở
      */

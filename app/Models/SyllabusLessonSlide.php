@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SessionLessonService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -92,15 +93,15 @@ class SyllabusLessonSlide extends Model
         }
         $stageId = $this->lesson?->unit?->stage_id;
 
-        return $stageId && SyllabusAssignment::open()->where('stage_id', $stageId)
+        return ($stageId && SyllabusAssignment::open()->where('stage_id', $stageId)
             ->where(fn ($who) => $who->where('user_id', $user->id)
                 ->orWhereHas('classModel', fn ($class) => $class->where('teacher_id', $user->id)
                     ->orWhere('assistant_id', $user->id)
                     ->orWhere('foreign_teacher_id', $user->id)
-                    ->orWhereHas('sessions', fn ($session) => $session->where('teacher_id', $user->id)
-                        ->orWhere('foreign_teacher_id', $user->id)
-                        ->orWhere('assistant_id', $user->id))))
-            ->exists();
+                    ->orWhereHas('sessions', fn ($session) => $session->forStaffExceptCover($user->id))))
+            ->exists())
+            // Dạy thay đã duyệt (TK-2026-0057): chỉ bài giảng của đúng buổi được duyệt.
+            || in_array((int) $this->syllabus_lesson_id, app(SessionLessonService::class)->coverLessonIdsFor($user->id), true);
     }
 
     /** @return array{id: int, kind: string, label: string, name: string, size_human: string, url: string} */

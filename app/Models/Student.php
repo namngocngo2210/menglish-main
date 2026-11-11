@@ -129,7 +129,7 @@ class Student extends Model
         return DataScope::apply(
             $query, $user, 'student',
             function (Builder $q) use ($user) {
-                $classIds = ClassModel::query()->visibleTo($user)->pluck('id')->all();
+                $classIds = ClassModel::query()->visibleTo($user, true, true)->pluck('id')->all();
 
                 return $classIds === [] ? $q->whereRaw('1 = 0') : $q->inClasses($classIds);
             },

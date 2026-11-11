@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\AuditsChanges;
 use App\Models\Concerns\LogsCurriculumId;
+use App\Services\SessionLessonService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -144,12 +145,25 @@ class SyllabusDocument extends Model
                     ->whereColumn('class_sessions.class_id', 'classes.id')
                     ->where(fn ($staff) => $staff->where('class_sessions.teacher_id', $user->id)
                         ->orWhere('class_sessions.foreign_teacher_id', $user->id)
-                        ->orWhere('class_sessions.assistant_id', $user->id))));
+                        ->orWhere('class_sessions.assistant_id', $user->id))
+                    // Buổi dạy thay đã duyệt (TK-2026-0057) không mở cả chặng; chỉ tài liệu của buổi đó (isVisibleTo).
+                    ->whereNotExists(fn (QueryBuilder $cover) => $cover->selectRaw('1')->from('cover_requests')
+                        ->whereColumn('cover_requests.class_session_id', 'class_sessions.id')
+                        ->where('cover_requests.status', 'approved')
+                        ->where('cover_requests.approved_user_id', $user->id)
+                        ->where('class_sessions.teacher_id', $user->id))));
     }
 
     public function isVisibleTo(User $user): bool
     {
-        return self::query()->whereKey($this->id)->visibleTo($user)->exists() || $this->grantedBySupport($user);
+        return self::query()->whereKey($this->id)->visibleTo($user)->exists() || $this->grantedBySupport($user) || $this->grantedByCover($user);
+    }
+
+    /** Dạy thay đã duyệt xem được tài liệu gắn đúng bài của buổi được duyệt (TK-2026-0057). */
+    public function grantedByCover(User $user): bool
+    {
+        return $this->syllabus_lesson_id && $this->matchesAudience($user)
+            && in_array((int) $this->syllabus_lesson_id, app(SessionLessonService::class)->coverLessonIdsFor($user->id), true);
     }
 
     /**

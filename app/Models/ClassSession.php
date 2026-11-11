@@ -196,6 +196,19 @@ class ClassSession extends Model
             ->orWhere('assistant_id', $userId));
     }
 
+    /** Buổi người này được duyệt dạy thay (TK-2026-0057): GV của buổi + có yêu cầu dạy thay đã duyệt cho đúng người. */
+    public function scopeApprovedCoverFor(Builder $query, int $userId): Builder
+    {
+        return $query->where('teacher_id', $userId)
+            ->whereHas('coverRequests', fn (Builder $r) => $r->where('status', 'approved')->where('approved_user_id', $userId));
+    }
+
+    /** Buổi có nhân sự này, trừ buổi dạy thay (dạy thay chỉ mở dữ liệu đúng buổi, không mở cả lớp). */
+    public function scopeForStaffExceptCover(Builder $query, int $userId): Builder
+    {
+        return $query->forStaff($userId)->whereNot(fn (Builder $q) => $q->approvedCoverFor($userId));
+    }
+
     public function coverRequests(): HasMany
     {
         return $this->hasMany(CoverRequest::class);
