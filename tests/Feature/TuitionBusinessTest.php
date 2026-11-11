@@ -520,7 +520,7 @@ class TuitionBusinessTest extends TestCase
             'status' => 'unpaid',
         ]);
 
-        // 1. Submit transfer request (Xé lẻ 4.500.000đ từ học viên nguồn sang học viên đích)
+        // 1. Submit transfer request (R-07: chuyển toàn bộ buổi còn lại, số tiền server tự tính; client gửi 4.500.000 bị bỏ qua)
         $responseTransfer = $this->actingAs($this->accountantUser)
             ->post(route('tuition.refunds.store'), [
                 'student_id' => $this->student->id,
@@ -537,7 +537,7 @@ class TuitionBusinessTest extends TestCase
             'student_id' => $this->student->id,
             'target_student_id' => $targetStudent->id,
             'type' => 'transfer',
-            'refund_amount' => 4500000,
+            'refund_amount' => 9000000,
             'status' => 'pending',
         ]);
 
@@ -554,19 +554,15 @@ class TuitionBusinessTest extends TestCase
 
         // 3. Verify debts were adjusted
         $this->tuition->refresh();
-        $this->assertEquals(4500000, (float) $this->tuition->paid_amount);
+        $this->assertEquals(0, (float) $this->tuition->paid_amount);
 
         $targetTuition->refresh();
-        $this->assertEquals(4500000, (float) $targetTuition->paid_amount);
-        $this->assertEquals(5500000, (float) $targetTuition->debt_amount);
+        $this->assertEquals(9000000, (float) $targetTuition->paid_amount);
+        $this->assertEquals(1000000, (float) $targetTuition->debt_amount);
         $this->assertEquals('partial', $targetTuition->status);
 
-        // 4. Verify transfer receipt was generated for target student
-        $this->assertDatabaseHas('tuition_receipts', [
-            'student_tuition_id' => $targetTuition->id,
-            'amount' => 4500000,
-            'payment_method' => 'transfer',
-        ]);
+        // 4. R-07: chuyển nhượng không lập phiếu thu cho học viên nhận.
+        $this->assertDatabaseMissing('tuition_receipts', ['student_tuition_id' => $targetTuition->id, 'payment_method' => 'transfer']);
     }
 
     public function test_fee_items_breakdown_and_multi_installment_workflow(): void

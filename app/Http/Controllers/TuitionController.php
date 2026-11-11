@@ -2541,6 +2541,7 @@ class TuitionController extends Controller
         $paid = (float) ($tuition?->paid_amount ?? 0);
         $contract = (float) ($tuition?->final_amount ?? 0);
         $total = $stats['total'] ?? null;
+        $transfer = $tuition?->transferValue() ?? ['sessions' => 0, 'amount' => 0.0];
         $attended = $stats['attended'] ?? 0;
         $unitPrice = $total ? round($contract / $total, 2) : 0.0;
         $used = min($paid, round($unitPrice * $attended, 2));
@@ -2561,6 +2562,9 @@ class TuitionController extends Controller
             'remaining_value' => $remainingValue,
             'admin_fee' => $adminFee,
             'suggested_refund' => max(0.0, $remainingValue - $adminFee),
+            // R-07: chuyển nhượng = toàn bộ buổi còn lại × (đã thu / tổng số buổi).
+            'transfer_sessions' => $transfer['sessions'],
+            'transfer_amount' => $transfer['amount'],
             'status_label' => $student->status_label,
         ];
     }
@@ -2573,7 +2577,8 @@ class TuitionController extends Controller
             'total_paid' => 'nullable|numeric|min:0',
             'attended_lessons' => 'nullable|integer|min:0',
             'admin_fee' => 'nullable|numeric|min:0',
-            'refund_amount' => 'nullable|required_if:type,refund,transfer|numeric|min:0',
+            // Chuyển nhượng: số tiền do hệ thống tính theo công thức R-07, không nhận từ client.
+            'refund_amount' => 'nullable|required_if:type,refund|numeric|min:0',
             'target_student_id' => 'nullable|required_if:type,transfer|exists:students,id|different:student_id',
             'extended_due_date' => 'nullable|required_if:type,extension|date|after:today',
             'defer_from' => 'nullable|required_if:type,deferral|date',
@@ -2606,6 +2611,23 @@ class TuitionController extends Controller
 
         $basis = $student ? $this->refundBasis($student) : [];
         $totalPaid = $validated['total_paid'] ?? ($student?->tuition?->paid_amount ?? ($validated['refund_amount'] ?? 0));
+
+        if ($type === TuitionRefundRequest::TYPE_TRANSFER) {
+            $transfer = $student?->tuition?->transferValue() ?? ['sessions' => 0, 'amount' => 0.0];
+            if ($transfer['amount'] <= 0) {
+                throw ValidationException::withMessages(['student_id' => 'Học viên không còn buổi/số tiền đã thu để chuyển nhượng.']);
+            }
+            $targetTuition = StudentTuition::where('student_id', $validated['target_student_id'])->first();
+            if (! $targetTuition) {
+                throw ValidationException::withMessages(['target_student_id' => 'Học viên nhận chưa có khoản học phí để cấn trừ.']);
+            }
+            $targetTuition->recalculateDebt();
+            if ($transfer['amount'] > (float) $targetTuition->debt_amount) {
+                throw ValidationException::withMessages(['target_student_id' => self::transferDebtMessage((float) $targetTuition->debt_amount)]);
+            }
+            $validated['refund_amount'] = $transfer['amount'];
+            $totalPaid = (float) $student->tuition->paid_amount;
+        }
 
         TuitionRefundRequest::create([
             'student_id' => $validated['student_id'],
@@ -2676,24 +2698,16 @@ class TuitionController extends Controller
                 return $this->applyExtensionOrDeferral($refund);
             }
 
+            if ($refund->type === TuitionRefundRequest::TYPE_TRANSFER) {
+                return $this->applyTransfer($refund);
+            }
+
             $amount = round((float) $refund->refund_amount, 2);
             if ($amount <= 0) {
                 return ['error' => 'Số tiền hoàn/chuyển nhượng phải lớn hơn 0.'];
             }
 
-            // Khoá cả 2 dòng công nợ theo thứ tự id để tránh deadlock khi có chuyển nhượng chéo đồng thời.
-            $sourceId = StudentTuition::where('student_id', $refund->student_id)->value('id');
-            $targetId = $refund->type === 'transfer' && $refund->target_student_id
-                ? StudentTuition::where('student_id', $refund->target_student_id)->value('id')
-                : null;
-            $locked = StudentTuition::query()
-                ->whereIn('id', array_filter([$sourceId, $targetId]))
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('id');
-            $sourceTuition = $sourceId ? $locked->get($sourceId) : null;
-            $targetTuition = $targetId ? $locked->get($targetId) : null;
+            $sourceTuition = StudentTuition::where('student_id', $refund->student_id)->lockForUpdate()->first();
 
             if (! $sourceTuition) {
                 return ['error' => 'Học viên chưa có khoản học phí để hoàn/chuyển nhượng.'];
@@ -2703,21 +2717,10 @@ class TuitionController extends Controller
                 return ['error' => 'Số tiền xử lý vượt quá số tiền học viên đã nộp ('.Money::format((float) $sourceTuition->paid_amount).').'];
             }
 
-            if ($refund->type === 'transfer') {
-                if (! $targetTuition) {
-                    return ['error' => 'Học viên nhận chưa có khoản học phí để cấn trừ.', 'field' => 'target_student_id'];
-                }
-                $targetTuition->recalculateDebt();
-                if ($amount > (float) $targetTuition->debt_amount) {
-                    return ['error' => 'Số tiền chuyển nhượng vượt quá công nợ còn lại của học viên nhận ('.Money::format((float) $targetTuition->debt_amount).'). Vui lòng điều chỉnh số tiền.'];
-                }
-            }
-
             $refund->update(['status' => 'approved', 'approver_id' => Auth::id(), 'proof_path' => $proofPath ?? $refund->proof_path]);
             // Hoàn phí chỉ hủy hoa hồng chưa trả; dữ liệu thu hồi cũ gửi lên được bỏ qua.
             app(SalesCommissionService::class)->recordRefundApproval($refund);
 
-            $isTransfer = $refund->type === 'transfer';
             $amountLabel = Money::format($amount);
 
             // Bên nguồn: phiếu âm + giảm giá trị hợp đồng tương ứng để công nợ không tăng giả.
@@ -2730,46 +2733,22 @@ class TuitionController extends Controller
                 'amount' => -$amount,
                 'tuition_amount' => -$amount,
                 'payment_method' => 'transfer',
-                'transaction_code' => ($isTransfer ? 'XFER-OUT-' : 'REFUND-').$refund->id,
+                'transaction_code' => 'REFUND-'.$refund->id,
                 'payment_date' => now(),
                 'creator_id' => $refund->requester_id ?? Auth::id(),
                 'approver_id' => Auth::id(),
                 'status' => TuitionReceipt::STATUS_APPROVED,
-                'notes' => $isTransfer
-                    ? "Trừ chuyển nhượng học phí (-{$amountLabel}) sang cho học viên {$refund->targetStudent?->name} ({$refund->targetStudent?->code}). Lý do: {$refund->reason}"
-                    : "Hoàn trả rút tiền học phí (-{$amountLabel}). Lý do: {$refund->reason}",
+                'notes' => "Hoàn trả rút tiền học phí (-{$amountLabel}). Lý do: {$refund->reason}",
             ]);
 
             $oldFinal = (float) $sourceTuition->final_amount;
             $sourceTuition->final_amount = max(0, $oldFinal - $amount);
             $sourceTuition->notes = trim(($sourceTuition->notes ? $sourceTuition->notes."\n" : '')
-                .'['.now()->format('d/m/Y H:i').'] '.($isTransfer ? 'Chuyển nhượng' : 'Hoàn phí')." #{$refund->id}: giảm giá trị hợp đồng "
+                .'['.now()->format('d/m/Y H:i').'] Hoàn phí'." #{$refund->id}: giảm giá trị hợp đồng "
                 .Money::format($oldFinal, '').' → '.Money::format((float) $sourceTuition->final_amount)." (-{$amountLabel}), duyệt bởi ".(Auth::user()?->name ?? 'hệ thống').'.');
             $sourceTuition->recalculateDebt();
 
-            if (! $isTransfer) {
-                return ['status' => "Đã duyệt hoàn trả {$amountLabel} cho học viên {$refund->student?->name} và cập nhật lại sổ nợ học phí!"];
-            }
-
-            // Bên nhận: phiếu dương cấn trừ công nợ (đã chặn vượt nợ ở trên nên không thất thoát).
-            TuitionReceipt::create([
-                'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber($this->tuitionBranchId($targetTuition)),
-                'student_tuition_id' => $targetTuition->id,
-                'student_id' => $targetTuition->student_id,
-                'amount' => $amount,
-                'tuition_amount' => $amount,
-                'payment_method' => 'transfer',
-                'transaction_code' => 'XFER-IN-'.$refund->id,
-                'payment_date' => now(),
-                'creator_id' => $refund->requester_id ?? Auth::id(),
-                'approver_id' => Auth::id(),
-                'status' => TuitionReceipt::STATUS_APPROVED,
-                'notes' => "Nhận chuyển nhượng học phí (+{$amountLabel}) từ học viên {$refund->student?->name} ({$refund->student?->code}). Lý do: {$refund->reason}",
-            ]);
-            $targetTuition->recalculateDebt();
-
-            return ['status' => "Đã duyệt chuyển nhượng {$amountLabel} từ học viên {$refund->student?->name} sang {$refund->targetStudent?->name}, tự động cấn trừ công nợ & xuất biên lai đối soát!"];
+            return ['status' => "Đã duyệt hoàn trả {$amountLabel} cho học viên {$refund->student?->name} và cập nhật lại sổ nợ học phí!"];
         });
 
         if (isset($result['error'])) {
@@ -2783,6 +2762,79 @@ class TuitionController extends Controller
         $late = $pending->isProcessingOverdue() ? ' Lưu ý: hồ sơ được xử lý sau hạn '.$pending->processing_deadline->format('d/m/Y').' (Quá hạn xử lý).' : '';
 
         return redirect()->back()->with('status', $result['status'].$late);
+    }
+
+    private static function transferDebtMessage(float $debt): string
+    {
+        return 'Số tiền chuyển nhượng vượt quá công nợ còn lại của học viên nhận ('.Money::format($debt).'). Vui lòng chọn học viên nhận khác.';
+    }
+
+    /**
+     * Duyệt chuyển nhượng (R-07, trong transaction của approveRefundRequest): KHÔNG lập phiếu thu, KHÔNG cấp số hóa đơn.
+     * Số tiền luôn tính lại theo công thức (đã thu / tổng số buổi) × số buổi còn lại, chuyển toàn bộ buổi còn lại.
+     * Bên chuyển: giảm số buổi + giá trị hợp đồng; bên nhận: được ghi có "đã thu" (cấn trừ công nợ, số buổi giữ nguyên).
+     * Tổng "đã thu" của hai bên không đổi. Ghi nhật ký thay đổi.
+     *
+     * @return array{status?: string, error?: string, field?: string}
+     */
+    private function applyTransfer(TuitionRefundRequest $refund): array
+    {
+        // Khoá cả 2 dòng công nợ theo thứ tự id để tránh deadlock khi có chuyển nhượng chéo đồng thời.
+        $locked = StudentTuition::query()->whereIn('student_id', array_filter([$refund->student_id, $refund->target_student_id]))
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('student_id');
+        $source = $locked->get($refund->student_id);
+        $target = $refund->target_student_id ? $locked->get($refund->target_student_id) : null;
+
+        if (! $source) {
+            return ['error' => 'Học viên chưa có khoản học phí để chuyển nhượng.'];
+        }
+        if (! $target) {
+            return ['error' => 'Học viên nhận chưa có khoản học phí để cấn trừ.', 'field' => 'target_student_id'];
+        }
+        $source->recalculateDebt();
+        $target->recalculateDebt();
+
+        $value = $source->transferValue();
+        $amount = $value['amount'];
+        if ($amount <= 0) {
+            return ['error' => 'Học viên không còn buổi/số tiền đã thu để chuyển nhượng.'];
+        }
+        if ($amount > (float) $target->debt_amount) {
+            return ['error' => self::transferDebtMessage((float) $target->debt_amount), 'field' => 'target_student_id'];
+        }
+
+        $before = [
+            'source' => $source->only(['session_count', 'total_amount', 'final_amount', 'paid_amount', 'debt_amount']),
+            'target' => $target->only(['session_count', 'total_amount', 'final_amount', 'paid_amount', 'debt_amount']),
+        ];
+        $amountLabel = Money::format($amount);
+        $stamp = '['.now()->format('d/m/Y H:i').'] ';
+        $approver = Auth::user()?->name ?? 'hệ thống';
+
+        $refund->update([
+            'status' => 'approved', 'approver_id' => Auth::id(), 'refund_amount' => $amount,
+            'balance_adjusted' => true, 'transferred_sessions' => $value['sessions'],
+        ]);
+        app(SalesCommissionService::class)->recordRefundApproval($refund);
+
+        $source->session_count = max(0, (int) $source->session_count - $value['sessions']);
+        $source->total_amount = max(0, (float) $source->total_amount - $amount);
+        $source->final_amount = max(0, (float) $source->final_amount - $amount);
+        $source->notes = trim(($source->notes ? $source->notes."\n" : '').$stamp."Chuyển nhượng #{$refund->id}: -{$value['sessions']} buổi, -{$amountLabel} sang {$refund->targetStudent?->name}, duyệt bởi {$approver}.");
+        $target->notes = trim(($target->notes ? $target->notes."\n" : '').$stamp."Nhận chuyển nhượng #{$refund->id}: +{$amountLabel} từ {$refund->student?->name}, duyệt bởi {$approver}.");
+        // recalculateDebt() cộng/trừ refund_amount của hồ sơ vừa duyệt (balance_adjusted) vào đã thu của hai bên.
+        $source->recalculateDebt();
+        $target->recalculateDebt();
+
+        activity('tuition_transfer')->causedBy(Auth::user())->performedOn($refund)->withProperties([
+            'amount' => $amount, 'sessions' => $value['sessions'], 'before' => $before,
+            'after' => [
+                'source' => $source->only(['session_count', 'total_amount', 'final_amount', 'paid_amount', 'debt_amount']),
+                'target' => $target->only(['session_count', 'total_amount', 'final_amount', 'paid_amount', 'debt_amount']),
+            ],
+        ])->log("Duyệt chuyển nhượng học phí #{$refund->id} (không lập phiếu thu, không cấp số hóa đơn)");
+
+        return ['status' => "Đã duyệt chuyển nhượng {$amountLabel} ({$value['sessions']} buổi) từ học viên {$refund->student?->name} sang {$refund->targetStudent?->name}, đã cấn trừ công nợ người nhận."];
     }
 
     /**

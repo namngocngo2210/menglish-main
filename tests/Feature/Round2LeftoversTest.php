@@ -8,6 +8,7 @@ use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\CommissionAdjustment;
 use App\Models\CommissionTier;
+use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\InvoiceCancellation;
 use App\Models\InvoiceConfiguration;
@@ -154,6 +155,11 @@ class Round2LeftoversTest extends TestCase
         $this->assertSame('C26CG-0000001', $refundReceipt->invoice_number);
 
         // Học viên nhận ở chi nhánh chưa có dải riêng → dải mặc định.
+        // R-07: chuyển nhượng không lập phiếu thu nên không tiêu thụ số hóa đơn của dải nào.
+        $course = Course::create(['code' => 'R2-C', 'name' => 'R2', 'tuition_fee' => 6000000, 'total_lessons' => 6, 'is_active' => true]);
+        $class = $this->makeClass('R2-XFER', ['course_id' => $course->id]);
+        $source->update(['current_class_id' => $class->id]);
+        $sourceTuition->update(['class_id' => $class->id, 'session_count' => 6]);
         $target = $this->makeStudent('HV-R2-T1', $this->branch2);
         $this->makeTuition($target, 5000000);
         $transfer = TuitionRefundRequest::create([
@@ -162,8 +168,9 @@ class Round2LeftoversTest extends TestCase
         ]);
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
 
-        $this->assertSame('C26CG-0000002', TuitionReceipt::where('transaction_code', 'XFER-OUT-'.$transfer->id)->value('invoice_number'));
-        $this->assertSame('C26MEN-0001001', TuitionReceipt::where('transaction_code', 'XFER-IN-'.$transfer->id)->value('invoice_number'));
+        $this->assertSame(0, TuitionReceipt::where('transaction_code', 'like', 'XFER-%')->count());
+        $this->assertSame(2, InvoiceConfiguration::where('branch_id', $this->branch->id)->value('current_number'), 'Chỉ phiếu hoàn tiền dùng số HĐ.');
+        $this->assertSame(1001, InvoiceConfiguration::whereNull('branch_id')->value('current_number'));
     }
 
     // ── 3. Kết thúc bảo lưu ─────────────────────────────────────────────

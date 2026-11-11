@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\AcademicRecord;
 use App\Models\Branch;
+use App\Models\ClassModel;
+use App\Models\Course;
 use App\Models\DebtReminderRule;
 use App\Models\InvoiceCancellation;
 use App\Models\OperatingExpense;
@@ -545,8 +547,18 @@ class TuitionP0FixesTest extends TestCase
         $this->assertEquals(3000000, (float) $this->tuition->fresh()->debt_amount);
     }
 
+    /** R-07 cần số buổi: lớp 10 buổi, chưa học buổi nào → chuyển toàn bộ 10 buổi = toàn bộ số đã thu. */
+    private function giveSessions(): void
+    {
+        $course = Course::create(['code' => 'P0-C', 'name' => 'P0', 'tuition_fee' => 5000000, 'total_lessons' => 10, 'is_active' => true]);
+        $class = ClassModel::create(['code' => 'P0-A', 'name' => 'Lớp P0', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'max_capacity' => 10, 'tuition_fee' => 5000000, 'status' => 'active']);
+        $this->student->update(['current_class_id' => $class->id]);
+        $this->tuition->update(['class_id' => $class->id, 'session_count' => 10]);
+    }
+
     public function test_transfer_balances_both_sides(): void
     {
+        $this->giveSessions();
         $this->approvedReceipt($this->tuition, 5000000);
         $target = Student::create(['code' => 'HV-P0-T', 'name' => 'Người nhận', 'phone' => '0900000002', 'branch_id' => $this->branch->id]);
         $targetTuition = $this->makeTuition($target, 8000000);
@@ -565,17 +577,20 @@ class TuitionP0FixesTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->tuition->refresh();
-        $this->assertEquals(2000000, (float) $this->tuition->paid_amount);
-        $this->assertEquals(2000000, (float) $this->tuition->final_amount);
+        // Số tiền do server tính: toàn bộ 10 buổi còn lại = 5.000.000 (số 3.000.000 trên hồ sơ bị bỏ qua).
+        $this->assertEquals(0, (float) $this->tuition->paid_amount);
+        $this->assertEquals(0, (float) $this->tuition->final_amount);
         $this->assertEquals(0, (float) $this->tuition->debt_amount);
 
         $targetTuition->refresh();
-        $this->assertEquals(3000000, (float) $targetTuition->paid_amount);
-        $this->assertEquals(5000000, (float) $targetTuition->debt_amount);
+        $this->assertEquals(5000000, (float) $targetTuition->paid_amount);
+        $this->assertEquals(3000000, (float) $targetTuition->debt_amount);
+        $this->assertSame(1, TuitionReceipt::count(), 'Chuyển nhượng không lập phiếu thu.');
     }
 
     public function test_transfer_larger_than_target_debt_is_rejected(): void
     {
+        $this->giveSessions();
         $this->approvedReceipt($this->tuition, 5000000);
         $target = Student::create(['code' => 'HV-P0-T2', 'name' => 'Người nhận 2', 'phone' => '0900000003', 'branch_id' => $this->branch->id]);
         $targetTuition = $this->makeTuition($target, 1000000);
@@ -587,7 +602,7 @@ class TuitionP0FixesTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post(route('tuition.refunds.approve', $transfer->id))
-            ->assertSessionHasErrors('refund');
+            ->assertSessionHasErrors('target_student_id');
 
         $this->assertSame('pending', $transfer->fresh()->status);
         $this->assertEquals(5000000, (float) $this->tuition->fresh()->paid_amount);

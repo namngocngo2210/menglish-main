@@ -239,9 +239,9 @@ class DemoPhase4Seeder extends Seeder
         $this->event($this->at(6, 9), fn () => $this->refundRequest('D', 'accountant_bd', ['type' => 'extension', 'extended_due_date' => $this->realNow->copy()->addDays(10)->toDateString(),
             'reason' => 'Gia đình xin khất đến kỳ lương tháng sau.'], approveBy: 'admin'));
 
-        // E: đóng đủ khi chốt (Admin duyệt) → chuyển nhượng 3.000.000 sang em F (Admin duyệt) → hồ sơ hoàn phí chờ duyệt quá 1 tuần.
+        // E: đóng đủ khi chốt (Admin duyệt) → chuyển nhượng (R-07: số tiền server tự tính, không lập phiếu thu) sang em F (Admin duyệt) → hồ sơ hoàn phí chờ duyệt quá 1 tuần.
         $this->event($this->at(40, 15), fn () => $this->approveLast('E', 'admin'));
-        $this->event($this->at(20, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'transfer', 'refund_amount' => 3000000,
+        $this->event($this->at(20, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'transfer',
             'target_student_id' => $this->customers['F']->converted_student_id, 'reason' => 'Chuyển số buổi dư của chị sang em (cùng phụ huynh).'], approveBy: 'admin'));
         $this->event($this->at(10, 9), fn () => $this->refundRequest('E', 'accountant_cg', ['type' => 'refund', 'refund_amount' => 2000000,
             'reason' => 'Gia đình chuyển công tác, xin hoàn phần học phí còn lại.',

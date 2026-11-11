@@ -203,7 +203,8 @@ class StudentTuition extends Model
             ->toBase()
             ->first();
 
-        $this->paid_amount = round((float) $totals->paid_total, 2);
+        // Chuyển nhượng R-07 không có phiếu thu: tiền chuyển được cộng/trừ vào đã thu qua hồ sơ đã duyệt (balance_adjusted).
+        $this->paid_amount = round((float) $totals->paid_total + $this->transferBalanceAdjustment(), 2);
         $this->debt_amount = max(0, round((float) $this->final_amount - (float) $totals->discount_total - (float) $this->paid_amount, 2));
 
         if ($this->debt_amount <= 0) {
@@ -216,6 +217,36 @@ class StudentTuition extends Model
         }
 
         $this->save();
+    }
+
+    /** Tiền nhận − tiền chuyển đi theo các hồ sơ chuyển nhượng đã duyệt không lập phiếu thu. */
+    public function transferBalanceAdjustment(): float
+    {
+        $base = TuitionRefundRequest::query()->where('type', TuitionRefundRequest::TYPE_TRANSFER)
+            ->where('status', 'approved')->where('balance_adjusted', true);
+        $in = (float) (clone $base)->where('target_student_id', $this->student_id)->sum('refund_amount');
+        $out = (float) (clone $base)->where('student_id', $this->student_id)->sum('refund_amount');
+
+        return round($in - $out, 2);
+    }
+
+    /**
+     * R-07: chuyển nhượng luôn chuyển TOÀN BỘ buổi còn lại, số tiền = (đã thu / tổng số buổi) × số buổi còn lại.
+     *
+     * @return array{sessions: int, amount: float}
+     */
+    public function transferValue(): array
+    {
+        $stats = $this->sessionStats();
+        $total = (int) $this->session_count > 0 ? (int) $this->session_count : (int) ($stats['total'] ?? 0);
+        // Chưa có lớp/lịch để tính buổi đã học (stats = null) → chưa học buổi nào, còn nguyên số buổi.
+        $remaining = $stats ? min($total, (int) $stats['remaining']) : $total;
+        $paid = (float) $this->paid_amount;
+        if ($total <= 0 || $remaining <= 0 || $paid <= 0) {
+            return ['sessions' => 0, 'amount' => 0.0];
+        }
+
+        return ['sessions' => $remaining, 'amount' => min($paid, round($paid / $total * $remaining, 2))];
     }
 
     /** Học phí của khoản sau ưu đãi khi chốt (không gồm "Thu khác"). */
