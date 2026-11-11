@@ -269,6 +269,7 @@ class TeacherPortalController extends Controller
             'stats' => $stats,
             'todo' => [
                 'attendance_report_pending' => $attendanceReportPending,
+                'attendance_report_late' => $attendanceReportPending !== null && $attendanceReportPending < now()->format('Y-m'),
                 'attendance_report_url' => route('my-attendance.monthly-report', ['month' => $attendanceReportPending]),
                 'reports_pending' => $reportsPending->count(),
                 'report_url' => $firstReport ? route('classes.session-report', ['id' => $firstReport->class_id, 'session' => $firstReport->id]) : null,

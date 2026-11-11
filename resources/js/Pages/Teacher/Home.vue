@@ -185,7 +185,7 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                     Báo cáo buổi chưa nộp <b class="rounded-full bg-error-container px-[7px] text-xs leading-5 text-on-error-container">{{ todo.reports_pending }}</b>
                 </Link>
                 <Link v-if="todo.attendance_report_pending && todo.attendance_report_url" :href="todo.attendance_report_url" :class="[chip, 'border-error-container bg-[#fff8f7]']">
-                    Báo cáo chấm công chưa nộp
+                    Báo cáo chấm công chưa nộp<template v-if="todo.attendance_report_late"> — đã trễ</template>
                 </Link>
                 <Link v-if="can('homework.grade')" :href="route('portal.teacher.submissions')" :class="[chip, 'border-outline-variant bg-surface-container-lowest']">
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">grading</span>Chấm bài nộp

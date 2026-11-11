@@ -152,7 +152,7 @@ class MyAttendanceController extends Controller
             'months' => collect([$today->copy()->startOfMonth()->subMonth(), $today->copy()->startOfMonth()])
                 ->map(fn (Carbon $date) => ['value' => $date->format('Y-m'), 'label' => 'Tháng '.$date->format('m/Y')])->all(),
             'summary' => $this->attendance->summary($user->id, $month->copy()->startOfMonth(), $month->copy()->endOfMonth()),
-            'report' => $report ? ['submitted_at' => $report->submitted_at->toIso8601String(), 'note' => $report->note] : null,
+            'report' => $report ? ['submitted_at' => $report->submitted_at->toIso8601String(), 'note' => $report->note, 'late' => $report->submitted_at->gt($month->copy()->endOfMonth())] : null,
         ]);
     }
 
