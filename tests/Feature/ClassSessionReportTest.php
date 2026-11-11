@@ -253,6 +253,27 @@ class ClassSessionReportTest extends TestCase
         $this->assertSame(['class_report'], ClassReportStudentSupport::pluck('source')->all());
     }
 
+    public function test_support_student_without_reason_blocks_submit_and_saves_nothing(): void
+    {
+        $assistant = $this->makeUser('assistant', 'TA Bình');
+        $this->class->update(['assistant_id' => $assistant->id]);
+        $session = $this->makeSession(0);
+        $session->update(['assistant_id' => $assistant->id]);
+        $this->attend($session, 'present');
+        $other = Student::create(['code' => 'HV-2', 'name' => 'Phạm Dung', 'phone' => '0900000002', 'branch_id' => $this->branch->id,
+            'status' => 'studying', 'current_class_id' => $this->class->id]);
+
+        foreach (['', '   ', null] as $reason) {
+            $this->actingAs($assistant)->post(route('tasks.class-reports.store'), [
+                'class_id' => $this->class->id, 'class_session_id' => $session->id, 'board_image_url' => 'https://example.com/a.jpg',
+                'supports' => [['student_id' => $other->id, 'reason' => $reason]],
+            ])->assertSessionHasErrors(['supports.0.reason' => 'Lý do bắt buộc']);
+        }
+
+        $this->assertSame(0, ClassReport::count());
+        $this->assertSame(0, ClassReportStudentSupport::count());
+    }
+
     public function test_report_after_deadline_is_late(): void
     {
         $session = $this->makeSession(3);
