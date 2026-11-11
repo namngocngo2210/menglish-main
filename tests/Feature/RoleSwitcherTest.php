@@ -193,6 +193,89 @@ class RoleSwitcherTest extends TestCase
         $this->assertGuest();
     }
 
+    /** Cookie phiên (đã mã hoá) trong response, để gửi lại ở request sau như trình duyệt thật. */
+    private function sessionCookie($response): \Symfony\Component\HttpFoundation\Cookie
+    {
+        return $response->getCookie(config('session.cookie'), false);
+    }
+
+    /** Request kế tiếp với cookie phiên cũ sau khi "đồng hồ" chạy; dựng lại driver phiên như một request mới. */
+    private function requestLater(\Symfony\Component\HttpFoundation\Cookie $session, int $minutes, bool $unlocked)
+    {
+        $this->travel($minutes)->minutes();
+        app('session')->forgetDrivers();
+        app()->forgetInstance('session.store');
+        \Illuminate\Support\Facades\Auth::forgetGuards();
+        $client = $this->withUnencryptedCookie($session->getName(), $session->getValue());
+
+        return ($unlocked ? $client->unlocked() : $client)->get(route('login'));
+    }
+
+    public function test_unlock_cookie_lasts_a_year(): void
+    {
+        $cookie = $this->post(route('role-switcher.unlock'), ['code' => self::CODE])->getCookie(RoleSwitcher::COOKIE, false);
+
+        $this->assertEqualsWithDelta(now()->addYear()->getTimestamp(), $cookie->getExpiresTime(), 120);
+    }
+
+    public function test_unlock_cookie_is_refreshed_on_every_request_when_unlocked(): void
+    {
+        $this->unlocked()->get(route('login'))->assertCookie(RoleSwitcher::COOKIE);
+    }
+
+    public function test_switched_session_survives_beyond_the_normal_lifetime(): void
+    {
+        config(['session.driver' => 'database', 'session.lifetime' => 120]);
+        $teacher = $this->makeUser(Roles::TEACHER_PARTTIME, 'GV Một');
+
+        $response = $this->unlocked()->post(route('role-switcher.switch', $teacher));
+        $session = $this->sessionCookie($response);
+        $this->assertEqualsWithDelta(now()->addMinutes(RoleSwitcher::SESSION_MINUTES)->getTimestamp(), $session->getExpiresTime(), 120);
+
+        config(['session.lifetime' => 120]);
+        $this->requestLater($session, 60 * 5, unlocked: true);
+        $this->assertAuthenticatedAs($teacher);
+    }
+
+    public function test_normal_login_still_expires_at_session_lifetime(): void
+    {
+        config(['session.driver' => 'database', 'session.lifetime' => 120]);
+        $user = User::factory()->create();
+        $user->assignRole(Roles::TEACHER_PARTTIME);
+
+        $response = $this->post(route('login'), ['email' => $user->email, 'password' => 'password']);
+        $session = $this->sessionCookie($response);
+        $this->assertEqualsWithDelta(now()->addMinutes(120)->getTimestamp(), $session->getExpiresTime(), 120);
+
+        $this->requestLater($session, 60 * 5, unlocked: false);
+        $this->assertGuest();
+    }
+
+    public function test_production_never_gets_long_session_or_cookie(): void
+    {
+        app()->detectEnvironment(fn () => 'production');
+        config(['session.lifetime' => 120]);
+
+        $response = $this->unlocked()->get(route('login'));
+
+        $response->assertCookieMissing(RoleSwitcher::COOKIE);
+        $this->assertSame(120, config('session.lifetime'));
+        $this->assertEqualsWithDelta(now()->addMinutes(120)->getTimestamp(), $this->sessionCookie($response)->getExpiresTime(), 120);
+    }
+
+    public function test_expired_csrf_on_unlock_and_switch_redirects_back_instead_of_error_page(): void
+    {
+        $teacher = $this->makeUser(Roles::TEACHER_PARTTIME, 'GV Một');
+        app()->detectEnvironment(fn () => 'local'); // CSRF check is skipped only when the env is "testing"
+        $this->withHeader('Referer', route('login'));
+
+        $this->post(route('role-switcher.unlock'), ['code' => self::CODE])
+            ->assertRedirect(route('login'))->assertSessionHasErrors('code');
+        $this->unlocked()->post(route('role-switcher.switch', $teacher))
+            ->assertRedirect(route('login'))->assertSessionHasErrors('code');
+        $this->assertGuest();
+    }
+
     public function test_account_forced_to_change_password_can_still_switch_away(): void
     {
         $forced = $this->makeUser(Roles::ACADEMIC_STAFF, 'Học vụ Mới', ['must_change_password' => true]);

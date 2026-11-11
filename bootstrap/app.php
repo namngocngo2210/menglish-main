@@ -8,10 +8,14 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireInitialPasswordChange;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\StartSessionWithRoleSwitcher;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -44,11 +48,17 @@ return Application::configure(basePath: dirname(__DIR__))
             AuditOperationMiddleware::class,
             HandleInertiaRequests::class,
         ]);
+        $middleware->web(replace: [StartSession::class => StartSessionWithRoleSwitcher::class]);
         $middleware->preventRequestForgery(except: [
             'hook/sepay-gateway/*',
             'api/sepay/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Đổi vai trò (bản thử nghiệm): phiên / token CSRF hết hạn → quay lại trang trước (token mới), form dùng tiếp được.
+        $exceptions->render(function (HttpException $e, Request $request) {
+            if ($e->getStatusCode() === 419 && $request->routeIs('role-switcher.*')) {
+                return back()->withErrors(['code' => 'Phiên đã hết hạn, vui lòng thử lại.']);
+            }
+        });
     })->create();

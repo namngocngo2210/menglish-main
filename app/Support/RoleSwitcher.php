@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
- * Đổi vai trò trên bản thử nghiệm (config/role_switcher.php): nhập mã truy cập chung một lần (cookie 30 ngày), rồi chọn
+ * Đổi vai trò trên bản thử nghiệm (config/role_switcher.php): nhập mã truy cập chung một lần (cookie 1 năm, gia hạn mỗi request; phiên đăng nhập 30 ngày trượt — StartSessionWithRoleSwitcher), rồi chọn
  * vai trò / người để đăng nhập hẳn bằng tài khoản đó — quyền, phạm vi dữ liệu, menu đúng như người dùng thật.
  *
  * Chỉ dùng được khi bật ROLE_SWITCHER_ENABLED, có ROLE_SWITCHER_CODE và APP_ENV khác production. Cookie chứa HMAC của
@@ -18,7 +18,10 @@ final class RoleSwitcher
 {
     public const COOKIE = 'role_switcher';
 
-    private const COOKIE_MINUTES = 60 * 24 * 30;
+    private const COOKIE_MINUTES = 60 * 24 * 365;
+
+    /** Phiên đăng nhập của trình duyệt đã mở khoá (chỉ bản thử nghiệm), trượt theo mỗi request. */
+    public const SESSION_MINUTES = 60 * 24 * 30;
 
     /** Số tài khoản tối đa hiện trong menu cho mỗi vai trò. */
     private const ACCOUNTS_PER_ROLE = 20;
