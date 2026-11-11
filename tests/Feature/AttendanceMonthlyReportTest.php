@@ -122,6 +122,26 @@ class AttendanceMonthlyReportTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_pending', null));
     }
 
+    public function test_home_chip_is_marked_late_only_for_a_previous_month(): void
+    {
+        $this->actingAs($this->teacher)->get(route('teacher.home'))->assertSee('đã trễ')
+            ->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_late', true));
+        AttendanceMonthlyReport::create(['user_id' => $this->teacher->id, 'month' => '2026-09', 'submitted_at' => now()]);
+        Carbon::setTestNow(Carbon::parse('2026-10-30 10:00:00'));
+        $this->get(route('teacher.home'))->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_pending', '2026-10')
+            ->where('todo.attendance_report_late', false));
+    }
+
+    public function test_submission_is_late_only_after_the_last_day_of_its_month(): void
+    {
+        foreach ([['2026-09-30 23:59:59', false], ['2026-10-01 00:00:00', true]] as [$at, $late]) {
+            AttendanceMonthlyReport::query()->delete();
+            AttendanceMonthlyReport::create(['user_id' => $this->teacher->id, 'month' => '2026-09', 'submitted_at' => $at]);
+            $this->actingAs($this->teacher)->get(route('my-attendance.monthly-report', ['month' => '2026-09']))
+                ->assertInertia(fn (Assert $page) => $page->where('report.late', $late));
+        }
+    }
+
     public function test_current_month_is_pending_from_three_days_before_last_sunday_onwards(): void
     {
         AttendanceMonthlyReport::create(['user_id' => $this->teacher->id, 'month' => '2026-09', 'submitted_at' => now()]);

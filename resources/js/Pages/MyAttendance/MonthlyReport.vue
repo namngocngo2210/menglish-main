@@ -37,6 +37,7 @@ defineProps({
 
         <section v-if="report" class="space-y-sm rounded-xl border border-outline-variant bg-surface-container-lowest p-md">
             <UiBadge color="success">Đã nộp - {{ formatDate(report.submitted_at, 'd/m/Y') }}</UiBadge>
+            <UiBadge v-if="report.late" color="warning">Nộp muộn</UiBadge>
             <p v-if="report.note" class="whitespace-pre-wrap text-on-surface">{{ report.note }}</p>
         </section>
         <UiForm v-else-if="months.some(option => option.value === month)" :key="month" :action="route('my-attendance.monthly-report.store')" method="post" class="space-y-md">
