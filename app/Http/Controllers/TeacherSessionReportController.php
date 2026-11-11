@@ -413,8 +413,10 @@ class TeacherSessionReportController extends Controller
     /** @return array{0: ClassModel, 1: ClassSession} */
     private function resolve(Request $request, int $id, int $session): array
     {
-        $class = ClassModel::query()->visibleTo($request->user())->find($id);
+        $class = ClassModel::query()->visibleTo($request->user(), true, true)->find($id);
         abort_unless($class, 403);
+        // Dạy thay chỉ mở báo cáo đúng buổi được duyệt, không mở các buổi khác của lớp (TK-2026-0057).
+        abort_if($class->isCoverOnlyFor($request->user()) && ! ClassSession::approvedCoverFor($request->user()->id)->whereKey($session)->exists(), 403);
         $classSession = ClassSession::where('class_id', $class->id)->whereKey($session)
             ->where('status', '!=', 'cancelled')->whereDate('date', '<=', today()->toDateString())
             ->firstOrFail();

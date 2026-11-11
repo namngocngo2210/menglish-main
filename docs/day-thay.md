@@ -10,9 +10,9 @@ Màn **Lớp học → Dạy thay** (`/day-thay`, route `cover.board`). Backend:
 5. Buổi đã bắt đầu thì không đăng ký / duyệt được. Chưa ai được duyệt đến giờ học: Học vụ tự điểm danh (quy trình vận hành).
 
 ## Phạm vi dữ liệu & vận hành (PR3)
-- Không thêm scope mới: duyệt chỉ đổi `class_sessions.teacher_id`, nên quyền xem lớp / học viên / bài giảng đi qua các scope hiện có (`ClassModel::visibleTo`, `Student::visibleTo`, `SyllabusLessonSlide::isVisibleTo`, `SyllabusDocument::visibleTo`) vốn đã tính GV theo buổi. Chưa duyệt (chỉ đăng ký) → không thấy gì; **Mở lại / Hủy** trả `teacher_id` về GV cũ → mất quyền ngay.
+- Quyền xem theo **đúng buổi được duyệt** (chủ dự án 10/11): duyệt vẫn chỉ đổi `class_sessions.teacher_id`, nhưng buổi dạy thay đã duyệt (`ClassSession::approvedCoverFor`: `teacher_id` = người đó + `cover_requests.status = approved` cho đúng người) **không còn mở cả lớp**. `ClassModel::visibleTo` mặc định bỏ buổi dạy thay (`forStaffExceptCover`) nên mọi màn toàn lớp (báo cáo, dashboard, KPI, việc, tìm kiếm…) đóng với GV dạy thay; chỉ các màn theo buổi gọi `visibleTo($user, true, true)` rồi tự thu hẹp: trang lớp (`classes.show`: chỉ các buổi được duyệt, không có tab Học thuật), báo cáo buổi (`classes.session-report`: buổi khác → 403), học viên của lớp có buổi đó (`Student::visibleTo`), bài giảng \"hôm nay\" (`TeacherLessonController`, không xem bài khác của chặng), slide / tài liệu gắn đúng bài của buổi (`SessionLessonService::coverLessonIdsFor`, cần chặng đang mở). Chưa duyệt → không thấy gì; **Mở lại / Hủy** trả `teacher_id` về GV cũ → mất quyền ngay.
 - Check-in, điểm danh, nhận xét: cổng GV phân quyền theo buổi (`?session=`), ghi dưới tên GV dạy thay. Lương: `TeachingShareService` không đổi (ca `sub` khi `teacher_id` buổi ≠ GV lớp).
-- Giới hạn đã biết: scope hiện có tính cả các buổi khác của cùng lớp (và sau khi buổi kết thúc vẫn xem được lớp đó, như mọi GV dạy thay trước đây); không tính lớp khác. Thu hẹp "chỉ đúng buổi đó" sẽ đổi hành vi dạy thay hiện có → cần chủ dự án quyết định.
+- Không đổi với GV chính / trợ giảng / GVNN của lớp, Admin, Học vụ và quyền theo buổi khác (GVNN / trợ giảng gán theo buổi). Sau khi buổi kết thúc không thêm / bớt quyền so với trước: vẫn chỉ đúng buổi đó (không có mốc hết hạn riêng theo ngày).
 - Nhắc Học vụ: `php artisan cover:remind-unfilled` (mỗi 15 phút) — yêu cầu còn `open`, buổi đã đến giờ mà chưa ai được duyệt → thông báo `cover_unfilled` cho người có `attendance_student.record_any` xem được lớp, 1 lần / yêu cầu (`cover_requests.attendance_reminded_at`).
 
 ## Thông báo (`AdminNotification`)
@@ -22,4 +22,4 @@ Màn **Lớp học → Dạy thay** (`/day-thay`, route `cover.board`). Backend:
 - `cover_reopened` / `cover_cancelled` → GV đã được duyệt trước đó.
 
 ## Test
-`tests/Feature/CoverRequestTest.php` (quy tắc), `tests/Feature/CoverBoardTest.php` (trang + thông báo), `resources/js/lib/cover.test.js` (nút hiển thị theo vai trò).
+`tests/Feature/CoverRequestTest.php` (quy tắc), `tests/Feature/CoverBoardTest.php` (trang + thông báo), `tests/Feature/CoverPerSessionScopeTest.php` (ma trận quyền theo buổi), `tests/Feature/CoverScopeTest.php` (duyệt / mở lại / hủy), `resources/js/lib/cover.test.js` (nút hiển thị theo vai trò).

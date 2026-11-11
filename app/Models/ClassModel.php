@@ -67,8 +67,12 @@ class ClassModel extends Model
      * Lớp mà người dùng được xem: nhân sự quản lý lớp (class.create/update) thấy
      * tất cả; giáo viên / GVNN / trợ giảng chỉ thấy lớp mình phụ trách hoặc có
      * buổi dạy; vai trò khác (học viên...) không thấy lớp nào.
+     *
+     * Dạy thay đã duyệt (TK-2026-0057) chỉ mở dữ liệu đúng buổi được duyệt: mặc định KHÔNG tính vào phạm vi lớp; chỉ các
+     * màn theo buổi (trang lớp, báo cáo buổi, học viên của buổi, bài giảng của buổi) gọi `$withCover = true` và tự thu hẹp
+     * về buổi đó (isCoverOnlyFor / ClassSession::approvedCoverFor).
      */
-    public function scopeVisibleTo(Builder $query, ?User $user, bool $withSessions = true): Builder
+    public function scopeVisibleTo(Builder $query, ?User $user, bool $withSessions = true, bool $withCover = false): Builder
     {
         if (! $user) {
             return $query->whereRaw('1 = 0');
@@ -91,12 +95,12 @@ class ClassModel extends Model
             $grantedClassIds = array_merge($grantedClassIds, $user->scopedOverrideIds('class', $action, UserPermissionOverride::SCOPE_CLASS));
         }
 
-        return $query->where(function (Builder $query) use ($user, $managedBranchIds, $grantedBranchIds, $grantedClassIds, $withSessions) {
+        return $query->where(function (Builder $query) use ($user, $managedBranchIds, $grantedBranchIds, $grantedClassIds, $withSessions, $withCover) {
             $query->taughtBy($user);
 
             // Dạy thay theo buổi: chỉ mở quyền truy cập lớp (phạm vi buổi), không đưa vào danh sách "đang dạy".
             if ($withSessions) {
-                $query->orWhereHas('sessions', fn (Builder $sessions) => $sessions->forStaff($user->id));
+                $query->orWhereHas('sessions', fn (Builder $sessions) => $withCover ? $sessions->forStaff($user->id) : $sessions->forStaffExceptCover($user->id));
             }
 
             if (! empty($managedBranchIds)) {
@@ -109,6 +113,16 @@ class ClassModel extends Model
                 $query->orWhereIn('id', array_values(array_unique($grantedClassIds)));
             }
         });
+    }
+
+    /**
+     * Người này vào lớp CHỈ nhờ buổi dạy thay đã duyệt (không phải GV / quản lý / được cấp riêng, không có buổi nào khác):
+     * trang lớp phải thu hẹp về đúng các buổi đó.
+     */
+    public function isCoverOnlyFor(User $user): bool
+    {
+        return $this->sessions()->approvedCoverFor($user->id)->exists()
+            && ! static::query()->visibleTo($user)->whereKey($this->getKey())->exists();
     }
 
     /**

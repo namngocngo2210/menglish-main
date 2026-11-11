@@ -63,7 +63,7 @@ class CoverScopeTest extends TestCase
     private function reach(User $user): array
     {
         return [
-            'class' => ClassModel::visibleTo($user)->whereKey($this->class->id)->exists(),
+            'class' => ClassModel::visibleTo($user, true, true)->whereKey($this->class->id)->exists(),
             'student' => Student::visibleTo($user)->where('code', 'CV-ST')->exists(),
             'slide' => $this->slide->isVisibleTo($user),
         ];
@@ -111,7 +111,7 @@ class CoverScopeTest extends TestCase
         $request = $this->openAndRegister();
         app(CoverService::class)->approve($request, $this->userWithRole(Roles::ACADEMIC_STAFF, 'Học vụ duyệt'), $this->cover->id);
 
-        $this->assertFalse(ClassModel::visibleTo($this->cover)->whereKey($otherClass->id)->exists());
+        $this->assertFalse(ClassModel::visibleTo($this->cover, true, true)->whereKey($otherClass->id)->exists());
         // Cover never becomes the class teacher: "Lớp của tôi" stays empty, only the session is theirs.
         $this->assertFalse(ClassModel::visibleTo($this->cover)->taughtBy($this->cover)->whereKey($this->class->id)->exists());
         $this->assertSame($this->teacher->id, $this->class->fresh()->teacher_id);

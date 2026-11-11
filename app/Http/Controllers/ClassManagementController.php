@@ -489,7 +489,7 @@ class ClassManagementController extends Controller
         $mine = $request->boolean('mine');
 
         // Phạm vi gốc (người xem + chi nhánh + tìm kiếm) — chip đếm tính trên phạm vi này.
-        $scope = ClassModel::query()->visibleTo($viewer)
+        $scope = ClassModel::query()->visibleTo($viewer, true, true)
             ->when($mine, fn ($q) => $q->taughtBy($viewer))
             ->when($branchFilter, fn ($q) => $q->where('branch_id', $branchFilter))
             // Phải bọc closure: orWhere viết thẳng sẽ thoát cả filter status lẫn chi nhánh.
@@ -538,7 +538,7 @@ class ClassManagementController extends Controller
         ]);
 
         // Chi nhánh để lọc: chỉ những chi nhánh có lớp người xem thấy (GV / quản lý 1 cơ sở thì không cần bộ lọc này).
-        $visibleBranchIds = ClassModel::query()->visibleTo($viewer)->when($mine, fn ($q) => $q->taughtBy($viewer))
+        $visibleBranchIds = ClassModel::query()->visibleTo($viewer, true, true)->when($mine, fn ($q) => $q->taughtBy($viewer))
             ->whereNotNull('branch_id')->distinct()->pluck('branch_id');
         $branches = $branches->whereIn('id', $visibleBranchIds)->values();
 
@@ -573,7 +573,10 @@ class ClassManagementController extends Controller
         $this->ensureCanBrowseClasses();
         $viewer = auth()->user();
         $class = ClassModel::with(['course', 'branch', 'teacher', 'assistant', 'foreignTeacher', 'scheduleConfig'])
-            ->visibleTo($viewer)->findOrFail($id);
+            ->visibleTo($viewer, true, true)->findOrFail($id);
+        // Dạy thay đã duyệt (TK-2026-0057): chỉ thấy đúng các buổi được duyệt; không có tab Học thuật (chặng / Big Test / yêu cầu giãn lớp).
+        $coverOnly = $class->isCoverOnlyFor($viewer);
+        abort_if($coverOnly && $request->query('tab') === 'academic', 403);
         $requested = (string) $request->query('tab');
         if (isset(ClassLifecycle::LEGACY_TABS[$requested])) {
             return redirect()->route('classes.show', ['id' => $class->id, 'tab' => ClassLifecycle::LEGACY_TABS[$requested]]);
@@ -584,7 +587,8 @@ class ClassManagementController extends Controller
         $canManage = $viewer->can('class.update') && $class->userCan($viewer, 'update');
         $today = CarbonImmutable::today();
 
-        $activeSessions = $class->sessions()->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT);
+        $activeSessions = $class->sessions()->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT)
+            ->when($coverOnly, fn ($q) => $q->approvedCoverFor($viewer->id));
         $sessionProgress = [
             'total' => (clone $activeSessions)->count(),
             'done' => (clone $activeSessions)->whereDate('date', '<=', $today->toDateString())->count(),
@@ -615,7 +619,7 @@ class ClassManagementController extends Controller
                 'has_schedule_config' => (bool) $class->scheduleConfig,
             ],
             'tab' => $tab,
-            'tabs' => collect(ClassLifecycle::TABS)->map(fn (array $meta, string $key) => ['key' => $key, ...$meta])->values()->all(),
+            'tabs' => collect(ClassLifecycle::TABS)->except($coverOnly ? ['academic'] : [])->map(fn (array $meta, string $key) => ['key' => $key, ...$meta])->values()->all(),
             'seat' => $seat,
             'canManage' => $canManage,
             'canDelete' => $viewer->can('class.delete') && $class->userCan($viewer, 'delete'),
@@ -623,7 +627,16 @@ class ClassManagementController extends Controller
             'needAction' => $needAction,
         ];
 
-        if ($tab === 'overview') {
+        if ($tab === 'overview' && $coverOnly) {
+            // Chỉ các buổi được duyệt: không lộ chặng / Big Test / sự vụ / GVNN / trợ giảng của cả lớp.
+            $numbers = $this->sessionNumbers($class);
+            $data['upcomingSessions'] = (clone $activeSessions)->whereDate('date', '>=', $today->toDateString())->orderBy('date')->orderBy('start_time')->limit(3)->get()
+                ->map(fn (ClassSession $s) => [
+                    'id' => $s->id, 'no' => $numbers[$s->id] ?? null, 'date' => $s->date->toDateString(), 'weekday' => $s->date->dayOfWeek,
+                    'start' => $s->start_time?->format('H:i'), 'end' => $s->end_time?->format('H:i'), 'room' => $s->room ?: $class->room,
+                    'teacher' => $viewer->name, 'foreign_teacher' => null, 'is_today' => $s->date->isSameDay($today),
+                ])->values()->all();
+        } elseif ($tab === 'overview') {
             $bigTests = BigTest::where('class_id', $class->id)->orderBy('scheduled_at')->get();
             $nextBigTest = $bigTests->first(fn ($bt) => $bt->scheduled_at && $bt->scheduled_at->isFuture());
             $currentStage = SyllabusAssignment::where('class_id', $class->id)->where('status', 'in_progress')->latest()->first();
@@ -670,7 +683,7 @@ class ClassManagementController extends Controller
             ])->values()->all();
         }
         if ($tab === 'sessions') {
-            $data += $this->sessionsTab($class, $viewer, $canManage, $today);
+            $data += $this->sessionsTab($class, $viewer, $canManage, $today, $coverOnly);
         }
         if ($tab === 'academic') {
             $data += $this->academicTab($class, $viewer);
@@ -698,10 +711,11 @@ class ClassManagementController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function sessionsTab(ClassModel $class, User $viewer, bool $canManage, CarbonImmutable $today): array
+    private function sessionsTab(ClassModel $class, User $viewer, bool $canManage, CarbonImmutable $today, bool $coverOnly = false): array
     {
         $dashboard = app(ClassDashboardService::class);
         $sessions = $class->sessions()
+            ->when($coverOnly, fn ($q) => $q->approvedCoverFor($viewer->id))
             ->with(['teacher:id,name', 'foreignTeacher:id,name', 'assistant:id,name', 'holiday:id,name'])
             ->withCount([
                 'attendances',
