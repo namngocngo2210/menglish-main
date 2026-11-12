@@ -183,7 +183,8 @@ class Phase3TimesheetTest extends TestCase
         // Buổi đã được chấm tay → check-in không ghi đè bản ghi chấm tay
         $timesheet->update(['source' => 'manual', 'notes' => 'Chấm tay', 'status' => 'valid']);
         $this->actingAs($this->teacher)->post(route('teacher.checkin'), ['class_ids' => [$this->classModel->id]])
-            ->assertSessionHasErrors('class_ids');
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Ca này đã có công — không cần check-in lại.');
         $this->assertSame('valid', $timesheet->fresh()->status);
         $this->assertSame('manual', $timesheet->fresh()->source);
     }

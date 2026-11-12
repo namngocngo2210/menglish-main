@@ -75,3 +75,6 @@ Schedule::command('syllabus:prune-imports')->dailyAt('03:10');
 
 // Luyện tập: lượt đang làm đã quá giờ (+30 giây ân hạn lưu đáp án) → tự nộp, submit_reason = timeout (idempotent).
 Schedule::command('practice:close-expired')->everyFiveMinutes()->withoutOverlapping();
+
+// Create adjacent-shift attendance and remove draft rows whose triggering session is no longer eligible.
+Schedule::command('attendance:auto-adjacent-shifts')->everyFiveMinutes()->withoutOverlapping();

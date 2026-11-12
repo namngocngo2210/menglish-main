@@ -32,7 +32,10 @@ class SupportSessionService
                 'cancel_reason' => null, 'cancelled_at' => null]);
             $support->classSession?->update(['status' => 'completed']);
             // Kỳ lương đã khóa (điểm danh sửa muộn): không ghi thêm công vào kỳ đã chốt.
-            if (! PayrollPeriod::isLockedFor($support->session_date)) {
+            $timesheets = TeacherTimesheet::withSoftDeleted()->where('user_id', $support->teacher_id)
+                ->where('class_session_id', $support->class_session_id)->orderBy('id')->lockForUpdate()->get();
+            if (! PayrollPeriod::isLockedFor($support->session_date)
+                && ! $timesheets->contains(fn (TeacherTimesheet $row) => $row->bi_xoa_boi_hoc_vu || $row->payroll_locked)) {
                 $minutes = Carbon::parse($support->start_time)->diffInMinutes(Carbon::parse($support->end_time));
                 TeacherTimesheet::updateOrCreate(
                     ['user_id' => $support->teacher_id, 'class_session_id' => $support->class_session_id],
@@ -43,6 +46,7 @@ class SupportSessionService
                         'hours' => max(.5, $minutes / 60),
                         'type' => '1on1',
                         'status' => 'pending_review',
+                        'reconcile_status' => $timesheets->first()?->reconcile_status === null ? null : TeacherTimesheet::RECONCILE_NHAP,
                         'notes' => 'Phụ đạo học viên #'.$support->student_id,
                     ]
                 );
@@ -83,8 +87,9 @@ class SupportSessionService
             if ($support->classSession && ! $support->classSession->attendances()->exists()) {
                 $support->classSession->update(['status' => 'cancelled']);
             }
-            if ($support->class_session_id) {
+            if ($support->class_session_id && ! PayrollPeriod::isLockedFor($support->session_date)) {
                 TeacherTimesheet::where('class_session_id', $support->class_session_id)->where('user_id', $support->teacher_id)
+                    ->where('payroll_locked', false)
                     ->where('status', 'pending_review')->delete();
             }
         });

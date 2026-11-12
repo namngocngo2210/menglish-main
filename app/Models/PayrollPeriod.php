@@ -240,7 +240,8 @@ class PayrollPeriod extends Model
     {
         $range = [$this->start_date, $this->end_date];
 
-        return TeacherTimesheet::whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
+        // A deleted attendance row no longer contributes pay, but must still invalidate an older calculation.
+        return TeacherTimesheet::withSoftDeleted()->whereBetween('teaching_date', $range)->where('updated_at', '>', $this->calculated_at)->exists()
             // Chỉ biên bản đã quyết phạt mới ảnh hưởng lương (ghi nhận / giải trình / khắc phục không bắt tính lại)
             || $this->payrollPenalties()->deductibleFor($this)->where('updated_at', '>', $this->calculated_at)->exists()
             // Đơn giá dạy, cấu hình lương (BHXH, công đoàn, tái tục...) và tiêu chí KPI đổi sau lần tính

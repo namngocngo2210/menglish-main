@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,13 @@ class TeacherTimesheet extends Model
         'adjusted_by',
         'adjustment_reason',
         'notes',
+        'reconcile_status',
+        'bi_xoa_boi_hoc_vu',
+        'soft_deleted_by',
+        'soft_deleted_at',
+        'soft_delete_reason',
+        'payroll_locked',
+        'created_by',
     ];
 
     protected $casts = [
@@ -46,7 +54,26 @@ class TeacherTimesheet extends Model
         'hourly_rate' => 'decimal:2',
         'reviewed_at' => 'datetime',
         'adjusted_at' => 'datetime',
+        'bi_xoa_boi_hoc_vu' => 'boolean',
+        'payroll_locked' => 'boolean',
+        'soft_deleted_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('academic_active', fn (Builder $query) => $query
+            ->whereRaw('COALESCE(teacher_timesheets.bi_xoa_boi_hoc_vu, 0) = 0'));
+    }
+
+    public static function withSoftDeleted(): Builder
+    {
+        return static::withoutGlobalScope('academic_active');
+    }
+
+    public function scopeNotClosed(Builder $query): Builder
+    {
+        return $query->whereNotNull('reconcile_status')->where('reconcile_status', '<>', self::RECONCILE_CLOSED);
+    }
 
     public function teacher(): BelongsTo
     {
@@ -120,6 +147,14 @@ class TeacherTimesheet extends Model
     public const DEFAULT_HOURLY_RATE = 250000;
 
     public const SOURCE_CHECKIN = 'checkin';
+
+    public const SOURCE_AUTO_ADJACENT = 'auto_adjacent';
+
+    public const RECONCILE_NHAP = 'nhap';
+
+    public const RECONCILE_CHO = 'cho_doi_soat';
+
+    public const RECONCILE_CLOSED = 'da_chot';
 
     public const SOURCE_MANUAL = 'manual';
 
@@ -361,6 +396,7 @@ class TeacherTimesheet extends Model
             self::SOURCE_MANUAL => 'Chấm tay',
             self::SOURCE_CHECKIN => 'Check-in',
             self::SOURCE_SCHEDULE => 'Xác nhận theo lịch',
+            self::SOURCE_AUTO_ADJACENT => 'Tự động ca liền kề',
             default => '—',
         };
     }

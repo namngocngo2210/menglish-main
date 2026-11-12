@@ -9,9 +9,11 @@ use App\Models\CommissionItem;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\Penalty;
+use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Support\DataScopeGuard;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,8 +26,17 @@ class PayrollPeriodLifecycle
         return DataScopeGuard::bypass(fn () => DB::transaction(function () use ($period, $toStatus) {
             $locked = PayrollPeriod::whereKey($period->id)->lockForUpdate()->firstOrFail();
             abort_unless($locked->canTransitionTo($toStatus), 422, 'Không thể chuyển trạng thái kỳ lương từ trạng thái hiện tại.');
-            if ($reason = $this->blockReason($locked, $toStatus)) {
+            if ($toStatus === PayrollPeriod::STATUS_CLOSED) {
+                // Keep source rows stable through snapshot/KPI/attendance checks and the final payroll lock.
+                $this->periodTimesheets($locked)->withoutGlobalScope('academic_active')
+                    ->orderBy('id')->lockForUpdate()->get(['id']);
+            }
+            if ($reason = $this->blockReason($locked, $toStatus, false)) {
                 throw ValidationException::withMessages(['period' => $reason]);
+            }
+
+            if ($toStatus === PayrollPeriod::STATUS_CLOSED && ($reason = $this->attendanceBlockReason($locked))) {
+                abort(400, $reason);
             }
 
             $fromStatus = $locked->status;
@@ -36,6 +47,13 @@ class PayrollPeriodLifecycle
                 default => 'confirmed',
             };
             $locked->records()->update(['status' => $recordStatus]);
+            if ($toStatus === PayrollPeriod::STATUS_CLOSED) {
+                // Query Builder avoids updated_at changes that would invalidate the payroll calculation snapshot.
+                $this->periodTimesheets($locked)->whereRaw("COALESCE(reconcile_status, 'da_chot') = ?", [TeacherTimesheet::RECONCILE_CLOSED])
+                    ->toBase()->update(['payroll_locked' => true]);
+            } elseif ($toStatus === PayrollPeriod::STATUS_DRAFT) {
+                $this->periodTimesheets($locked)->toBase()->update(['payroll_locked' => false]);
+            }
             if ($toStatus === PayrollPeriod::STATUS_PUBLISHED) {
                 $this->settleAndNotify($locked);
             }
@@ -51,7 +69,7 @@ class PayrollPeriodLifecycle
     }
 
     /** Dùng chung điều kiện cho nút thao tác và kiểm tra trong khóa dòng. */
-    public function blockReason(PayrollPeriod $period, string $toStatus): ?string
+    public function blockReason(PayrollPeriod $period, string $toStatus, bool $includeAttendanceGate = true): ?string
     {
         if ($toStatus === PayrollPeriod::STATUS_CLOSED) {
             if (BackgroundTask::pendingExists(BackgroundTask::PAYROLL_CALCULATE, fn ($q) => $q->where('payload->period_id', $period->id))) {
@@ -79,12 +97,36 @@ class PayrollPeriodLifecycle
                     .$pending->take(5)->map(fn ($r) => $r->user?->name)->filter()->implode(', ')
                     .($pending->count() > 5 ? '…' : '').'). Chốt KPI rồi bấm "Đồng bộ & Tính lại".';
             }
+            if ($includeAttendanceGate && ($reason = $this->attendanceBlockReason($period))) {
+                return $reason;
+            }
         }
         if ($toStatus === PayrollPeriod::STATUS_PUBLISHED && $period->hasChangesSinceCalculation()) {
             return 'Dữ liệu đã thay đổi sau khi chốt — vui lòng bấm Mở lại để tính lại, Đồng bộ & Tính lại, rồi chốt lại trước khi Gửi GV xem.';
         }
 
         return null;
+    }
+
+    private function periodTimesheets(PayrollPeriod $period): Builder
+    {
+        return TeacherTimesheet::whereBetween('teaching_date', [$period->start_date, $period->end_date])
+            ->when($period->isAllowListed(), fn (Builder $query) => $query->whereIn('user_id', $period->staff_allowlist));
+    }
+
+    private function attendanceBlockReason(PayrollPeriod $period): ?string
+    {
+        $query = $this->periodTimesheets($period)->where('status', '<>', 'invalid')->notClosed();
+        $count = (clone $query)->count();
+        if ($count === 0) {
+            return null;
+        }
+        $rows = $query->with(['teacher', 'classModel'])->orderBy('teaching_date')->orderBy('id')->limit(10)->get();
+
+        return 'Chưa thể chốt bảng lương: còn '.$count.' dòng công chưa chốt — '
+            .$rows->map(fn (TeacherTimesheet $row) => ($row->teacher?->name ?? 'Chưa cập nhật').' – '
+                .$row->teaching_date->format('d/m').' – '.($row->classModel?->name ?? 'Chưa cập nhật'))->implode('; ')
+            .($count > 10 ? '; và '.($count - 10).' dòng khác' : '').'.';
     }
 
     public function actions(PayrollPeriod $period, User $user): array

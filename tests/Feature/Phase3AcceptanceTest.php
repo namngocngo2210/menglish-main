@@ -164,7 +164,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->assertEquals(1.5, $first->hours);
         // Bấm lại: không tạo thêm, không ghi đè giờ check-in
         $this->at('2026-08-03 17:45');
-        $this->actingAs($this->partTime)->post(route('teacher.checkin'), ['session_ids' => [$s1->id]])->assertSessionHasErrors('class_ids');
+        $this->actingAs($this->partTime)->post(route('teacher.checkin'), ['session_ids' => [$s1->id]])->assertSessionHasNoErrors();
         $this->assertSame(1, TeacherTimesheet::count());
         $this->assertSame('17:20', $first->fresh()->checkin_time);
 
@@ -189,7 +189,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->actingAs($this->academic)->post(route('payroll.timesheets.manual.store'), ['notes' => 'Nhập lại lần hai.'] + $manual)
             ->assertSessionHasErrors('teaching_date');                               // trùng buổi → bị chặn
         $this->actingAs($this->partTime)->post(route('teacher.checkin'), ['session_ids' => [$this->sessions['pt-2026-08-05']->id]])
-            ->assertSessionHasErrors('class_ids');                                  // đã chấm tay → không check-in chồng
+            ->assertSessionHasNoErrors();                                // đã chấm tay → không check-in chồng
         $this->assertSame(3, TeacherTimesheet::count());
 
         $this->at('2026-08-06 17:25');

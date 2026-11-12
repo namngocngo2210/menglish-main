@@ -25,6 +25,7 @@ use App\Services\Payroll\PayrollPeriodLifecycle;
 use App\Services\PayrollFormulaService;
 use App\Services\SalesCommissionService;
 use App\Services\TeachingShifts\ScheduleConfirmation;
+use App\Services\TeachingShifts\TimesheetSoftDelete;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\PayrollAdjustScope;
@@ -992,49 +993,65 @@ class PayrollController extends Controller
             (int) $validated['user_id'], (int) $validated['class_id'], $date, $validated['time_in'], $validated['time_out']
         );
 
-        $duplicate = TeacherTimesheet::findDuplicate((int) $validated['user_id'], (int) $validated['class_id'], $date, $session?->id);
-        if ($duplicate) {
-            $how = $duplicate->source === TeacherTimesheet::SOURCE_MANUAL ? 'chấm tay' : 'check-in';
-            $message = "Nhân sự đã được chấm công ({$how}) cho lớp này ngày ".Carbon::parse($date)->format('d/m/Y')
-                .' — không thể tính công 2 lần. Nếu bản ghi cũ sai, hãy từ chối bản ghi đó trước.';
+        return DB::transaction(function () use ($validated, $date, $session, $hours) {
+            if ($session) {
+                \App\Models\ClassSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
+            }
+            $existing = $session ? TeacherTimesheet::withSoftDeleted()->where('user_id', $validated['user_id'])
+                ->where('class_session_id', $session->id)->orderBy('id')->lockForUpdate()->get() : collect();
+            if ($existing->contains(fn (TeacherTimesheet $row) => $row->bi_xoa_boi_hoc_vu)) {
+                throw ValidationException::withMessages(['teaching_date' => 'Học vụ đã xóa công ca này, liên hệ Học vụ.']);
+            }
+            if (PayrollPeriod::isLockedFor($date)) {
+                return $this->rejectLockedDate('teaching_date', $date);
+            }
+            abort_if($existing->contains(fn (TeacherTimesheet $row) => $row->payroll_locked), 409, 'Kỳ lương đã chốt, không sửa được công');
 
-            return redirect()->back()->withInput()->withErrors(['teaching_date' => $message])->with('error', $message);
-        }
+            $duplicate = TeacherTimesheet::findDuplicate((int) $validated['user_id'], (int) $validated['class_id'], $date, $session?->id);
+            if ($duplicate) {
+                $how = $duplicate->source === TeacherTimesheet::SOURCE_MANUAL ? 'chấm tay' : 'check-in';
+                $message = "Nhân sự đã được chấm công ({$how}) cho lớp này ngày ".Carbon::parse($date)->format('d/m/Y')
+                    .' — không thể tính công 2 lần. Nếu bản ghi cũ sai, hãy từ chối bản ghi đó trước.';
 
-        $attributes = [
-            'user_id' => $validated['user_id'],
-            'class_id' => $validated['class_id'],
-            'class_session_id' => $session?->id,
-            'teaching_date' => $date,
-            'scheduled_time' => $session?->start_time && $session?->end_time
-                ? $session->start_time->format('H:i').'-'.$session->end_time->format('H:i')
-                : null,
-            'checkin_time' => $validated['time_in'],
-            'checkout_time' => $validated['time_out'],
-            'hours' => $hours,
-            'hourly_rate' => $validated['hourly_rate'] ?? null,
-            'late_minutes' => (int) ($validated['late_minutes'] ?? 0),
-            'early_leave_minutes' => (int) ($validated['early_leave_minutes'] ?? 0),
-            'late_notified' => (bool) ($validated['late_notified'] ?? false),
-            'type' => $validated['type'],
-            'source' => TeacherTimesheet::SOURCE_MANUAL,
-            'status' => 'pending_review',
-            'reviewed_by' => null,
-            'reviewed_at' => null,
-            'rejection_reason' => null,
-            'notes' => $validated['notes'],
-        ];
+                return redirect()->back()->withInput()->withErrors(['teaching_date' => $message])->with('error', $message);
+            }
 
-        // Buổi học đã có bản ghi bị từ chối (unique user + buổi): ghi đè bản ghi đó thay vì tạo mới.
-        $rejected = $session
-            ? TeacherTimesheet::where('user_id', $validated['user_id'])->where('class_session_id', $session->id)->first()
-            : null;
-        $rejected ? $rejected->update($attributes) : TeacherTimesheet::create($attributes);
+            $attributes = [
+                'user_id' => $validated['user_id'],
+                'class_id' => $validated['class_id'],
+                'class_session_id' => $session?->id,
+                'teaching_date' => $date,
+                'scheduled_time' => $session?->start_time && $session?->end_time
+                    ? $session->start_time->format('H:i').'-'.$session->end_time->format('H:i')
+                    : null,
+                'checkin_time' => $validated['time_in'],
+                'checkout_time' => $validated['time_out'],
+                'hours' => $hours,
+                'hourly_rate' => $validated['hourly_rate'] ?? null,
+                'late_minutes' => (int) ($validated['late_minutes'] ?? 0),
+                'early_leave_minutes' => (int) ($validated['early_leave_minutes'] ?? 0),
+                'late_notified' => (bool) ($validated['late_notified'] ?? false),
+                'type' => $validated['type'],
+                'source' => TeacherTimesheet::SOURCE_MANUAL,
+                'status' => 'pending_review',
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+                'rejection_reason' => null,
+                'notes' => $validated['notes'],
+            ];
 
-        return redirect()->route('payroll.timesheets.teachers')
-            ->with('status', 'Đã ghi nhận chấm công tay ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h'
-                .($session ? ', gắn buổi học ngày '.Carbon::parse($date)->format('d/m/Y') : ', không có buổi học trên lịch')
-                .') — chờ duyệt.');
+            // Reuse the rejected row for this user/session instead of inserting another live row.
+            $rejected = $existing->first(fn (TeacherTimesheet $row) => $row->status === 'invalid');
+            if ($rejected && $rejected->reconcile_status !== null) {
+                $attributes['reconcile_status'] = TeacherTimesheet::RECONCILE_NHAP;
+            }
+            $rejected ? $rejected->update($attributes) : TeacherTimesheet::create($attributes);
+
+            return redirect()->route('payroll.timesheets.teachers')
+                ->with('status', 'Đã ghi nhận chấm công tay ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h'
+                    .($session ? ', gắn buổi học ngày '.Carbon::parse($date)->format('d/m/Y') : ', không có buổi học trên lịch')
+                    .') — chờ duyệt.');
+        });
     }
 
     /**
@@ -1171,7 +1188,7 @@ class PayrollController extends Controller
                 'status_label' => $ts->status_label,
                 'rejection_short' => $ts->status === 'invalid' && $ts->rejection_reason ? Str::limit($ts->rejection_reason, 60) : null,
                 'reviewer_name' => $ts->reviewer?->name,
-                'locked' => $periodLocked || PayrollPeriod::isLockedFor($ts->teaching_date),
+                'locked' => $ts->payroll_locked || $periodLocked || PayrollPeriod::isLockedFor($ts->teaching_date),
                 'reject_label' => ($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y'),
                 'late_minutes' => (int) $ts->late_minutes,
                 'early_leave_minutes' => (int) $ts->early_leave_minutes,
@@ -1244,6 +1261,9 @@ class PayrollController extends Controller
         if ($session->date->isAfter(today())) {
             throw ValidationException::withMessages(['session' => 'Chưa tới ngày học — không thể xác nhận chấm công trước.']);
         }
+        if ($reason = $confirmation->skipReason($session, $session->teacher)) {
+            throw ValidationException::withMessages(['session' => $reason]);
+        }
         if (PayrollPeriod::isLockedFor($session->date)) {
             return $this->rejectLockedDate('session', $session->date);
         }
@@ -1298,26 +1318,47 @@ class PayrollController extends Controller
             .($skipped ? ' Bỏ qua: '.implode('; ', $skipped).'.' : ''));
     }
 
-    public function reviewTimesheet(Request $request, int $id)
+    public function softDeleteTimesheet(Request $request, int $id, TimesheetSoftDelete $deletion)
     {
-        abort_unless($request->user()->can('attendance_staff.view'), 403);
-        $validated = $request->validate([
-            'decision' => ['required', 'in:valid,invalid'],
-            'rejection_reason' => ['nullable', 'required_if:decision,invalid', 'string', 'max:1000'],
-        ], ['rejection_reason.required_if' => 'Vui lòng nhập lý do từ chối ca dạy.']);
         $timesheet = TeacherTimesheet::findOrFail($id);
         abort_unless($this->canReachTimesheet($request->user(), $timesheet), 403);
-        if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
-            return $this->rejectLockedDate('teaching_date', $timesheet->teaching_date);
-        }
-        $timesheet->update([
-            'status' => $validated['decision'],
-            'reviewed_by' => Auth::id(),
-            'reviewed_at' => now(),
-            'rejection_reason' => $validated['decision'] === 'invalid' ? $validated['rejection_reason'] : null,
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:500']], [
+            'reason.required' => 'Vui lòng nhập lý do xóa công ca.',
         ]);
+        DB::transaction(function () use ($timesheet, $request, $validated, $deletion) {
+            $penalty = $deletion->softDelete($timesheet, $request->user(), $validated['reason']);
+            activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)
+                ->withProperties(['reason' => $validated['reason'], 'penalty_id' => $penalty->id])
+                ->log('Học vụ xóa mềm công ca');
+        });
 
-        return redirect()->back()->with('status', $validated['decision'] === 'valid' ? 'Đã xác nhận ca dạy hợp lệ.' : 'Đã từ chối ca dạy.');
+        return back()->with('status', 'Đã xóa công ca và lập biên bản chấm công sai.');
+    }
+
+    public function reviewTimesheet(Request $request, int $id)
+    {
+        return DB::transaction(function () use ($request, $id) {
+            abort_unless($request->user()->can('attendance_staff.view'), 403);
+            $validated = $request->validate([
+                'decision' => ['required', 'in:valid,invalid'],
+                'rejection_reason' => ['nullable', 'required_if:decision,invalid', 'string', 'max:1000'],
+            ], ['rejection_reason.required_if' => 'Vui lòng nhập lý do từ chối ca dạy.']);
+            $timesheet = TeacherTimesheet::whereKey($id)->lockForUpdate()->firstOrFail();
+            abort_unless($this->canReachTimesheet($request->user(), $timesheet), 403);
+            if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
+                return $this->rejectLockedDate('teaching_date', $timesheet->teaching_date);
+            }
+            abort_if($timesheet->payroll_locked, 409, 'Kỳ lương đã chốt, không sửa được công');
+            $timesheet->update([
+                'status' => $validated['decision'],
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => now(),
+                'rejection_reason' => $validated['decision'] === 'invalid' ? $validated['rejection_reason'] : null,
+                'reconcile_status' => $timesheet->reconcile_status === null ? null : TeacherTimesheet::RECONCILE_CLOSED,
+            ]);
+
+            return redirect()->back()->with('status', $validated['decision'] === 'valid' ? 'Đã xác nhận ca dạy hợp lệ.' : 'Đã từ chối ca dạy.');
+        });
     }
 
     /**
@@ -1326,27 +1367,31 @@ class PayrollController extends Controller
      */
     public function bulkReviewTimesheets(Request $request)
     {
-        abort_unless($request->user()->can('attendance_staff.view'), 403);
-        $validated = $request->validate([
-            'ids' => ['required', 'array', 'min:1', 'max:500'],
-            'ids.*' => ['integer'],
-        ], ['ids.required' => 'Chọn ít nhất một ca dạy để chốt.']);
+        return DB::transaction(function () use ($request) {
+            abort_unless($request->user()->can('attendance_staff.view'), 403);
+            $validated = $request->validate([
+                'ids' => ['required', 'array', 'min:1', 'max:500'],
+                'ids.*' => ['integer'],
+            ], ['ids.required' => 'Chọn ít nhất một ca dạy để chốt.']);
 
-        $approved = 0;
-        $skipped = 0;
-        $user = $request->user();
-        TeacherTimesheet::whereIn('id', $validated['ids'])->get()
-            ->filter(fn (TeacherTimesheet $ts) => $this->canReachTimesheet($user, $ts))->each(function (TeacherTimesheet $ts) use (&$approved, &$skipped) {
-            if ($ts->status !== 'pending_review' || PayrollPeriod::isLockedFor($ts->teaching_date)) {
-                $skipped++;
+            $approved = 0;
+            $skipped = 0;
+            $user = $request->user();
+            $timesheets = TeacherTimesheet::whereIn('id', $validated['ids'])->orderBy('id')->lockForUpdate()->get()
+                ->filter(fn (TeacherTimesheet $ts) => $this->canReachTimesheet($user, $ts));
+            $timesheets->each(function (TeacherTimesheet $ts) use (&$approved, &$skipped) {
+                if ($ts->status !== 'pending_review' || $ts->payroll_locked || PayrollPeriod::isLockedFor($ts->teaching_date)) {
+                    $skipped++;
 
-                return;
-            }
-            $ts->update(['status' => 'valid', 'reviewed_by' => Auth::id(), 'reviewed_at' => now(), 'rejection_reason' => null]);
-            $approved++;
+                    return;
+                }
+                $ts->update(['status' => 'valid', 'reviewed_by' => Auth::id(), 'reviewed_at' => now(), 'rejection_reason' => null,
+                    'reconcile_status' => $ts->reconcile_status === null ? null : TeacherTimesheet::RECONCILE_CLOSED]);
+                $approved++;
+            });
+
+            return redirect()->back()->with('status', "Đã chốt {$approved} ca dạy vào bảng công".($skipped ? " — bỏ qua {$skipped} ca (không còn chờ duyệt hoặc thuộc kỳ lương đã khóa)." : '.'));
         });
-
-        return redirect()->back()->with('status', "Đã chốt {$approved} ca dạy vào bảng công".($skipped ? " — bỏ qua {$skipped} ca (không còn chờ duyệt hoặc thuộc kỳ lương đã khóa)." : '.'));
     }
 
     /**
@@ -1355,56 +1400,60 @@ class PayrollController extends Controller
      */
     public function adjustTimesheet(Request $request, int $id)
     {
-        $timesheet = TeacherTimesheet::findOrFail($id);
-        abort_unless($this->timesheetClasses($request->user())->whereKey($timesheet->class_id)->exists(), 403);
-        if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
-            return $this->rejectLockedDate('time_in', $timesheet->teaching_date);
-        }
+        return DB::transaction(function () use ($request, $id) {
+            $timesheet = TeacherTimesheet::whereKey($id)->lockForUpdate()->firstOrFail();
+            abort_unless($this->timesheetClasses($request->user())->whereKey($timesheet->class_id)->exists(), 403);
+            if (PayrollPeriod::isLockedFor($timesheet->teaching_date)) {
+                return $this->rejectLockedDate('time_in', $timesheet->teaching_date);
+            }
+            abort_if($timesheet->payroll_locked, 409, 'Kỳ lương đã chốt, không sửa được công');
 
-        $validated = $request->validate([
-            'time_in' => ['required', 'date_format:H:i'],
-            'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
-            'adjustment_reason' => ['required', 'string', 'min:5', 'max:500'],
-            'late_minutes' => 'nullable|integer|min:0|max:600',
-            'early_leave_minutes' => 'nullable|integer|min:0|max:600',
-            'late_notified' => 'nullable|boolean',
-        ], [
-            'time_in.required' => 'Vui lòng nhập giờ vào.',
-            'time_out.required' => 'Vui lòng nhập giờ ra.',
-            'time_out.after' => 'Giờ ra phải sau giờ vào.',
-            'adjustment_reason.required' => 'Chỉnh tay bắt buộc ghi lý do.',
-            'adjustment_reason.min' => 'Lý do điều chỉnh cần ít nhất 5 ký tự.',
-        ]);
+            $validated = $request->validate([
+                'time_in' => ['required', 'date_format:H:i'],
+                'time_out' => ['required', 'date_format:H:i', 'after:time_in'],
+                'adjustment_reason' => ['required', 'string', 'min:5', 'max:500'],
+                'late_minutes' => 'nullable|integer|min:0|max:600',
+                'early_leave_minutes' => 'nullable|integer|min:0|max:600',
+                'late_notified' => 'nullable|boolean',
+            ], [
+                'time_in.required' => 'Vui lòng nhập giờ vào.',
+                'time_out.required' => 'Vui lòng nhập giờ ra.',
+                'time_out.after' => 'Giờ ra phải sau giờ vào.',
+                'adjustment_reason.required' => 'Chỉnh tay bắt buộc ghi lý do.',
+                'adjustment_reason.min' => 'Lý do điều chỉnh cần ít nhất 5 ký tự.',
+            ]);
 
-        $hours = round(abs(Carbon::createFromFormat('H:i', $validated['time_in'])->diffInMinutes(Carbon::createFromFormat('H:i', $validated['time_out']))) / 60, 2);
-        if ($hours < 0.5) {
-            throw ValidationException::withMessages(['time_out' => 'Ca dạy phải kéo dài ít nhất 30 phút.']);
-        }
+            $hours = round(abs(Carbon::createFromFormat('H:i', $validated['time_in'])->diffInMinutes(Carbon::createFromFormat('H:i', $validated['time_out']))) / 60, 2);
+            if ($hours < 0.5) {
+                throw ValidationException::withMessages(['time_out' => 'Ca dạy phải kéo dài ít nhất 30 phút.']);
+            }
 
-        $before = $timesheet->only(['checkin_time', 'checkout_time', 'hours', 'late_minutes', 'early_leave_minutes', 'late_notified', 'status']);
-        $timesheet->update([
-            'checkin_time' => $validated['time_in'],
-            'checkout_time' => $validated['time_out'],
-            'hours' => $hours,
-            // Không gửi trường đi muộn / về sớm → giữ nguyên giá trị cũ (vd. phút muộn do check-in tự ghi).
-            'late_minutes' => (int) ($validated['late_minutes'] ?? $timesheet->late_minutes),
-            'early_leave_minutes' => (int) ($validated['early_leave_minutes'] ?? $timesheet->early_leave_minutes),
-            // Ô tick không gửi giá trị khi bỏ chọn: form có trường phút muộn thì coi "không tick" = chưa báo trước.
-            'late_notified' => $request->has('late_minutes') ? $request->boolean('late_notified') : (bool) $timesheet->late_notified,
-            'status' => 'pending_review',
-            'reviewed_by' => null,
-            'reviewed_at' => null,
-            'rejection_reason' => null,
-            'adjusted_at' => now(),
-            'adjusted_by' => $request->user()->id,
-            'adjustment_reason' => $validated['adjustment_reason'],
-        ]);
+            $before = $timesheet->only(['checkin_time', 'checkout_time', 'hours', 'late_minutes', 'early_leave_minutes', 'late_notified', 'status']);
+            $timesheet->update([
+                'checkin_time' => $validated['time_in'],
+                'checkout_time' => $validated['time_out'],
+                'hours' => $hours,
+                // Preserve recorded lateness when the adjustment form does not supply it.
+                'late_minutes' => (int) ($validated['late_minutes'] ?? $timesheet->late_minutes),
+                'early_leave_minutes' => (int) ($validated['early_leave_minutes'] ?? $timesheet->early_leave_minutes),
+                // With lateness fields present, an omitted checkbox means the teacher did not give notice.
+                'late_notified' => $request->has('late_minutes') ? $request->boolean('late_notified') : (bool) $timesheet->late_notified,
+                'status' => 'pending_review',
+                'reconcile_status' => $timesheet->reconcile_status === null ? null : TeacherTimesheet::RECONCILE_NHAP,
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+                'rejection_reason' => null,
+                'adjusted_at' => now(),
+                'adjusted_by' => $request->user()->id,
+                'adjustment_reason' => $validated['adjustment_reason'],
+            ]);
 
-        activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)
-            ->withProperties(['before' => $before, 'after' => $timesheet->only(array_keys($before)), 'reason' => $validated['adjustment_reason']])
-            ->log('Chỉnh tay giờ chấm công của '.$timesheet->teacher?->name.' ngày '.$timesheet->teaching_date->format('d/m/Y'));
+            activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)
+                ->withProperties(['before' => $before, 'after' => $timesheet->only(array_keys($before)), 'reason' => $validated['adjustment_reason']])
+                ->log('Chỉnh tay giờ chấm công của '.$timesheet->teacher?->name.' ngày '.$timesheet->teaching_date->format('d/m/Y'));
 
-        return redirect()->back()->with('status', 'Đã chỉnh tay giờ vào/ra ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h) — ca chuyển về Chờ duyệt để đối soát lại.');
+            return redirect()->back()->with('status', 'Đã chỉnh tay giờ vào/ra ('.rtrim(rtrim(number_format($hours, 2, '.', ''), '0'), '.').'h) — ca chuyển về Chờ duyệt để đối soát lại.');
+        });
     }
 
     /**
