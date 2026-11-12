@@ -1,7 +1,7 @@
 # Phạt quá hạn khi giao việc (TK-2026-0078)
 
 ## Form "Giao việc mới"
-Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt khi quá hạn** (Bật/Tắt, mặc định Tắt). Bật → bắt buộc nhập **Số tiền phạt (> 0)**;
+Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt khi quá hạn** (Bật/Tắt, mặc định **Bật** cho việc phát sinh mới; việc lặp không dùng ô này). Bật → bắt buộc nhập **Số tiền phạt (> 0)**;
 để trống / ≤ 0 bị chặn cả ở trình duyệt (`required`, `min=1`) lẫn server (`WorkTaskController::store`, lỗi ở `muc_phat_qua_han`).
 
 ## Việc lặp và cấu hình theo chuỗi (TK-2026-0090)
@@ -28,7 +28,7 @@ Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt kh
 ## Nguồn phạt lưu trên từng việc (`work_tasks`)
 | Cột | Ý nghĩa |
 |---|---|
-| `phat_khi_qua_han` (bool, mặc định false) | Việc giao tay: có phạt khi quá hạn. Việc cũ = false (không phạt hồi tố). |
+| `phat_khi_qua_han` (bool, mặc định false ở DB/server; form giao việc mới tick sẵn Bật) | Việc giao tay: có phạt khi quá hạn. Việc cũ = false (không phạt hồi tố). |
 | `muc_phat_qua_han` (decimal, null) | Việc giao tay: số tiền phạt cố định. |
 | `sla_rule_key` (string, null) | Việc SLA tự sinh: mốc SLA đã tạo việc (`SlaBreachService::open`, `care.first_month`). Bật/tắt phạt, mức, bậc phạt đọc **trực tiếp từ Cấu hình SLA**. |
 
