@@ -84,6 +84,7 @@ const multipleTuitions = computed(() => props.tuitions.length > 1);
                                     {{ p.method }} · <span class="font-code">{{ p.number }}</span>
                                     <template v-if="staff && p.invoice_number"> · HĐ <span class="font-code">{{ p.invoice_number }}</span></template>
                                 </p>
+                                <a v-if="p.detail_url" :href="p.detail_url" class="font-caption text-caption font-semibold text-primary hover:underline" data-receipt-detail-link>Xem chi tiết &amp; bill</a>
                                 <p v-if="p.tuition_label" class="flex items-center gap-xs font-caption text-caption text-on-surface-variant">
                                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">school</span>{{ p.tuition_label }}
                                 </p>
