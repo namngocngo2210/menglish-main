@@ -1950,6 +1950,7 @@
                 "tuition.create",
                 "tuition.mark_contacted",
                 "tuition.report_overdue",
+                "refund_transfer.request",
                 "work_task.*",
                 "support_ticket.create",
                 "support_ticket.view",
