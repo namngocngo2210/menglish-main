@@ -130,9 +130,9 @@ class Round2LeftoversTest extends TestCase
         $this->assertSame('BB-2027-001', Penalty::generateCode());
     }
 
-    // ── 2. Số HĐ phiếu hoàn / chuyển nhượng theo dải chi nhánh ──────────
+    // R-07/R-07b: refund and transfer approvals do not consume invoice numbers.
 
-    public function test_refund_and_transfer_receipts_use_branch_invoice_range_with_default_fallback(): void
+    public function test_refund_and_transfer_approvals_preserve_branch_and_default_invoice_ranges(): void
     {
         InvoiceConfiguration::create(['branch_id' => null, 'template_code' => '1/001', 'series_code' => 'C26MEN', 'start_number' => 1, 'current_number' => 1001, 'is_active' => true]);
         InvoiceConfiguration::create(['branch_id' => $this->branch->id, 'template_code' => '1/001', 'series_code' => 'C26CG', 'start_number' => 1, 'end_number' => 500, 'current_number' => 1, 'is_active' => true]);
@@ -146,13 +146,15 @@ class Round2LeftoversTest extends TestCase
             'reason' => 'Chuyển nhà', 'requester_id' => $this->accountant->id, 'status' => 'pending',
         ]);
         $refund = TuitionRefundRequest::latest('id')->first();
+        $receiptsBefore = TuitionReceipt::count();
         // Phase 4 (A6 "Hoàn phí"): Admin duyệt hoàn tiền kèm ảnh bằng chứng.
         Storage::fake('local');
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc.jpg')])
             ->assertSessionHasNoErrors();
 
-        $refundReceipt = TuitionReceipt::where('transaction_code', 'REFUND-'.$refund->id)->firstOrFail();
-        $this->assertSame('C26CG-0000001', $refundReceipt->invoice_number);
+        $this->assertSame($receiptsBefore, TuitionReceipt::count());
+        $this->assertSame(0, TuitionReceipt::where('transaction_code', 'REFUND-'.$refund->id)->count());
+        $this->assertTrue($refund->fresh()->balance_adjusted);
 
         // Học viên nhận ở chi nhánh chưa có dải riêng → dải mặc định.
         // R-07: chuyển nhượng không lập phiếu thu nên không tiêu thụ số hóa đơn của dải nào.
@@ -169,7 +171,8 @@ class Round2LeftoversTest extends TestCase
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
 
         $this->assertSame(0, TuitionReceipt::where('transaction_code', 'like', 'XFER-%')->count());
-        $this->assertSame(2, InvoiceConfiguration::where('branch_id', $this->branch->id)->value('current_number'), 'Chỉ phiếu hoàn tiền dùng số HĐ.');
+        $this->assertSame($receiptsBefore, TuitionReceipt::count());
+        $this->assertSame(1, InvoiceConfiguration::where('branch_id', $this->branch->id)->value('current_number'));
         $this->assertSame(1001, InvoiceConfiguration::whereNull('branch_id')->value('current_number'));
     }
 

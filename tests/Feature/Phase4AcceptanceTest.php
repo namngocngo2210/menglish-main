@@ -9,6 +9,7 @@ use App\Models\ClassReport;
 use App\Models\Course;
 use App\Models\CrmCustomer;
 use App\Models\InvoiceCancellation;
+use App\Models\InvoiceConfiguration;
 use App\Models\SepayTransaction;
 use App\Models\Student;
 use App\Models\StudentAttendance;
@@ -253,7 +254,7 @@ class Phase4AcceptanceTest extends TestCase
             'content' => str_replace('-', '', $numbered->code).' NOP HOC PHI'])->assertOk()->assertJson(['success' => true]);
         $this->assertEquals(0, (float) $t3->fresh()->debt_amount);
 
-        // ── 7. Chuyển nhượng (S1 → S2) và hoàn phí (S1): phiếu âm / dương có số HĐ theo dải chi nhánh ──────────────
+        // R-07/R-07b: transfer and refund approvals adjust balances without receipts or invoice numbers.
         // Luật A6 "Hoàn phí": ưu tiên chuyển nhượng; hoàn tiền là phương án cuối (bắt buộc lý do không chuyển nhượng),
         // chỉ Admin duyệt hoàn tiền và phải kèm ảnh bằng chứng; chuyển nhượng cũng chỉ Admin duyệt (06/10/2026).
         Storage::fake(TuitionRefundRequest::PROOF_DISK);
@@ -275,6 +276,8 @@ class Phase4AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $transfer = TuitionRefundRequest::where('student_id', $s1->id)->where('type', 'transfer')->sole();
         $refund = TuitionRefundRequest::where('student_id', $s1->id)->where('type', 'refund')->sole();
+        $receiptsBefore = TuitionReceipt::count();
+        $invoiceNumbersBefore = InvoiceConfiguration::orderBy('id')->pluck('current_number', 'id')->all();
         $this->assertTrue($refund->processing_deadline->isSameDay('2026-09-15'), 'Hạn xử lý = ngày lập + 7 ngày (trong tháng).');
 
         $this->actingAs($this->managerA)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
@@ -290,6 +293,8 @@ class Phase4AcceptanceTest extends TestCase
         ])->assertSessionHasNoErrors();
         $refund->refresh();
         $this->assertSame(['approved', $this->admin->id], [$refund->status, $refund->approver_id]);
+        $this->assertSame($receiptsBefore, TuitionReceipt::count());
+        $this->assertSame($invoiceNumbersBefore, InvoiceConfiguration::orderBy('id')->pluck('current_number', 'id')->all());
         Storage::disk(TuitionRefundRequest::PROOF_DISK)->assertExists($refund->proof_path);
 
         // Hồ sơ hoàn phí để quá hạn xử lý (lập 08/09, hạn 15/09): gắn cờ, không chặn nút duyệt.

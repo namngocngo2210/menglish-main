@@ -800,8 +800,8 @@ class Phase4FinanceTest extends TestCase
         $this->assertSame(4, $basis['attended_sessions']);
         $this->assertEquals(300000, $basis['unit_price']);
         $this->assertEquals(1800000, $basis['remaining_value']);
-        $this->assertEquals(180000, $basis['admin_fee']);
-        $this->assertEquals(1620000, $basis['suggested_refund']);
+        $this->assertArrayNotHasKey('admin_fee', $basis);
+        $this->assertEquals(1800000, $basis['suggested_refund']);
     }
 
     public function test_deactivated_branch_range_is_skipped(): void

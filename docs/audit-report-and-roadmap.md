@@ -679,13 +679,13 @@
 - [x] Phiếu thu: màn sửa phiếu nháp/bị trả về (dùng lại form lập phiếu) rồi gửi lại; bắt buộc minh chứng khi gửi duyệt chuyển khoản/VietQR/POS (tiền mặt, nháp được miễn); số buổi thật (khóa học/lịch lớp + điểm danh), thiếu dữ liệu thì ẩn; QR theo tài khoản hợp đồng → chi nhánh → mặc định.
 - [x] Thông báo cá nhân cho Kế toán chi nhánh (và kế toán không gán chi nhánh) khi có phiếu chờ duyệt; báo người lập khi phiếu bị trả về.
 - [x] Danh sách quá hạn chia nhóm ≥ N ngày / 1–(N-1) ngày (N = "Mốc quá hạn bắt buộc liên hệ", mặc định 7), cột số ngày quá hạn, "Đã liên hệ" (ghi chú + thời gian), "Báo cáo Admin".
-- [x] Hoàn phí tính từ hợp đồng thật (đã nộp, tổng buổi/đã học theo điểm danh, phí quản trị `config/tuition.php`), thêm "Đánh dấu khất nợ".
+- [x] Hoàn phí tính từ hợp đồng thật (đã nộp, tổng buổi/đã học theo điểm danh), không trừ phí quản trị theo R-07b (TK-2026-0098/0099); số tiền đề xuất bằng toàn bộ giá trị còn lại. Thêm "Đánh dấu khất nợ".
 - [x] Cấu hình nhắc nợ theo mockup: mốc theo số ngày trước/sau hạn, kênh (in-app, email), mẫu tin chỉ nhận biến hệ thống thay được.
 - [x] Chống ghi nhận chuyển khoản 2 lần: mã giao dịch chuyển khoản duy nhất (`transfer_reference`), chặn phiếu tay trùng giao dịch SePay, cảnh báo cùng tiền/cùng học viên ±3 ngày (phải tick xác nhận); SePay bỏ qua giao dịch đã có phiếu tay; webhook chỉ gạch nợ khi tiền vào tài khoản ngân hàng đã cấu hình.
 
 **Chưa làm / chuyển phase sau:**
 - [ ] Hết thời gian bảo lưu chưa tự chuyển học viên về "Đang học" (nhắc nợ tự chạy lại) → cần job/luồng trạng thái học viên (nhóm Học viên). ✅ Vòng 2
-- [ ] Phiếu hoàn/chuyển nhượng vẫn lấy số HĐ ở dải mặc định (hàm duyệt hoàn phí do nhánh lương sửa song song, tránh xung đột). ✅ Vòng 2
+- [ ] Hoàn/chuyển nhượng trước đây lấy số HĐ ở dải mặc định. ✅ Vòng 2; R-07/R-07b hiện không lập phiếu thu / không cấp số HĐ.
 - [ ] Kênh Zalo ZNS/SMS cho nhắc nợ chưa tích hợp (màn cấu hình ghi rõ "chưa tích hợp").
 
 **Triển khai:** chạy `php artisan migrate` (5 migration `2026_09_28_2000xx`); migration đã gán `finance.view` cho admin/accountant/manager, hoặc chạy lại `db:seed --class=PermissionSeeder` + `RoleSeeder`. Phải cấu hình số tài khoản ngân hàng nhận tiền trước khi bật SePay, nếu không webhook sẽ không gạch nợ.
@@ -693,7 +693,7 @@
 #### Vòng 2 — Việc còn tồn vòng 1 (nhánh `feat/round2-leftovers`)
 **Đã làm:**
 - [x] Mã biên bản phạt `BB-YYYY-NNN` sinh qua `DocumentCodeGenerator::penaltyCode()` (dãy `penalty` theo năm, khởi tạo từ mã lớn nhất đang có, giữ 3 chữ số).
-- [x] Phiếu hoàn phí / chuyển nhượng lấy số HĐ theo dải của chi nhánh học viên (bên nhận: chi nhánh học viên nhận), hết/không có dải → dải mặc định — như phiếu thu thường.
+- [x] Hoàn phí theo R-07b (TK-2026-0098/0099): duyệt KHÔNG lập phiếu thu / không cấp số HĐ; đặt `balance_adjusted=true` để `StudentTuition::recalculateDebt()` trừ số tiền hoàn khỏi "đã thu", đồng thời giảm `final_amount` nên công nợ không đổi; giữ kiểm tra tiền hoàn ≤ đã thu, xử lý hoa hồng và nhật ký `tuition_refund`. Hồ sơ cũ `balance_adjusted=false` vẫn tính qua phiếu âm `REFUND-*`, giữ nguyên dòng "Hoàn học phí" trong lịch sử; hồ sơ mới không có dòng phiếu thu này. Không chuyển đổi dữ liệu cũ.
 - [x] Chuyển nhượng học phí theo R-07 (TK-2026-0095/0096/0097): số tiền = (đã thu / tổng số buổi) × buổi còn lại do server tính, người nhận phải còn nợ ≥ số tiền (kiểm tra khi lập và khi duyệt), duyệt KHÔNG lập phiếu thu / không cấp số HĐ — cột `tuition_refund_requests.balance_adjusted` cộng/trừ vào "đã thu" của 2 bên trong `StudentTuition::recalculateDebt()`; hồ sơ cũ đã có phiếu XFER-* giữ nguyên.
 - [x] Kết thúc bảo lưu: lệnh `students:end-deferrals` chạy 06:50 hằng ngày — học viên "Bảo lưu" có `deferred_until` < hôm nay → "Đang học" (lớp đã khai giảng) hoặc "Chờ khai giảng"; bỏ đóng băng số buổi/công nợ, nhắc nợ chạy lại; báo Học vụ cùng chi nhánh (không có → Quản lý cơ sở → Admin), không trùng. Nút "Kết thúc bảo lưu" trên hồ sơ học viên (`student.change_status`). Đổi trạng thái tay khỏi "Bảo lưu" cũng bỏ đóng băng học phí.
 - [x] Sửa lớp (GV/TA/GVNN/phòng) đồng bộ cả buổi học bù (`type = makeup`) chưa diễn ra, cùng điều kiện bảo vệ (chưa điểm danh/chấm công, không gắn phụ đạo) — scope `ClassSession::staffSyncable()`; `replaceable()` (xóa khi xếp lại TKB) giữ nguyên chỉ buổi chính khóa.
@@ -1117,7 +1117,7 @@ Test: thêm `Phase3AcceptanceTest` (1 luồng, 196 assertion) và `tests/Feature
 - [x] **Đợt 2**: Kế toán lập phiếu tiền mặt (vượt nợ bị chặn), **tự duyệt bị chặn**; Quản lý chi nhánh duyệt → `N4A-0000002` → **công nợ 0, "Đã hoàn thành"**; Lịch sử thu hiện HĐ.
 - [x] **Hủy hóa đơn**: sai số tiền bị chặn; Quản lý chi nhánh B 403; Quản lý A duyệt → phiếu "Đã hủy", **giữ số HĐ**, công nợ khôi phục 5.000.000đ.
 - [x] **SePay**: tiền vào **tài khoản lạ** → `rejected_account`, không gạch nợ; **sai chữ ký** 401; đúng nội dung QR → gạch nợ, HĐ `N4A-0000003`, **nợ 0**; **gửi lại** cùng mã → bỏ qua (1 giao dịch, 1 phiếu); **phiếu tay** cho đúng mã SePay đã gạch nợ bị chặn; phiếu tay CK chờ duyệt rồi SePay cùng mã → `duplicate_manual`, không tạo phiếu 2, **Kế toán vẫn duyệt được phiếu tay** (sửa trong nhánh này); mã học viên dạng **`HV-00001`** trong nội dung CK được nhận ra (sửa trong nhánh này).
-- [x] **Chuyển nhượng + hoàn phí** (Sale 403; Kế toán lập, Admin duyệt): S1 → S2 2.000.000đ, hoàn S1 1.000.000đ → S1 hợp đồng 6.000.000đ, đã nộp 6.000.000đ, nợ 0; S2 nợ giảm; mọi phiếu đã duyệt có số HĐ, **đều thuộc dải chi nhánh A**, không trùng số.
+- [x] **Chuyển nhượng + hoàn phí** (Sale 403; Kế toán lập, Admin duyệt): S1 → S2 4.500.000đ theo R-07, hoàn S1 1.000.000đ theo R-07b → S1 hợp đồng 3.500.000đ, đã nộp 3.500.000đ, nợ 0; S2 nợ giảm; duyệt hoàn/chuyển không tạo phiếu thu, không làm tăng số HĐ của dải chi nhánh hay dải mặc định.
 - [x] **Quá hạn & nhắc nợ** (20/09): lệnh `tuition:send-debt-reminders` tạo nhắc **T+3** cho khoản quá 3 ngày; danh sách **≥ 7 ngày** (12 ngày) và **1–6 ngày** (3 ngày) đúng khoản, đúng số ngày; "Đã liên hệ", "Báo cáo Admin" (Admin nhận thông báo), "Gửi nhắc"; Quản lý chi nhánh B 403; **khất nợ** (Quản lý duyệt) → khoản chuyển sang "tạm dừng nhắc nợ", rời nhóm quá hạn.
 - [x] **Phạm vi**: Quản lý B chỉ thấy khoản quá hạn / học phí chi nhánh B, báo cáo doanh thu chọn chi nhánh A vẫn bị đưa về B; **Kế toán có gán chi nhánh B chỉ thấy B** ở báo cáo thu chi (sửa trong nhánh này); Admin thấy doanh thu tháng; **Sale 403** ở Báo cáo doanh thu, Khoản chi, Học phí, Quá hạn.
 - [x] **Ticket**: học viên tạo ticket (mã `TK-YYYY-NNNN`, báo Quản lý cùng chi nhánh, không báo chi nhánh khác); học viên không gửi được ghi chú nội bộ (403); **ghi chú nội bộ ẩn với học viên**, phản hồi thường hiện; Quản lý thấy ghi chú; GV ngoài luồng 403.

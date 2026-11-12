@@ -417,6 +417,7 @@ class DemoPhase4Seeder extends Seeder
         if ($approveBy) {
             Carbon::setTestNow(now()->addHours(2));
             $refund = TuitionRefundRequest::where('student_id', $studentId)->where('status', 'pending')->latest('id')->firstOrFail();
+            // R-07/R-07b: use the controller's balance adjustments, without receipts or invoice numbers.
             $this->asUser($this->staff[$approveBy], TuitionController::class, 'approveRefundRequest', ['clawback_commission' => 0], ['id' => $refund->id]);
         }
     }
