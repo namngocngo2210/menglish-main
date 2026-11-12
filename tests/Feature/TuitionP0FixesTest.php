@@ -412,7 +412,8 @@ class TuitionP0FixesTest extends TestCase
         $rejected = $make('PT-W-REJ', 'rejected');
         $this->actingAs($this->staff)->get(route('tuition.receipts.edit', $rejected->id))
             ->assertInertia(fn (AssertableInertia $p) => $p->where('editing.status', 'rejected'));
-        $this->actingAs($this->staff)->put(route('tuition.receipts.update', $rejected->id), $payload)
+        // Different amount: the duplicate guard (TK-2026-0110) blocks a second identical pending receipt.
+        $this->actingAs($this->staff)->put(route('tuition.receipts.update', $rejected->id), ['amount' => 1100000] + $payload)
             ->assertSessionHas('status', 'Đã gửi duyệt lại phiếu thu PT-W-REJ.');
     }
 

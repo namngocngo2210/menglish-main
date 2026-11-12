@@ -75,7 +75,7 @@ function onSuccess(page) {
     emit('success', page);
 }
 
-defineExpose({ submit: () => formRef.value?.submit(), reset: (...fields) => formRef.value?.reset(...fields) });
+defineExpose({ processing: computed(() => !!formRef.value?.processing), submit: () => formRef.value?.submit(), reset: (...fields) => formRef.value?.reset(...fields) });
 </script>
 
 <template>

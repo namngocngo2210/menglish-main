@@ -31,6 +31,7 @@ use App\Services\SafeUploadService;
 use App\Services\SalesCommissionService;
 use App\Services\Tuition\SessionLedger;
 use App\Services\TuitionImportService;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\CenterInfo;
 use App\Support\DisplayCode;
 use App\Support\Money;
@@ -696,6 +697,10 @@ class TuitionController extends Controller
 
         try {
             $receipt = DB::transaction(function () use ($validated, $receiptNumber, $tuition, $studentId, $surcharge, $discount, $discountInfo, $surchargeItems, $proofPath, $status, $isDraft, $paperRange, $branchId, $request, $sessionFields) {
+                if (! $isDraft && ($duplicate = $this->duplicateReceiptError($tuition, $studentId, $validated['amount'], $surchargeItems))) {
+                    return $duplicate;
+                }
+
                 // Số hóa đơn giấy cấp ngay khi lập (kể cả nháp) để Học vụ ghi lên hóa đơn; gửi duyệt thẳng thì số
                 // phải đúng số người lập đã thấy trên form (đã ghi lên giấy và chụp ảnh).
                 $paperNumber = $paperRange
@@ -738,6 +743,10 @@ class TuitionController extends Controller
             ])->withInput();
         }
 
+        if (is_string($receipt)) {
+            return back()->withErrors(['receipt' => $receipt])->withInput();
+        }
+
         $paperNote = $receipt->hasIssuedPaperInvoice() ? " Số hóa đơn giấy: {$receipt->invoice_number}." : '';
 
         if ($isDraft) {
@@ -748,11 +757,13 @@ class TuitionController extends Controller
             );
         }
 
-        $this->notifyReceiptPending($receipt, $tuition?->student ?? Student::find($studentId));
+        $this->notifyReceiptPending($receipt);
 
         return $this->modalSaved(
             "Đã gửi duyệt phiếu thu {$receipt->receipt_number} (Số tiền: ".Money::format((float) $receipt->amount).") lên cấp Quản lý / Kế toán!{$paperNote}",
-            route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
+            $request->user()->can(AdminOnlyApprovals::TUITION_VIEW_ABILITY)
+                ? route('tuition.receipts.approve', ['selected_id' => $receipt->id])
+                : route('tuition.history'),
         );
     }
 
@@ -864,7 +875,12 @@ class TuitionController extends Controller
         $proofPath = $newProof ?? ($keepsProof ? $receipt->proof_image : null);
 
         try {
-            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $discountInfo, $transactionCode, $proofPath, $surchargeItems, $paperRange, $branchId, $request, $sessionFields) {
+            $updated = DB::transaction(function () use ($id, $validated, $isDraft, $surcharge, $discount, $discountInfo, $transactionCode, $proofPath, $surchargeItems, $paperRange, $branchId, $request, $sessionFields, $tuition, $receipt) {
+                // Lock the parent before receipts, in the same order as storeReceipt.
+                if (! $isDraft && ($duplicate = $this->duplicateReceiptError($tuition, $receipt->student_id ?? $tuition?->student_id, $validated['amount'], $surchargeItems, (int) $id))) {
+                    return $duplicate;
+                }
+
                 $locked = TuitionReceipt::query()->lockForUpdate()->findOrFail($id);
                 if (! in_array($locked->status, TuitionReceipt::EDITABLE_STATUSES, true)) {
                     return null;
@@ -911,6 +927,10 @@ class TuitionController extends Controller
             ])->withInput();
         }
 
+        if (is_string($updated)) {
+            return back()->withErrors(['receipt' => $updated])->withInput();
+        }
+
         if (! $updated) {
             return back()->withErrors(['receipt' => 'Chỉ sửa được phiếu ở trạng thái Bản nháp hoặc Bị từ chối.']);
         }
@@ -921,9 +941,46 @@ class TuitionController extends Controller
             return $this->modalSaved("Đã lưu nháp phiếu thu {$updated->receipt_number}.{$paperNote}", url()->previous());
         }
 
-        $this->notifyReceiptPending($updated, $receipt->tuition?->student ?? $receipt->student);
+        $this->notifyReceiptPending($updated);
 
-        return $this->modalSaved('Đã gửi duyệt '.($wasRejected ? 'lại ' : '')."phiếu thu {$updated->receipt_number}.{$paperNote}", route('tuition.receipts.approve', ['selected_id' => $updated->id]));
+        return $this->modalSaved(
+            'Đã gửi duyệt '.($wasRejected ? 'lại ' : '')."phiếu thu {$updated->receipt_number}.{$paperNote}",
+            $request->user()->can(AdminOnlyApprovals::TUITION_VIEW_ABILITY)
+                ? route('tuition.receipts.approve', ['selected_id' => $updated->id])
+                : route('tuition.history'),
+        );
+    }
+
+    /** Must run inside the save transaction, before allocating a paper invoice number. */
+    private function duplicateReceiptError(?StudentTuition $tuition, ?int $studentId, float $amount, array $items, ?int $ignoreId = null): ?string
+    {
+        // Serialize submissions even when there are no matching receipts yet.
+        if ($tuition) {
+            StudentTuition::query()->lockForUpdate()->findOrFail($tuition->id);
+        } else {
+            Student::query()->lockForUpdate()->findOrFail($studentId);
+        }
+
+        $candidates = TuitionReceipt::query()
+            ->where('student_tuition_id', $tuition?->id)
+            ->where(fn ($q) => $q->where('student_id', $studentId)
+                ->orWhere(fn ($q) => $q->whereNull('student_id')->whereHas('tuition', fn ($q) => $q->where('student_id', $studentId))))
+            ->where('amount', $amount)
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->where(fn ($q) => $q->where('status', TuitionReceipt::STATUS_PENDING)
+                ->orWhere(fn ($q) => $q->where('status', TuitionReceipt::STATUS_APPROVED)->where('created_at', '>=', now()->subHours(24))))
+            ->lockForUpdate()->get();
+
+        // Compare decoded payloads so JSON key order does not affect equality.
+        $duplicate = $candidates->first(fn (TuitionReceipt $other) => ($other->collected_items ?? []) == $items);
+        if (! $duplicate) {
+            return null;
+        }
+
+        $status = $duplicate->status === TuitionReceipt::STATUS_PENDING ? 'đang chờ duyệt' : 'đã duyệt';
+
+        return "Đã có phiếu thu {$duplicate->receipt_number} cùng học viên, cùng khoản và số tiền "
+            .Money::format((float) $duplicate->amount)." {$status}. Vui lòng kiểm tra trước khi lập thêm.";
     }
 
     /**
@@ -1319,20 +1376,21 @@ class TuitionController extends Controller
      * - Thông báo cá nhân cho từng người có quyền duyệt phiếu thu trong phạm vi chi nhánh ghi nhận học phí. Người lập phiếu
      *   không tự nhận thông báo duyệt phiếu của mình.
      */
-    private function notifyReceiptPending(TuitionReceipt $receipt, ?Student $student): void
+    private function notifyReceiptPending(TuitionReceipt $receipt): void
     {
-        $studentId = $student?->id ?? $receipt->student_id;
-        $stName = $student?->name ?? 'Học viên';
-        $message = "Nhân viên vừa lập phiếu thu #{$receipt->receipt_number} (".Money::format((float) $receipt->amount).") cho học viên {$stName}. Vui lòng đối chiếu chứng từ và phê duyệt.";
-        $data = [
-            'receipt_id' => $receipt->id,
-            'receipt_number' => $receipt->receipt_number,
-            'amount' => $receipt->amount,
-            'student_id' => $studentId,
-            'link' => route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
-        ];
-
         try {
+            $student = $receipt->tuition?->student ?? $receipt->student;
+            $studentId = $student?->id ?? $receipt->student_id;
+            $stName = $student?->name ?? 'Học viên';
+            $message = "Nhân viên vừa lập phiếu thu #{$receipt->receipt_number} (".Money::format((float) $receipt->amount).") cho học viên {$stName}. Vui lòng đối chiếu chứng từ và phê duyệt.";
+            $data = [
+                'receipt_id' => $receipt->id,
+                'receipt_number' => $receipt->receipt_number,
+                'amount' => $receipt->amount,
+                'student_id' => $studentId,
+                'link' => route('tuition.receipts.approve', ['selected_id' => $receipt->id]),
+            ];
+
             AdminNotification::create([
                 'user_id' => null,
                 'type' => 'receipt_pending',
@@ -1364,7 +1422,7 @@ class TuitionController extends Controller
                 ]);
             }
         } catch (\Throwable $e) {
-            Log::warning('Lỗi tạo thông báo chờ duyệt phiếu: '.$e->getMessage());
+            Log::warning('Failed to notify pending receipt: '.$e->getMessage(), ['receipt_id' => $receipt->id]);
         }
     }
 

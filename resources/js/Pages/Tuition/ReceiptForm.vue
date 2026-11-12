@@ -1,6 +1,6 @@
 <script setup>
 /** Shared receipt editor: remote modal or a full page with a persistent summary. */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useRemoteModal } from '@/Components/ui/modalContext';
 import ReceiptFields from './Partials/ReceiptFields.vue';
@@ -28,6 +28,8 @@ const props = defineProps({
 });
 
 const modal = useRemoteModal();
+const receiptForm = ref(null);
+const processing = computed(() => !!receiptForm.value?.processing);
 const form = useReceiptForm(props);
 const action = computed(() => (props.editing ? route('tuition.receipts.update', props.editing.id) : route('tuition.receipts.store')));
 const pageTitle = computed(() => (props.editing ? 'Sửa phiếu thu học phí' : 'Lập phiếu thu học phí'));
@@ -38,13 +40,13 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
 
 <template>
     <UiModalFrame v-if="modal" :title="`${pageTitle} · ${nextReceiptNumber}`" description="Lập, đối soát thanh toán và gửi duyệt phiếu thu học phí / phụ thu.">
-        <UiForm :id="formId" :action="action" method="post" class="space-y-6">
+        <UiForm ref="receiptForm" :id="formId" :action="action" method="post" class="space-y-6">
             <input v-if="editing" type="hidden" name="_method" value="put" />
             <ReceiptFields :form="form" prefix="modal-" layout="modal" :recent-rejection="recentRejection" :can-request-cancel="canRequestCancel" />
         </UiForm>
         <template #footer>
-            <UiButton variant="secondary" type="submit" :form="formId" name="submit_action" value="draft" icon="drafts">Lưu nháp</UiButton>
-            <UiButton type="submit" :form="formId" name="submit_action" value="submit" icon="save" :disabled="!form.isValidReceipt">
+            <UiButton variant="secondary" type="submit" :form="formId" name="submit_action" value="draft" :disabled="processing" icon="drafts">Lưu nháp</UiButton>
+            <UiButton type="submit" :form="formId" name="submit_action" value="submit" icon="save" :disabled="processing || !form.isValidReceipt">
                 {{ submitLabel }} (<span class="font-code">{{ formatMoney(form.totalAmount || 0) }}</span>)
             </UiButton>
         </template>
@@ -68,7 +70,7 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
         </UiPageHeader>
 
         <div class="mx-auto max-w-6xl">
-            <UiForm :id="formId" :action="action" method="post" class="space-y-6">
+            <UiForm ref="receiptForm" :id="formId" :action="action" method="post" class="space-y-6">
                 <input v-if="editing" type="hidden" name="_method" value="put" />
                 <ReceiptFields :form="form" layout="page" :submit-label="submitLabel" :cancel-url="cancelUrl" :recent-rejection="recentRejection" :can-request-cancel="canRequestCancel" />
 
@@ -79,8 +81,8 @@ const formId = computed(() => (modal ? 'modal-receipt-form' : 'receiptForm'));
                             <p class="text-xs font-medium text-on-surface-variant">Tổng thực thu</p>
                             <p class="break-words font-code text-xl font-bold text-primary">{{ formatMoney(form.totalAmount || 0) }}</p>
                         </div>
-                        <UiButton type="submit" variant="secondary" icon="drafts" name="submit_action" value="draft" class="min-h-11">Lưu nháp</UiButton>
-                        <UiButton type="submit" icon="save" name="submit_action" value="submit" data-testid="receipt-submit-mobile" :disabled="!form.isValidReceipt" class="min-h-11 w-full !whitespace-normal [&>.material-symbols-outlined]:shrink-0 sm:w-auto">
+                        <UiButton type="submit" variant="secondary" icon="drafts" name="submit_action" value="draft" :disabled="processing" class="min-h-11">Lưu nháp</UiButton>
+                        <UiButton type="submit" icon="save" name="submit_action" value="submit" data-testid="receipt-submit-mobile" :disabled="processing || !form.isValidReceipt" class="min-h-11 w-full !whitespace-normal [&>.material-symbols-outlined]:shrink-0 sm:w-auto">
                             <span class="min-w-0">{{ submitLabel }} (<span class="font-code">{{ formatMoney(form.totalAmount || 0) }}</span>)</span>
                         </UiButton>
                     </div>
