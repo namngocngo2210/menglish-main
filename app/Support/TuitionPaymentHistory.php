@@ -131,6 +131,7 @@ class TuitionPaymentHistory
     {
         $row = [
             'id' => $rc->id,
+            'detail_url' => $forStaff ? null : route('portal.student.receipt', $rc->id),
             'kind' => $kind,
             'title' => match ($kind) {
                 'transfer_out' => 'Chuyển phí sang học viên khác',

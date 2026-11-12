@@ -377,6 +377,7 @@ Route::middleware('auth')->group(function () {
 
         // Step 2: Trang chủ Phụ huynh / Học sinh
         Route::get('/home/{studentId?}', [StudentPortalController::class, 'studentHome'])->name('student.home');
+        Route::get('/receipt/{receipt}', [StudentPortalController::class, 'receiptDetail'])->whereNumber('receipt')->name('student.receipt');
 
         // Step 3: Học tập của tôi — Nộp bài tập
         Route::get('/student-homework/{studentId?}', [StudentPortalController::class, 'studentHomework'])->name('student.homework');
