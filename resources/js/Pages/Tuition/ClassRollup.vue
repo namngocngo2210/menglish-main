@@ -47,7 +47,7 @@ defineProps({
                     <template v-for="(_, i) in roundCount" :key="i">
                         <template v-if="row.rounds[i]">
                             <td class="border-l border-surface-container-highest px-md py-sm"><UiMoney :value="row.rounds[i].amount" /></td>
-                            <td class="px-md py-sm whitespace-nowrap">{{ row.rounds[i].status }}</td>
+                            <td class="px-md py-sm">{{ row.rounds[i].note || '—' }}</td>
                             <td class="px-md py-sm">{{ row.rounds[i].methods || '—' }}</td>
                             <td class="px-md py-sm">{{ row.rounds[i].invoices || '—' }}</td>
                         </template>
