@@ -20,7 +20,8 @@ defineProps({
 });
 
 const isRecurring = ref(false);
-const penalize = ref(false);
+// TK-2026-0089: new one-time tasks are penalised by default (R-09a).
+const penalize = ref(true);
 const frequencies = [
     { value: 'daily', label: 'Hàng ngày' },
     { value: 'weekly', label: 'Hàng tuần' },
