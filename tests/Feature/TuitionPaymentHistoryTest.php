@@ -173,6 +173,44 @@ class TuitionPaymentHistoryTest extends TestCase
                 ->has('paymentHistory.others', 0));
     }
 
+    /** TK-2026-0107 (HP-LS-06): cổng học viên thấy phiếu đã hủy hóa đơn với nhãn "Đã hủy" nhưng số tiền / đợt / còn nợ không đổi; phiếu bị từ chối vẫn ẩn. */
+    public function test_portal_lists_cancelled_receipt_labelled_without_changing_totals(): void
+    {
+        $this->receipt('PT-DA-HUY', 9500000, '2026-09-25', ['status' => TuitionReceipt::STATUS_CANCELLED, 'rejection_reason' => 'Xuất sai hóa đơn']);
+        $this->receipt('PT-TU-CHOI', 1000000, '2026-09-26', ['status' => TuitionReceipt::STATUS_REJECTED, 'rejection_reason' => 'Sai số tiền']);
+        $this->tuition->recalculateDebt();
+
+        $this->actingAs($this->studentUser)
+            ->get(route('portal.student.home', ['studentId' => $this->student->id]))
+            ->assertOk()
+            ->assertDontSee('PT-TU-CHOI')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('totalPaid', 9500000)
+                ->where('debtAmount', 0)
+                ->where('paymentHistory.summary.paid_amount', 9500000)
+                ->where('paymentHistory.summary.installments', 3)
+                ->has('paymentHistory.payments', 4)
+                ->where('paymentHistory.payments.0.number', 'PT-DA-HUY')
+                ->where('paymentHistory.payments.0.cancelled', true)
+                ->where('paymentHistory.payments.0.title', 'Đã hủy hóa đơn')
+                ->where('paymentHistory.payments.0.debt_after', null)
+                ->where('paymentHistory.payments.1.title', 'Đợt 3')
+                ->where('paymentHistory.payments.1.debt_after', 0)
+                ->missing('paymentHistory.payments.1.cancelled'));
+    }
+
+    public function test_staff_history_is_unchanged_by_cancelled_receipt(): void
+    {
+        $this->receipt('PT-DA-HUY', 9500000, '2026-09-25', ['status' => TuitionReceipt::STATUS_CANCELLED]);
+
+        $this->actingAs($this->accountant())
+            ->get(route('tuition.students.payments', $this->student->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('payments', 3)
+                ->where('summary.paid_amount', 9500000)
+                ->has('others', 2));
+    }
+
     public function test_history_covers_every_course_of_the_student(): void
     {
         $nextClass = ClassModel::create(['name' => 'Movers B1', 'code' => 'MV-B1', 'max_capacity' => 16, 'status' => 'active', 'branch_id' => $this->branch->id]);

@@ -115,6 +115,19 @@ class PortalReceiptDetailTest extends TestCase
         }
     }
 
+    /** TK-2026-0107: phiếu đã hủy hóa đơn xem được (kèm cờ cancelled); phiếu đã duyệt không bật cờ. */
+    public function test_cancelled_receipt_is_viewable_and_flagged(): void
+    {
+        $cancelled = $this->receipt(TuitionReceipt::STATUS_CANCELLED);
+        $approved = $this->receipt();
+
+        $this->actingAs($this->owner)->get(route('portal.student.receipt', $cancelled->id))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('receipt.cancelled', true)->where('receipt.amount', 2000000));
+        $this->actingAs($this->owner)->get(route('portal.student.receipt', $approved->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('receipt.cancelled', false));
+    }
+
     public function test_missing_receipt_is_not_found_and_guest_is_redirected(): void
     {
         $rc = $this->receipt();

@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
  *
  * - Chỉ phiếu đã duyệt mới tính vào số đã đóng / còn nợ (như StudentTuition::recalculateDebt): mỗi đợt kèm
  *   "còn nợ sau đợt này" = tổng phải thu − Σ (tiền cấn học phí + ưu đãi) của các phiếu đã duyệt tính tới đợt đó.
- * - Học viên chỉ thấy phiếu đã duyệt; phần "Thu khác" chỉ hiện tổng tiền, không liệt kê từng món (như bill, PR #66).
+ * - Học viên thấy phiếu đã duyệt và phiếu đã hủy hóa đơn (chỉ gắn nhãn, không tính tiền); phần "Thu khác" chỉ hiện tổng tiền, không liệt kê từng món (như bill, PR #66).
  * - Học vụ thấy thêm chi tiết món thu khác, người lập / duyệt và các phiếu chưa tính (chờ duyệt, nháp, bị trả về, đã hủy).
  */
 class TuitionPaymentHistory
@@ -43,13 +43,21 @@ class TuitionPaymentHistory
             ->values();
 
         $approved = $receipts->where('status', TuitionReceipt::STATUS_APPROVED)->values();
+        // Học viên cũng thấy phiếu đã hủy hóa đơn (nhãn "Đã hủy", TK-2026-0107) nhưng nó KHÔNG tính vào số đã đóng / còn nợ / đợt.
+        $listed = $forStaff ? $approved : $receipts->whereIn('status', [TuitionReceipt::STATUS_APPROVED, TuitionReceipt::STATUS_CANCELLED])->values();
         $tuitionsById = $tuitions->keyBy('id');
         $remaining = $tuitions->mapWithKeys(fn (StudentTuition $t) => [$t->id => (float) $t->final_amount])->all();
 
         $payments = [];
         $installment = 0;
         $perTuition = [];
-        foreach ($approved as $rc) {
+        foreach ($listed as $rc) {
+            if ($rc->status === TuitionReceipt::STATUS_CANCELLED) {
+                $payments[] = array_merge(self::paymentRow($rc, 'payment', null, null, $forStaff), [
+                    'title' => 'Đã hủy hóa đơn', 'cancelled' => true, 'tuition_label' => $rc->student_tuition_id ? self::courseLabel($tuitionsById->get($rc->student_tuition_id)) : null]);
+
+                continue;
+            }
             $tuitionId = $rc->student_tuition_id;
             $debtAfter = null;
             if ($tuitionId !== null && array_key_exists($tuitionId, $remaining)) {

@@ -64,7 +64,7 @@ const multipleTuitions = computed(() => props.tuitions.length > 1);
 
         <!-- Các đợt đã thu -->
         <section aria-labelledby="payment-history-title" class="flex flex-col gap-sm">
-            <h3 id="payment-history-title" class="font-label text-label uppercase text-on-surface-variant">Các lần đã thu ({{ payments.length }})</h3>
+            <h3 id="payment-history-title" class="font-label text-label uppercase text-on-surface-variant">Các lần đã thu ({{ payments.filter((p) => !p.cancelled).length }})</h3>
 
             <ol v-if="payments.length" class="relative flex flex-col gap-sm">
                 <li v-for="(p, i) in payments" :key="p.id" class="relative flex gap-sm" data-payment-row>
@@ -79,7 +79,7 @@ const multipleTuitions = computed(() => props.tuitions.length > 1);
                     <div class="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface-container-lowest p-sm">
                         <div class="flex items-start justify-between gap-sm">
                             <div class="min-w-0">
-                                <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ p.title }}<span class="font-normal text-on-surface-variant"> · {{ p.date ?? '—' }}</span></p>
+                                <p class="font-body-medium text-body-medium font-semibold text-on-surface">{{ p.title }}<UiBadge v-if="p.cancelled" color="neutral" :dot="false" class="ml-xs" data-receipt-cancelled-label>Đã hủy</UiBadge><span class="font-normal text-on-surface-variant"> · {{ p.date ?? '—' }}</span></p>
                                 <p class="break-words font-caption text-caption text-on-surface-variant">
                                     {{ p.method }} · <span class="font-code">{{ p.number }}</span>
                                     <template v-if="staff && p.invoice_number"> · HĐ <span class="font-code">{{ p.invoice_number }}</span></template>
@@ -89,7 +89,7 @@ const multipleTuitions = computed(() => props.tuitions.length > 1);
                                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">school</span>{{ p.tuition_label }}
                                 </p>
                             </div>
-                            <p :class="['shrink-0 whitespace-nowrap font-code text-body-medium font-bold', negative(p) ? 'text-error' : 'text-on-surface']">{{ formatMoney(p.amount) }}</p>
+                            <p :class="['shrink-0 whitespace-nowrap font-code text-body-medium font-bold', negative(p) ? 'text-error' : 'text-on-surface', p.cancelled && 'line-through opacity-60']">{{ formatMoney(p.amount) }}</p>
                         </div>
 
                         <div v-if="p.surcharge > 0 || p.discount > 0 || p.debt_after !== null" class="mt-xs flex flex-wrap items-center justify-between gap-x-md gap-y-xs border-t border-surface-container pt-xs font-caption text-caption">

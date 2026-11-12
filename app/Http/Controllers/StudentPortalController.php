@@ -149,8 +149,8 @@ class StudentPortalController extends Controller
     }
 
     /**
-     * Chi tiết một phiếu thu đã duyệt của học viên (kèm bill để xem trực tiếp). Chỉ trả các trường học viên được thấy:
-     * không có đối soát, ghi chú, người thu. Phiếu của học viên khác → 403; phiếu của mình nhưng chưa duyệt → 404.
+     * Chi tiết một phiếu thu đã duyệt (hoặc đã hủy hóa đơn, chỉ gắn nhãn) của học viên (kèm bill để xem trực tiếp). Chỉ trả các trường học viên được thấy:
+     * không có đối soát, ghi chú, người thu. Phiếu của học viên khác → 403; phiếu của mình nhưng chưa duyệt / bị từ chối → 404.
      */
     public function receiptDetail(int $receipt)
     {
@@ -159,7 +159,7 @@ class StudentPortalController extends Controller
         $user = Auth::user();
         abort_unless($student && ($student->isLinkedTo($user)
             || ($user->can('student.view') && Student::query()->visibleTo($user)->whereKey($student->id)->exists())), 403, 'Bạn không được phép xem phiếu thu này.');
-        abort_unless($rc->status === TuitionReceipt::STATUS_APPROVED, 404);
+        abort_unless(in_array($rc->status, [TuitionReceipt::STATUS_APPROVED, TuitionReceipt::STATUS_CANCELLED], true), 404);
 
         $t = $rc->tuition;
         $proof = (string) $rc->proof_image;
@@ -169,6 +169,7 @@ class StudentPortalController extends Controller
             'receipt' => [
                 'number' => $rc->receipt_number ?? ('PT-'.$rc->id),
                 'fee_item' => $t ? 'Học phí '.($t->classModel?->course?->name ?? $t->classModel?->name ?? 'khóa học') : 'Thu khác',
+                'cancelled' => $rc->status === TuitionReceipt::STATUS_CANCELLED,
                 'amount' => (float) $rc->amount,
                 'method' => TuitionReceipt::METHOD_LABELS[$rc->payment_method] ?? ($rc->payment_method ?: '—'),
                 'date' => ($rc->payment_date ?? $rc->approved_at ?? $rc->created_at)?->format('Y-m-d'),
