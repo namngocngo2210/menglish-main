@@ -608,7 +608,7 @@ class DemoPhase3Seeder extends Seeder
         $tuition = StudentTuition::where('student_id', $this->customers[$key]->converted_student_id)->orderBy('id')->firstOrFail();
         $amount = (float) $tuition->final_amount - (float) $tuition->paid_amount;
         $this->asUser($this->staff['accountant_cg'], TuitionController::class, 'storeReceipt', [
-            'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => 'cash',
+            'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-DEMO-'.$tuition->id,
             'payer_name' => self::CUSTOMERS[$key][1], 'notes' => 'PH đóng học phí tại quầy (demo Phase 3).', 'submit_action' => 'submit',
         ]);

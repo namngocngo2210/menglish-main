@@ -95,7 +95,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000,
             'tuition_amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'submit_action' => 'submit',
         ], $extra);
     }
@@ -172,12 +172,12 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
 
         // Đổi sang chuyển khoản bị chặn vì số hóa đơn giấy đã cấp.
         $this->actingAs($this->staff)->put(route('tuition.receipts.update', $draft->id), [
-            'amount' => 1000000, 'tuition_amount' => 1000000, 'payment_method' => 'transfer', 'submit_action' => 'draft',
+            'amount' => 1000000, 'tuition_amount' => 1000000, 'payment_method' => 'transfer', 'is_vat_invoice' => 0, 'submit_action' => 'draft',
         ])->assertSessionHasErrors('payment_method');
 
         // Tải ảnh rồi gửi duyệt: giữ nguyên số.
         $this->actingAs($this->staff)->put(route('tuition.receipts.update', $draft->id), [
-            'amount' => 1000000, 'tuition_amount' => 1000000, 'payment_method' => 'cash', 'submit_action' => 'submit',
+            'amount' => 1000000, 'tuition_amount' => 1000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'submit_action' => 'submit',
             'proof_image' => UploadedFile::fake()->image('hoa-don.jpg'),
         ])->assertSessionHasNoErrors();
         $this->assertSame('pending', $draft->fresh()->status);
@@ -290,7 +290,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
             'student_id' => $this->student->id,
             'amount' => 300000, 'tuition_amount' => 0, 'surcharge_amount' => 300000,
             'collected_items' => json_encode([['id' => $this->book->id, 'quantity' => 2]]),
-            'payment_method' => 'transfer', 'transaction_code' => 'FT-KHO-01',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-KHO-01',
             'proof_image' => UploadedFile::fake()->image('unc.jpg'),
             'submit_action' => 'submit',
         ])->assertSessionHasNoErrors();
@@ -320,7 +320,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $base = [
             'student_id' => $this->student->id, 'tuition_amount' => 0,
             'collected_items' => json_encode([['id' => $this->book->id, 'quantity' => 1]]),
-            'payment_method' => 'transfer', 'submit_action' => 'draft',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0, 'submit_action' => 'draft',
         ];
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['amount' => 100000, 'surcharge_amount' => 100000])
@@ -403,7 +403,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
             $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
                 'student_id' => $this->student->id, 'amount' => 150000 * $quantity, 'tuition_amount' => 0,
                 'surcharge_amount' => 150000 * $quantity, 'collected_items' => json_encode([['id' => $this->book->id, 'quantity' => $quantity]]),
-                'payment_method' => 'transfer', 'transaction_code' => 'FT-BU-'.$quantity,
+                'payment_method' => 'transfer', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-BU-'.$quantity,
                 'proof_image' => UploadedFile::fake()->image('unc.jpg'), 'submit_action' => 'submit',
             ])->assertSessionHasNoErrors();
             $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', TuitionReceipt::latest('id')->firstOrFail()->id))

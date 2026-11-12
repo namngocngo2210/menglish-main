@@ -556,7 +556,7 @@ class DemoKpiSourcesSeeder extends Seeder
             if ($reminded && $monthKey === 'L' && ! $rejected) {
                 $rejected = true;
                 $this->when($due->copy()->addDay()->setTime(17, 0), fn () => $this->asUser($owner, TuitionController::class, 'storeReceipt', [
-                    'student_tuition_id' => $tuition->id, 'amount' => 2000000, 'tuition_amount' => 2000000, 'payment_method' => 'cash',
+                    'student_tuition_id' => $tuition->id, 'amount' => 2000000, 'tuition_amount' => 2000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0,
                     'payer_name' => $student->parent_name, 'paper_invoice_number' => 'HDG-DEMO-KPI-'.$tuition->id, 'notes' => 'Thu đợt 1 '.self::MARKER,
                     'submit_action' => 'submit',
                 ]));

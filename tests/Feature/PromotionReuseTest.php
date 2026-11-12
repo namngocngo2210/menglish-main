@@ -181,7 +181,7 @@ class PromotionReuseTest extends TestCase
             'discount_amount' => 999999,
             'tuition_amount' => 3700000,
             'amount' => 3700000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-UD-1',
             'submit_action' => 'submit',
         ])->assertSessionHasNoErrors();
@@ -205,7 +205,7 @@ class PromotionReuseTest extends TestCase
             'discount_amount' => 200000,
             'tuition_amount' => 3800000,
             'amount' => 3800000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-UD-2',
             'submit_action' => 'submit',
         ];
@@ -232,7 +232,7 @@ class PromotionReuseTest extends TestCase
             'promotion_id' => $promotion->id,
             'tuition_amount' => 3500000,
             'amount' => 3500000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-UD-3',
             'submit_action' => 'submit',
         ])->assertSessionHasErrors('promotion_id');

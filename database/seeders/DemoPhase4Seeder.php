@@ -368,7 +368,7 @@ class DemoPhase4Seeder extends Seeder
     {
         $tuition = $this->tuitionOf($key);
         $this->asUser($this->staff[$creator], TuitionController::class, 'storeReceipt', array_filter([
-            'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => $method,
+            'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => $method, 'is_vat_invoice' => 0,
             'transaction_code' => $code, 'payer_name' => self::CUSTOMERS[$key][1], 'notes' => trim($note.' '.self::MARKER),
             'proof_image_preview' => $method === 'cash' ? null : self::PROOF,
             'submit_action' => $draft ? 'draft' : 'submit',

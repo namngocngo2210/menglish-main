@@ -242,7 +242,7 @@ class SessionLedgerTest extends TestCase
             'surcharge_reason' => 'Phí in tài liệu',
             // 14 × 200.000 + 100.000 + 50.000 − 100.000 + 20.000
             'amount' => 2870000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-SB-1',
             'submit_action' => 'submit',
         ];
@@ -286,7 +286,7 @@ class SessionLedgerTest extends TestCase
             'surcharge_amount' => 50000,
             'surcharge_reason' => 'Phí in tài liệu',
             'amount' => 50000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-SB-PT',
             'submit_action' => 'submit',
         ])->assertSessionHasNoErrors();
@@ -316,7 +316,7 @@ class SessionLedgerTest extends TestCase
             'session_count' => 0,
             'surcharge_reason' => 'Phí in tài liệu',
             'amount' => 50000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-SB-0',
         ];
         foreach (['draft', 'submit'] as $action) {
@@ -359,7 +359,7 @@ class SessionLedgerTest extends TestCase
             'student_id' => $student->id,
             'session_count' => 12,
             'amount' => 2400000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-SB-2',
             'submit_action' => 'submit',
         ])->assertSessionHasNoErrors();
@@ -461,7 +461,7 @@ class SessionLedgerTest extends TestCase
         TuitionReceipt::create([
             'receipt_number' => TuitionReceipt::generateReceiptNumber(),
             'student_tuition_id' => $tuition->id, 'student_id' => $student->id,
-            'amount' => $paid, 'tuition_amount' => $paid, 'payment_method' => 'transfer',
+            'amount' => $paid, 'tuition_amount' => $paid, 'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'payment_date' => now(), 'status' => TuitionReceipt::STATUS_APPROVED, 'creator_id' => $this->accountant->id,
         ]);
         $tuition->recalculateDebt();
