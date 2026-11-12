@@ -85,6 +85,7 @@ function steps(shift) {
             warn: !!ck?.expired || !!ck?.warning,
             hint: shift.checked_in
                 ? `Đã check-in ${shift.checkin_time ?? ''}`
+                : shift.adjacent_hint ? 'Ca liền kề: bạn tự có công trong 5 phút sau khi ca trước check-in'
                 : ck?.expired ? 'Quá hạn chấm công — liên hệ Học vụ' : `Hạn ${shift.checkin?.deadline ?? ''}${ck ? ` (còn ${countdown(ck.left)})` : ''}`,
             actions: shift.checked_in || ck?.expired ? [] : [{ label: 'Check-in', href: route('teacher.checkin'), method: 'post', data: { session_ids: [shift.session_id] } }],
         },

@@ -25,6 +25,7 @@ use App\Services\SupportSessionService;
 use App\Services\Syllabus\ClassSyllabus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -201,15 +202,22 @@ class TeacherPortalController extends Controller
             ->selectRaw('class_session_id, count(*) as total')->groupBy('class_session_id')->pluck('total', 'class_session_id');
         $syllabusUrls = $this->syllabusUrls($todaySessions->pluck('class_id'));
 
-        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts, $teacher) {
+        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts, $teacher, $todaySessions) {
             $ts = $checkins->get($session->id);
+            // Ca liền kề: ca trước (cùng ngày) kết thúc đúng giờ bắt đầu ca này và GV đã tự check-in → hệ thống tự có công sau ≤5 phút.
+            $adjacentHint = ! $ts && $todaySessions->contains(fn (ClassSession $prev) => $prev->id !== $session->id
+                && $prev->date->isSameDay($session->date)
+                && $prev->end_time?->format('H:i:s') === $session->start_time?->format('H:i:s')
+                && $checkins->get($prev->id)?->source === TeacherTimesheet::SOURCE_CHECKIN);
 
             return [
                 'can_teach' => $session->classModel !== null && $this->isTeachingStaff($teacher, $session->classModel, $session),
                 'session' => $session,
                 'class' => $session->classModel,
                 'scheduled_time' => $session->start_time?->format('H:i').' - '.$session->end_time?->format('H:i'),
-                'checked_in' => $ts && ! empty($ts->checkin_time),
+                // Mọi nguồn công (check-in, chấm tay, tự động ca liền kề) đều tính là đã chấm; dòng xóa mềm đã bị global scope loại.
+                'checked_in' => $ts && (! empty($ts->checkin_time) || $ts->source === TeacherTimesheet::SOURCE_AUTO_ADJACENT),
+                'adjacent_hint' => $adjacentHint,
                 'checkin_time' => $ts?->checkin_time,
                 'checkin' => $this->checkinWindowInfo($session),
                 'attendance_done' => $attendanceDone->has($session->id),
@@ -293,6 +301,7 @@ class TeacherPortalController extends Controller
                 'ends_in' => (int) now()->diffInSeconds($endsAt($shift['session']), false),
                 'shift_name' => $shift['session']->shiftLabel(),
                 'checked_in' => $shift['checked_in'],
+                'adjacent_hint' => $shift['adjacent_hint'],
                 'checkin_time' => $shift['checkin_time'],
                 'checkin' => $shift['checkin'],
                 'is_today' => $shift['session']->date->isToday(),
@@ -414,6 +423,7 @@ class TeacherPortalController extends Controller
         $targets = [];
         $skipped = [];
         $lockedMessage = null;
+        $softDeletedMessage = null;
         foreach ($validated['session_ids'] ?? [] as $sessionId) {
             $session = ClassSession::with('classModel')->find($sessionId);
             $class = $session?->classModel;
@@ -425,12 +435,6 @@ class TeacherPortalController extends Controller
             }
             if ($reason = $this->checkinWindowReason($session, $now)) {
                 $skipped[] = "{$class->name}: {$reason}";
-
-                continue;
-            }
-            // Kỳ lương khóa tính theo ngày dạy của buổi (không theo ngày bấm check-in).
-            if (PayrollPeriod::isLockedFor($session->date)) {
-                $lockedMessage = PayrollPeriod::lockedMessage($session->date);
 
                 continue;
             }
@@ -458,55 +462,97 @@ class TeacherPortalController extends Controller
 
                 continue;
             }
-            if (PayrollPeriod::isLockedFor($session->date)) {
-                $lockedMessage = PayrollPeriod::lockedMessage($session->date);
-
-                continue;
-            }
             $targets[$session->id] = [$class, $session];
         }
 
         $count = 0;
+        $existingCount = 0;
         foreach ($targets as [$class, $session]) {
-            $duplicate = TeacherTimesheet::findDuplicate($teacher->id, (int) $class->id, $session->date->toDateString(), $session->id);
-            if ($duplicate && $duplicate->source === TeacherTimesheet::SOURCE_MANUAL) {
-                $skipped[] = "{$class->name}: buổi này đã được Học vụ chấm công tay";
+            try {
+                $result = DB::transaction(function () use ($teacher, $class, $session, $now, &$skipped) {
+                    // Serialize with the adjacent-shift job before inspecting or inserting this pair.
+                    ClassSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
+                    $rows = TeacherTimesheet::withSoftDeleted()->where('user_id', $teacher->id)->where('class_session_id', $session->id)
+                        ->orderBy('id')->lockForUpdate()->get();
+                    if ($rows->contains(fn (TeacherTimesheet $row) => $row->bi_xoa_boi_hoc_vu)) {
+                        return 'deleted';
+                    }
+                    $existing = $rows->first();
+                    $duplicate = TeacherTimesheet::findDuplicate($teacher->id, (int) $class->id, $session->date->toDateString(), $session->id);
+                    if ($duplicate || ($existing && $existing->status !== 'invalid')) {
+                        $duplicate ??= $existing;
+                        $skipped[] = $duplicate->source === TeacherTimesheet::SOURCE_MANUAL
+                            ? "{$class->name}: buổi này đã được Học vụ chấm công tay"
+                            : "{$class->name}: bạn đã check-in buổi này lúc ".($duplicate->checkin_time ?: '—');
 
-                continue;
+                        return 'existing';
+                    }
+                    abort_if($existing?->payroll_locked, 409, 'Kỳ lương đã chốt, không sửa được công');
+                    if (PayrollPeriod::isLockedFor($session->date)) {
+                        return 'locked';
+                    }
+
+                    $hours = max(0.5, abs(Carbon::parse($session->start_time)->diffInMinutes(Carbon::parse($session->end_time))) / 60);
+                    $timesheet = $existing ?? new TeacherTimesheet;
+                    $timesheet->fill([
+                        'user_id' => $teacher->id,
+                        'class_session_id' => $session->id,
+                        'class_id' => $class->id,
+                        'teaching_date' => $session->date->toDateString(),
+                        'scheduled_time' => $session->start_time->format('H:i').'-'.$session->end_time->format('H:i'),
+                        'checkin_time' => $now->format('H:i'),
+                        'hours' => $hours,
+                        'late_minutes' => (int) min(1440, max(0, $session->startsAt()->diffInMinutes($now, false))),
+                        'early_leave_minutes' => 0,
+                        'late_notified' => false,
+                        'type' => $session->type === ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
+                        'source' => TeacherTimesheet::SOURCE_CHECKIN,
+                        'status' => 'pending_review',
+                        'reconcile_status' => $existing?->reconcile_status === null ? null : TeacherTimesheet::RECONCILE_NHAP,
+                        'reviewed_by' => null,
+                        'reviewed_at' => null,
+                        'rejection_reason' => null,
+                    ])->save();
+
+                    return 'created';
+                });
+            } catch (UniqueConstraintViolationException $exception) {
+                $raced = TeacherTimesheet::withSoftDeleted()->where('user_id', $teacher->id)->where('class_session_id', $session->id)->first();
+                if (! $raced || (! $raced->bi_xoa_boi_hoc_vu && $raced->status === 'invalid')) {
+                    throw $exception;
+                }
+                $result = $raced->bi_xoa_boi_hoc_vu ? 'deleted' : 'existing';
+                if ($result === 'existing') {
+                    $skipped[] = $raced->source === TeacherTimesheet::SOURCE_MANUAL
+                        ? "{$class->name}: buổi này đã được Học vụ chấm công tay"
+                        : "{$class->name}: bạn đã check-in buổi này lúc ".($raced->checkin_time ?: '—');
+                }
             }
-            // Đã check-in buổi này (chờ duyệt / đã duyệt): bấm lại không ghi đè giờ check-in và không đưa ca đã duyệt
-            // về "chờ duyệt". Chỉ ca bị từ chối mới được check-in lại.
-            if ($duplicate) {
-                $skipped[] = "{$class->name}: bạn đã check-in buổi này lúc ".($duplicate->checkin_time ?: '—');
-
-                continue;
+            if ($result === 'deleted') {
+                $softDeletedMessage = 'Học vụ đã xóa công ca này, liên hệ Học vụ';
+                $skipped[] = "{$class->name}: {$softDeletedMessage}";
+            } elseif ($result === 'existing') {
+                $existingCount++;
+            } elseif ($result === 'locked') {
+                $lockedMessage = PayrollPeriod::lockedMessage($session->date);
+            } else {
+                $count++;
             }
-
-            $hours = max(0.5, abs(Carbon::parse($session->start_time)->diffInMinutes(Carbon::parse($session->end_time))) / 60);
-            TeacherTimesheet::updateOrCreate(
-                ['user_id' => $teacher->id, 'class_session_id' => $session->id],
-                [
-                    'class_id' => $class->id,
-                    'teaching_date' => $session->date->toDateString(),
-                    'scheduled_time' => $session->start_time->format('H:i').'-'.$session->end_time->format('H:i'),
-                    'checkin_time' => $now->format('H:i'),
-                    'hours' => $hours,
-                    // Đi muộn = số phút check-in sau giờ bắt đầu (check-in sớm = 0). Có báo trước hay không do Học vụ ghi nhận.
-                    'late_minutes' => (int) min(1440, max(0, $session->startsAt()->diffInMinutes($now, false))),
-                    'early_leave_minutes' => 0,
-                    'late_notified' => false,
-                    'type' => $session->type === ClassSession::TYPE_SUPPORT ? '1on1' : 'regular',
-                    'source' => TeacherTimesheet::SOURCE_CHECKIN,
-                    'status' => 'pending_review',
-                    'reviewed_by' => null,
-                    'reviewed_at' => null,
-                    'rejection_reason' => null,
-                ]
-            );
-            $count++;
         }
 
         if ($count === 0) {
+            if ($softDeletedMessage !== null) {
+                if ($request->expectsJson()) {
+                    abort(409, $softDeletedMessage);
+                }
+
+                return back()->withErrors(['class_ids' => $softDeletedMessage])->with('error', $softDeletedMessage);
+            }
+            if ($existingCount > 0 && count($skipped) === $existingCount && $lockedMessage === null) {
+                $message = 'Ca này đã có công — không cần check-in lại.';
+
+                return $request->expectsJson() ? response()->json(['message' => $message]) : back()->with('success', $message);
+            }
             $message = $lockedMessage && $skipped === []
                 ? $lockedMessage
                 : 'Không check-in được ca nào — '.implode('; ', array_filter([...$skipped, $lockedMessage])).'.';
