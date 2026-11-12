@@ -389,7 +389,14 @@ class StudentTuition extends Model
             ->get()
             ->groupBy('student_id');
 
+        $transfers = TuitionRefundRequest::query()->where('type', TuitionRefundRequest::TYPE_TRANSFER)
+            ->where('status', 'approved')->where('balance_adjusted', true)
+            ->where(fn ($q) => $q->whereIn('student_id', $studentIds)->orWhereIn('target_student_id', $studentIds))
+            ->get(['student_id', 'target_student_id', 'transferred_sessions']);
+
         foreach ($tuitions as $tuition) {
+            $tuition->transferSessionDelta = (int) $transfers->where('target_student_id', $tuition->student_id)->sum('transferred_sessions')
+                - (int) $transfers->where('student_id', $tuition->student_id)->sum('transferred_sessions');
             $rows = $attendance->get($tuition->student_id, collect());
             $tuition->preloadedSessionStats = $tuition->computeSessionStats(
                 fn (int $classId) => (int) ($scheduled[$classId] ?? 0),
@@ -399,6 +406,23 @@ class StudentTuition extends Model
                     : $rows->sum('aggregate')),
             );
         }
+    }
+
+    /** Buổi nhận − buổi chuyển đi theo các hồ sơ chuyển nhượng R-07 đã duyệt (null = chưa tính). */
+    protected ?int $transferSessionDelta = null;
+
+    public function transferSessionDelta(): int
+    {
+        if ($this->transferSessionDelta === null) {
+            $base = TuitionRefundRequest::query()->where('type', TuitionRefundRequest::TYPE_TRANSFER)
+                ->where('status', 'approved')->where('balance_adjusted', true);
+            $this->transferSessionDelta = $this->student_id
+                ? (int) (clone $base)->where('target_student_id', $this->student_id)->sum('transferred_sessions')
+                    - (int) (clone $base)->where('student_id', $this->student_id)->sum('transferred_sessions')
+                : 0;
+        }
+
+        return $this->transferSessionDelta;
     }
 
     /** Kết quả sessionStats() đã tính sẵn (false = chưa tính). */
@@ -423,6 +447,8 @@ class StudentTuition extends Model
         if ($total <= 0) {
             return null;
         }
+        // R-07: buổi đã chuyển nhượng đi/nhận về làm đổi tổng số buổi (36 − 33 = 3; nhận 36 + 33 = 69).
+        $total = max(0, $total + $this->transferSessionDelta());
 
         $attended = (int) ($usage()[(int) $this->id] ?? 0);
         if ($attended <= 0) {
