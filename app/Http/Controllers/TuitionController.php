@@ -2772,7 +2772,7 @@ class TuitionController extends Controller
     /**
      * Duyệt chuyển nhượng (R-07, trong transaction của approveRefundRequest): KHÔNG lập phiếu thu, KHÔNG cấp số hóa đơn.
      * Số tiền luôn tính lại theo công thức (đã thu / tổng số buổi) × số buổi còn lại, chuyển toàn bộ buổi còn lại.
-     * Bên chuyển: giảm số buổi + giá trị hợp đồng; bên nhận: được ghi có "đã thu" (cấn trừ công nợ, số buổi giữ nguyên).
+     * Bên chuyển: giảm số buổi + giá trị hợp đồng; bên nhận: được ghi có "đã thu" (cấn trừ công nợ, cộng thêm đúng số buổi nhận).
      * Tổng "đã thu" của hai bên không đổi. Ghi nhật ký thay đổi.
      *
      * @return array{status?: string, error?: string, field?: string}
@@ -2818,10 +2818,12 @@ class TuitionController extends Controller
         app(SalesCommissionService::class)->recordRefundApproval($refund);
 
         $source->session_count = max(0, (int) $source->session_count - $value['sessions']);
+        // R-07: bên nhận được cộng đúng số buổi bên chuyển trừ đi (cùng transaction với phần tiền).
+        $target->session_count = (int) $target->session_count + $value['sessions'];
         $source->total_amount = max(0, (float) $source->total_amount - $amount);
         $source->final_amount = max(0, (float) $source->final_amount - $amount);
         $source->notes = trim(($source->notes ? $source->notes."\n" : '').$stamp."Chuyển nhượng #{$refund->id}: -{$value['sessions']} buổi, -{$amountLabel} sang {$refund->targetStudent?->name}, duyệt bởi {$approver}.");
-        $target->notes = trim(($target->notes ? $target->notes."\n" : '').$stamp."Nhận chuyển nhượng #{$refund->id}: +{$amountLabel} từ {$refund->student?->name}, duyệt bởi {$approver}.");
+        $target->notes = trim(($target->notes ? $target->notes."\n" : '').$stamp."Nhận chuyển nhượng #{$refund->id}: +{$value['sessions']} buổi, +{$amountLabel} từ {$refund->student?->name}, duyệt bởi {$approver}.");
         // recalculateDebt() cộng/trừ refund_amount của hồ sơ vừa duyệt (balance_adjusted) vào đã thu của hai bên.
         $source->recalculateDebt();
         $target->recalculateDebt();

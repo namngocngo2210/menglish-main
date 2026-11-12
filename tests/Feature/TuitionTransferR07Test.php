@@ -145,6 +145,7 @@ class TuitionTransferR07Test extends TestCase
         $target = $this->targetTuition->fresh();
         // Nguồn: -6 buổi, -3.000.000 hợp đồng; đã thu 5M → 2M, công nợ không đổi.
         $this->assertSame(4, (int) $source->session_count);
+        $this->assertSame(16, (int) $target->session_count, 'Bên nhận được cộng đúng 6 buổi (TK-2026-0100).');
         $this->assertEquals(3000000, (float) $source->final_amount);
         $this->assertEquals(2000000, (float) $source->paid_amount);
         $this->assertEquals(1000000, (float) $source->debt_amount);
@@ -180,6 +181,68 @@ class TuitionTransferR07Test extends TestCase
         $this->assertSame('pending', $request->fresh()->status);
         $this->assertSame($receiptsBefore, TuitionReceipt::count());
         $this->assertSame(10, (int) $this->sourceTuition->fresh()->session_count);
+        $this->assertEquals(5000000, (float) $this->sourceTuition->fresh()->paid_amount);
+    }
+
+    public function test_transfer_of_36_session_contract_moves_33_sessions_to_receiver(): void
+    {
+        // TK-2026-0100: HV 41 (36 buổi, đã học 3) → HV 39: nguồn 36 → 3, nhận 36 → 69.
+        Course::query()->update(['total_lessons' => 36]);
+        $this->sourceTuition->update(['session_count' => 36]);
+        $this->targetTuition->update(['session_count' => 36]);
+        StudentAttendance::where('student_id', $this->source->id)->whereDate('session_date', '2026-09-04')->delete();
+
+        $this->createTransfer()->assertSessionHasNoErrors();
+        $request = TuitionRefundRequest::where('type', 'transfer')->sole();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
+
+        $this->assertSame(33, (int) $request->fresh()->transferred_sessions);
+        $this->assertSame(3, (int) $this->sourceTuition->fresh()->session_count);
+        $this->assertSame(69, (int) $this->targetTuition->fresh()->session_count);
+        $this->assertEquals(round(5000000 / 36 * 33, 2), (float) $request->fresh()->refund_amount);
+        // Màn hoàn phí của nguồn (cùng nguồn dữ liệu): tổng 3, đã học 3, không còn buổi dư để chuyển tiếp.
+        $source = $this->sourceTuition->fresh();
+        $this->assertSame(3, $source->sessionStats()['total']);
+        $this->assertSame(3, $source->sessionStats()['attended']);
+        $this->assertSame(0, $source->sessionStats()['remaining']);
+        $this->assertSame(0, $source->transferValue()['sessions']);
+    }
+
+    public function test_double_approve_does_not_move_sessions_twice(): void
+    {
+        $this->createTransfer()->assertSessionHasNoErrors();
+        $request = TuitionRefundRequest::where('type', 'transfer')->sole();
+
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id));
+
+        $this->assertSame(4, (int) $this->sourceTuition->fresh()->session_count);
+        $this->assertSame(16, (int) $this->targetTuition->fresh()->session_count);
+        $this->assertEquals(2000000, (float) $this->sourceTuition->fresh()->paid_amount);
+        $this->assertEquals(4000000, (float) $this->targetTuition->fresh()->paid_amount);
+    }
+
+    public function test_failure_while_saving_receiver_rolls_back_whole_transfer(): void
+    {
+        $this->createTransfer()->assertSessionHasNoErrors();
+        $request = TuitionRefundRequest::where('type', 'transfer')->sole();
+        $targetId = $this->targetTuition->id;
+        StudentTuition::saving(function (StudentTuition $t) use ($targetId) {
+            if ($t->id === $targetId && $t->isDirty('session_count')) {
+                throw new \RuntimeException('boom');
+            }
+        });
+
+        try {
+            $this->actingAs($this->admin)->withoutExceptionHandling()->post(route('tuition.refunds.approve', $request->id));
+            $this->fail('Expected failure');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('boom', $e->getMessage());
+        }
+
+        $this->assertSame('pending', $request->fresh()->status);
+        $this->assertSame(10, (int) $this->sourceTuition->fresh()->session_count);
+        $this->assertSame(10, (int) $this->targetTuition->fresh()->session_count);
         $this->assertEquals(5000000, (float) $this->sourceTuition->fresh()->paid_amount);
     }
 
