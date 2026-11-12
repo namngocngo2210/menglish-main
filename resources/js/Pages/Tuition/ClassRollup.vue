@@ -55,7 +55,7 @@ defineProps({
                     </template>
                 </tr>
             </tbody>
-            <tfoot class="bg-surface-container-low font-semibold">
+            <tfoot v-if="roundCount > 0" class="bg-surface-container-low font-semibold">
                 <tr class="border-t border-surface-container-highest">
                     <td class="px-md py-sm">Thực thu (tổng: <UiMoney :value="total" align="left" class="inline" />)</td>
                     <template v-for="(sum, i) in totals" :key="i">
