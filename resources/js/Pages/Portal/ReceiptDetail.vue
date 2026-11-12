@@ -21,6 +21,8 @@ defineProps({
     <div class="relative mx-auto my-4 flex max-w-[430px] flex-col overflow-hidden rounded-3xl border border-surface-container-highest bg-surface-container-lowest pb-6 shadow-2xl md:max-w-2xl md:shadow-sm">
         <PortalTopHeader :student="student" title="Chi tiết phiếu thu" show-back :back-url="backUrl" />
 
+        <div v-if="receipt.cancelled" class="mx-4 mt-4 rounded-lg border border-error/30 bg-error/10 p-3 text-sm font-semibold text-error" role="alert" data-receipt-cancelled>Đã hủy — hóa đơn không còn hợp lệ</div>
+
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-4 text-sm" data-receipt-detail>
             <dt class="text-on-surface-variant">Mã phiếu</dt><dd class="text-right font-code font-semibold">{{ receipt.number }}</dd>
             <dt class="text-on-surface-variant">Khoản thu</dt><dd class="text-right">{{ receipt.fee_item }}</dd>

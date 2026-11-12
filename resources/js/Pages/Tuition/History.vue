@@ -149,6 +149,10 @@ onBeforeUnmount(() => {
                 <UiButton variant="ghost" icon="close" aria-label="Đóng" @click="detail = null" />
             </header>
             <div v-if="detail" class="space-y-md p-md">
+                <div v-if="detail.status === 'cancelled'" class="rounded-lg border border-error/30 bg-error/10 p-sm text-error" role="alert" data-cancelled-banner>
+                    <p class="font-label text-label font-semibold">Đã hủy — không hợp lệ</p>
+                    <p class="font-body-small text-body-small">Hóa đơn này đã bị hủy ({{ detail.rejection_reason || 'không rõ lý do' }}), không còn hợp lệ</p>
+                </div>
                 <dl class="grid grid-cols-2 gap-sm font-body-small text-body-small">
                     <dt class="text-on-surface-variant">Mã phiếu</dt>
                     <dd class="font-code text-primary">{{ detail.receipt_number }}</dd>
@@ -179,7 +183,7 @@ onBeforeUnmount(() => {
                     <dt class="text-on-surface-variant">Ghi chú</dt>
                     <dd>{{ detail.notes || '—' }}</dd>
                     <template v-if="detail.rejection_reason">
-                        <dt class="text-error">Lý do từ chối</dt>
+                        <dt class="text-error">{{ detail.status === 'cancelled' ? 'Lý do hủy' : 'Lý do từ chối' }}</dt>
                         <dd class="text-error">{{ detail.rejection_reason }}</dd>
                     </template>
                 </dl>
