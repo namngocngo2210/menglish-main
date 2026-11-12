@@ -53,7 +53,7 @@ class ReceiptVatFlagRequiredTest extends TestCase
     public function test_submit_with_yes_or_no_is_accepted_and_stored(): void
     {
         $this->submitReceipt(['is_vat_invoice' => '1'])->assertSessionHasNoErrors();
-        $this->submitReceipt(['is_vat_invoice' => '0', 'paper_invoice_number' => 'HDG-VAT-2'])->assertSessionHasNoErrors();
+        $this->submitReceipt(['is_vat_invoice' => '0', 'paper_invoice_number' => 'HDG-VAT-2', 'amount' => 1100000, 'tuition_amount' => 1100000])->assertSessionHasNoErrors();
         $this->assertSame([false, true], TuitionReceipt::orderBy('id')->get()->pluck('is_vat_invoice')->sort()->values()->all());
     }
 

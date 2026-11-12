@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, useFormContext } from '@inertiajs/vue3';
 import { formatMoney } from '@/lib/format';
 
 const props = defineProps({
@@ -9,6 +9,7 @@ const props = defineProps({
     submitLabel: { type: String, default: 'Lưu phiếu thu & Gửi duyệt' },
     cancelUrl: { type: String, default: '' },
 });
+const ctx = useFormContext();
 const money = (value) => formatMoney(value || 0);
 const q = computed(() => props.form.quote);
 </script>
@@ -74,8 +75,8 @@ const q = computed(() => props.form.quote);
             </div>
         </div>
         <div v-if="layout === 'page'" class="hidden flex-col gap-3 lg:flex">
-            <UiButton variant="secondary" type="submit" name="submit_action" value="draft" icon="drafts" class="min-h-11">Lưu nháp</UiButton>
-            <UiButton type="submit" name="submit_action" value="submit" data-testid="receipt-submit-desktop" icon="save" :disabled="!form.isValidReceipt" class="min-h-11 w-full !whitespace-normal [&>.material-symbols-outlined]:shrink-0">
+            <UiButton variant="secondary" type="submit" name="submit_action" value="draft" :disabled="ctx?.processing" icon="drafts" class="min-h-11">Lưu nháp</UiButton>
+            <UiButton type="submit" name="submit_action" value="submit" data-testid="receipt-submit-desktop" icon="save" :disabled="ctx?.processing || !form.isValidReceipt" class="min-h-11 w-full !whitespace-normal [&>.material-symbols-outlined]:shrink-0">
                 <span class="min-w-0">{{ submitLabel }} (<span class="font-code">{{ money(form.totalAmount) }}</span>)</span>
             </UiButton>
         </div>

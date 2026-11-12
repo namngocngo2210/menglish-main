@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Http\Concerns\RendersModals;
 use App\Support\Navigation\AppShell;
 use App\Support\PermissionCatalog;
 use App\Support\RoleSwitcher;
@@ -40,11 +39,12 @@ class HandleInertiaRequests extends Middleware
     {
         $response = parent::handle($request, $next);
 
+        // Header defined by RendersModals; PHP 8.4 forbids direct trait constant access.
         if ($request->header('X-Inertia') && $request->isMethod('GET')
             && ! $response->headers->has('X-Inertia')
             && ! $response->isRedirection()
             && $response->getStatusCode() !== 409
-            && ! ($response->getStatusCode() >= 400 && $request->hasHeader(RendersModals::MODAL_HEADER))) {
+            && ! ($response->getStatusCode() >= 400 && $request->hasHeader('X-Remote-Modal'))) {
             return Inertia::location($request->fullUrl());
         }
 
