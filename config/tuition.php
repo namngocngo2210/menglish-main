@@ -6,12 +6,6 @@
 return [
 
     /**
-     * Phí quản trị khi hoàn học phí, tính theo % trên số tiền còn lại sau khi trừ các buổi đã học.
-     * (Mockup cũ ghi cứng 10%.)
-     */
-    'refund_admin_fee_percent' => (float) env('TUITION_REFUND_ADMIN_FEE_PERCENT', 10),
-
-    /**
      * Khoảng ngày (±) để cảnh báo phiếu chuyển khoản tay có thể trùng giao dịch SePay đã tự gạch nợ
      * (cùng học viên / hợp đồng, cùng số tiền).
      */

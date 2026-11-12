@@ -2461,7 +2461,6 @@ class TuitionController extends Controller
         $students->each(fn (Student $student) => $student->tuition?->setRelation('student', $student));
         StudentTuition::preloadSessionStats($students->pluck('tuition'));
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
-        $adminFeePercent = (float) config('tuition.refund_admin_fee_percent', 10);
 
         $canRejectAny = (bool) Auth::user()?->can(TuitionRefundRequest::REJECT_PERMISSION);
         $studentLabel = fn (Student $st) => $st->name.' · '.DisplayCode::short($st->code);
@@ -2507,7 +2506,6 @@ class TuitionController extends Controller
             'approvableTypes' => $approvableTypes,
             'canRejectAny' => $canRejectAny,
             'studentFinance' => $studentFinance->all(),
-            'adminFeePercent' => $adminFeePercent,
             'targets' => $students->map(fn (Student $st) => [
                 'id' => (string) $st->id,
                 'name' => $st->name,
@@ -2529,8 +2527,7 @@ class TuitionController extends Controller
     }
 
     /**
-     * Căn cứ tính hoàn phí từ hợp đồng thật: đã nộp, giá trị hợp đồng, tổng buổi / đã học (điểm danh),
-     * đơn giá / buổi, phí quản trị theo chính sách và số tiền hoàn đề xuất.
+     * Refund basis from the actual contract, payments and session usage, without an admin fee (R-07b).
      *
      * @return array<string, mixed>
      */
@@ -2546,8 +2543,6 @@ class TuitionController extends Controller
         $unitPrice = $total ? round($contract / $total, 2) : 0.0;
         $used = min($paid, round($unitPrice * $attended, 2));
         $remainingValue = max(0.0, round($paid - $used, 2));
-        $feePercent = (float) config('tuition.refund_admin_fee_percent', 10);
-        $adminFee = round($remainingValue * $feePercent / 100, 0);
 
         return [
             'has_tuition' => (bool) $tuition,
@@ -2560,8 +2555,7 @@ class TuitionController extends Controller
             'remaining_sessions' => $stats['remaining'] ?? null,
             'unit_price' => $unitPrice,
             'remaining_value' => $remainingValue,
-            'admin_fee' => $adminFee,
-            'suggested_refund' => max(0.0, $remainingValue - $adminFee),
+            'suggested_refund' => $remainingValue,
             // R-07: chuyển nhượng = toàn bộ buổi còn lại × (đã thu / tổng số buổi).
             'transfer_sessions' => $transfer['sessions'],
             'transfer_amount' => $transfer['amount'],
@@ -2576,7 +2570,6 @@ class TuitionController extends Controller
             'type' => 'required|string|in:refund,extension,transfer,deferral',
             'total_paid' => 'nullable|numeric|min:0',
             'attended_lessons' => 'nullable|integer|min:0',
-            'admin_fee' => 'nullable|numeric|min:0',
             // Chuyển nhượng: số tiền do hệ thống tính theo công thức R-07, không nhận từ client.
             'refund_amount' => 'nullable|required_if:type,refund|numeric|min:0',
             'target_student_id' => 'nullable|required_if:type,transfer|exists:students,id|different:student_id',
@@ -2634,7 +2627,7 @@ class TuitionController extends Controller
             'type' => $type,
             'total_paid' => $totalPaid,
             'attended_lessons' => $validated['attended_lessons'] ?? ($basis['attended_sessions'] ?? 0),
-            'admin_fee' => $validated['admin_fee'] ?? 0,
+            'admin_fee' => 0,
             'refund_amount' => in_array($type, [TuitionRefundRequest::TYPE_REFUND, TuitionRefundRequest::TYPE_TRANSFER], true)
                 ? $validated['refund_amount']
                 : 0,
@@ -2717,36 +2710,26 @@ class TuitionController extends Controller
                 return ['error' => 'Số tiền xử lý vượt quá số tiền học viên đã nộp ('.Money::format((float) $sourceTuition->paid_amount).').'];
             }
 
-            $refund->update(['status' => 'approved', 'approver_id' => Auth::id(), 'proof_path' => $proofPath ?? $refund->proof_path]);
+            $before = $sourceTuition->only(['paid_amount', 'final_amount', 'debt_amount']);
+            $refund->update(['status' => 'approved', 'approver_id' => Auth::id(), 'proof_path' => $proofPath ?? $refund->proof_path,
+                'balance_adjusted' => true]);
             // Hoàn phí chỉ hủy hoa hồng chưa trả; dữ liệu thu hồi cũ gửi lên được bỏ qua.
             app(SalesCommissionService::class)->recordRefundApproval($refund);
 
             $amountLabel = Money::format($amount);
 
-            // Bên nguồn: phiếu âm + giảm giá trị hợp đồng tương ứng để công nợ không tăng giả.
-            TuitionReceipt::create([
-                'receipt_number' => TuitionReceipt::generateReceiptNumber(),
-                // Số HĐ lấy theo dải của chi nhánh học viên (hết/không có dải → dải mặc định), như phiếu thu thường.
-                'invoice_number' => InvoiceConfiguration::consumeNextInvoiceNumber($this->tuitionBranchId($sourceTuition)),
-                'student_tuition_id' => $sourceTuition->id,
-                'student_id' => $sourceTuition->student_id,
-                'amount' => -$amount,
-                'tuition_amount' => -$amount,
-                'payment_method' => 'transfer',
-                'transaction_code' => 'REFUND-'.$refund->id,
-                'payment_date' => now(),
-                'creator_id' => $refund->requester_id ?? Auth::id(),
-                'approver_id' => Auth::id(),
-                'status' => TuitionReceipt::STATUS_APPROVED,
-                'notes' => "Hoàn trả rút tiền học phí (-{$amountLabel}). Lý do: {$refund->reason}",
-            ]);
-
+            // R-07b: reduce paid and contract amounts equally to preserve debt, without a receipt or invoice number.
             $oldFinal = (float) $sourceTuition->final_amount;
             $sourceTuition->final_amount = max(0, $oldFinal - $amount);
             $sourceTuition->notes = trim(($sourceTuition->notes ? $sourceTuition->notes."\n" : '')
                 .'['.now()->format('d/m/Y H:i').'] Hoàn phí'." #{$refund->id}: giảm giá trị hợp đồng "
                 .Money::format($oldFinal, '').' → '.Money::format((float) $sourceTuition->final_amount)." (-{$amountLabel}), duyệt bởi ".(Auth::user()?->name ?? 'hệ thống').'.');
             $sourceTuition->recalculateDebt();
+
+            activity('tuition_refund')->causedBy(Auth::user())->performedOn($refund)->withProperties([
+                'amount' => $amount, 'before' => $before,
+                'after' => $sourceTuition->only(['paid_amount', 'final_amount', 'debt_amount']),
+            ])->log("Approved tuition refund #{$refund->id} (no receipt, no invoice number)");
 
             return ['status' => "Đã duyệt hoàn trả {$amountLabel} cho học viên {$refund->student?->name} và cập nhật lại sổ nợ học phí!"];
         });

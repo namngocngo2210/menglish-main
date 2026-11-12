@@ -187,12 +187,11 @@ class StudentTuition extends Model
     }
 
     /**
-     * Tính lại công nợ từ các phiếu đã duyệt (nguồn sự thật duy nhất):
-     * - paid_amount = Σ amount của phiếu approved, GỒM cả phụ thu (US duyệt phiếu thu R-10 / AC-S10;
-     *   paid có thể vượt total; phiếu hoàn/chuyển nhượng âm tự trừ vào). Phiếu chỉ-phụ-thu (không có phần
-     *   học phí, R-18) không cộng vào khoản học phí nào.
-     * - debt_amount = max(0, final_amount − Σ discount_amount của phiếu approved − paid_amount).
-     * Phiếu pending/draft/rejected/cancelled không được tính.
+     * Recalculate balances from approved receipts and approved receipt-free refund/transfer adjustments.
+     * paid_amount includes surcharges (R-10 / AC-S10), except surcharge-only receipts (R-18),
+     * and legacy negative refund/transfer receipts. It may exceed the contract amount.
+     * debt_amount = max(0, final_amount - approved receipt discounts - paid_amount).
+     * Pending, draft, rejected and cancelled receipts do not contribute.
      */
     public function recalculateDebt(): void
     {
@@ -203,8 +202,8 @@ class StudentTuition extends Model
             ->toBase()
             ->first();
 
-        // Chuyển nhượng R-07 không có phiếu thu: tiền chuyển được cộng/trừ vào đã thu qua hồ sơ đã duyệt (balance_adjusted).
-        $this->paid_amount = round((float) $totals->paid_total + $this->transferBalanceAdjustment(), 2);
+        // R-07/R-07b: approved requests marked balance_adjusted contribute without receipts.
+        $this->paid_amount = round((float) $totals->paid_total + $this->balanceAdjustment(), 2);
         $this->debt_amount = max(0, round((float) $this->final_amount - (float) $totals->discount_total - (float) $this->paid_amount, 2));
 
         if ($this->debt_amount <= 0) {
@@ -219,13 +218,14 @@ class StudentTuition extends Model
         $this->save();
     }
 
-    /** Tiền nhận − tiền chuyển đi theo các hồ sơ chuyển nhượng đã duyệt không lập phiếu thu. */
-    public function transferBalanceAdjustment(): float
+    /** Incoming transfers minus outgoing transfers and refunds approved without receipts. */
+    public function balanceAdjustment(): float
     {
-        $base = TuitionRefundRequest::query()->where('type', TuitionRefundRequest::TYPE_TRANSFER)
-            ->where('status', 'approved')->where('balance_adjusted', true);
-        $in = (float) (clone $base)->where('target_student_id', $this->student_id)->sum('refund_amount');
-        $out = (float) (clone $base)->where('student_id', $this->student_id)->sum('refund_amount');
+        $base = TuitionRefundRequest::query()->where('status', 'approved')->where('balance_adjusted', true);
+        $in = (float) (clone $base)->where('type', TuitionRefundRequest::TYPE_TRANSFER)
+            ->where('target_student_id', $this->student_id)->sum('refund_amount');
+        $out = (float) (clone $base)->whereIn('type', [TuitionRefundRequest::TYPE_TRANSFER, TuitionRefundRequest::TYPE_REFUND])
+            ->where('student_id', $this->student_id)->sum('refund_amount');
 
         return round($in - $out, 2);
     }

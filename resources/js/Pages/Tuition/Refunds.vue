@@ -23,7 +23,6 @@ const props = defineProps({
     approvableTypes: { type: Array, default: () => [] },
     canRejectAny: { type: Boolean, default: false },
     studentFinance: { type: [Object, Array], default: () => ({}) },
-    adminFeePercent: { type: Number, default: 10 },
     targets: { type: Array, default: () => [] },
     sourceOptions: { type: Array, default: () => [] },
     debtorOptions: { type: Array, default: () => [] },
@@ -112,11 +111,10 @@ const targetDebtError = computed(() => {
         ? `Số tiền chuyển nhượng vượt quá công nợ còn lại của học viên nhận (${money(targetBasis.value.debt)}). Vui lòng chọn học viên nhận khác.`
         : '';
 });
-const adminFee = computed(() => Math.round((remainingValue.value * props.adminFeePercent) / 100));
 const suggestedAmount = computed(() => {
     // R-07: chuyển nhượng toàn bộ buổi còn lại, số tiền do server tính (đã thu / tổng số buổi × buổi còn lại).
     if (calc.actionType === 'transfer') return basis.value.transfer_amount || 0;
-    if (calc.actionType === 'refund') return Math.max(0, remainingValue.value - adminFee.value);
+    if (calc.actionType === 'refund') return remainingValue.value;
     return 0;
 });
 
@@ -268,7 +266,6 @@ const inputClass =
                 <input type="hidden" name="type" :value="calc.actionType" />
                 <input type="hidden" name="total_paid" :value="basis.paid" />
                 <input type="hidden" name="attended_lessons" :value="calc.attendedLessons" />
-                <input type="hidden" name="admin_fee" :value="calc.actionType === 'refund' ? adminFee : 0" />
 
                 <div class="mb-md">
                     <UiSelect
@@ -384,7 +381,7 @@ const inputClass =
 
                 <!-- Bảng tính hoàn phí / chuyển nhượng -->
                 <div v-show="calc.actionType !== 'deferral'" class="mb-lg space-y-sm rounded-lg border border-outline-variant p-md">
-                    <div class="grid grid-cols-2 gap-md sm:grid-cols-4">
+                    <div class="grid gap-md sm:grid-cols-3">
                         <UiInput id="attendedLessons" :model-value="calc.attendedLessons" type="number" label="Số buổi đã trừ (sổ buổi, vắng vẫn trừ)" min="0" class="font-code text-code" @update:model-value="calc.attendedLessons = $event === '' ? 0 : Number($event)" />
                         <div>
                             <span class="mb-xs block font-caption text-caption text-on-surface-variant">Đơn giá / buổi</span>
@@ -393,10 +390,6 @@ const inputClass =
                         <div>
                             <span class="mb-xs block font-caption text-caption text-on-surface-variant">Giá trị buổi còn lại</span>
                             <span class="font-code text-code text-on-surface">{{ money(remainingValue) }}</span>
-                        </div>
-                        <div v-show="calc.actionType === 'refund'">
-                            <span class="mb-xs block font-caption text-caption text-on-surface-variant">{{ 'Phí quản trị (' + adminFeePercent + '%)' }}</span>
-                            <span class="font-code text-code text-on-surface">{{ money(adminFee) }}</span>
                         </div>
                     </div>
                     <div class="flex flex-col gap-sm border-t border-surface-container pt-sm sm:flex-row sm:items-center sm:justify-between">

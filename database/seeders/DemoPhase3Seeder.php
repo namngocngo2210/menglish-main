@@ -643,7 +643,7 @@ class DemoPhase3Seeder extends Seeder
             'no_transfer_reason' => 'Không có học viên nhận buổi dư, phụ huynh yêu cầu hoàn tiền.',
         ]);
         $refund = TuitionRefundRequest::where('student_id', $studentId)->where('status', 'pending')->latest('id')->firstOrFail();
-        // Admin duyệt kèm ảnh bằng chứng chi tiền (bắt buộc từ Phase 4).
+        // R-07b: approve with proof through the controller; adjust balances without a receipt or invoice number.
         $this->withRefundProof(fn () => $this->asUser($this->staff['admin'], TuitionController::class, 'approveRefundRequest', [], ['id' => $refund->id]));
     }
 
