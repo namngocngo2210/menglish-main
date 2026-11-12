@@ -107,6 +107,37 @@ class TuitionClassRollupTest extends TestCase
                 ->where('rows.1.rounds.0.amount', 200000));
     }
 
+    public function test_note_column_shows_latest_approved_receipt_note_with_fallbacks(): void
+    {
+        $s = $this->student('Cuong', $this->classA);
+        $mk = fn (?string $notes) => StudentTuition::create([
+            'student_id' => $s->id, 'class_id' => $this->classA->id, 'branch_id' => $this->a->id,
+            'total_amount' => 1000000, 'final_amount' => 1000000, 'status' => 'completed', 'notes' => $notes,
+        ]);
+        $receipt = fn (StudentTuition $t, string $no, string $date, string $status, string $notes) => TuitionReceipt::create([
+            'receipt_number' => $no, 'student_tuition_id' => $t->id, 'student_id' => $s->id, 'amount' => 100000,
+            'payment_method' => 'cash', 'payment_date' => $date, 'status' => $status, 'notes' => $notes,
+        ]);
+        $t1 = $mk('HP note 1');
+        $receipt($t1, 'N-1', '2026-01-10', TuitionReceipt::STATUS_APPROVED, 'old');
+        $receipt($t1, 'N-2', '2026-02-10', TuitionReceipt::STATUS_APPROVED, 'newest by date');
+        $receipt($t1, 'N-3', '2026-03-10', TuitionReceipt::STATUS_CANCELLED, 'cancelled ignored');
+        $t2 = $mk('HP note 2');
+        $receipt($t2, 'N-4', '2026-01-10', TuitionReceipt::STATUS_APPROVED, 'first same day');
+        $receipt($t2, 'N-5', '2026-01-10', TuitionReceipt::STATUS_APPROVED, 'higher id same day');
+        $mk('fallback HP note');
+        $mk(null);
+
+        $this->actingAs($this->user(Roles::ADMIN))->get(route('tuition.class-rollup', ['class_id' => $this->classA->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rows.0.rounds.0.note', 'newest by date')
+                ->where('rows.0.rounds.1.note', 'higher id same day')
+                ->where('rows.0.rounds.2.note', 'fallback HP note')
+                ->where('rows.0.rounds.3.note', null)
+                ->where('total', 400000));
+    }
+
     public function test_manager_sees_only_own_branch_classes_and_gets_403_for_other_branch(): void
     {
         $this->seedClassA();

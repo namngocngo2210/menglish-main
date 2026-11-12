@@ -46,7 +46,8 @@ class TuitionClassRollupController extends Controller
                     $amount = (float) $receipts->sum('amount');
                     $rounds[$i] = [
                         'amount' => $amount,
-                        'status' => $tuition->status_label,
+                        // Ghi chú (R-05): phiếu duyệt mới nhất (ngày thu, rồi id); không có phiếu thì ghi chú khoản học phí.
+                        'note' => $receipts->sortBy([['payment_date', 'desc'], ['id', 'desc']])->first()?->notes ?: $tuition->notes,
                         'methods' => $receipts->pluck('payment_method')->unique()
                             ->map(fn ($m) => TuitionReceipt::METHOD_LABELS[$m] ?? $m)->implode(', '),
                         'invoices' => $receipts->pluck('invoice_number')->filter()->implode(', '),
