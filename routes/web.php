@@ -815,6 +815,8 @@ Route::middleware('auth')->group(function () {
         // cho Admin/Học vụ) — kiểm tra trong controller. Đổi trạng thái: người thực hiện/người giao/người duyệt.
         Route::get('/create', [WorkTaskController::class, 'create'])->name('create');
         Route::post('/', [WorkTaskController::class, 'store'])->name('store');
+        Route::get('/penalty-series', [WorkTaskController::class, 'penaltySeries'])->middleware('can:work_task.assign')->name('series.index');
+        Route::post('/penalty-series/{series}/penalty', [WorkTaskController::class, 'updateSeriesPenalty'])->whereNumber('series')->middleware('can:work_task.assign')->name('series.update');
         Route::post('/{id}/status', [WorkTaskController::class, 'updateStatus'])->name('status.update');
         Route::get('/classes-dashboard', [WorkTaskController::class, 'classesDashboard'])->name('classes-dashboard');
         Route::get('/ta-assign', [WorkTaskController::class, 'taAssignForm'])->middleware('can:work_task.assign')->name('ta-assign');

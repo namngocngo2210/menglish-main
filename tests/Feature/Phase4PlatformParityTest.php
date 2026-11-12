@@ -294,6 +294,7 @@ class Phase4PlatformParityTest extends TestCase
 
         $task = WorkTask::create(['title' => 'Kiểm kê kho tháng', 'creator_id' => $academic->id, 'assignee_id' => $teacher->id,
             'due_date' => today(), 'task_type' => 'recurring', 'frequency' => 'monthly', 'status' => 'in_progress']);
+        $task->series->update(['penalty_amount' => 0, 'configured_by' => $this->admin->id, 'configured_at' => now()]);
 
         // Bị chặn bắt buộc lý do.
         $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'blocked'])->assertSessionHasErrors('reason');

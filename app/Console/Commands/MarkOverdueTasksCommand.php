@@ -72,9 +72,16 @@ class MarkOverdueTasksCommand extends Command
      */
     private function penalize(WorkTask $task): void
     {
-        $amount = (float) $task->muc_phat_qua_han;
+        if ($task->series_id !== null) {
+            $series = $task->series()->first();
+            $penalize = $series?->isConfigured() ?? false;
+            $amount = (float) $series?->penalty_amount;
+        } else {
+            $penalize = $task->phat_khi_qua_han;
+            $amount = (float) $task->muc_phat_qua_han;
+        }
         $assignee = $task->assignee;
-        if (! $task->phat_khi_qua_han || $task->sla_rule_key || $task->care_milestone || $amount <= 0 || ! $assignee || StaffType::isForeignTeacher($assignee)) {
+        if (! $penalize || $task->sla_rule_key || $task->care_milestone || $amount <= 0 || ! $assignee || StaffType::isForeignTeacher($assignee)) {
             return;
         }
 

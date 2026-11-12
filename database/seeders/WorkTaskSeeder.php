@@ -11,6 +11,7 @@ use App\Models\HrDailyDemand;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Models\WorkTaskSeries;
 use Illuminate\Database\Seeder;
 
 class WorkTaskSeeder extends Seeder
@@ -267,7 +268,16 @@ class WorkTaskSeeder extends Seeder
             // Đánh dấu dữ liệu seed bằng tiền tố "# "
             $t['title'] = '# ' . $t['title'];
             // Idempotent: chạy lại db:seed không nhân bản việc mẫu.
-            WorkTask::firstOrCreate(['title' => $t['title'], 'assignee_id' => $t['assignee_id']], $t);
+            $task = WorkTask::firstOrNew(['title' => $t['title'], 'assignee_id' => $t['assignee_id']], $t);
+            if ($task->task_type === 'recurring') {
+                $series = $task->series ?? new WorkTaskSeries;
+                if (! $series->isConfigured()) {
+                    // Keep demo recurrence active without adding penalties to existing demo flows.
+                    $series->fill(['penalty_amount' => 0, 'configured_by' => $admin->id, 'configured_at' => now()])->save();
+                }
+                $task->series_id = $series->id;
+            }
+            $task->save();
         }
 
         // 2. Seed Báo cáo trực lớp (ClassReport & StudentSupport)

@@ -1,8 +1,29 @@
 # Phạt quá hạn khi giao việc (TK-2026-0078)
 
 ## Form "Giao việc mới"
-Dưới "Hạn hoàn thành" có ô **Phạt khi quá hạn** (Bật/Tắt, mặc định Tắt). Bật → bắt buộc nhập **Số tiền phạt (> 0)**;
+Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt khi quá hạn** (Bật/Tắt, mặc định Tắt). Bật → bắt buộc nhập **Số tiền phạt (> 0)**;
 để trống / ≤ 0 bị chặn cả ở trình duyệt (`required`, `min=1`) lẫn server (`WorkTaskController::store`, lỗi ở `muc_phat_qua_han`).
+
+## Việc lặp và cấu hình theo chuỗi (TK-2026-0090)
+
+- Chọn **Lặp đi lặp lại** trong form giao việc sẽ ẩn hai trường phạt và hiện hướng dẫn cấu hình sau khi tạo.
+  Server luôn lưu `phat_khi_qua_han = false`, `muc_phat_qua_han = null` cho việc lặp, kể cả khi gửi trực tiếp hai trường này.
+- Mỗi việc lặp thuộc một chuỗi `work_task_series` qua `work_tasks.series_id`; lượt kế tiếp giữ nguyên `series_id`.
+  Chuỗi lưu `penalty_amount`, `configured_by`, `configured_at`. Chưa có `configured_at` = **Tạm dừng – chưa cấu hình**:
+  lượt hiện tại vẫn xử lý bình thường, nhưng hoàn thành không sinh lượt kế tiếp và quá hạn không lập phạt.
+- Người có quyền `work_task.assign` mở **Công việc → Cấu hình phạt việc lặp** (`/tasks/penalty-series`),
+  nhập một số tiền từ **0 đến 100.000.000**, bấm **Lưu** theo từng chuỗi. Dữ liệu hiển thị và quyền sửa theo phạm vi xem việc của lượt mới nhất.
+  **0 vẫn là đã cấu hình**, tiếp tục sinh lượt nhưng không phạt. Lần lưu ghi người cấu hình, thời gian và nhật ký trước/sau.
+- Lưu cấu hình tự tiếp tục chuỗi: còn bất kỳ lượt chưa hoàn thành/chưa hủy (kể cả Quá hạn, Bị chặn, Chờ xác nhận) thì không sinh thêm.
+  Nếu không còn lượt đang mở, tạo **đúng một** lượt từ lượt mới nhất, tăng ngày hạn từng kỳ (ngày/tuần/tháng, tháng không tràn ngày)
+  đến ngày đầu tiên **≥ hôm nay**. Không tạo bù những kỳ đã bỏ lỡ; lưu lại khi đã có lượt mở không tạo trùng.
+  Sau khi đã cấu hình, hoàn thành lượt vẫn tăng hạn một kỳ như trước.
+- Job quá hạn đọc **trực tiếp mức phạt hiện tại của chuỗi**, bỏ qua hai trường phạt trên từng lượt.
+  Mỗi lượt chịu cùng một mức cố định, **không có bậc/tăng phạt** theo số lần vi phạm trước đó; sửa mức áp dụng cho các lần job xử lý tiếp theo.
+  Chưa cấu hình hoặc mức ≤ 0 thì không phạt. Vẫn miễn GVNN, bỏ qua việc SLA/chăm sóc và tối đa một biên bản `task_overdue` cho mỗi lượt, kể cả biên bản đã hủy.
+- Sau triển khai, migration gom các việc lặp cũ theo `(title, assignee_id, frequency)` vào chuỗi **chưa cấu hình**.
+  **Tất cả chuỗi cũ tạm dừng; Admin phải vào màn cấu hình để tiếp tục**. Không đổi việc phát sinh, không phạt hồi tố, không tạo lượt trong migration.
+  `WorkTaskSeeder` cấu hình chuỗi demo với mức 0 để vẫn sinh lượt mà không tự thêm phạt vào luồng demo.
 
 ## Nguồn phạt lưu trên từng việc (`work_tasks`)
 | Cột | Ý nghĩa |

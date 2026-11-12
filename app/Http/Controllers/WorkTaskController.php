@@ -22,6 +22,7 @@ use App\Models\TeacherSessionReport;
 use App\Models\TeachingShift;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Models\WorkTaskSeries;
 use App\Services\BranchStaff;
 use App\Services\ClassDashboardService;
 use App\Services\ClassRescheduleService;
@@ -178,6 +179,48 @@ class WorkTaskController extends Controller
     /** Nhãn tần suất việc lặp. */
     private const FREQUENCIES = ['daily' => 'Hàng ngày', 'weekly' => 'Hàng tuần', 'monthly' => 'Hàng tháng'];
 
+    public function penaltySeries(Request $request)
+    {
+        $series = WorkTaskSeries::query()
+            ->whereHas('latestOccurrence', fn ($query) => $query->visibleTo($request->user()))
+            ->with(['latestOccurrence' => fn ($query) => $query->select([
+                'work_tasks.id', 'work_tasks.series_id', 'work_tasks.title', 'work_tasks.assignee_id', 'work_tasks.frequency',
+            ]), 'latestOccurrence.assignee:id,name'])
+            ->orderByDesc('id')->paginate($request->perPage(15))->withQueryString();
+
+        return Inertia::render('Tasks/PenaltySeries', [
+            'series' => $series->through(fn (WorkTaskSeries $series) => [
+                'id' => $series->id,
+                'title' => $series->latestOccurrence->title,
+                'assignee' => $series->latestOccurrence->assignee?->name,
+                'frequency' => self::FREQUENCIES[$series->latestOccurrence->frequency] ?? 'Hàng tuần',
+                'configured' => $series->isConfigured(),
+                'penalty_amount' => $series->penalty_amount === null ? null : (float) $series->penalty_amount,
+            ]),
+        ]);
+    }
+
+    public function updateSeriesPenalty(Request $request, WorkTaskSeries $series)
+    {
+        abort_unless($series->latestOccurrence()->visibleTo($request->user())->exists(), 404);
+
+        $validated = $request->validate([
+            'penalty_amount' => ['required', 'numeric', 'min:0', 'max:100000000'],
+        ]);
+
+        DB::transaction(function () use ($request, $series, $validated) {
+            $series = WorkTaskSeries::query()->lockForUpdate()->findOrFail($series->id);
+            $series->update([
+                'penalty_amount' => $validated['penalty_amount'],
+                'configured_by' => $request->user()->id,
+                'configured_at' => now(),
+            ]);
+            $series->resume();
+        });
+
+        return redirect()->route('tasks.series.index')->with('success', 'Đã lưu cấu hình phạt việc lặp.');
+    }
+
     /**
      * Nhãn nút chuyển trạng thái (việc đang chờ xác nhận mà trả về "Đang thực hiện" = "Trả về làm tiếp").
      * "Chuyển lại cho người giao" với chính người giao là "Nhận lại việc".
@@ -266,6 +309,11 @@ class WorkTaskController extends Controller
     public function store(Request $request)
     {
         $this->ensureCanCreateTask();
+
+        // Recurring penalties are configured only on the series screen; ignore all legacy input.
+        if ($request->input('taskType') === 'recurring') {
+            $request->merge(['phat_khi_qua_han' => false, 'muc_phat_qua_han' => null]);
+        }
 
         $validated = $request->validate([
             'taskTitle' => 'required|string|max:255',

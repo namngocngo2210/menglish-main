@@ -99,6 +99,7 @@ class TaskSidebarFiltersTest extends TestCase
             'branch_id' => $this->branch->id, 'task_type' => 'recurring', 'frequency' => 'daily',
             'due_date' => now()->addDays(2)->toDateString(), 'due_time' => '18:00', 'status' => 'new',
         ]);
+        $task->series->update(['penalty_amount' => 0, 'configured_by' => $admin->id, 'configured_at' => now()]);
 
         $page = $this->actingAs($manager)->get(route('tasks.index'))->assertOk()->viewData('page');
         $row = collect($page['props']['tasks']['data'])->firstWhere('id', $task->id);
