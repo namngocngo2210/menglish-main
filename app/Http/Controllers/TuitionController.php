@@ -2719,6 +2719,7 @@ class TuitionController extends Controller
             }
 
             $before = $sourceTuition->only(['paid_amount', 'final_amount', 'debt_amount']);
+            $overdue = $refund->isProcessingOverdue();
             $refund->update(['status' => 'approved', 'approver_id' => Auth::id(), 'proof_path' => $proofPath ?? $refund->proof_path,
                 'balance_adjusted' => true]);
             // Hoàn phí chỉ hủy hoa hồng chưa trả; dữ liệu thu hồi cũ gửi lên được bỏ qua.
@@ -2735,6 +2736,8 @@ class TuitionController extends Controller
             $sourceTuition->recalculateDebt();
 
             activity('tuition_refund')->causedBy(Auth::user())->performedOn($refund)->withProperties([
+                // duyet_tre_han records whether the pending request was overdue at approval.
+                'duyet_tre_han' => $overdue,
                 'amount' => $amount, 'before' => $before,
                 'after' => $sourceTuition->only(['paid_amount', 'final_amount', 'debt_amount']),
             ])->log("Approved tuition refund #{$refund->id} (no receipt, no invoice number)");
@@ -2802,6 +2805,7 @@ class TuitionController extends Controller
         $stamp = '['.now()->format('d/m/Y H:i').'] ';
         $approver = Auth::user()?->name ?? 'hệ thống';
 
+        $overdue = $refund->isProcessingOverdue();
         $refund->update([
             'status' => 'approved', 'approver_id' => Auth::id(), 'refund_amount' => $amount,
             'balance_adjusted' => true, 'transferred_sessions' => $value['sessions'],
@@ -2820,6 +2824,8 @@ class TuitionController extends Controller
         $target->recalculateDebt();
 
         activity('tuition_transfer')->causedBy(Auth::user())->performedOn($refund)->withProperties([
+            // duyet_tre_han records whether the pending request was overdue at approval.
+            'duyet_tre_han' => $overdue,
             'amount' => $amount, 'sessions' => $value['sessions'], 'before' => $before,
             'after' => [
                 'source' => $source->only(['session_count', 'total_amount', 'final_amount', 'paid_amount', 'debt_amount']),

@@ -108,6 +108,7 @@ class TuitionRefundR07bTest extends TestCase
 
     public function test_approval_adjusts_balances_without_a_receipt_or_invoice_and_writes_an_audit_log(): void
     {
+        $this->freezeTime();
         $refund = $this->refund();
         $receiptsBefore = TuitionReceipt::count();
         $invoiceNumbersBefore = InvoiceConfiguration::orderBy('id')->pluck('current_number', 'id')->all();
@@ -131,6 +132,7 @@ class TuitionRefundR07bTest extends TestCase
         $log = Activity::where('log_name', 'tuition_refund')->sole();
         $this->assertTrue($log->subject->is($refund));
         $this->assertTrue($log->causer->is($this->admin));
+        $this->assertSame(false, $log->properties['duyet_tre_han']);
         $this->assertEquals(1000000, $log->properties['amount']);
         $this->assertEquals(5000000, $log->properties['before']['paid_amount']);
         $this->assertEquals(6000000, $log->properties['before']['final_amount']);
@@ -151,6 +153,39 @@ class TuitionRefundR07bTest extends TestCase
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $refund->id))->assertSessionHasErrors('refund');
         $this->assertSame(1, Activity::where('log_name', 'tuition_refund')->count());
         $this->assertEquals(4000000, (float) $this->tuition->fresh()->paid_amount);
+    }
+
+    public function test_approval_logs_overdue_refund_after_a_week_without_changing_amounts(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-15 12:00:00'));
+        $refund = $this->refund();
+        TuitionRefundRequest::whereKey($refund->id)->update(['created_at' => now()->subDays(10)]);
+        $refund = $refund->fresh();
+
+        $this->approve($refund);
+
+        $this->assertSame('approved', $refund->fresh()->status);
+        $this->assertEquals(1000000, (float) $refund->fresh()->refund_amount);
+        $this->assertEquals(4000000, (float) $this->tuition->fresh()->paid_amount);
+        $this->assertEquals(5000000, (float) $this->tuition->fresh()->final_amount);
+        $this->assertEquals(1000000, (float) $this->tuition->fresh()->debt_amount);
+        $log = Activity::where('log_name', 'tuition_refund')->sole();
+        $this->assertSame(true, $log->properties['duyet_tre_han']);
+        $this->assertEquals(1000000, $log->properties['amount']);
+    }
+
+    public function test_approval_logs_overdue_refund_from_previous_month(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-02 12:00:00'));
+        $refund = $this->refund();
+        TuitionRefundRequest::whereKey($refund->id)->update(['created_at' => now()->subDays(3)]);
+        $refund = $refund->fresh();
+
+        $this->approve($refund);
+
+        $this->assertSame('approved', $refund->fresh()->status);
+        $log = Activity::where('log_name', 'tuition_refund')->sole();
+        $this->assertSame(true, $log->properties['duyet_tre_han']);
     }
 
     public function test_balance_adjustment_ignores_unapproved_refunds_and_other_students(): void
