@@ -165,6 +165,21 @@ class TuitionTransferR07Test extends TestCase
         $this->assertSame(6, $log->properties['sessions']);
     }
 
+    public function test_approval_logs_overdue_transfer(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-11-15 12:00:00'));
+        $this->createTransfer()->assertSessionHasNoErrors();
+        $request = TuitionRefundRequest::where('type', 'transfer')->sole();
+        TuitionRefundRequest::whereKey($request->id)->update(['created_at' => now()->subDays(10)]);
+
+        $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $request->id))->assertSessionHasNoErrors();
+
+        $this->assertSame('approved', $request->fresh()->status);
+        $log = Activity::where('log_name', 'tuition_transfer')->sole();
+        $this->assertSame(true, $log->properties['duyet_tre_han']);
+        $this->assertEquals(3000000, $log->properties['amount']);
+    }
+
     public function test_approve_recomputes_amount_and_blocks_when_receiver_debt_shrank_after_creation(): void
     {
         $this->createTransfer()->assertSessionHasNoErrors();
