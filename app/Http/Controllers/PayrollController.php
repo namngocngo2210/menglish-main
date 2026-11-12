@@ -1150,8 +1150,15 @@ class PayrollController extends Controller
         $filterTeachers = $canViewAll ? $this->teachingStaff() : collect();
 
         $canReview = $canViewAll && $user->can('attendance_staff.view');
+        $isAdmin = $user->hasRole(Roles::ADMIN);
+
+        // Tab "Trùng công": buổi có >= 2 người cùng chấm công với tư cách GV chính (chỉ cảnh báo, không chặn chốt lương).
+        $duplicates = $canViewAll ? $this->duplicateAttendance($monthStart, $monthEnd, $limitToVisibleClasses ? $visibleClassIds : null) : collect();
 
         return Inertia::render('Payroll/Timesheets/Teachers', [
+            'isAdmin' => $isAdmin,
+            'duplicates' => $duplicates,
+            'tab' => $request->query('tab') === 'duplicates' ? 'duplicates' : 'all',
             'canViewAll' => $canViewAll,
             'month' => $month,
             'monthLabel' => $monthStart->format('m/Y'),
@@ -1189,6 +1196,10 @@ class PayrollController extends Controller
                 'rejection_short' => $ts->status === 'invalid' && $ts->rejection_reason ? Str::limit($ts->rejection_reason, 60) : null,
                 'reviewer_name' => $ts->reviewer?->name,
                 'locked' => $ts->payroll_locked || $periodLocked || PayrollPeriod::isLockedFor($ts->teaching_date),
+                'is_auto_adjacent' => $ts->source === TeacherTimesheet::SOURCE_AUTO_ADJACENT,
+                'reconcile_status' => $ts->reconcile_status,
+                'can_close' => in_array($ts->reconcile_status, [TeacherTimesheet::RECONCILE_NHAP, TeacherTimesheet::RECONCILE_CHO], true),
+                'can_unlock' => $isAdmin && ($ts->reconcile_status === TeacherTimesheet::RECONCILE_CLOSED || ($ts->reconcile_status === null && $ts->status === 'valid')),
                 'reject_label' => ($ts->teacher?->name ?? '').' — '.$ts->teaching_date->format('d/m/Y'),
                 'late_minutes' => (int) $ts->late_minutes,
                 'early_leave_minutes' => (int) $ts->early_leave_minutes,
@@ -1232,6 +1243,7 @@ class PayrollController extends Controller
                     'state' => match (true) {
                         $sts && $sts->status === 'valid' => 'valid',
                         $sts && $sts->source === 'checkin' => 'checkin',
+                        $sts && $sts->source === TeacherTimesheet::SOURCE_AUTO_ADJACENT => 'auto_adjacent',
                         (bool) $sts => 'pending',
                         default => 'none',
                     },
@@ -1333,6 +1345,78 @@ class PayrollController extends Controller
         });
 
         return back()->with('status', 'Đã xóa công ca và lập biên bản chấm công sai.');
+    }
+
+    /**
+     * Buổi có >= 2 người cùng có công ca chính khóa (loại dạy thay / TA / ca đã từ chối / xóa mềm).
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function duplicateAttendance(Carbon $from, Carbon $to, $visibleClassIds)
+    {
+        $rows = TeacherTimesheet::with(['teacher', 'classModel'])
+            ->whereNotNull('class_session_id')
+            ->where('type', 'regular')
+            ->where('status', '!=', 'invalid')
+            ->whereBetween('teaching_date', [$from->toDateString(), $to->toDateString()])
+            ->when($visibleClassIds !== null, fn ($q) => $q->whereIn('class_id', $visibleClassIds))
+            ->orderBy('teaching_date')->orderBy('id')
+            ->get()
+            ->groupBy('class_session_id')
+            ->filter(fn ($group) => $group->pluck('user_id')->unique()->count() > 1);
+
+        return $rows->map(fn ($group, $sessionId) => [
+            'session_id' => (int) $sessionId,
+            'date' => $group->first()->teaching_date->toDateString(),
+            'class_label' => $group->first()->classModel?->code ?? $group->first()->classModel?->name ?? '—',
+            'rows' => $group->map(fn (TeacherTimesheet $ts) => [
+                'id' => $ts->id,
+                'user_id' => $ts->user_id,
+                'teacher_name' => $ts->teacher?->name,
+                'source_label' => $ts->source_label,
+                'status_label' => $ts->status_label,
+            ])->values(),
+        ])->values();
+    }
+
+    /** Học vụ chốt đối soát một dòng công: nhap / cho_doi_soat -> da_chot (không đổi trạng thái duyệt). */
+    public function closeTimesheet(Request $request, int $id)
+    {
+        return DB::transaction(function () use ($request, $id) {
+            $timesheet = TeacherTimesheet::whereKey($id)->lockForUpdate()->firstOrFail();
+            abort_unless($this->canReachTimesheet($request->user(), $timesheet), 403);
+            abort_if($timesheet->payroll_locked || PayrollPeriod::isLockedFor($timesheet->teaching_date), 409, 'Kỳ lương đã chốt, không sửa được công');
+            abort_unless(in_array($timesheet->reconcile_status, [TeacherTimesheet::RECONCILE_NHAP, TeacherTimesheet::RECONCILE_CHO], true), 409, 'Dòng công này không ở trạng thái nháp / chờ đối soát.');
+            $timesheet->update(['reconcile_status' => TeacherTimesheet::RECONCILE_CLOSED]);
+            activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)->log('Chốt đối soát dòng công');
+
+            return back()->with('status', 'Đã chốt dòng công.');
+        });
+    }
+
+    /**
+     * Admin mở khóa dòng đã chốt: dòng VẪN là da_chot (không quay về nháp) nhưng rời bảng lương (chờ duyệt lại)
+     * để được xóa mềm / chỉnh. Dòng thuộc kỳ đã chốt lương (payroll_locked) không mở khóa được.
+     */
+    public function unlockTimesheet(Request $request, int $id)
+    {
+        abort_unless($request->user()->hasRole(Roles::ADMIN), 403);
+
+        return DB::transaction(function () use ($request, $id) {
+            $timesheet = TeacherTimesheet::whereKey($id)->lockForUpdate()->firstOrFail();
+            abort_if($timesheet->payroll_locked || PayrollPeriod::isLockedFor($timesheet->teaching_date), 409, 'Kỳ lương đã chốt, không mở khóa được công');
+            abort_unless($timesheet->reconcile_status === TeacherTimesheet::RECONCILE_CLOSED
+                || ($timesheet->reconcile_status === null && $timesheet->status === 'valid'), 409, 'Dòng công chưa chốt nên không cần mở khóa.');
+            $timesheet->update([
+                'reconcile_status' => TeacherTimesheet::RECONCILE_CLOSED,
+                'status' => 'pending_review',
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+            ]);
+            activity('teacher_timesheet')->causedBy($request->user())->performedOn($timesheet)->log('Admin mở khóa dòng công đã chốt');
+
+            return back()->with('status', 'Đã mở khóa dòng công (chờ duyệt lại).');
+        });
     }
 
     public function reviewTimesheet(Request $request, int $id)

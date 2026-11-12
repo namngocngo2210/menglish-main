@@ -202,15 +202,22 @@ class TeacherPortalController extends Controller
             ->selectRaw('class_session_id, count(*) as total')->groupBy('class_session_id')->pluck('total', 'class_session_id');
         $syllabusUrls = $this->syllabusUrls($todaySessions->pluck('class_id'));
 
-        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts, $teacher) {
+        $shifts = $todaySessions->map(function (ClassSession $session) use ($checkins, $attendanceDone, $trialCounts, $teacher, $todaySessions) {
             $ts = $checkins->get($session->id);
+            // Ca liền kề: ca trước (cùng ngày) kết thúc đúng giờ bắt đầu ca này và GV đã tự check-in → hệ thống tự có công sau ≤5 phút.
+            $adjacentHint = ! $ts && $todaySessions->contains(fn (ClassSession $prev) => $prev->id !== $session->id
+                && $prev->date->isSameDay($session->date)
+                && $prev->end_time?->format('H:i:s') === $session->start_time?->format('H:i:s')
+                && $checkins->get($prev->id)?->source === TeacherTimesheet::SOURCE_CHECKIN);
 
             return [
                 'can_teach' => $session->classModel !== null && $this->isTeachingStaff($teacher, $session->classModel, $session),
                 'session' => $session,
                 'class' => $session->classModel,
                 'scheduled_time' => $session->start_time?->format('H:i').' - '.$session->end_time?->format('H:i'),
-                'checked_in' => $ts && ! empty($ts->checkin_time),
+                // Mọi nguồn công (check-in, chấm tay, tự động ca liền kề) đều tính là đã chấm; dòng xóa mềm đã bị global scope loại.
+                'checked_in' => $ts && (! empty($ts->checkin_time) || $ts->source === TeacherTimesheet::SOURCE_AUTO_ADJACENT),
+                'adjacent_hint' => $adjacentHint,
                 'checkin_time' => $ts?->checkin_time,
                 'checkin' => $this->checkinWindowInfo($session),
                 'attendance_done' => $attendanceDone->has($session->id),
@@ -294,6 +301,7 @@ class TeacherPortalController extends Controller
                 'ends_in' => (int) now()->diffInSeconds($endsAt($shift['session']), false),
                 'shift_name' => $shift['session']->shiftLabel(),
                 'checked_in' => $shift['checked_in'],
+                'adjacent_hint' => $shift['adjacent_hint'],
                 'checkin_time' => $shift['checkin_time'],
                 'checkin' => $shift['checkin'],
                 'is_today' => $shift['session']->date->isToday(),

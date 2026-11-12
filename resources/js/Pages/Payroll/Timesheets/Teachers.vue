@@ -25,6 +25,9 @@ const props = defineProps({
     scheduleDay: { type: Object, default: null },
     scheduleSessions: { type: Array, default: () => [] },
     subPendingCount: { type: Number, default: 0 },
+    isAdmin: { type: Boolean, default: false },
+    duplicates: { type: Array, default: () => [] },
+    tab: { type: String, default: 'all' },
     filterBranches: { type: Array, default: () => [] },
     filterClasses: { type: Array, default: () => [] },
     filterTeachers: { type: Array, default: () => [] },
@@ -181,6 +184,7 @@ function changeDay(event) {
                                     <span class="block font-caption text-caption text-on-surface-variant">{{ session.state_note }}</span>
                                 </template>
                                 <span v-else-if="session.state === 'checkin'" class="inline-flex items-center gap-xs text-secondary"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">smartphone</span>GV tự check-in</span>
+                                <UiBadge v-else-if="session.state === 'auto_adjacent'" color="info">Tự động ca liền kề</UiBadge>
                                 <UiBadge v-else-if="session.state === 'pending'" color="warning">{{ session.source_label }} — chờ duyệt</UiBadge>
                                 <UiBadge v-else color="neutral">Tự động (pre-fill theo lịch)</UiBadge>
                             </td>
@@ -205,6 +209,7 @@ function changeDay(event) {
                                     <span class="block font-caption text-caption text-on-surface-variant">{{ session.state_note }}</span>
                                 </template>
                                 <span v-else-if="session.state === 'checkin'" class="inline-flex items-center gap-xs text-secondary"><span class="material-symbols-outlined text-[18px]" aria-hidden="true">smartphone</span>GV tự check-in</span>
+                                <UiBadge v-else-if="session.state === 'auto_adjacent'" color="info">Tự động ca liền kề</UiBadge>
                                 <UiBadge v-else-if="session.state === 'pending'" color="warning">{{ session.source_label }} — chờ duyệt</UiBadge>
                                 <UiBadge v-else color="neutral">Tự động (pre-fill theo lịch)</UiBadge>
                             </div>
@@ -237,7 +242,23 @@ function changeDay(event) {
             </div>
         </div>
 
-        <UiDataTable class="min-w-0 [&_table]:md:min-w-[960px] [&_td]:!px-sm [&_td]:whitespace-nowrap [&_th]:!px-sm">
+        <nav class="mb-md flex min-w-0 flex-wrap gap-sm" aria-label="Chế độ xem công">
+            <Link :href="urlWith({ tab: null, page: null })" :aria-current="tab !== 'duplicates' ? 'true' : undefined" :class="['inline-flex min-h-11 items-center rounded-lg border px-md text-sm font-semibold', tab !== 'duplicates' ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant']">Tất cả ca</Link>
+            <Link :href="urlWith({ tab: 'duplicates', page: null })" :aria-current="tab === 'duplicates' ? 'true' : undefined" :class="['inline-flex min-h-11 items-center gap-xs rounded-lg border px-md text-sm font-semibold', tab === 'duplicates' ? 'border-primary-container bg-primary-container/10' : 'border-outline-variant']">Trùng công<UiBadge v-if="duplicates.length" color="warning">{{ duplicates.length }}</UiBadge></Link>
+        </nav>
+
+        <section v-if="tab === 'duplicates'" class="mb-lg min-w-0 rounded-xl border border-outline-variant bg-surface-container-lowest p-sm" data-tab="duplicates">
+            <p class="mb-sm font-body-small text-body-small text-on-surface-variant">Buổi có từ 2 người cùng chấm công với tư cách giáo viên chính. Chỉ cảnh báo — không chặn chốt lương; Học vụ từ chối / xóa dòng sai.</p>
+            <UiEmptyState v-if="!duplicates.length" icon="done_all" title="Không có buổi trùng công" />
+            <article v-for="d in duplicates" :key="d.session_id" class="mb-sm min-w-0 rounded-lg border border-outline-variant p-sm">
+                <p class="font-semibold">{{ formatDate(d.date) }} · {{ d.class_label }}</p>
+                <ul class="mt-xs space-y-xs text-sm">
+                    <li v-for="r in d.rows" :key="r.id" class="flex min-w-0 flex-wrap items-center gap-sm"><span class="min-w-0 font-semibold">{{ r.teacher_name }}</span><span class="text-on-surface-variant">{{ r.source_label }}</span><UiBadge color="neutral">{{ r.status_label }}</UiBadge></li>
+                </ul>
+            </article>
+        </section>
+
+        <UiDataTable v-if="tab !== 'duplicates'" class="min-w-0 [&_table]:md:min-w-[960px] [&_td]:!px-sm [&_td]:whitespace-nowrap [&_th]:!px-sm">
             <template #header>
                 <h3 class="min-w-0 font-h3 text-h3 text-on-surface">Ca dạy trong kỳ <span class="font-body-small text-body-small text-on-surface-variant">({{ timesheets.total }} bản ghi)</span></h3>
                 <UiForm v-if="selectable" :action="route('payroll.timesheets.bulk-review')" method="post" class="flex min-w-0 flex-wrap items-center gap-sm" @success="selected = []">
@@ -290,6 +311,12 @@ function changeDay(event) {
                                         <UiButton class="min-h-11 min-w-11" variant="danger-text" size="sm" icon="close" @click="openReject(ts)">Từ chối</UiButton>
                                     </template>
                                     <UiButton class="min-h-11 min-w-11" v-if="canAdjust" variant="ghost" size="sm" icon="edit" aria-label="Chỉnh tay bổ sung" @click="openAdjust(ts)" />
+                                    <UiForm v-if="canAdjust && ts.can_close" :action="route('payroll.timesheets.close', ts.id)" method="post">
+                                        <UiButton class="min-h-11 min-w-11" type="submit" variant="ghost" size="sm" icon="lock">Chốt dòng</UiButton>
+                                    </UiForm>
+                                    <UiForm v-if="isAdmin && ts.can_unlock" :action="route('payroll.timesheets.unlock', ts.id)" method="post">
+                                        <UiButton class="min-h-11 min-w-11" type="submit" variant="ghost" size="sm" icon="lock_open">Mở khóa</UiButton>
+                                    </UiForm>
                                 </template>
                             </div>
                         </article>
@@ -358,6 +385,12 @@ function changeDay(event) {
                                         <UiButton class="min-h-11 min-w-11" variant="danger-text" size="sm" icon="close" @click="openReject(ts)">Từ chối</UiButton>
                                     </template>
                                     <UiButton class="min-h-11 min-w-11" v-if="canAdjust" variant="ghost" size="sm" icon="edit" aria-label="Chỉnh tay bổ sung" @click="openAdjust(ts)" />
+                                    <UiForm v-if="canAdjust && ts.can_close" :action="route('payroll.timesheets.close', ts.id)" method="post">
+                                        <UiButton class="min-h-11 min-w-11" type="submit" variant="ghost" size="sm" icon="lock">Chốt dòng</UiButton>
+                                    </UiForm>
+                                    <UiForm v-if="isAdmin && ts.can_unlock" :action="route('payroll.timesheets.unlock', ts.id)" method="post">
+                                        <UiButton class="min-h-11 min-w-11" type="submit" variant="ghost" size="sm" icon="lock_open">Mở khóa</UiButton>
+                                    </UiForm>
                                 </template>
                             </div>
                         </td>

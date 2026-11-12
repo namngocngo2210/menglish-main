@@ -16,8 +16,8 @@ class TimesheetSoftDelete
             $locked = TeacherTimesheet::withSoftDeleted()->whereKey($row->id)->lockForUpdate()->firstOrFail();
             abort_if($locked->payroll_locked || PayrollPeriod::isLockedFor($locked->teaching_date), 409,
                 'Kỳ lương đã chốt, không xóa mềm được công');
-            abort_if($locked->reconcile_status === TeacherTimesheet::RECONCILE_CLOSED
-                || ($locked->reconcile_status === null && $locked->status === 'valid'), 409,
+            abort_if(in_array($locked->reconcile_status, [null, TeacherTimesheet::RECONCILE_CLOSED], true)
+                && $locked->status === 'valid', 409,
                 'Dòng đã chốt — cần Admin mở khóa trước khi xóa');
             abort_if($locked->bi_xoa_boi_hoc_vu, 409, 'Học vụ đã xóa công ca này, liên hệ Học vụ');
 

@@ -417,7 +417,7 @@ class AdjacentShiftAttendanceTest extends TestCase
     {
         $this->runJob();
         $row = $this->autoRow();
-        foreach ([['reconcile_status' => 'da_chot'], ['reconcile_status' => null, 'status' => 'valid'],
+        foreach ([['reconcile_status' => 'da_chot', 'status' => 'valid'], ['reconcile_status' => null, 'status' => 'valid'],
             ['reconcile_status' => 'nhap', 'payroll_locked' => true]] as $attributes) {
             $row->update($attributes);
             try {
@@ -613,5 +613,95 @@ class AdjacentShiftAttendanceTest extends TestCase
         $this->assertNotNull($event);
         $this->assertSame('*/5 * * * *', $event->expression);
         $this->assertTrue($event->withoutOverlapping);
+    }
+
+    public function test_teacher_home_counts_auto_row_and_shows_adjacent_hint_but_not_for_soft_deleted(): void
+    {
+        $find = fn (AssertableInertia $page, int $sessionId) => collect($page->toArray()['props']['shifts'])->firstWhere('session_id', $sessionId);
+        $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
+            ->assertInertia(function (AssertableInertia $page) use ($find) {
+                $shift = $find($page, $this->second->id);
+                $this->assertFalse($shift['checked_in']);
+                $this->assertTrue($shift['adjacent_hint']);
+                $this->assertFalse($find($page, $this->first->id)['adjacent_hint']);
+            });
+        $this->runJob();
+        $row = $this->autoRow();
+        $this->actingAs($this->teacher)->get(route('teacher.home'))
+            ->assertInertia(function (AssertableInertia $page) use ($find) {
+                $shift = $find($page, $this->second->id);
+                $this->assertTrue($shift['checked_in']);
+                $this->assertFalse($shift['adjacent_hint']);
+            });
+        app(TimesheetSoftDelete::class)->softDelete($row, $this->admin, 'Sai công ca');
+        $this->actingAs($this->teacher)->get(route('teacher.home'))
+            ->assertInertia(fn (AssertableInertia $page) => $this->assertFalse($find($page, $this->second->id)['checked_in']));
+    }
+
+    public function test_reconciliation_screen_labels_auto_rows(): void
+    {
+        $this->runJob();
+        $row = $this->autoRow();
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.teachers', ['user_id' => $this->teacher->id, 'month' => '2026-11', 'day' => '2026-11-12']))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('timesheets.data', fn ($rows) => collect($rows)->firstWhere('id', $row->id)['source_label'] === 'Tự động ca liền kề'
+                    && collect($rows)->firstWhere('id', $row->id)['can_close'] === true)
+                ->where('scheduleSessions', fn ($rows) => collect($rows)->firstWhere('id', $this->second->id)['state'] === 'auto_adjacent'));
+    }
+
+    public function test_close_route_moves_nhap_to_da_chot_and_refuses_closed_or_locked_rows(): void
+    {
+        $this->runJob();
+        $row = $this->autoRow();
+        $this->actingAs($this->teacher)->post(route('payroll.timesheets.close', $row->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.close', $row->id))->assertRedirect();
+        $this->assertSame('da_chot', $row->fresh()->reconcile_status);
+        $this->assertSame('pending_review', $row->fresh()->status);
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.close', $row->id))->assertStatus(409);
+        $row->fresh()->update(['reconcile_status' => 'nhap', 'payroll_locked' => true]);
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.close', $row->id))->assertStatus(409);
+        $this->assertSame('nhap', $row->fresh()->reconcile_status);
+    }
+
+    public function test_admin_unlock_keeps_da_chot_enables_soft_delete_and_refuses_payroll_locked_rows(): void
+    {
+        $row = $this->timesheet($this->second, ['reconcile_status' => 'da_chot', 'status' => 'valid', 'source' => 'manual']);
+        $payload = ['reason' => 'Sai công'];
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.soft-delete', $row->id), $payload)->assertStatus(409);
+
+        $staff = User::factory()->create(['branch_id' => $this->classModel->branch_id, 'is_active' => true]);
+        $staff->assignRole(Roles::ACADEMIC_STAFF);
+        $this->actingAs($staff)->post(route('payroll.timesheets.unlock', $row->id))->assertForbidden();
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.unlock', $row->id))->assertRedirect();
+        $fresh = $row->fresh();
+        $this->assertSame('da_chot', $fresh->reconcile_status);
+        $this->assertSame('pending_review', $fresh->status);
+
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.soft-delete', $row->id), $payload)->assertRedirect();
+        $this->assertTrue(TeacherTimesheet::withSoftDeleted()->find($row->id)->bi_xoa_boi_hoc_vu);
+
+        $locked = $this->timesheet($this->makeSession('20:00', '21:00'), ['reconcile_status' => 'da_chot', 'status' => 'valid', 'payroll_locked' => true]);
+        $this->actingAs($this->admin)->post(route('payroll.timesheets.unlock', $locked->id))->assertStatus(409);
+        $this->assertSame('valid', $locked->fresh()->status);
+    }
+
+    public function test_duplicates_tab_lists_two_main_teachers_only_and_does_not_block_payroll_close(): void
+    {
+        $other = User::factory()->create(['branch_id' => $this->classModel->branch_id, 'is_active' => true]);
+        $other->assignRole(Roles::TEACHER_PARTTIME);
+        $this->timesheet($this->first, ['user_id' => $other->id, 'source' => 'manual']);
+        // Cross-teaching sub on another session must not be reported.
+        $this->timesheet($this->second, ['user_id' => $other->id, 'type' => 'sub']);
+        $this->timesheet($this->second, ['source' => 'manual']);
+
+        $this->actingAs($this->admin)->get(route('payroll.timesheets.teachers', ['month' => '2026-11', 'tab' => 'duplicates']))
+            ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('tab', 'duplicates')
+                ->has('duplicates', 1)
+                ->where('duplicates.0.session_id', $this->first->id)
+                ->has('duplicates.0.rows', 2));
+
+        // Warning only: the payroll-close gate ignores duplicates (rows are closed / legacy NULL here).
+        $this->assertSame(0, TeacherTimesheet::notClosed()->count());
     }
 }
