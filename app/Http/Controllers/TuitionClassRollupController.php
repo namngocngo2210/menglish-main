@@ -65,7 +65,7 @@ class TuitionClassRollupController extends Controller
             'classId' => $classId,
             'rows' => $rows,
             'roundCount' => $roundCount,
-            'totals' => array_map(fn ($i) => $totals[$i] ?? 0, range(0, max($roundCount - 1, 0))),
+            'totals' => array_map(fn ($i) => $totals[$i] ?? 0, $roundCount > 0 ? range(0, $roundCount - 1) : []),
             'total' => $total,
         ]);
     }

@@ -138,6 +138,21 @@ class TuitionClassRollupTest extends TestCase
                 ->where('total', 400000));
     }
 
+    public function test_class_without_tuition_items_lists_roster_with_no_rounds_and_empty_totals(): void
+    {
+        $this->student('An', $this->classA);
+        $this->student('Binh', $this->classA);
+
+        $this->actingAs($this->user(Roles::ADMIN))->get(route('tuition.class-rollup', ['class_id' => $this->classA->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Tuition/ClassRollup')
+                ->where('roundCount', 0)
+                ->where('totals', [])
+                ->where('total', 0)
+                ->has('rows', 2));
+    }
+
     public function test_manager_sees_only_own_branch_classes_and_gets_403_for_other_branch(): void
     {
         $this->seedClassA();
