@@ -98,6 +98,8 @@ return [
             'violation.view', 'violation.create', 'violation.confirm_error', 'violation.confirm_fine', 'violation.decide_operations',
             'violation.scope_branch',
             'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue',
+            // TK-2026-0101 (BA 12/11/2026): Học vụ lập yêu cầu khất nợ / chuyển nhượng / hoàn tiền / bảo lưu; chỉ Admin duyệt.
+            'refund_transfer.request',
             'work_task.*', 'support_ticket.create', 'support_ticket.view', 'notification.view', 'survey.manage', 'course.view',
             'staff_report.submit', 'portal.staff',
             // Nhân sự full-time có phiếu lương: xem "Lương của tôi".

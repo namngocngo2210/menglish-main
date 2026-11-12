@@ -2599,6 +2599,10 @@ class TuitionController extends Controller
         $student = Student::with(['tuition', 'currentClass'])->find($validated['student_id']);
         $type = $validated['type'];
         abort_unless(TuitionBranchScope::allowsStudent($student, $this->branchScope()), 403, self::OUT_OF_SCOPE);
+        if ($type === TuitionRefundRequest::TYPE_TRANSFER) {
+            // Học viên nhận cũng phải thuộc phạm vi chi nhánh của người lập (Học vụ không chuyển nhượng sang chi nhánh khác).
+            abort_unless(TuitionBranchScope::allowsStudent(Student::with('currentClass')->find($validated['target_student_id']), $this->branchScope()), 403, self::OUT_OF_SCOPE);
+        }
 
         if (in_array($type, [TuitionRefundRequest::TYPE_EXTENSION, TuitionRefundRequest::TYPE_DEFERRAL], true) && ! $student?->tuition) {
             return redirect()->back()->withErrors(['student_id' => 'Học viên chưa có hồ sơ học phí để khất nợ / bảo lưu.'])->withInput();

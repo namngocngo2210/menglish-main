@@ -74,6 +74,7 @@ Danh sách đầy đủ kèm mô tả: màn **Vai trò → Cấu hình quyền**
 | Permission | Thay cho | Mặc định |
 |---|---|---|
 | `lead.stage_forward` | `CrmStageService::CM_ROLES` | Admin, Quản lý cơ sở, Học vụ |
+| `refund_transfer.request` | lập yêu cầu khất nợ / chuyển nhượng / hoàn tiền / bảo lưu (TK-2026-0101, BA 12/11/2026); duyệt / từ chối chỉ Admin | Admin, Quản lý cơ sở, Học vụ (theo chi nhánh mình) |
 | `lead.stage_back` | `BACKWARD_ROLES` (A6 Q1: chỉ Admin lùi bước) | Admin |
 | `lead.trial_feedback` | CM nhận xét học thử mọi buổi | Admin, Quản lý cơ sở, Học vụ |
 | `lead.be_assigned` *(đối tượng)* | "người phụ trách phải là Sale / Quản lý / Admin" | Admin, Quản lý cơ sở, Sale |
