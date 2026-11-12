@@ -88,7 +88,7 @@ class TuitionTest extends TestCase
         $response = $this->actingAs($user)->post('/tuition/receipts', [
             'student_tuition_id' => $tuition->id,
             'amount' => 10000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'transaction_code' => 'FT26089999',
             // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
             'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
@@ -130,7 +130,7 @@ class TuitionTest extends TestCase
             'surcharge_amount' => 150000,
             'surcharge_reason' => 'Phụ thu giáo trình in ấn bổ sung & thẻ học viên',
             'amount' => 150000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'submit_action' => 'submit',
             // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
             'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
@@ -160,7 +160,7 @@ class TuitionTest extends TestCase
             'surcharge_amount' => 50000,
             'surcharge_reason' => 'Lệ phí thẻ',
             'amount' => 50000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'submit_action' => 'draft',
         ]);
 
@@ -195,7 +195,7 @@ class TuitionTest extends TestCase
             'student_tuition_id' => $tuition->id,
             'student_id' => $student->id,
             'amount' => 10000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'status' => 'approved',
             'payment_date' => now(),
         ]);
@@ -249,7 +249,7 @@ class TuitionTest extends TestCase
             'student_id' => $student->id,
             'amount' => 5000000,
             'tuition_amount' => 5000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'transaction_code' => 'FT999888777',
             'payer_name' => 'Nguyễn Văn Duyệt',
             'status' => 'pending',
@@ -286,7 +286,7 @@ class TuitionTest extends TestCase
             'student_id' => $student->id,
             'amount' => 4000000,
             'tuition_amount' => 4000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'status' => 'pending',
             'payment_date' => now(),
         ]);
@@ -329,7 +329,7 @@ class TuitionTest extends TestCase
             'student_id' => $student->id,
             'amount' => 2000000,
             'tuition_amount' => 2000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'status' => 'pending',
             'payment_date' => now(),
         ]);

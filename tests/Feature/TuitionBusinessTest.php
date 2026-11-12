@@ -120,7 +120,7 @@ class TuitionBusinessTest extends TestCase
         $payload = [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 4500000,
-            'payment_method' => 'vietqr',
+            'payment_method' => 'vietqr', 'is_vat_invoice' => 0,
             'transaction_code' => 'VQR987654321',
             'notes' => 'Thu tiền học phí đợt 1 qua VietQR Techcombank',
             // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
@@ -136,7 +136,7 @@ class TuitionBusinessTest extends TestCase
         $this->assertDatabaseHas('tuition_receipts', [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 4500000,
-            'payment_method' => 'vietqr',
+            'payment_method' => 'vietqr', 'is_vat_invoice' => 0,
             'transaction_code' => 'VQR987654321',
             'creator_id' => $this->accountantUser->id,
             'approver_id' => null,
@@ -154,7 +154,7 @@ class TuitionBusinessTest extends TestCase
         $response = $this->actingAs($this->accountantUser)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => 999999, // non existent
             'amount' => 500, // < 1000 min
-            'payment_method' => '',
+            'payment_method' => '', 'is_vat_invoice' => 0,
         ]);
 
         $response->assertSessionHasErrors(['student_tuition_id', 'amount', 'payment_method']);
@@ -173,7 +173,7 @@ class TuitionBusinessTest extends TestCase
         $this->actingAs($this->accountantUser)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 4000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'transaction_code' => 'PAY-01',
             // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
             'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
@@ -189,7 +189,7 @@ class TuitionBusinessTest extends TestCase
         $this->actingAs($this->accountantUser)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 5000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'transaction_code' => 'PAY-02',
         ]);
@@ -218,7 +218,7 @@ class TuitionBusinessTest extends TestCase
             'receipt_number' => 'PT-PENDING-001',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 3000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'transaction_code' => 'TR-PENDING',
             'payment_date' => now(),
             'creator_id' => $this->accountantUser->id,
@@ -250,7 +250,7 @@ class TuitionBusinessTest extends TestCase
             'receipt_number' => 'PT-PENDING-002',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 2000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'transaction_code' => 'TR-REJECT',
             'payment_date' => now(),
@@ -281,7 +281,7 @@ class TuitionBusinessTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'student_id' => $this->student->id,
             'amount' => 9000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'payment_date' => now(),
             'status' => 'approved',
         ]);
@@ -354,7 +354,7 @@ class TuitionBusinessTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'student_id' => $this->student->id,
             'amount' => 9000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'payment_date' => now(),
             'status' => 'approved',
         ]);
@@ -491,7 +491,7 @@ class TuitionBusinessTest extends TestCase
             'receipt_number' => 'PT-TEST-001',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 9000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'status' => 'approved',
         ]);
         $this->tuition->recalculateDebt();
@@ -612,7 +612,7 @@ class TuitionBusinessTest extends TestCase
             'other_fees' => 750000,
             'prepaid_amount' => 0,
             'paid_amount' => 5000000, // Đợt 1
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'bank_account_id' => $bank->id,
         ]);
 
@@ -647,7 +647,7 @@ class TuitionBusinessTest extends TestCase
         $responseRound2 = $this->actingAs($this->accountantUser)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $newTuition->id,
             'amount' => 4750000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'notes' => 'Thu học phí đợt 2 hoàn tất (Bao gồm tiền sách vở)',
         ]);

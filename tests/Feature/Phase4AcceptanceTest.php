@@ -547,7 +547,7 @@ class Phase4AcceptanceTest extends TestCase
     {
         return array_filter([
             'paper_invoice_number' => $method === 'cash' ? 'HDG-0001' : null,
-            'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => $method,
+            'student_tuition_id' => $tuition->id, 'amount' => $amount, 'tuition_amount' => $amount, 'payment_method' => $method, 'is_vat_invoice' => 0,
             'transaction_code' => $code, 'payer_name' => 'Phụ huynh', 'submit_action' => $action,
             'proof_image' => $withProof ? UploadedFile::fake()->image('ck.png', 40, 40) : null,
         ], fn ($v) => $v !== null);

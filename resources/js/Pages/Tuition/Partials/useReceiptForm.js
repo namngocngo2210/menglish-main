@@ -52,6 +52,7 @@ export function useReceiptForm({
         surchargeReason: editing ? editing.surcharge_reason || '' : '',
         paymentMethod: editing ? editing.payment_method : 'transfer',
         transactionCode: editing ? editing.transaction_code || '' : '',
+        vatChoice: editing ? (editing.is_vat_invoice ? '1' : '0') : '',
         payerName: '',
         payerPhone: '',
 
@@ -235,6 +236,7 @@ export function useReceiptForm({
             linesValid: state.surchargeLines.every((line) => parseInt(line.quantity) >= 1),
             proofRequired: proofRequired.value,
             hasProof: !!state.proofPreviewUrl,
+            vatChoice: state.vatChoice,
         }),
     );
     const isValidReceipt = computed(() => submitBlockers.value.length === 0);

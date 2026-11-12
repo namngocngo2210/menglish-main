@@ -656,6 +656,10 @@ class TuitionController extends Controller
         $paperRange = $validated['payment_method'] === 'cash' && InvoiceConfiguration::branchUsesPaperRange($branchId);
         $hasProof = $request->hasFile('proof_image')
             || ($request->filled('proof_image_preview') && $this->isSafeProofReference((string) $request->input('proof_image_preview')));
+        // R-10: gửi duyệt bắt buộc chọn rõ Có/Không xuất hóa đơn VAT (nháp thì không).
+        if (! $isDraft && $request->input('is_vat_invoice') === null) {
+            return back()->withErrors(['is_vat_invoice' => 'Vui lòng chọn có hoặc không xuất hóa đơn đỏ (VAT).'])->withInput();
+        }
         if (! $isDraft && ($submitError = $this->receiptSubmitError($validated['payment_method'], $validated['transaction_code'] ?? null, $hasProof, null, $validated['paper_invoice_number'] ?? null, $paperRange))) {
             return back()->withErrors($submitError)->withInput();
         }

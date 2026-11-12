@@ -432,11 +432,12 @@ onBeforeUnmount(() => desktopQuery?.removeEventListener('change', expandDesktopS
                                     <span class="text-xs text-on-surface-subtle">Xuất theo thông tin doanh nghiệp/cá nhân</span>
                                 </div>
                             </div>
-                            <label class="relative inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center">
-                                <input type="checkbox" name="is_vat_invoice" value="1" class="peer sr-only" :checked="!!form.editing?.is_vat_invoice" aria-label="Yêu cầu xuất hóa đơn đỏ (VAT)" />
-                                <div class="peer h-6 w-11 rounded-full bg-surface-container-high after:absolute after:left-[2px] after:top-1/2 after:-translate-y-1/2 after:h-5 after:w-5 after:rounded-full after:border after:border-outline-variant after:bg-surface-container-lowest after:transition-all after:content-[''] peer-checked:bg-primary-container peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus-visible:ring-2 peer-focus-visible:ring-primary-container peer-focus-visible:ring-offset-2"></div>
-                            </label>
+                            <fieldset class="flex gap-4" aria-label="Yêu cầu xuất hóa đơn đỏ (VAT)">
+                                <label class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 text-sm"><input v-model="s.vatChoice" type="radio" name="is_vat_invoice" value="1" /> Có</label>
+                                <label class="inline-flex min-h-11 cursor-pointer items-center gap-1.5 text-sm"><input v-model="s.vatChoice" type="radio" name="is_vat_invoice" value="0" /> Không</label>
+                            </fieldset>
                         </div>
+                        <p v-if="ctx?.errors?.is_vat_invoice" class="-mt-2 text-xs font-medium text-error" role="alert">{{ [ctx.errors.is_vat_invoice].flat()[0] }}</p>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <UiInput v-model="s.payerName" name="payer_name" :id="prefix + 'payer_name'" label="Người nộp tiền" placeholder="Họ và tên người nộp..." />
                             <UiInput v-model="s.payerPhone" type="tel" name="payer_phone" :id="prefix + 'payer_phone'" label="Số điện thoại" placeholder="09xxxxxxxx..." class="font-code" />

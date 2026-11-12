@@ -229,7 +229,7 @@ class LargeModalFlowsTest extends TestCase
                 ->where('initialStudentId', (string) $tuition->student_id));
 
         $payload = ['student_tuition_id' => $tuition->id, 'student_id' => $tuition->student_id, 'amount' => 4500000, 'tuition_amount' => 4500000,
-            'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
+            'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
 
         // Lỗi validate và lỗi nghiệp vụ từ modal → quay lại trang đang mở kèm lỗi + dữ liệu đã nhập (modal giữ nguyên, khoản đã chọn).
         $this->actingAs($this->admin)->from(route('tuition.students'))

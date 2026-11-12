@@ -104,7 +104,7 @@ class Phase4FinanceTest extends TestCase
             'student_id' => $tuition->student_id,
             'amount' => $amount,
             'tuition_amount' => $amount,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'payment_date' => now(),
             'creator_id' => $this->staff->id,
@@ -299,7 +299,7 @@ class Phase4FinanceTest extends TestCase
         // Không được ghi khoản chi cho chi nhánh khác.
         $this->actingAs($manager)->post(route('finance.expenses.store'), [
             'expense_date' => now()->toDateString(), 'title' => 'Tiền điện', 'amount' => 500000,
-            'payment_method' => 'tien_mat', 'branch_id' => $this->branch2->id,
+            'payment_method' => 'tien_mat', 'is_vat_invoice' => 0, 'branch_id' => $this->branch2->id,
         ])->assertForbidden();
 
         // Admin vẫn thấy toàn hệ thống.
@@ -312,20 +312,20 @@ class Phase4FinanceTest extends TestCase
 
     public function test_transfer_receipt_requires_proof_on_submit_but_cash_and_draft_do_not(): void
     {
-        $base = ['student_tuition_id' => $this->tuition->id, 'amount' => 1000000];
+        $base = ['student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'is_vat_invoice' => 0];
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'transfer'])
             ->assertSessionHasErrors('proof_image');
-        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'pos', 'submit_action' => 'submit'])
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'pos', 'is_vat_invoice' => 0, 'submit_action' => 'submit'])
             ->assertSessionHasErrors('payment_method');
         // Tiền mặt thu theo hóa đơn giấy: gửi duyệt phải có số hóa đơn giấy.
-        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'submit_action' => 'submit'])
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'is_vat_invoice' => 0, 'submit_action' => 'submit'])
             ->assertSessionHasErrors('paper_invoice_number');
         $this->assertSame(0, TuitionReceipt::count());
 
-        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'transfer', 'submit_action' => 'draft'])
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'transfer', 'is_vat_invoice' => 0, 'submit_action' => 'draft'])
             ->assertSessionHasNoErrors();
-        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'])
+        $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $base + ['payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'])
             ->assertSessionHasNoErrors();
 
         $this->assertSame(['cash' => 'pending', 'transfer' => 'draft'], TuitionReceipt::pluck('status', 'payment_method')->sortKeys()->all());
@@ -334,7 +334,7 @@ class Phase4FinanceTest extends TestCase
     public function test_returned_receipt_has_edit_screen_and_can_be_resubmitted_with_proof(): void
     {
         $receipt = $this->pendingReceipt($this->tuition, 1500000, [
-            'payment_method' => 'transfer', 'transaction_code' => 'FT-EDIT-01',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-EDIT-01',
             'status' => 'rejected', 'rejection_reason' => 'Thiếu ủy nhiệm chi',
         ]);
 
@@ -348,7 +348,7 @@ class Phase4FinanceTest extends TestCase
             ->assertSee('FT-EDIT-01');
 
         // Gửi lại mà vẫn thiếu minh chứng -> chặn.
-        $payload = ['amount' => 1500000, 'tuition_amount' => 1500000, 'payment_method' => 'transfer', 'transaction_code' => 'FT-EDIT-01', 'submit_action' => 'submit'];
+        $payload = ['amount' => 1500000, 'tuition_amount' => 1500000, 'payment_method' => 'transfer', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-EDIT-01', 'submit_action' => 'submit'];
         $this->actingAs($this->staff)->put(route('tuition.receipts.update', $receipt->id), $payload)->assertSessionHasErrors('proof_image');
         $this->assertSame('rejected', $receipt->fresh()->status);
 
@@ -490,7 +490,7 @@ class Phase4FinanceTest extends TestCase
         $unscopedAccountant->assignRole('accountant');
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
-            'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001',
+            'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001',
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('admin_notifications', ['user_id' => null, 'type' => 'receipt_pending']);
@@ -511,17 +511,17 @@ class Phase4FinanceTest extends TestCase
 
     public function test_same_transfer_code_cannot_be_recorded_twice(): void
     {
-        $this->pendingReceipt($this->tuition, 1000000, ['payment_method' => 'transfer', 'transaction_code' => 'FT-DUP-9']);
+        $this->pendingReceipt($this->tuition, 1000000, ['payment_method' => 'transfer', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-DUP-9']);
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
-            'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'transfer',
+            'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'transaction_code' => ' ft-dup-9 ', 'proof_image_preview' => '/uploads/tuition/receipts/a.png',
         ])->assertSessionHasErrors('transaction_code');
 
         $this->assertSame(1, TuitionReceipt::count());
 
         $this->expectException(UniqueConstraintViolationException::class);
-        $this->pendingReceipt($this->tuition, 1000000, ['payment_method' => 'vietqr', 'transaction_code' => 'FT-DUP-9']);
+        $this->pendingReceipt($this->tuition, 1000000, ['payment_method' => 'vietqr', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-DUP-9']);
     }
 
     public function test_approval_is_blocked_when_sepay_already_applied_same_transaction(): void
@@ -538,7 +538,7 @@ class Phase4FinanceTest extends TestCase
 
         // Mã tham chiếu ngân hàng trùng giao dịch SePay -> chặn ngay lúc gửi duyệt.
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
-            'student_tuition_id' => $this->tuition->id, 'amount' => 2000000, 'payment_method' => 'transfer',
+            'student_tuition_id' => $this->tuition->id, 'amount' => 2000000, 'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             'transaction_code' => 'FT-BANK-777', 'proof_image_preview' => '/uploads/tuition/receipts/a.png',
         ])->assertSessionHasErrors('transaction_code');
 
@@ -563,7 +563,7 @@ class Phase4FinanceTest extends TestCase
         ]);
         $this->tuition->recalculateDebt();
 
-        $manual = $this->pendingReceipt($this->tuition, 2000000, ['payment_method' => 'transfer', 'transaction_code' => 'FT-OTHER-1']);
+        $manual = $this->pendingReceipt($this->tuition, 2000000, ['payment_method' => 'transfer', 'is_vat_invoice' => 0, 'transaction_code' => 'FT-OTHER-1']);
 
         $this->actingAs($this->admin)->get(route('tuition.receipts.approve', ['selected_id' => $manual->id]))
             ->assertOk()

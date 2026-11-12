@@ -49,7 +49,7 @@ class TuitionReceiptSubmittedAtTest extends TestCase
             'student_tuition_id' => $this->tuition->id,
             'student_id' => $this->tuition->student_id,
             'amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'creator_id' => $this->staff->id,
             'status' => 'pending',
@@ -69,7 +69,7 @@ class TuitionReceiptSubmittedAtTest extends TestCase
 
     private function submitPayload(): array
     {
-        return ['amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
+        return ['amount' => 1000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
     }
 
     public function test_submit_sets_submitted_at_and_draft_does_not(): void

@@ -95,7 +95,7 @@ class TuitionP0FixesTest extends TestCase
             'student_tuition_id' => $tuition->id,
             'student_id' => $tuition->student_id,
             'amount' => $amount,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'payment_date' => now(),
             'creator_id' => $this->accountant->id,
@@ -122,7 +122,7 @@ class TuitionP0FixesTest extends TestCase
             'surcharge_amount' => 150000,
             'surcharge_reason' => 'Giáo trình',
             'amount' => 4650000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'submit_action' => 'submit',
         ])->assertSessionHasNoErrors();
@@ -155,7 +155,7 @@ class TuitionP0FixesTest extends TestCase
             'tuition_amount' => 3930000,
             'surcharge_amount' => 100000,
             'surcharge_reason' => 'Giáo trình',
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0002',
             'payment_date' => now(),
             'creator_id' => $this->staff->id,
@@ -184,7 +184,7 @@ class TuitionP0FixesTest extends TestCase
             'amount' => 150000,
             'surcharge_amount' => 150000,
             'surcharge_reason' => 'Thẻ học viên',
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'payment_date' => now(),
             'creator_id' => $this->staff->id,
@@ -209,7 +209,7 @@ class TuitionP0FixesTest extends TestCase
             'surcharge_amount' => 300000,
             'surcharge_reason' => 'Giáo trình',
             'amount' => 150000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'submit_action' => 'submit',
         ])->assertSessionHasErrors('surcharge_amount');
@@ -219,7 +219,7 @@ class TuitionP0FixesTest extends TestCase
 
     public function test_transfer_receipt_submit_without_proof_is_rejected_but_draft_is_saved(): void
     {
-        $payload = ['student_tuition_id' => $this->tuition->id, 'amount' => 2000000, 'payment_method' => 'transfer'];
+        $payload = ['student_tuition_id' => $this->tuition->id, 'amount' => 2000000, 'payment_method' => 'transfer', 'is_vat_invoice' => 0];
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), $payload + ['submit_action' => 'submit'])
             ->assertSessionHasErrors('proof_image');
@@ -247,7 +247,7 @@ class TuitionP0FixesTest extends TestCase
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 2000000,
-            'payment_method' => 'transfer',
+            'payment_method' => 'transfer', 'is_vat_invoice' => 0,
             // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
             'proof_image_preview' => '/uploads/tuition/receipts/test-proof.png',
         ])->assertSessionHasNoErrors();
@@ -269,7 +269,7 @@ class TuitionP0FixesTest extends TestCase
             'receipt_number' => 'PT-STAFF',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'creator_id' => $this->accountant->id,
             'status' => 'pending',
@@ -288,7 +288,7 @@ class TuitionP0FixesTest extends TestCase
             'receipt_number' => 'PT-OWN',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'creator_id' => $this->accountant->id,
             'status' => 'pending',
@@ -305,7 +305,7 @@ class TuitionP0FixesTest extends TestCase
             'receipt_number' => 'PT-ADMIN-OWN',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'creator_id' => $this->admin->id,
             'status' => 'pending',
@@ -327,7 +327,7 @@ class TuitionP0FixesTest extends TestCase
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'submit_action' => 'draft',
         ])->assertSessionHasNoErrors();
@@ -339,7 +339,7 @@ class TuitionP0FixesTest extends TestCase
         $this->actingAs($this->accountant)
             ->put(route('tuition.receipts.update', $receipt->id), [
                 'amount' => 3000000,
-                'payment_method' => 'cash',
+                'payment_method' => 'cash', 'is_vat_invoice' => 0,
                 'paper_invoice_number' => 'HDG-0001',
                 'submit_action' => 'submit',
             ])->assertForbidden();
@@ -347,7 +347,7 @@ class TuitionP0FixesTest extends TestCase
         $this->actingAs($this->staff)
             ->put(route('tuition.receipts.update', $receipt->id), [
                 'amount' => 3000000,
-                'payment_method' => 'transfer',
+                'payment_method' => 'transfer', 'is_vat_invoice' => 0,
                 'notes' => 'Sửa lại số tiền',
                 'submit_action' => 'submit',
                 // Phase 4: chuyển khoản / VietQR bắt buộc minh chứng khi gửi duyệt.
@@ -367,7 +367,7 @@ class TuitionP0FixesTest extends TestCase
             'receipt_number' => 'PT-REJ',
             'student_tuition_id' => $this->tuition->id,
             'amount' => 1000000,
-            'payment_method' => 'cash',
+            'payment_method' => 'cash', 'is_vat_invoice' => 0,
             'paper_invoice_number' => 'HDG-0001',
             'creator_id' => $this->staff->id,
             'status' => 'rejected',
@@ -377,7 +377,7 @@ class TuitionP0FixesTest extends TestCase
         $this->actingAs($this->staff)
             ->put(route('tuition.receipts.update', $receipt->id), [
                 'amount' => 1000000,
-                'payment_method' => 'cash',
+                'payment_method' => 'cash', 'is_vat_invoice' => 0,
                 'paper_invoice_number' => 'HDG-0001',
                 'submit_action' => 'submit',
             ])->assertSessionHasNoErrors();
@@ -387,7 +387,7 @@ class TuitionP0FixesTest extends TestCase
         $this->actingAs($this->staff)
             ->put(route('tuition.receipts.update', $receipt->id), [
                 'amount' => 2000000,
-                'payment_method' => 'cash',
+                'payment_method' => 'cash', 'is_vat_invoice' => 0,
                 'paper_invoice_number' => 'HDG-0001',
                 'submit_action' => 'submit',
             ])->assertSessionHasErrors('receipt');
@@ -398,10 +398,10 @@ class TuitionP0FixesTest extends TestCase
     {
         $make = fn (string $no, string $status) => TuitionReceipt::create([
             'receipt_number' => $no, 'student_tuition_id' => $this->tuition->id,
-            'amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001',
+            'amount' => 1000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001',
             'creator_id' => $this->staff->id, 'status' => $status,
         ]);
-        $payload = ['amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
+        $payload = ['amount' => 1000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001', 'submit_action' => 'submit'];
 
         $draft = $make('PT-W-DRAFT', 'draft');
         $this->actingAs($this->staff)->get(route('tuition.receipts.edit', $draft->id))
@@ -629,7 +629,7 @@ class TuitionP0FixesTest extends TestCase
         // Phiếu không gắn hợp đồng -> fallback chi nhánh học viên (CN B)
         TuitionReceipt::create([
             'receipt_number' => 'PT-REV-NO-TUITION', 'student_id' => $studentB->id,
-            'amount' => 150000, 'surcharge_amount' => 150000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001',
+            'amount' => 150000, 'surcharge_amount' => 150000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001',
             'payment_date' => now(), 'status' => 'approved',
         ]);
 
