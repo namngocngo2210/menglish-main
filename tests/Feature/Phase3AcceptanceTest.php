@@ -82,7 +82,7 @@ class Phase3AcceptanceTest extends TestCase
         $this->manager = $this->userWithRole('manager');
         $this->academic = $this->userWithRole('academic_staff', ['name' => 'Học vụ Phượng', 'base_salary' => 8000000]);
         $this->lead = $this->userWithRole('academic_lead');
-        $this->accountant = $this->userWithRole('accountant');
+        $this->accountant = $this->userWithRole('finance_staff');
         $this->sale = $this->userWithRole('sales_consultant', ['name' => 'Sale Hà', 'base_salary' => 7000000]);
         $this->partTime = $this->userWithRole('teacher_parttime', ['name' => 'GV Part-time Lan']);
         $this->fullTime = $this->userWithRole('teacher_fulltime', ['name' => 'GV Full-time Minh', 'base_salary' => 10000000]);

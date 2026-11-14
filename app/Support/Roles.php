@@ -17,6 +17,9 @@ final class Roles
     /** Quản lý cơ sở. */
     public const MANAGER = 'manager';
 
+    /** Kế toán (TK-2026-0113): thu - chi, duyệt phiếu thu / hủy hóa đơn / hoàn tiền; không quản lý nhân sự hay lớp học. */
+    public const ACCOUNTANT = 'accountant';
+
     /** Học thuật (Trưởng học thuật). */
     public const ACADEMIC_LEAD = 'academic_lead';
 
@@ -42,6 +45,7 @@ final class Roles
     public const ALL = [
         self::ADMIN,
         self::MANAGER,
+        self::ACCOUNTANT,
         self::ACADEMIC_LEAD,
         self::ACADEMIC_STAFF,
         self::SALES_CONSULTANT,
@@ -77,6 +81,7 @@ final class Roles
     public const LABELS = [
         self::ADMIN => 'Quản trị viên Cấp cao (Admin)',
         self::MANAGER => 'Quản lý Cơ sở (Manager)',
+        self::ACCOUNTANT => 'Kế toán (Accountant)',
         self::ACADEMIC_LEAD => 'Học thuật độc lập (Academic Lead)',
         self::ACADEMIC_STAFF => 'Học vụ (Academic Staff)',
         self::SALES_CONSULTANT => 'Chuyên viên Tư vấn Tuyển sinh (Sales)',
@@ -91,6 +96,7 @@ final class Roles
     public const SHORT_LABELS = [
         self::ADMIN => 'Admin',
         self::MANAGER => 'Quản lý cơ sở',
+        self::ACCOUNTANT => 'Kế toán',
         self::ACADEMIC_LEAD => 'Học thuật',
         self::ACADEMIC_STAFF => 'Học vụ',
         self::SALES_CONSULTANT => 'Tư vấn viên',
@@ -103,12 +109,11 @@ final class Roles
 
     /**
      * Vai trò đã bỏ khỏi hệ thống → vai trò nhận lại người đang giữ (migration dọn dẹp trên hệ thống còn dữ liệu cũ).
-     * Kế toán & Thu ngân → Quản lý cơ sở; Giáo viên giảng dạy → Giáo viên Full-time.
+     * Giáo viên giảng dạy → Giáo viên Full-time. (Kế toán được lập lại thành vai trò cố định ở TK-2026-0113.)
      * Không thêm foreigner_teacher ở đây: migration 2026_12_04 đổi mã và giữ ID, quyền, phân quyền cá nhân;
      * migration cũ duyệt RETIRED sẽ xóa dữ liệu đó trước khi đổi mã.
      */
     public const RETIRED = [
-        'accountant' => self::MANAGER,
         'teacher' => self::TEACHER_FULLTIME,
     ];
 

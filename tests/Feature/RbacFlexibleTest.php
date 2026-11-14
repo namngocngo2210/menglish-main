@@ -58,7 +58,7 @@ class RbacFlexibleTest extends TestCase
                 'attendance_staff' => 'branch', 'kpi' => 'branch', 'work_task' => 'branch', 'support_ticket' => 'own', 'user' => 'branch', 'violation' => 'branch'],
             'academic_lead' => ['lead' => 'branch', 'student' => 'branch', 'class' => 'all', 'big_test' => 'all', 'kpi' => 'all', 'work_task' => 'all', 'user' => 'all',
                 'violation' => 'all'],
-            'accountant' => ['student' => 'branch', 'tuition' => 'branch', 'finance' => 'branch', 'attendance_staff' => 'branch', 'payroll' => 'all', 'work_task' => 'own'],
+            'finance_staff' => ['student' => 'branch', 'tuition' => 'branch', 'finance' => 'branch', 'attendance_staff' => 'branch', 'payroll' => 'all', 'work_task' => 'own'],
             'sales_consultant' => ['lead' => 'own', 'student' => 'own', 'work_task' => 'own', 'support_ticket' => 'own'],
             'teacher' => ['class' => 'own', 'student' => 'own', 'big_test' => 'own', 'payroll' => 'own', 'work_task' => 'own'],
             'assistant' => ['class' => 'own', 'student' => 'own', 'big_test' => 'own', 'payroll' => 'own'],
@@ -91,7 +91,7 @@ class RbacFlexibleTest extends TestCase
         $this->assertTrue($can('manager', 'dashboard.operations'));
         $this->assertTrue($can('academic_lead', 'dashboard.academic'));
         $this->assertTrue($can('teacher', 'staff_report.submit'));
-        $this->assertFalse($can('accountant', 'staff_report.submit'));
+        $this->assertFalse($can('finance_staff', 'staff_report.submit'));
         $this->assertTrue($can('academic_lead', 'violation.decide_academic'));
         $this->assertFalse($can('manager', 'violation.decide_academic'));
         $this->assertTrue($can('manager', 'violation.decide_operations'));
@@ -224,7 +224,7 @@ class RbacFlexibleTest extends TestCase
         }
 
         // Học viên & học phí: Kế toán (mặc định "Chi nhánh") → cá nhân "Toàn hệ thống" → cá nhân "Chi nhánh".
-        $accountant = $this->makeUser('accountant', name: 'Kế toán Phạm Vi');
+        $accountant = $this->makeUser('finance_staff', name: 'Kế toán Phạm Vi');
         $here = $this->student('HV-RB-TRONG', $this->branch);
         $there = $this->student('HV-RB-NGOAI', $this->otherBranch);
         $tuitionPage = fn () => $this->actingAs($accountant->fresh())->get(route('tuition.students'))->assertOk();
@@ -417,12 +417,12 @@ class RbacFlexibleTest extends TestCase
         $headOffice = Role::create(['name' => 'head_office', 'guard_name' => 'web']);
         $headOffice->givePermissionTo('tuition.all_branches');
         $byRole = $this->makeUser('head_office');
-        $direct = $this->makeUser('accountant');
+        $direct = $this->makeUser('finance_staff');
         $direct->givePermissionTo('finance.all_branches');
-        $personal = $this->makeUser('accountant');
+        $personal = $this->makeUser('finance_staff');
         \App\Models\UserPermissionOverride::create(['user_id' => $personal->id, 'module' => 'tuition', 'action' => 'all_branches',
             'allow' => true, 'scope_type' => \App\Models\UserPermissionOverride::SCOPE_ALL, 'scope_id' => null]);
-        $branchAccountant = $this->makeUser('accountant');
+        $branchAccountant = $this->makeUser('finance_staff');
         Rbac::flushCache();
 
         $migration = require database_path('migrations/2026_10_07_100100_introduce_flexible_rbac_permissions.php');

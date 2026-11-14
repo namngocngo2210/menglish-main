@@ -61,7 +61,7 @@ class Phase4FinanceTest extends TestCase
         $this->branch2 = Branch::create(['name' => 'CN Đống Đa', 'code' => 'DD', 'is_active' => true]);
 
         $this->admin = $this->makeUser('admin');
-        $this->accountant = $this->makeUser('accountant');
+        $this->accountant = $this->makeUser('finance_staff');
         $this->staff = $this->makeUser('academic_staff');
 
         $this->student = Student::create([
@@ -480,14 +480,14 @@ class Phase4FinanceTest extends TestCase
 
     public function test_new_receipt_notifies_admin_only_not_accountants(): void
     {
-        $otherBranchAccountant = $this->makeUser('accountant', $this->branch2);
+        $otherBranchAccountant = $this->makeUser('finance_staff', $this->branch2);
         // Chỉ Admin duyệt phiếu thu (06/10/2026): Kế toán chi nhánh / Kế toán tổng (kể cả được cấp tuition.scope_all) không còn
         // nhận thông báo cá nhân "chờ bạn duyệt"; Admin nhận thông báo chung.
         $hqAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
-        $hqAccountant->assignRole('accountant');
+        $hqAccountant->assignRole('finance_staff');
         $this->grantHeadOffice($hqAccountant);
         $unscopedAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
-        $unscopedAccountant->assignRole('accountant');
+        $unscopedAccountant->assignRole('finance_staff');
 
         $this->actingAs($this->staff)->post(route('tuition.receipts.store'), [
             'student_tuition_id' => $this->tuition->id, 'amount' => 1000000, 'payment_method' => 'cash', 'is_vat_invoice' => 0, 'paper_invoice_number' => 'HDG-0001',

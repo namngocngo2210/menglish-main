@@ -61,7 +61,7 @@ class TuitionBusinessTest extends TestCase
             'name' => 'Kế toán trưởng MEnglish',
             'is_active' => true,
         ]);
-        $this->accountantUser->assignRole('accountant');
+        $this->accountantUser->assignRole('finance_staff');
 
         // Người duyệt: chỉ Admin duyệt / từ chối (06/10/2026), Kế toán chỉ lập phiếu / yêu cầu.
         $this->approverUser = User::factory()->create([
@@ -463,7 +463,7 @@ class TuitionBusinessTest extends TestCase
             'template_code' => '1/001', 'series_code' => 'C26MEN', 'current_number' => 1500,
         ])->assertForbidden();
         $headAccountant = User::factory()->create(['branch_id' => null, 'is_active' => true]);
-        $headAccountant->assignRole('accountant');
+        $headAccountant->assignRole('finance_staff');
         $this->actingAs($headAccountant)->post(route('tuition.config.update'), [
             'template_code' => '1/001', 'series_code' => 'C26MEN', 'current_number' => 1500,
         ])->assertForbidden();

@@ -18,6 +18,7 @@ var catalogJSON []byte
 const (
 	RoleAdmin           = "admin"
 	RoleManager         = "manager"
+	RoleAccountant      = "accountant"
 	RoleAcademicLead    = "academic_lead"
 	RoleAcademicStaff   = "academic_staff"
 	RoleSalesConsultant = "sales_consultant"

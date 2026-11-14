@@ -92,7 +92,7 @@ class TuitionPaymentHistoryTest extends TestCase
     private function accountant(?int $branchId = null): User
     {
         $user = User::factory()->create(['branch_id' => $branchId]);
-        $user->assignRole('accountant');
+        $user->assignRole('finance_staff');
 
         return $branchId ? $user : $this->grantHeadOffice($user);
     }

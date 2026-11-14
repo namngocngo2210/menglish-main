@@ -217,7 +217,7 @@ class CrmRound1FixesTest extends TestCase
 
     public function test_enrollment_report_is_admin_only_and_hidden_from_other_menus(): void
     {
-        $accountant = $this->userWithRole('accountant', $this->branch);
+        $accountant = $this->userWithRole('finance_staff', $this->branch);
         foreach ([$this->manager, $this->sales, $accountant] as $user) {
             $this->actingAs($user)->get(route('crm.reports'))->assertForbidden();
             $this->actingAs($user)->get(route('dashboard'))->assertDontSee(route('crm.reports'), false);

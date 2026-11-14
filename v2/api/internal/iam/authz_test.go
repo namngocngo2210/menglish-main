@@ -37,8 +37,8 @@ func accessFor(t *testing.T, branches []uuid.UUID, roles ...string) *Access {
 
 func TestCatalogDefaultsExpand(t *testing.T) {
 	c := GetCatalog()
-	if len(c.Roles) != 10 {
-		t.Fatalf("có %d vai trò, muốn 10", len(c.Roles))
+	if len(c.Roles) != 11 {
+		t.Fatalf("có %d vai trò, muốn 11", len(c.Roles))
 	}
 	for _, r := range c.Roles {
 		if _, err := c.Expand(r.Name, r.Defaults); err != nil {
@@ -65,7 +65,7 @@ func TestCatalogDefaultsExpand(t *testing.T) {
 func TestManagerAssignsEveryRoleButAdminAndManager(t *testing.T) {
 	m := accessFor(t, nil, RoleManager)
 	got := m.AssignableRoles()
-	want := []string{RoleAcademicLead, RoleAcademicStaff, RoleSalesConsultant, RoleTeacherFulltime, RoleTeacherParttime, "foreign_teacher", RoleAssistant, RoleStudent}
+	want := []string{RoleAccountant, RoleAcademicLead, RoleAcademicStaff, RoleSalesConsultant, RoleTeacherFulltime, RoleTeacherParttime, "foreign_teacher", RoleAssistant, RoleStudent}
 	if !slices.Equal(got, want) {
 		t.Fatalf("Quản lý cơ sở gán được %v, muốn %v", got, want)
 	}

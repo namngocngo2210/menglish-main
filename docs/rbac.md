@@ -20,11 +20,11 @@ Tệp chính:
 
 ## 1. Nguyên tắc
 
-0. **Bộ 10 vai trò cố định** (`App\Support\Roles`): Admin, Quản lý cơ sở, Học thuật, Học vụ, Sales, GV Full-time, GV Part-time,
+0. **Bộ 11 vai trò cố định** (`App\Support\Roles`): Admin, Quản lý cơ sở, Kế toán (`accountant`), Học thuật, Học vụ, Sales, GV Full-time, GV Part-time,
    GVNN (`foreign_teacher`), Trợ giảng, Học viên. Logic nghiệp vụ theo chức danh (loại lương, KPI, kỳ báo cáo, người nhận thông báo…) dùng hằng
    `Roles::ADMIN`, `Roles::MANAGER`, `Roles::ACADEMIC_LEAD`… và nhóm `Roles::TEACHERS` / `TEACHING` / `ACADEMIC` / `KPI_STAFF`,
-   **không gõ tên vai trò bằng chuỗi** (test chốt chặn kiểm tra). "Kế toán & Thu ngân" và "Giáo viên giảng dạy" đã bỏ;
-   việc tài chính do Admin / Quản lý cơ sở làm (Admin vẫn cấp / thu hồi quyền theo vai trò hoặc theo người như dưới đây).
+   **không gõ tên vai trò bằng chuỗi** (test chốt chặn kiểm tra). "Giáo viên giảng dạy" đã bỏ; "Kế toán & Thu ngân" được lập lại thành vai trò **Kế toán** (TK-2026-0113);
+   việc duyệt tiền (phiếu thu, hủy hóa đơn, hoàn tiền) do Admin hoặc Kế toán làm, Học vụ chỉ lập yêu cầu (Admin vẫn cấp / thu hồi quyền theo vai trò hoặc theo người như dưới đây).
 1. **Mọi thao tác "được làm gì / thấy gì" → một permission**, kiểm tra bằng `can()` / `@can` / middleware `can:` / `Gate`.
    Kiểm tra vai trò (`hasRole`, `hasAnyRole`…) chỉ được truyền hằng `Roles::*`; `@role`… bị chặn bởi
    `tests/Feature/RbacNoHardcodedRolesTest.php`.
@@ -54,7 +54,7 @@ Tệp chính:
 | Đối tượng | `portal.student`, `portal.teacher`, `portal.assistant`, `portal.staff`, `class.teach`, `class.assist`, `lead.be_assigned`, `entrance_test.examine` | Người dùng **là ai** (cổng nào, có được xếp dạy lớp / nhận phụ trách khách / làm người chấm test). Super Admin **không** tự có (nếu không Admin lọt vào cổng học viên, danh sách giáo viên…). |
 | Động | `user.assign_role.<vai trò>` | Được tạo tài khoản / gán vai trò đó. Tạo / đổi mã / xóa cùng vai trò (`App\Support\Rbac`). Không có `user.assign_role.admin`: chỉ Super Admin gán Super Admin. |
 
-**Quy mô** (cài mới, 10 vai trò cố định): 53 module · 176 quyền thao tác · 8 quyền đối tượng · 51 quyền phạm vi
+**Quy mô** (cài mới, 11 vai trò cố định): 53 module · 176 quyền thao tác · 8 quyền đối tượng · 51 quyền phạm vi
 (19 module có phạm vi) · 9 quyền gán vai trò = **244 permission** (không tạo quyền gán Super Admin).
 
 | Nhóm hiển thị | Module (mã) |
@@ -181,13 +181,22 @@ chi nhánh B (props Inertia, JSON, HTML) thì test đỏ. Route mới tự đư�
 |---|---|---|
 | Super Admin `admin` | Mọi quyền (bất biến) + đối tượng `lead.be_assigned`, `entrance_test.examine`, `portal.staff` | Toàn hệ thống mọi module |
 | Quản lý cơ sở `manager` | Nhân sự (xem / khóa / reset MK / gán mọi vai trò trừ Admin); CRM mọi thao tác **trừ lùi bước**; học viên, lớp, điểm danh, giáo trình (không duyệt đề xuất); học phí (tạo / duyệt / từ chối), yêu cầu hủy HĐ, hoàn phí (khất nợ / bảo lưu, duyệt chuyển nhượng, từ chối — **không** duyệt hoàn tiền); lương **chỉ xem**; KPI; chấm công tay; biên bản lỗi vận hành; việc, ticket, thông báo, báo cáo | Chi nhánh (chỉ chi nhánh của mình): CRM, học viên, lớp, phòng, Big Test, học phí, thu chi, chấm công, KPI, việc, ticket, nhân sự, nhật ký, biên bản, dashboard · Của tôi: lương |
+| Kế toán `accountant` (TK-2026-0113) | Học phí (xem / lập phiếu / nhắc phí / xác nhận nộp tiền), **duyệt / trả về phiếu thu**, yêu cầu + **duyệt / từ chối hủy hóa đơn**, hoàn phí (**duyệt hoàn tiền, chuyển nhượng, khất nợ, từ chối**), báo cáo thu chi; **không** có nhân sự / lớp / CRM / duyệt chấm công / duyệt lương. Hộp "Việc cần duyệt" vẫn chỉ Admin — Kế toán duyệt ở menu Cần duyệt → Phiếu thu / Hủy hóa đơn / Hoàn tiền & Khất nợ | Chi nhánh (học viên, học phí, thu chi) · Của tôi: lương, ticket; Admin cấp "Toàn hệ thống" theo người cho kế toán tổng |
 | Học vụ `academic_staff` | **BA 26/09: toàn quyền CRM / test đầu vào / đề test trừ xóa**, chuyển bước tiến (không lùi); học viên, lớp; giáo trình (không duyệt); KPI xem / xác nhận; biên bản lỗi vận hành; học phí (tạo phiếu, liên hệ, báo quá hạn); việc; gán TA / GV (Full-time, Part-time, GVNN) / học viên | Chi nhánh: CRM, học viên, học phí, lớp, Big Test, chấm công, KPI, việc, biên bản, nhân sự · Của tôi: ticket |
 | Học thuật `academic_lead` | CRM xem; lớp, giáo trình **gồm duyệt đề xuất**, **Big Test gồm duyệt**; test / đề test; KPI; biên bản lỗi chuyên môn; dashboard học thuật; gán GV (Full-time, Part-time, GVNN) | Chi nhánh: CRM (xem), học viên · Toàn hệ thống: lớp, Big Test, KPI, việc, nhân sự, biên bản (chốt lỗi chuyên môn mọi chi nhánh) · Của tôi: ticket |
 | Sale `sales_consultant` | CRM xem / thêm / sửa / chốt / thất bại, gửi test, báo cáo | Của tôi |
 | Giáo viên (Full-time / Part-time / GVNN), Trợ giảng | Lớp mình, điểm danh, chấm bài nộp, giáo trình (xem / sửa / đề xuất), lương của mình; `portal.teacher` / `portal.assistant` | Của tôi |
 | Học viên `student` | Cổng học viên, ticket | Của tôi (`portal.student`) |
 
-Quyết định BA / A6 phản ánh trong mặc định: quyền kế toán cấu hình được (duyệt hoàn tiền, duyệt hủy HĐ, dải số mặc định,
+Duyệt tiền (06/10/2026, mở rộng TK-2026-0113): `AdminOnlyApprovals::PERMISSIONS` bị `Gate::before` thu hồi với mọi vai trò
+ngoài Admin, **trừ** vai trò Kế toán với `AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS` (`tuition.approve|reject`,
+`invoice.approve_cancel`, `refund_transfer.approve|approve_refund|approve_transfer|reject`). Học vụ / Quản lý cơ sở chỉ lập yêu cầu
+(`invoice.request_cancel`, `refund_transfer.request`) và nhận 403 khi duyệt; duyệt chấm công (`staff_checkin.approve`) và chuyển khách
+(`lead.approve_transfer`) vẫn chỉ Admin. Cài mới do `RoleSeeder`, hệ thống đang chạy do migration `2026_12_14_090000_create_accountant_role`
+(không chuyển ai sang vai trò này — Admin gán). Tài khoản mẫu staging: `ketoan@menglish.edu.vn` (ME-0012, CG) qua `UserSeeder`, hiện trong
+"Đổi vai trò".
+
+Quyết định BA / A6 phản ánh trong mặc định: quyền kế toán cấu hình được (dải số mặc định,
 phạm vi mọi chi nhánh mặc định chỉ Admin); Học vụ toàn quyền CRM trừ xóa; chỉ Admin lùi bước CRM (`lead.stage_back`);
 duyệt Big Test (`big_test.approve`) và duyệt đề xuất giáo trình (`syllabus.approve_adjustment`) chỉ Học thuật + Admin;
 duyệt lương (`payroll.approve`) chỉ Admin; **không chốt được bảng lương khi còn nhân sự chưa chốt KPI** (luật nghiệp vụ

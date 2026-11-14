@@ -8,14 +8,14 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 /**
- * Vai trò TÙY CHỈNH chỉ dùng trong test. Hệ thống chỉ có 10 vai trò cố định (App\Support\Roles); "Kế toán & Thu ngân" và
+ * Vai trò TÙY CHỈNH chỉ dùng trong test. Hệ thống chỉ có bộ vai trò cố định (App\Support\Roles); "Kế toán & Thu ngân" cũ (nay là vai trò Kế toán thật, TK-2026-0113) và
  * "Giáo viên giảng dạy" đã bỏ khỏi cấu hình mặc định. Hai vai trò này giữ lại ở đây với đúng tập quyền cũ để các test kiểm tra
- * phân quyền linh hoạt (Admin tạo vai trò riêng ở màn Vai trò, phạm vi dữ liệu theo người…) vẫn có một "vai trò tài chính" /
+ * phân quyền linh hoạt (Admin tạo vai trò riêng ở màn Vai trò, phạm vi dữ liệu theo người…) vẫn có một "vai trò tài chính" (finance_staff, đổi tên từ accountant cũ) /
  * "vai trò giáo viên chung" làm mẫu — logic nghiệp vụ không phụ thuộc tên vai trò.
  */
 final class TestOnlyRoles
 {
-    public const ACCOUNTANT = 'accountant';
+    public const FINANCE_STAFF = 'finance_staff';
 
     public const TEACHER = 'teacher';
 
@@ -23,7 +23,7 @@ final class TestOnlyRoles
     public static function definitions(): array
     {
         return [
-            'accountant' => [
+            'finance_staff' => [
                 'tuition.view', 'tuition.create', 'tuition.approve', 'tuition.reject', 'tuition.mark_contacted', 'tuition.report_overdue',
                 // Xác nhận tiền mặt thu trong ngày đã nộp về TK công ty trước 19:00 (Admin qua Gate::before).
                 'tuition.confirm_deposit',

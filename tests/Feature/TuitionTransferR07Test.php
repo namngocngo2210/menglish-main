@@ -47,7 +47,7 @@ class TuitionTransferR07Test extends TestCase
 
         $this->branch = Branch::create(['name' => 'CN R07', 'code' => 'R07', 'is_active' => true]);
         $this->admin = $this->user('admin');
-        $this->accountant = $this->user('accountant');
+        $this->accountant = $this->user('finance_staff');
         InvoiceConfiguration::create(['branch_id' => null, 'template_code' => '1/001', 'series_code' => 'C26MBD', 'start_number' => 1, 'current_number' => 500, 'is_active' => true]);
 
         $course = Course::create(['code' => 'R07-C', 'name' => 'R07', 'tuition_fee' => 6000000, 'total_lessons' => 10, 'is_active' => true]);

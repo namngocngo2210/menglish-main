@@ -69,6 +69,16 @@ class UserSeeder extends Seeder
                 'role' => 'manager',
             ],
 
+            // ============ KẾ TOÁN (TK-2026-0113: duyệt phiếu thu / hủy hóa đơn / hoàn tiền) ============
+            [
+                'employee_code' => 'ME-0012',
+                'name' => 'Vũ Thị Kế Toán',
+                'email' => 'ketoan@menglish.edu.vn',
+                'phone' => '0900000017',
+                'branch' => 'CG',
+                'role' => 'accountant',
+            ],
+
             // ============ HỌC THUẬT & HỌC VỤ ============
             [
                 'employee_code' => 'ME-0010',

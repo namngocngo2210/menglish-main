@@ -78,7 +78,7 @@ class UserSubordinatesOnlyTest extends TestCase
         $manager = $this->people[Roles::MANAGER];
 
         $this->assertSame($this->sorted([
-            Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::FOREIGN_TEACHER,
+            Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF, Roles::ACCOUNTANT, Roles::SALES_CONSULTANT, Roles::TEACHER_FULLTIME, Roles::TEACHER_PARTTIME, Roles::FOREIGN_TEACHER,
             Roles::ASSISTANT, Roles::STUDENT, 'other_staff', 'lead_teaching',
         ]), $this->visibleKeys($manager));
 
@@ -86,7 +86,7 @@ class UserSubordinatesOnlyTest extends TestCase
         $roleFilter = collect($page['props']['roles'])->pluck('value')->all();
         $this->assertNotContains(Roles::ADMIN, $roleFilter);
         $this->assertNotContains(Roles::MANAGER, $roleFilter);
-        $this->assertSame(10, $page['props']['stats']['total']);
+        $this->assertSame(11, $page['props']['stats']['total']);
 
         // Lọc theo vai trò ngoài cây cũng không lộ ra ai.
         $this->assertSame([], $this->visibleKeys($manager, ['role' => Roles::MANAGER]));

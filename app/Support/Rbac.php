@@ -46,7 +46,13 @@ final class Rbac
     public static function scopeUsersWithPermission(Builder $query, string $permission): Builder
     {
         if (AdminOnlyApprovals::covers($permission)) {
-            return $query->whereHas('roles', fn (Builder $r) => $r->where('name', self::SUPER_ADMIN));
+            // TK-2026-0113: người nhận thông báo "chờ duyệt" tiền gồm cả Kế toán đang được cấp quyền đó qua vai trò.
+            $accountants = in_array($permission, AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS, true);
+
+            return $query->where(fn (Builder $q) => $q
+                ->whereHas('roles', fn (Builder $r) => $r->where('name', self::SUPER_ADMIN))
+                ->when($accountants, fn (Builder $q) => $q->orWhereHas('roles', fn (Builder $r) => $r->where('name', Roles::ACCOUNTANT)
+                    ->whereHas('permissions', fn (Builder $p) => $p->where('name', $permission)))));
         }
 
         [$module, $action] = array_pad(explode('.', $permission, 2), 2, '');

@@ -55,7 +55,7 @@ class Phase3CommissionTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cơ sở HH', 'code' => 'HH', 'is_active' => true]);
         $this->admin = $this->userWithRole('admin');
-        $this->accountant = $this->userWithRole('accountant');
+        $this->accountant = $this->userWithRole('finance_staff');
         $this->sales = $this->userWithRole('sales_consultant', ['name' => 'Sale Thực Thu']);
 
         $course = Course::create(['code' => 'HH-C', 'name' => 'IELTS HH', 'tuition_fee' => 10000000, 'is_active' => true]);

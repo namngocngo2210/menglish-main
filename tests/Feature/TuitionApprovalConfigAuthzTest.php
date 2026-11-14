@@ -32,16 +32,16 @@ class TuitionApprovalConfigAuthzTest extends TestCase
         return $user;
     }
 
-    public function test_receipt_approval_screen_and_apis_are_admin_only(): void
+    public function test_receipt_approval_screen_and_apis_are_admin_and_accountant_only(): void
     {
-        // Mở màn duyệt: Admin + Kế toán (đã gộp vào Quản lý cơ sở). Duyệt / từ chối (POST) chỉ Admin (06/10/2026).
+        // Mở màn duyệt: Admin + Quản lý cơ sở + Kế toán. Duyệt / từ chối (POST): Admin + Kế toán (TK-2026-0113), vai trò khác 403.
         foreach (['admin', 'accountant', 'manager'] as $role) {
             $this->actingAs($this->user($role))->get(route('tuition.receipts.approve'))->assertOk();
         }
         foreach (['academic_staff', 'sales_consultant'] as $role) {
             $this->actingAs($this->user($role))->get(route('tuition.receipts.approve'))->assertForbidden();
         }
-        foreach (['academic_staff', 'manager', 'accountant', 'sales_consultant'] as $role) {
+        foreach (['academic_staff', 'manager', 'sales_consultant', 'finance_staff'] as $role) {
             $u = $this->user($role);
             $this->actingAs($u)->post(route('tuition.receipts.approve.action', 999999))->assertForbidden();
             $this->actingAs($u)->post(route('tuition.receipts.reject.action', 999999), ['rejection_reason' => 'x'])->assertForbidden();
@@ -50,7 +50,7 @@ class TuitionApprovalConfigAuthzTest extends TestCase
 
     public function test_invoice_range_config_is_limited_to_range_managers(): void
     {
-        foreach (['admin', 'accountant'] as $role) {
+        foreach (['admin', 'finance_staff'] as $role) {
             $this->actingAs($this->user($role))->get(route('tuition.config'))->assertOk();
         }
 

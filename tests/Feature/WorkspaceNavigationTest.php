@@ -270,7 +270,7 @@ class WorkspaceNavigationTest extends TestCase
     public function test_menu_permission_resolution_does_not_query_per_item(): void
     {
         $menu = app(SidebarMenu::class);
-        $user = $this->makeUser('accountant')->fresh();
+        $user = $this->makeUser('finance_staff')->fresh();
         $request = Request::create(route('tuition.history'));
         // Nạp sẵn vai trò / quyền / override của user (1 lần / request, việc của Gate).
         $user->can('tuition.view');

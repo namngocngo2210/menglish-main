@@ -18,7 +18,10 @@ use App\Models\TuitionReceipt;
 use App\Models\TuitionRefundRequest;
 use App\Models\User;
 use App\Models\UserPermissionOverride;
+use App\Support\Approvals\AdminOnlyApprovals;
 use App\Support\DataScope;
+use App\Support\Rbac;
+use App\Support\Roles;
 use App\Support\Navigation\SidebarMenu;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -52,6 +55,8 @@ class BaPermissionsTest extends TestCase
 
     private User $accountant;
 
+    private User $realAccountant;
+
     private User $academic;
 
     private User $sales;
@@ -73,7 +78,8 @@ class BaPermissionsTest extends TestCase
         $this->otherBranch = Branch::create(['name' => 'CN Khác', 'code' => 'PK', 'is_active' => true]);
         $this->admin = $this->makeUser('admin');
         $this->manager = $this->makeUser('manager');
-        $this->accountant = $this->makeUser('accountant', name: 'Kế toán Chi nhánh');
+        $this->accountant = $this->makeUser('finance_staff', name: 'Kế toán Chi nhánh');
+        $this->realAccountant = $this->makeUser('accountant', name: 'Kế toán thật');
         $this->academic = $this->makeUser('academic_staff', name: 'Học vụ PQ');
         $this->sales = $this->makeUser('sales_consultant', name: 'Sale Một');
         $this->teacher = $this->makeUser('teacher', name: 'GV Chấm Công');
@@ -96,7 +102,13 @@ class BaPermissionsTest extends TestCase
         $role = fn (string $name) => Role::findByName($name, 'web');
         foreach (['tuition.scope_all', 'finance.scope_all', 'invoice_range.manage_default', 'refund_transfer.approve_refund', 'invoice.approve_cancel', 'payroll.approve'] as $adminOnly) {
             $this->assertTrue($role('admin')->hasPermissionTo($adminOnly), $adminOnly);
-            foreach (['manager', 'accountant', 'academic_staff'] as $other) {
+            foreach (['manager', 'finance_staff', 'accountant', 'academic_staff'] as $other) {
+                // TK-2026-0113: Kế toán là vai trò duy nhất ngoài Admin được cấp quyền duyệt hoàn tiền / hủy hóa đơn mặc định.
+                if ($other === 'accountant' && in_array($adminOnly, AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS, true)) {
+                    $this->assertTrue($role($other)->hasPermissionTo($adminOnly), "accountant có {$adminOnly}");
+
+                    continue;
+                }
                 $this->assertFalse($role($other)->hasPermissionTo($adminOnly), "{$other} không có {$adminOnly} theo mặc định");
             }
         }
@@ -106,20 +118,21 @@ class BaPermissionsTest extends TestCase
             $this->assertTrue($this->admin->can($approval), "admin {$approval}");
             $this->assertFalse($role('manager')->hasPermissionTo($approval), "manager không có {$approval} theo mặc định");
             $this->assertFalse($this->manager->can($approval), "manager {$approval}");
-            $this->assertFalse($this->accountant->can($approval), "accountant {$approval}");
+            $this->assertFalse($this->accountant->can($approval), "finance_staff {$approval}");
+            $this->assertFalse($this->academic->can($approval), "academic_staff {$approval}");
         }
         $this->assertTrue($role('manager')->hasPermissionTo('invoice.request_cancel'));
-        $this->assertTrue($role('accountant')->hasPermissionTo('invoice.request_cancel'));
-        $this->assertTrue($role('accountant')->hasPermissionTo('invoice_range.manage'));
-        $this->assertFalse($role('accountant')->hasPermissionTo('attendance_staff.manual_record'));
+        $this->assertTrue($role('finance_staff')->hasPermissionTo('invoice.request_cancel'));
+        $this->assertTrue($role('finance_staff')->hasPermissionTo('invoice_range.manage'));
+        $this->assertFalse($role('finance_staff')->hasPermissionTo('attendance_staff.manual_record'));
 
         // Hiệu lực: Kế toán / Quản lý không duyệt hoàn tiền, không duyệt hủy HĐ, không sửa dải mặc định; chỉ thấy chi nhánh mình.
         $refund = $this->refundRequest('refund');
-        foreach ([$this->accountant, $this->manager] as $user) {
+        foreach ([$this->academic, $this->manager] as $user) {
             $this->actingAs($user)->post(route('tuition.refunds.approve', $refund->id))->assertForbidden();
         }
         $cancellation = $this->cancellation();
-        $this->actingAs($this->accountant)->post(route('tuition.invoices.cancellations.reject', $cancellation->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tuition.invoices.cancellations.reject', $cancellation->id))->assertForbidden();
         $this->actingAs($this->accountant)->post(route('tuition.config.update'), ['template_code' => '1/001', 'series_code' => 'C26PQ', 'current_number' => 5])
             ->assertForbidden();
         $foreign = $this->student('HV-PQ-KHAC', $this->otherBranch, withTuition: true);
@@ -128,29 +141,29 @@ class BaPermissionsTest extends TestCase
         $this->assertNotNull($foreign);
     }
 
-    public function test_refund_approval_granted_to_accountant_role_has_no_effect_only_admin_approves(): void
+    public function test_refund_approval_granted_to_academic_role_has_no_effect_only_admin_approves(): void
     {
         $refund = $this->refundRequest('refund');
         $transfer = $this->refundRequest('transfer');
 
-        $this->actingAs($this->admin)->get(route('roles.edit', Role::findByName('accountant', 'web')))->assertOk()
+        $this->actingAs($this->admin)->get(route('roles.edit', Role::findByName('academic_staff', 'web')))->assertOk()
             ->assertSee('Kế toán / Học phí')->assertSee('Duyệt hoàn tiền (chi tiền)')->assertSee('refund_transfer.approve_refund')
             ->assertSee('Phạm vi dữ liệu')->assertSee('Học phí mọi chi nhánh (kế toán tổng)')->assertSee('Duyệt / từ chối hủy hóa đơn');
 
         // Chỉ Admin duyệt (06/10/2026): Kế toán không thấy nút duyệt hồ sơ nào, kể cả chuyển nhượng.
-        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()
+        $this->actingAs($this->academic)->get(route('tuition.refunds'))->assertOk()
             ->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false)->assertDontSee(route('tuition.refunds.approve', $transfer->id, false), false);
-        $this->accountant = $this->accountant->fresh();
+        $this->academic = $this->academic->fresh();
 
         // Admin vẫn cấp được quyền ở màn Vai trò nhưng quyền duyệt không có hiệu lực với vai trò khác Admin.
-        $accountantRole = Role::findByName('accountant', 'web');
-        $permissions = $accountantRole->permissions->pluck('name')->push('refund_transfer.approve_refund')->all();
-        $this->actingAs($this->admin)->put(route('roles.update', $accountantRole), ['name' => 'accountant', 'permissions' => $permissions])
+        $academicRole = Role::findByName('academic_staff', 'web');
+        $permissions = $academicRole->permissions->pluck('name')->push('refund_transfer.approve_refund')->all();
+        $this->actingAs($this->admin)->put(route('roles.update', $academicRole), ['name' => 'academic_staff', 'permissions' => $permissions])
             ->assertSessionHasNoErrors();
-        $this->accountant = $this->accountant->fresh();
+        $this->academic = $this->academic->fresh();
 
-        $this->actingAs($this->accountant)->get(route('tuition.refunds'))->assertOk()->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false);
-        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $refund->id), [
+        $this->actingAs($this->academic)->get(route('tuition.refunds'))->assertOk()->assertDontSee(route('tuition.refunds.approve', $refund->id, false), false);
+        $this->actingAs($this->academic)->post(route('tuition.refunds.approve', $refund->id), [
             'clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc.png', 20, 20),
         ])->assertForbidden();
         $this->assertSame('pending', $refund->fresh()->status);
@@ -168,7 +181,7 @@ class BaPermissionsTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->manager = $this->manager->fresh();
         $this->actingAs($this->manager)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
-        $this->actingAs($this->accountant)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
         $this->actingAs($this->admin)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
         $this->assertSame('approved', $transfer->fresh()->status);
 
@@ -184,19 +197,19 @@ class BaPermissionsTest extends TestCase
     public function test_invoice_cancellation_approval_granted_personally_has_no_effect_only_admin_approves(): void
     {
         $cancellation = $this->cancellation();
-        $otherAccountant = $this->makeUser('accountant', name: 'Kế toán Khác');
+        $otherAcademic = $this->makeUser('academic_staff', name: 'Học vụ Khác');
 
-        $this->actingAs($this->admin)->get(route('users.permissions.edit', $this->accountant))->assertOk()
+        $this->actingAs($this->admin)->get(route('users.permissions.edit', $this->academic))->assertOk()
             ->assertSee('Kế toán / Học phí')->assertSee('Duyệt / từ chối hủy hóa đơn')->assertSee('Duyệt hoàn tiền (chi tiền)');
-        $this->actingAs($this->admin)->put(route('users.permissions.update', $this->accountant), [
+        $this->actingAs($this->admin)->put(route('users.permissions.update', $this->academic), [
             'overrides' => ['invoice' => ['approve_cancel' => 'allow']],
         ])->assertSessionHasNoErrors();
 
         // Chỉ Admin duyệt / từ chối hủy hóa đơn (06/10/2026): override cá nhân "cho phép" không có tác dụng.
-        $this->actingAs($otherAccountant)->post(route('tuition.invoices.cancellations.reject', $cancellation->id))->assertForbidden();
-        $this->actingAs($this->accountant)->get(route('tuition.invoices.cancellations', ['selected_id' => $cancellation->id]))->assertOk()
+        $this->actingAs($otherAcademic)->post(route('tuition.invoices.cancellations.reject', $cancellation->id))->assertForbidden();
+        $this->actingAs($this->academic)->get(route('tuition.invoices.cancellations', ['selected_id' => $cancellation->id]))->assertOk()
             ->assertSee('Yêu cầu đang chờ Admin (hoặc người được cấp quyền duyệt hủy hóa đơn) phê duyệt.');
-        $this->actingAs($this->accountant)->post(route('tuition.invoices.cancellations.reject', $cancellation->id), ['rejection_reason' => 'Hóa đơn đúng'])
+        $this->actingAs($this->academic)->post(route('tuition.invoices.cancellations.reject', $cancellation->id), ['rejection_reason' => 'Hóa đơn đúng'])
             ->assertForbidden();
         $this->assertSame('pending', $cancellation->fresh()->status);
 
@@ -209,7 +222,7 @@ class BaPermissionsTest extends TestCase
     {
         $this->student('HV-PQ-KHAC', $this->otherBranch, withTuition: true);
         $noBranch = User::factory()->create(['branch_id' => null, 'is_active' => true]);
-        $noBranch->assignRole('accountant');
+        $noBranch->assignRole('finance_staff');
 
         // Không gán chi nhánh KHÔNG còn nghĩa là kế toán tổng.
         $this->actingAs($noBranch)->get(route('tuition.students'))->assertOk()->assertDontSee('HV-PQ-KHAC');
@@ -464,6 +477,140 @@ class BaPermissionsTest extends TestCase
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
+    // ── TK-2026-0113: vai trò Kế toán duyệt tiền, tách khỏi Học vụ (người lập yêu cầu) ───────────
+
+    public function test_accountant_approves_invoice_cancellation_but_academic_staff_and_manager_cannot(): void
+    {
+        $cancellation = $this->cancellation();
+
+        foreach ([$this->academic, $this->manager, $this->sales] as $user) {
+            $this->actingAs($user)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertForbidden();
+            $this->actingAs($user)->post(route('tuition.invoices.cancellations.reject', $cancellation->id), ['rejection_reason' => 'x'])->assertForbidden();
+        }
+        $this->assertSame('pending', $cancellation->fresh()->status);
+
+        $this->actingAs($this->realAccountant)->post(route('tuition.invoices.cancellations.approve', $cancellation->id))->assertSessionHasNoErrors();
+        $this->assertSame(['approved', $this->realAccountant->id], [$cancellation->fresh()->status, $cancellation->fresh()->approver_id]);
+
+        // Admin vẫn duyệt được.
+        $other = $this->cancellation('HV-PQ-HUY2');
+        $this->actingAs($this->admin)->post(route('tuition.invoices.cancellations.reject', $other->id), ['rejection_reason' => 'Hóa đơn đúng'])->assertSessionHasNoErrors();
+        $this->assertSame('rejected', $other->fresh()->status);
+    }
+
+    public function test_accountant_approves_receipts_and_refund_requests_but_academic_staff_cannot(): void
+    {
+        $student = $this->student('HV-PQ-PT', $this->branch, withTuition: true);
+        $tuition = StudentTuition::where('student_id', $student->id)->sole();
+        $makeReceipt = fn () => TuitionReceipt::create([
+            'receipt_number' => TuitionReceipt::generateReceiptNumber(), 'student_tuition_id' => $tuition->id, 'student_id' => $student->id,
+            'amount' => 500000, 'payment_method' => 'cash', 'payment_date' => now(), 'creator_id' => $this->academic->id, 'status' => TuitionReceipt::STATUS_PENDING,
+        ]);
+
+        $receipt = $makeReceipt();
+        $this->actingAs($this->academic)->get(route('tuition.receipts.approve'))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tuition.receipts.approve.action', $receipt->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tuition.receipts.reject.action', $receipt->id), ['rejection_reason' => 'x'])->assertForbidden();
+        $this->assertSame(TuitionReceipt::STATUS_PENDING, $receipt->fresh()->status);
+
+        $this->actingAs($this->realAccountant)->get(route('tuition.receipts.approve'))->assertOk();
+        $this->actingAs($this->realAccountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->assertSame([TuitionReceipt::STATUS_APPROVED, $this->realAccountant->id], [$receipt->fresh()->status, $receipt->fresh()->approver_id]);
+
+        $rejected = $makeReceipt();
+        $this->actingAs($this->realAccountant)->post(route('tuition.receipts.reject.action', $rejected->id), ['rejection_reason' => 'Sai số tiền'])->assertSessionHasNoErrors();
+        $this->assertNotSame(TuitionReceipt::STATUS_PENDING, $rejected->fresh()->status);
+
+        // Hoàn tiền / chuyển nhượng / khất nợ: Học vụ chỉ lập yêu cầu, Kế toán duyệt / từ chối.
+        $transfer = $this->refundRequest('transfer');
+        $deferral = $this->refundRequest('extension');
+        $this->assertTrue($this->academic->can('refund_transfer.request'));
+        $this->actingAs($this->academic)->post(route('tuition.refunds.approve', $transfer->id))->assertForbidden();
+        $this->actingAs($this->academic)->post(route('tuition.refunds.reject', $deferral->id), ['rejection_reason' => 'x'])->assertForbidden();
+        $this->actingAs($this->realAccountant)->post(route('tuition.refunds.approve', $transfer->id))->assertSessionHasNoErrors();
+        $this->assertSame('approved', $transfer->fresh()->status);
+        $this->actingAs($this->realAccountant)->post(route('tuition.refunds.reject', $deferral->id), ['rejection_reason' => 'Không đủ căn cứ'])->assertSessionHasNoErrors();
+        $this->assertSame('rejected', $deferral->fresh()->status);
+
+        $refund = $this->refundRequest('refund');
+        $this->actingAs($this->realAccountant)->post(route('tuition.refunds.approve', $refund->id), ['clawback_commission' => 0])->assertSessionHasErrors('proof_image');
+        $this->actingAs($this->realAccountant)->post(route('tuition.refunds.approve', $refund->id), [
+            'clawback_commission' => 0, 'proof_image' => UploadedFile::fake()->image('unc.png', 20, 20),
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('approved', $refund->fresh()->status);
+    }
+
+    public function test_accountant_permissions_menu_and_notification_recipients(): void
+    {
+        $role = Role::findByName(Roles::ACCOUNTANT, 'web');
+        foreach ([...AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS, 'tuition.view', 'tuition.create', 'invoice.request_cancel', 'refund_transfer.request', 'finance.view'] as $permission) {
+            $this->assertTrue($role->hasPermissionTo($permission), $permission);
+        }
+        // Chỉ phần duyệt tiền mở cho Kế toán: duyệt chấm công / chuyển khách vẫn chỉ Admin, Kế toán không quản lý nhân sự / lớp / CRM.
+        foreach (['staff_checkin.approve', 'lead.approve_transfer', 'payroll.approve', 'user.create', 'class.create', 'lead.create'] as $permission) {
+            $this->assertFalse($this->realAccountant->can($permission), $permission);
+        }
+        foreach (['tuition.approve', 'invoice.approve_cancel', 'refund_transfer.approve_refund'] as $permission) {
+            $this->assertFalse($this->academic->can($permission), $permission);
+            $this->assertFalse($this->manager->can($permission), $permission);
+        }
+
+        $routes = $this->menuRoutes($this->realAccountant);
+        foreach (['tuition.receipts.approve', 'tuition.invoices.cancellations', 'tuition.refunds', 'tuition.students'] as $route) {
+            $this->assertContains($route, $routes, $route);
+        }
+        foreach (['students.enrollments', 'roles.index', 'crm.confirmations'] as $route) {
+            $this->assertNotContains($route, $routes, $route);
+        }
+        $this->actingAs($this->realAccountant)->get(route('finance.reports.revenue'))->assertOk();
+        $this->actingAs($this->realAccountant)->get(route('students.enrollments'))->assertForbidden();
+        $this->assertNotContains('tuition.invoices.cancellations', $this->menuRoutes($this->academic));
+        $this->assertNotContains('tuition.receipts.approve', $this->menuRoutes($this->academic));
+
+        // Thông báo "chờ duyệt": Admin + Kế toán cho quyền duyệt tiền; quyền chỉ Admin thì chỉ Admin.
+        $money = Rbac::scopeUsersWithPermission(User::query(), 'tuition.approve')->pluck('id');
+        $this->assertEqualsCanonicalizing([$this->admin->id, $this->realAccountant->id], $money->all());
+        $adminOnly = Rbac::scopeUsersWithPermission(User::query(), 'staff_checkin.approve')->pluck('id');
+        $this->assertSame([$this->admin->id], $adminOnly->all());
+    }
+
+    public function test_accountant_is_a_fixed_role_with_label_seed_account_and_switcher_entry(): void
+    {
+        $this->assertContains(Roles::ACCOUNTANT, Roles::ALL);
+        $this->assertTrue(Roles::isFixed(Roles::ACCOUNTANT));
+        $this->assertSame('Kế toán', \App\Helpers\AclHelper::shortRoleLabel(Roles::ACCOUNTANT));
+
+        $this->seed(\Database\Seeders\BranchSeeder::class);
+        $this->seed(\Database\Seeders\UserSeeder::class);
+        $seeded = User::where('email', 'ketoan@menglish.edu.vn')->sole();
+        $this->assertTrue($seeded->hasRole(Roles::ACCOUNTANT));
+        $this->assertTrue(app(\App\Support\RoleSwitcher::class)->canSwitchTo($seeded));
+
+        $groups = new \ReflectionMethod(\App\Support\RoleSwitcher::class, 'groups');
+        $listed = collect($groups->invoke(app(\App\Support\RoleSwitcher::class), $this->admin))->firstWhere('role', Roles::ACCOUNTANT);
+        $this->assertSame('Kế toán', $listed['label']);
+        $this->assertContains('ME-0012', collect($listed['accounts'])->pluck('login')->all());
+    }
+
+    public function test_accountant_role_migration_recreates_missing_role_and_is_idempotent(): void
+    {
+        $this->realAccountant->removeRole(Roles::ACCOUNTANT);
+        Role::findByName(Roles::ACCOUNTANT, 'web')->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $migration = require database_path('migrations/2026_12_14_090000_create_accountant_role.php');
+        $migration->up();
+        $migration->up();
+
+        $role = Role::findByName(Roles::ACCOUNTANT, 'web');
+        foreach (AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS as $permission) {
+            $this->assertTrue($role->hasPermissionTo($permission), $permission);
+        }
+        $this->assertFalse($role->hasPermissionTo('staff_checkin.approve'));
+        $this->assertFalse($role->hasPermissionTo('user.create'));
+        $this->assertSame(1, Role::where('name', Roles::ACCOUNTANT)->count());
+    }
+
     private function makeUser(string $role, ?Branch $branch = null, ?string $name = null): User
     {
         $user = User::factory()->create(array_filter(['branch_id' => ($branch ?? $this->branch)->id, 'is_active' => true, 'name' => $name]));
@@ -535,9 +682,9 @@ class BaPermissionsTest extends TestCase
         });
     }
 
-    private function cancellation(): InvoiceCancellation
+    private function cancellation(string $studentCode = 'HV-PQ-HUY'): InvoiceCancellation
     {
-        $student = $this->paidStudent('HV-PQ-HUY');
+        $student = $this->paidStudent($studentCode);
         $receipt = TuitionReceipt::where('student_id', $student->id)->sole();
 
         return InvoiceCancellation::create([

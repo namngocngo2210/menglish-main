@@ -62,7 +62,7 @@ class Phase3FormulaTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cơ sở CT', 'code' => 'CT', 'is_active' => true]);
         $this->admin = $this->userWithRole('admin');
-        $this->accountant = $this->userWithRole('accountant');
+        $this->accountant = $this->userWithRole('finance_staff');
         $this->course = Course::create(['code' => 'CT-C', 'name' => 'Movers', 'tuition_fee' => 6000000, 'is_active' => true]);
     }
 
@@ -785,7 +785,7 @@ class Phase3FormulaTest extends TestCase
     public function test_only_academic_staff_payslips_receive_renewal_bonus_and_details(): void
     {
         $users = [];
-        foreach (['academic_staff', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'accountant', 'academic_lead', 'sales_consultant', 'foreign_teacher', 'manager', 'admin'] as $role) {
+        foreach (['academic_staff', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'finance_staff', 'academic_lead', 'sales_consultant', 'foreign_teacher', 'manager', 'admin'] as $role) {
             $user = $this->userWithRole($role, ['base_salary' => 9000000]);
             $users[$role] = $user;
             $class = $this->classFor($user, 'TT-ROLE-'.$user->id);

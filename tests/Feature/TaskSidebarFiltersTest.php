@@ -185,7 +185,7 @@ class TaskSidebarFiltersTest extends TestCase
 
     public function test_teacher_assistant_and_accountant_can_open_their_notifications(): void
     {
-        foreach (['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'accountant'] as $role) {
+        foreach (['teacher', 'teacher_fulltime', 'teacher_parttime', 'assistant', 'finance_staff'] as $role) {
             $this->actingAs($this->makeUser($role))->get(route('notifications.index'))->assertOk();
         }
     }

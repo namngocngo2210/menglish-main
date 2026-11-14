@@ -53,7 +53,7 @@ class MerchandiseStockAndPaperInvoiceTest extends TestCase
         $this->branch = Branch::create(['name' => 'CN Cầu Giấy', 'code' => 'CG', 'is_active' => true]);
         $this->otherBranch = Branch::create(['name' => 'CN Hà Đông', 'code' => 'HD', 'is_active' => true]);
         $this->staff = $this->makeUser('academic_staff');
-        $this->accountant = $this->makeUser('accountant');
+        $this->accountant = $this->makeUser('finance_staff');
         // Chỉ Admin duyệt phiếu thu / hủy hóa đơn (06/10/2026); Kế toán chỉ lập yêu cầu.
         $this->admin = $this->makeUser('admin');
 

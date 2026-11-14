@@ -74,6 +74,22 @@ return [
             'material_order.view_all', 'material_order.process_ops', 'material_order.scope_branch',
         ],
 
+        // TK-2026-0113: Kế toán duyệt tiền (phiếu thu, hủy hóa đơn, hoàn tiền / chuyển nhượng / khất nợ) — việc mà Học vụ chỉ
+        // được lập yêu cầu. Quyền duyệt dưới đây chỉ có hiệu lực với vai trò này (AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS).
+        // Không có quản lý nhân sự / lớp / CRM; dữ liệu theo chi nhánh của mình (Admin cấp "Toàn hệ thống" theo người cho kế toán tổng).
+        'accountant' => [
+            'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue', 'tuition.confirm_deposit',
+            'tuition.approve', 'tuition.reject',
+            'invoice.request_cancel', 'invoice.approve_cancel',
+            'refund_transfer.request', 'refund_transfer.approve', 'refund_transfer.approve_refund',
+            'refund_transfer.approve_transfer', 'refund_transfer.reject',
+            'finance.view',
+            'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',
+            'portal.staff', 'payroll.view_own',
+            'student.scope_branch', 'tuition.scope_branch', 'finance.scope_branch', 'payroll.scope_own',
+            'work_task.scope_own', 'support_ticket.scope_own',
+        ],
+
         'academic_staff' => [
             'cover.approve',
             // Cây vai trò (chủ dự án 06/10/2026): Học vụ CRU khách (học viên), giáo viên, trợ giảng, Học thuật.

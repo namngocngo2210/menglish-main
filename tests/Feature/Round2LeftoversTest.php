@@ -57,7 +57,7 @@ class Round2LeftoversTest extends TestCase
         $this->branch = Branch::create(['name' => 'CN Cầu Giấy R2', 'code' => 'CG-R2', 'is_active' => true]);
         $this->branch2 = Branch::create(['name' => 'CN Đống Đa R2', 'code' => 'DD-R2', 'is_active' => true]);
         $this->admin = $this->makeUser('admin');
-        $this->accountant = $this->makeUser('accountant');
+        $this->accountant = $this->makeUser('finance_staff');
     }
 
     private function makeUser(string $role, ?Branch $branch = null, bool $withBranch = true): User
@@ -421,8 +421,8 @@ class Round2LeftoversTest extends TestCase
 
         // Kế toán tổng (Admin cấp phạm vi tuition.scope_all — BA 26/09/2026) thấy tất cả; kế toán chi nhánh chỉ chi nhánh mình;
         // kế toán không gán chi nhánh mà chưa được cấp quyền không thấy khoản nào.
-        $headAccountant = $this->grantHeadOffice($this->makeUser('accountant', null, false));
-        $this->actingAs($this->makeUser('accountant', null, false))->get(route('tuition.students'))->assertOk()
+        $headAccountant = $this->grantHeadOffice($this->makeUser('finance_staff', null, false));
+        $this->actingAs($this->makeUser('finance_staff', null, false))->get(route('tuition.students'))->assertOk()
             ->assertDontSee('HV-R2-OWN')->assertDontSee('HV-R2-OTH');
         $this->actingAs($headAccountant)->get(route('tuition.students'))->assertOk()->assertSee('HV-R2-OWN')->assertSee('HV-R2-OTH');
         $this->actingAs($this->accountant)->get(route('tuition.students'))->assertOk()->assertSee('HV-R2-OWN')->assertDontSee('HV-R2-OTH');

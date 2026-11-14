@@ -100,7 +100,8 @@ final class SidebarMenu
                 'icon' => 'fact_check',
                 // Cả mục "Cần duyệt" chỉ Admin thấy (yêu cầu 06/10/2026). Màn gốc của các tab vẫn mở được từ màn nghiệp vụ
                 // (Học viên → Tiếp nhận & Xếp lớp, CRM → Xác nhận chính thức, thông báo…) theo quyền như trước.
-                'can' => [AdminOnlyApprovals::ABILITY],
+                // TK-2026-0113: Kế toán thấy nhóm này (các mục tiền neo theo quyền duyệt tiền; mục còn lại vẫn chỉ Admin).
+                'can' => [AdminOnlyApprovals::ABILITY, 'tuition.approve'],
                 'items' => [
                     // Hộp chung: chỉ hiện khi duyệt được ít nhất 1 nguồn (Gate ApprovalServiceProvider::INBOX_ABILITY).
                     ['label' => 'Việc cần duyệt', 'route' => 'approvals.index', 'active' => ['approvals.*'], 'can' => [ApprovalServiceProvider::INBOX_ABILITY]],
@@ -109,7 +110,7 @@ final class SidebarMenu
                         ['label' => 'Hủy hóa đơn', 'route' => 'tuition.invoices.cancellations', 'active' => ['tuition.invoices.cancellations*']],
                         ['label' => 'Hoàn tiền & Khất nợ', 'route' => 'tuition.refunds', 'active' => ['tuition.refunds*']],
                     ]),
-                    ['label' => 'Xác nhận nhập học', 'route' => 'students.enrollments'],
+                    ['label' => 'Xác nhận nhập học', 'route' => 'students.enrollments', 'can' => [AdminOnlyApprovals::ABILITY]],
                     ...self::anchored(self::CRM, [
                         ['label' => 'Xác nhận chính thức', 'route' => 'crm.confirmations'],
                     ]),

@@ -41,7 +41,7 @@ class TuitionSlaTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'CN A', 'code' => 'CNA-SLA', 'is_active' => true]);
         $this->admin = $this->makeUser('admin');
-        $this->accountant = $this->makeUser('accountant');
+        $this->accountant = $this->makeUser('finance_staff');
         $this->staff = $this->makeUser('academic_staff');
         $this->student = Student::create(['code' => 'HV-SLA-1', 'name' => 'Trần Nộp Tiền', 'phone' => '0900000777', 'branch_id' => $this->branch->id, 'status' => 'studying']);
         $this->tuition = StudentTuition::create([
@@ -123,7 +123,7 @@ class TuitionSlaTest extends TestCase
 
         $this->actingAs($this->accountant)->get(route('tuition.history'))
             ->assertOk()->assertSee('Chưa nộp về TK')->assertSee('Nộp trễ sau 19h');
-        $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['status' => 'all', 'selected_id' => $late->id]))
+        $this->actingAs($this->makeUser('accountant'))->get(route('tuition.receipts.approve', ['status' => 'all', 'selected_id' => $late->id]))
             ->assertOk()->assertSee('Chưa nộp về TK')->assertSee('Nộp trễ sau 19h');
     }
 
