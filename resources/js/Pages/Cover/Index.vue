@@ -18,11 +18,13 @@ const props = defineProps({
     sessions: { type: Array, default: () => [] },
     canApprove: { type: Boolean, default: false },
     userId: { type: Number, default: null },
+    propose: { type: Number, default: null },
 });
 
 const busy = ref(false);
 const reason = ref('');
-const proposing = ref(null);
+// ?propose=<session id> (link from the weekly schedule) opens the dialog straight away.
+const proposing = ref(props.sessions.find((s) => s.id === props.propose) ?? null);
 
 async function act(url, payload, done) {
     busy.value = true;

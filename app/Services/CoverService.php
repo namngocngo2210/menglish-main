@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AdminNotification;
 use App\Models\ClassSession;
 use App\Models\CoverRequest;
+use App\Models\StaffAttendanceRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -18,26 +19,60 @@ class CoverService
             $session = ClassSession::query()->lockForUpdate()->findOrFail($session->id);
             $ownsSession = in_array($user->id, [$session->teacher_id, $session->foreign_teacher_id], true);
             abort_unless($user->can('cover.approve') || ($ownsSession && $user->can('cover.request')), 403);
-            $this->ensureFuture($session);
-            if ($session->status !== 'scheduled') {
-                throw ValidationException::withMessages(['class_session_id' => 'Chỉ có thể tìm giáo viên dạy thay cho buổi đã lên lịch.']);
-            }
-            if ($session->coverRequests()->whereIn('status', ['open', 'approved'])->exists()) {
-                throw ValidationException::withMessages(['class_session_id' => 'Buổi học đã có yêu cầu dạy thay đang hoạt động.']);
-            }
 
-            $cover = $session->coverRequests()->create([
-                'requested_by' => $user->id,
-                'original_teacher_id' => $session->teacher_id,
-                'reason' => $reason,
-                'status' => 'open',
-            ]);
-            // Class name stays hidden until approval, so the broadcast only names the slot.
-            $this->notify(User::permission('class.teach')->pluck('id')->diff([$user->id, $session->teacher_id, $session->foreign_teacher_id]),
-                'cover_opened', 'Cần giáo viên dạy thay '.$this->slot($session), 'Bạn có thể đăng ký dạy thay buổi này.', route('cover.board'));
-
-            return $cover;
+            return $this->open($session, $user, $reason);
         });
+    }
+
+    /**
+     * TK-2026-0111: after a leave request is approved, open a cover request for each of the teacher's upcoming
+     * scheduled sessions inside the leave. Runs as the reviewer (the leave approval is the authority, no cover.* check).
+     * Sessions that already have an active request or have started are skipped. Returns how many were opened.
+     */
+    public function openForLeave(StaffAttendanceRequest $leave, User $reviewer): int
+    {
+        $opened = 0;
+        $sessions = ClassSession::query()
+            ->where(fn ($q) => $q->where('teacher_id', $leave->user_id)->orWhere('foreign_teacher_id', $leave->user_id))
+            ->where('status', 'scheduled')
+            ->whereDate('date', '>=', $leave->date_from->toDateString())->whereDate('date', '<=', $leave->date_to->toDateString())
+            ->whereDoesntHave('coverRequests', fn ($q) => $q->whereIn('status', ['open', 'approved']))
+            ->get()->filter(fn (ClassSession $s) => $s->startsAt()->isFuture());
+        foreach ($sessions as $session) {
+            DB::transaction(function () use ($session, $reviewer, $leave, &$opened) {
+                $session = ClassSession::query()->lockForUpdate()->findOrFail($session->id);
+                if ($session->coverRequests()->whereIn('status', ['open', 'approved'])->exists()) {
+                    return;
+                }
+                $this->open($session, $reviewer, 'Giáo viên nghỉ phép đã duyệt ('.$leave->date_from->format('d/m/Y').')');
+                $opened++;
+            });
+        }
+
+        return $opened;
+    }
+
+    private function open(ClassSession $session, User $user, ?string $reason): CoverRequest
+    {
+        $this->ensureFuture($session);
+        if ($session->status !== 'scheduled') {
+            throw ValidationException::withMessages(['class_session_id' => 'Chỉ có thể tìm giáo viên dạy thay cho buổi đã lên lịch.']);
+        }
+        if ($session->coverRequests()->whereIn('status', ['open', 'approved'])->exists()) {
+            throw ValidationException::withMessages(['class_session_id' => 'Buổi học đã có yêu cầu dạy thay đang hoạt động.']);
+        }
+
+        $cover = $session->coverRequests()->create([
+            'requested_by' => $user->id,
+            'original_teacher_id' => $session->teacher_id,
+            'reason' => $reason,
+            'status' => 'open',
+        ]);
+        // Class name stays hidden until approval, so the broadcast only names the slot.
+        $this->notify(User::permission('class.teach')->pluck('id')->diff([$user->id, $session->teacher_id, $session->foreign_teacher_id]),
+            'cover_opened', 'Cần giáo viên dạy thay '.$this->slot($session), 'Bạn có thể đăng ký dạy thay buổi này.', route('cover.board'));
+
+        return $cover;
     }
 
     public function register(CoverRequest $request, User $teacher): CoverRequest

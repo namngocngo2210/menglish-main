@@ -349,6 +349,9 @@ class TeacherPortalController extends Controller
                     'done' => $attendanceDone->has($s->id),
                     'is_today' => $s->date->isToday(),
                     'can_take' => $s->status !== 'cancelled' && ! $s->date->isFuture(),
+                    // TK-2026-0111: entry point to the "Tìm GV dạy thay" dialog on /day-thay (server re-checks on submit).
+                    'can_cover' => $s->status === 'scheduled' && $s->startsAt()->isFuture()
+                        && in_array($teacher->id, [$s->teacher_id, $s->foreign_teacher_id], true),
                     'checkin_overdue' => $s->status !== 'cancelled' && now()->gt($s->checkinDeadline()) && ! $weekCheckedIn->has($s->id),
                 ])->values()->all(),
             ])->values()->all(),

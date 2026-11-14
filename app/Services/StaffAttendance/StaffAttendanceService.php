@@ -456,6 +456,9 @@ class StaffAttendanceService
                 'rejection_reason' => null,
             ]);
             $this->applyApproved($request);
+            if ($request->type === StaffAttendanceRequest::TYPE_LEAVE) {
+                app(\App\Services\CoverService::class)->openForLeave($request, $reviewer);
+            }
         });
 
         $this->notifyRequester($request, 'Đã duyệt', null);
