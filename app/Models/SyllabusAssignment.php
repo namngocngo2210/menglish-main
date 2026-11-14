@@ -162,6 +162,17 @@ class SyllabusAssignment extends Model
         return $query->where('status', self::STATUS_OPEN);
     }
 
+    public static function feedbackStageForClass(?int $classId): ?self
+    {
+        if (! $classId) {
+            return null;
+        }
+
+        $assignments = static::query()->where('class_id', $classId);
+
+        return (clone $assignments)->open()->first() ?? $assignments->latest('id')->first();
+    }
+
     public function isOpen(): bool
     {
         return $this->status === self::STATUS_OPEN;

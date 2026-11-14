@@ -1110,14 +1110,11 @@ class StudentPortalController extends Controller
     {
         [$students, $student] = $this->getActiveStudent($studentId);
 
-        // Chặng đang học của lớp (giao chặng); chưa có chặng thì là góp ý chung.
-        // Chưa xếp lớp → góp ý chung, không hiển thị lớp/chặng (R-09 AC-R08).
+        // Use the same stage as the admin screen; no assignment means general feedback.
         $hasClass = (bool) $student?->current_class_id;
-        $stage = $hasClass
-            ? SyllabusAssignment::where('class_id', $student->current_class_id)->where('status', 'in_progress')->latest()->first(['stage_name', 'feedback_open'])
-            : null;
+        $stage = SyllabusAssignment::feedbackStageForClass($student?->current_class_id);
         $stageName = $stage?->stage_name ?: 'Góp ý chung';
-        // TK-2026-0058: chặng đang học chỉ nhận feedback khi Học vụ đã mở thu thập; góp ý chung (không chặng) luôn mở.
+        // General feedback is always open.
         $feedbackOpen = ! $stage || $stage->feedback_open;
         $className = $hasClass ? ($student->currentClass?->name ?? '') : '';
 
@@ -1127,6 +1124,7 @@ class StudentPortalController extends Controller
             ->when($student, function ($q) use ($student) {
                 $q->where('data->student_id', (string) $student->id);
             }, fn ($q) => $q->whereRaw('1 = 0'))
+            ->where('data->stage_name', $stage?->stage_name ?? '')
             ->latest()
             ->first();
 
@@ -1187,18 +1185,11 @@ class StudentPortalController extends Controller
         $this->authorizeStudent($student);
         $studentName = $student->name;
 
-        // Chưa xếp lớp → feedback không gắn chặng (chặng rỗng), bất kể client gửi gì.
-        $stageName = $student->current_class_id ? ($validated['stage_name'] ?? '') : '';
-        // TK-2026-0058: gắn vào chặng đang mở của lớp (không tin tên chặng client gửi); chặng chưa mở thu thập thì từ chối.
-        $openStage = $student->current_class_id
-            ? SyllabusAssignment::where('class_id', $student->current_class_id)->where('status', 'in_progress')->latest()->first(['stage_name', 'feedback_open'])
-            : null;
-        if ($openStage) {
-            if (! $openStage->feedback_open) {
-                return back()->withErrors(['validation' => 'Chặng học hiện chưa mở thu thập feedback. Vui lòng quay lại khi trung tâm mở đợt thu thập.']);
-            }
-            $stageName = $openStage->stage_name;
+        $stage = SyllabusAssignment::feedbackStageForClass($student->current_class_id);
+        if ($stage && ! $stage->feedback_open) {
+            return back()->withErrors(['validation' => 'Chặng học hiện chưa mở thu thập feedback. Vui lòng quay lại khi trung tâm mở đợt thu thập.']);
         }
+        $stageName = $stage?->stage_name ?? '';
         $stageLabel = $stageName !== '' ? 'chặng: '.$stageName : 'chung';
 
         $categories = [];
@@ -1240,6 +1231,10 @@ class StudentPortalController extends Controller
                     'fb_giao_vien' => ! empty($validated['fb_giao_vien']),
                     'fb_khac' => ! empty($validated['fb_khac']),
                     'noi_dung_feedback' => $validated['noi_dung_feedback'] ?? '',
+                    'source' => $existing?->data['source'] ?? 'portal',
+                    'handled' => $existing?->data['handled'] ?? false,
+                    'handled_at' => $existing?->data['handled_at'] ?? null,
+                    'handled_by' => $existing?->data['handled_by'] ?? null,
                     'submitted_at' => now()->format('d/m/Y H:i'),
                 ]),
                 'user_id' => Auth::id(),

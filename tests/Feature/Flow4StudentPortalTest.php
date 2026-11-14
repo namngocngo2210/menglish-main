@@ -614,7 +614,8 @@ class Flow4StudentPortalTest extends TestCase
         $this->actingAs($this->user)->get(route('portal.student.feedback', ['studentId' => $this->student->id]))
             ->assertOk()
             ->assertDontSee('Giáo viên giảng dạy nhiệt tình')
-            ->assertSee('Không có nội dung chi tiết.');
+            ->assertSee('Rất hài lòng') // saved rating 5; the closed-only view is no longer rendered while collection is open
+            ->assertDontSee('Không có nội dung chi tiết.');
     }
 
     public function test_portal_ignores_another_student_id_for_student_accounts()
