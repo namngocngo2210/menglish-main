@@ -437,6 +437,29 @@ class PayrollPeriod extends Model
         }));
     }
 
+    /**
+     * BR-03: id ca (flip → has()) của GV Việt Nam ở buổi có GVNN khác cùng dạy. Dùng chung cho bảng lương, chi tiết phiếu
+     * và widget lương tạm tính để cả ba loại trừ cùng một tập ca. Không truyền map buổi → tự nạp theo khoảng ngày của ca.
+     */
+    public static function coTaughtTimesheetIds($timesheets, User $user, $sessionsById = null, $sessionsByClassDate = null)
+    {
+        if ($sessionsById === null || $sessionsByClassDate === null) {
+            $dates = $timesheets->pluck('teaching_date')->filter();
+            $sessions = $dates->isEmpty() ? collect() : ClassSession::whereBetween('date', [$dates->min(), $dates->max()])
+                ->get(['id', 'class_id', 'date', 'foreign_teacher_id']);
+            $sessionsById = $sessions->keyBy('id');
+            $sessionsByClassDate = $sessions->groupBy(fn (ClassSession $session) => $session->class_id.'|'.$session->date?->toDateString());
+        }
+
+        return $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $sessionsById, $sessionsByClassDate) {
+            $assigned = $ts->class_session_id
+                ? collect([$sessionsById->get($ts->class_session_id)])->filter()
+                : $sessionsByClassDate->get($ts->class_id.'|'.$ts->teaching_date?->toDateString(), collect());
+
+            return $assigned->contains(fn (ClassSession $session) => $session->foreign_teacher_id && (int) $session->foreign_teacher_id !== (int) $user->id);
+        })->pluck('id')->flip();
+    }
+
     private function runCalculation(): void
     {
         $settings = self::payrollSettings();
@@ -504,13 +527,7 @@ class PayrollPeriod extends Model
             // Trợ giảng (TK-0010): số giờ hợp lệ × đơn giá giờ của TA; không có đơn giá giờ → 0đ + cảnh báo.
             $isAssistant = $profile['salary_role'] === Roles::ASSISTANT;
             // BR-03: buổi GV Việt Nam có GVNN cùng dạy (class_sessions.foreign_teacher_id) đếm riêng và không vào lương buổi tự tính; Kế toán nhập tay.
-            $coTaughtIds = $isForeignTeacher ? collect() : $timesheets->filter(function (TeacherTimesheet $ts) use ($user, $sessionsById, $sessionsByClassDate) {
-                $assigned = $ts->class_session_id
-                    ? collect([$sessionsById->get($ts->class_session_id)])->filter()
-                    : $sessionsByClassDate->get($ts->class_id.'|'.$ts->teaching_date?->toDateString(), collect());
-
-                return $assigned->contains(fn (ClassSession $session) => $session->foreign_teacher_id && (int) $session->foreign_teacher_id !== (int) $user->id);
-            })->pluck('id')->flip();
+            $coTaughtIds = $isForeignTeacher ? collect() : self::coTaughtTimesheetIds($timesheets, $user, $sessionsById, $sessionsByClassDate);
             $foreignSessions = $coTaughtIds->count();
             $excludesCoTaught = $share === null && $isPartTime && ! $isAssistant;
             $outcomes = $timesheets->values()->map(fn (TeacherTimesheet $ts) => match (true) {
