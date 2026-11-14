@@ -118,8 +118,13 @@ class TuitionSlaTest extends TestCase
 
     public function test_history_and_approval_lists_show_deposit_badges(): void
     {
-        $this->receipt();
-        $late = $this->receipt(['deposited_at' => '2026-10-14 20:00:00', 'deposited_by' => $this->accountant->id]);
+        // Lịch sử chỉ hiện khoản tái tục (R-02) → đặt phiếu vào khoản học phí thứ hai.
+        $renewal = StudentTuition::create([
+            'student_id' => $this->student->id, 'branch_id' => $this->branch->id, 'total_amount' => 1000000, 'final_amount' => 1000000,
+            'paid_amount' => 0, 'debt_amount' => 1000000, 'status' => 'unpaid',
+        ]);
+        $this->receipt(['student_tuition_id' => $renewal->id]);
+        $late = $this->receipt(['student_tuition_id' => $renewal->id, 'deposited_at' => '2026-10-14 20:00:00', 'deposited_by' => $this->accountant->id]);
 
         $this->actingAs($this->accountant)->get(route('tuition.history'))
             ->assertOk()->assertSee('Chưa nộp về TK')->assertSee('Nộp trễ sau 19h');

@@ -193,7 +193,8 @@ class Phase4AcceptanceTest extends TestCase
         $this->assertSame('N4A-0000002', $r2->fresh()->invoice_number);
         $t1->refresh();
         $this->assertSame([0.0, 9000000.0, 'paid'], [(float) $t1->debt_amount, (float) $t1->paid_amount, $t1->status]);
-        $this->actingAs($this->accountant)->get(route('tuition.history'))->assertOk()->assertSee('N4A-0000002');
+        $this->actingAs($this->accountant)->get(route('tuition.history'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('receipts.data', fn ($rows) => $rows->doesntContain('invoice_number', 'N4A-0000002'))); // khoản đầu tiên không nằm trong lịch sử (R-02)
 
         // ── 4. Hủy hóa đơn đợt 2 → công nợ khôi phục, số HĐ giữ nguyên (không cấp lại) ─────────────────────────
         $this->at('2026-09-06 09:00');
