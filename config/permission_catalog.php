@@ -297,6 +297,7 @@ return [
                 'create' => ['Lập phiếu thu', 'Lập / sửa phiếu thu của mình, nhập học phí từ Excel, ghi khoản chi.'],
                 'approve' => ['Duyệt phiếu thu', 'Duyệt phiếu thu (không tự duyệt phiếu mình lập), xác nhận khoản thu trước khi chốt. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
                 'reject' => ['Trả về phiếu thu', 'Trả về phiếu thu kèm lý do. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng.'],
+                'create_installment' => ['Tạo đợt học phí mới', 'Tạo khoản học phí đợt mới (ngày bắt đầu / kết thúc, số buổi, đơn giá) cho học viên đã có trong lớp. Mặc định chỉ Admin (TK-2026-0116).'],
                 'mark_contacted' => ['Nhắc phí / đã liên hệ', 'Gửi nhắc phí, đánh dấu đã liên hệ phụ huynh.'],
                 'report_overdue' => ['Báo cáo nợ quá hạn', 'Báo cáo khoản quá hạn cho Admin.'],
                 'confirm_deposit' => ['Xác nhận nộp tiền về TK công ty', 'Xác nhận tiền mặt thu trong ngày đã nộp về tài khoản công ty (hạn 19:00 cùng ngày) và nhận nhắc khi quá hạn.'],

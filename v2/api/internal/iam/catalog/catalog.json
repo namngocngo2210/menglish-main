@@ -686,6 +686,11 @@
                     "description": "Trả về phiếu thu kèm lý do. Chỉ Admin dùng được (06/10/2026), cấp cho vai trò khác không có tác dụng."
                 },
                 {
+                    "key": "create_installment",
+                    "label": "Tạo đợt học phí mới",
+                    "description": "Tạo khoản học phí đợt mới (ngày bắt đầu / kết thúc, số buổi, đơn giá) cho học viên đã có trong lớp. Mặc định chỉ Admin (TK-2026-0116)."
+                },
+                {
                     "key": "mark_contacted",
                     "label": "Nhắc phí / đã liên hệ",
                     "description": "Gửi nhắc phí, đánh dấu đã liên hệ phụ huynh."

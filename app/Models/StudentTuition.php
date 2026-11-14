@@ -26,6 +26,8 @@ class StudentTuition extends Model
         'promotion_id',
         'total_amount',
         'session_count',
+        'start_date',
+        'end_date',
         'discount_amount',
         'other_fees',
         'fee_items',
@@ -48,6 +50,8 @@ class StudentTuition extends Model
     protected $casts = [
         'total_amount' => 'decimal:2',
         'session_count' => 'integer',
+        'start_date' => 'date',
+        'end_date' => 'date',
         'discount_amount' => 'decimal:2',
         'other_fees' => 'decimal:2',
         'fee_items' => 'array',
