@@ -409,7 +409,7 @@ class CrmWorkflowHardeningTest extends TestCase
 
         // Chỉ Admin duyệt phiếu thu (06/10/2026): Kế toán không còn duyệt được.
         $accountant = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $accountant->assignRole('accountant');
+        $accountant->assignRole('finance_staff');
         $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt))->assertForbidden();
         $this->assertSame('pending', $receipt->fresh()->status);
         $admin = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);

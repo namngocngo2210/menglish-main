@@ -89,8 +89,8 @@ class Phase4AcceptanceTest extends TestCase
         $this->managerA = $this->userWithRole('manager');
         $this->managerB = $this->userWithRole('manager', $this->branchB);
         $this->academic = $this->userWithRole('academic_staff', null, ['name' => 'CM Học vụ A']);
-        $this->accountant = $this->userWithRole('accountant', null, ['name' => 'Kế toán A']);
-        $this->accountantB = $this->userWithRole('accountant', $this->branchB);
+        $this->accountant = $this->userWithRole('finance_staff', null, ['name' => 'Kế toán A']);
+        $this->accountantB = $this->userWithRole('finance_staff', $this->branchB);
         $this->sale = $this->userWithRole('sales_consultant');
         $this->teacher = $this->userWithRole('teacher', null, ['name' => 'GV Chính A']);
         $this->assistant = $this->userWithRole('assistant', null, ['name' => 'TA Trực A']);
@@ -397,7 +397,7 @@ class Phase4AcceptanceTest extends TestCase
 
         // Tài khoản mới do Admin tạo: lần đầu đăng nhập bị chuyển sang đổi mật khẩu cho tới khi đổi xong.
         $this->actingAs($this->admin)->post(route('users.store'), [
-            'name' => 'Kế toán Mới', 'email' => 'ketoan.n4@menglish.edu.vn', 'branch_id' => $this->branchA->id, 'role' => 'accountant', 'password' => 'MatKhauTam123',
+            'name' => 'Kế toán Mới', 'email' => 'ketoan.n4@menglish.edu.vn', 'branch_id' => $this->branchA->id, 'role' => 'finance_staff', 'password' => 'MatKhauTam123',
         ])->assertSessionHasNoErrors();
         $this->app['auth']->forgetGuards();
         $this->post(route('login'), ['email' => 'ketoan.n4@menglish.edu.vn', 'password' => 'MatKhauTam123'])->assertRedirect();

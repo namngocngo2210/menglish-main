@@ -111,7 +111,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
             'branch_id' => $this->branch->id,
             'is_active' => true,
         ]);
-        $this->accountant->assignRole('accountant');
+        $this->accountant->assignRole('finance_staff');
 
         // Role 5: Giáo viên (giaovien@menglish.edu.vn)
         $this->teacher = User::factory()->create([
@@ -371,7 +371,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_admin_can_create_any_role(): void
     {
-        $rolesToTest = ['manager', 'accountant', 'academic_lead', 'academic_staff', 'teacher', 'student'];
+        $rolesToTest = ['manager', 'finance_staff', 'academic_lead', 'academic_staff', 'teacher', 'student'];
 
         foreach ($rolesToTest as $idx => $role) {
             $email = "test_create_{$role}_{$idx}@menglish.edu.vn";
@@ -405,7 +405,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         }
 
         // 2. Từ chối: academic_staff, assistant, student, admin, manager + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
-        $forbidden = ['academic_staff', 'assistant', 'student', 'admin', 'manager', 'accountant', 'teacher'];
+        $forbidden = ['academic_staff', 'assistant', 'student', 'admin', 'manager', 'finance_staff', 'teacher'];
         foreach ($forbidden as $idx => $role) {
             $email = "lead_illegal_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicLead)->post(route('users.store'), [
@@ -438,7 +438,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         }
 
         // 2. Từ chối: admin, manager, Học vụ khác + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
-        $forbidden = ['admin', 'academic_staff', 'manager', 'accountant', 'teacher'];
+        $forbidden = ['admin', 'academic_staff', 'manager', 'finance_staff', 'teacher'];
         foreach ($forbidden as $idx => $role) {
             $email = "staff_illegal_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [

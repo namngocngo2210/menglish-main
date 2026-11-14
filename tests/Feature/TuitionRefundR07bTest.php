@@ -42,7 +42,7 @@ class TuitionRefundR07bTest extends TestCase
         $this->admin = User::factory()->create(['branch_id' => $branch->id, 'is_active' => true]);
         $this->admin->assignRole('admin');
         $this->accountant = User::factory()->create(['branch_id' => $branch->id, 'is_active' => true]);
-        $this->accountant->assignRole('accountant');
+        $this->accountant->assignRole('finance_staff');
         foreach ([null, $branch->id] as $branchId) {
             InvoiceConfiguration::create(['branch_id' => $branchId, 'template_code' => '1/001',
                 'series_code' => $branchId ? 'C26R07B' : 'C26DEFAULT', 'start_number' => 1, 'current_number' => 500, 'is_active' => true]);

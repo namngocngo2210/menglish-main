@@ -54,7 +54,7 @@ class SessionLedgerTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cơ sở sổ buổi', 'code' => 'SB', 'is_active' => true]);
         $this->academic = $this->makeUser('academic_staff');
-        $this->accountant = $this->makeUser('accountant');
+        $this->accountant = $this->makeUser('finance_staff');
         $this->admin = $this->makeUser(Roles::ADMIN);
         // 24 buổi, 4.800.000 đ → 200.000 đ / buổi.
         $this->course = Course::create(['code' => 'SB24', 'name' => 'Starters', 'tuition_fee' => 4800000, 'total_lessons' => 24, 'is_active' => true]);

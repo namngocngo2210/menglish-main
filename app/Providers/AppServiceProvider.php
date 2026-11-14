@@ -162,7 +162,8 @@ class AppServiceProvider extends ServiceProvider
             }
 
             // Chỉ Admin duyệt / từ chối (06/10/2026): thu hồi quyền duyệt của mọi vai trò khác, kể cả override cá nhân.
-            if (AdminOnlyApprovals::covers($ability)) {
+            // Ngoại lệ TK-2026-0113: vai trò Kế toán dùng được quyền duyệt tiền mà vai trò đang giữ (AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS).
+            if (AdminOnlyApprovals::revokedFor($user, $ability)) {
                 return false;
             }
 

@@ -47,7 +47,7 @@ class PayrollP0FixesTest extends TestCase
         $this->branch = Branch::create(['name' => 'Cơ sở P0', 'code' => 'P0', 'is_active' => true]);
 
         $this->admin = $this->userWithRole('admin');
-        $this->accountant = $this->userWithRole('accountant');
+        $this->accountant = $this->userWithRole('finance_staff');
         $this->manager = $this->userWithRole('manager');
         $this->teacher = $this->userWithRole('teacher_parttime', ['name' => 'GV Lương P0']);
 

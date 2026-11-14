@@ -47,7 +47,7 @@ class PayrollWorkdayRulesTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->branch = Branch::create(['name' => 'Cơ sở WD', 'code' => 'WD', 'is_active' => true]);
         $this->admin = $this->staff('admin');
-        $this->accountant = $this->staff('accountant');
+        $this->accountant = $this->staff('finance_staff');
     }
 
     protected function tearDown(): void
@@ -646,7 +646,7 @@ class PayrollWorkdayRulesTest extends TestCase
     {
         $formula = app(\App\Services\PayrollFormulaService::class);
         $this->assertTrue($formula->getsRenewalBonus('academic_staff'));
-        foreach (['teacher_fulltime', 'teacher_parttime', 'academic_lead', 'assistant', 'accountant', 'foreign_teacher', 'manager', 'admin', 'sales', 'staff', null] as $role) {
+        foreach (['teacher_fulltime', 'teacher_parttime', 'academic_lead', 'assistant', 'finance_staff', 'foreign_teacher', 'manager', 'admin', 'sales', 'staff', null] as $role) {
             $this->assertFalse($formula->getsRenewalBonus($role), $role ?? 'no role');
         }
     }

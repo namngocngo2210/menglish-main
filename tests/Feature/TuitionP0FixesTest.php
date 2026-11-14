@@ -50,8 +50,8 @@ class TuitionP0FixesTest extends TestCase
         $this->branch = Branch::create(['name' => 'CN A', 'code' => 'CNA', 'is_active' => true]);
 
         $this->admin = $this->makeUser('admin');
-        $this->accountant = $this->makeUser('accountant');
-        $this->accountant2 = $this->makeUser('accountant');
+        $this->accountant = $this->makeUser('finance_staff');
+        $this->accountant2 = $this->makeUser('finance_staff');
         $this->staff = $this->makeUser('academic_staff');
 
         $this->student = Student::create([
@@ -424,7 +424,7 @@ class TuitionP0FixesTest extends TestCase
             'amount' => 1000000, 'payment_method' => 'cash', 'paper_invoice_number' => 'HDG-0001', 'creator_id' => $this->staff->id, 'status' => 'draft',
         ]);
 
-        $response = $this->actingAs($this->accountant)->get(route('tuition.receipts.approve'));
+        $response = $this->actingAs($this->makeUser('accountant'))->get(route('tuition.receipts.approve'));
         $response->assertOk();
         $response->assertInertia(fn (AssertableInertia $page) => $page->component('Tuition/ApproveReceipt')->where('rejectedTodayCount', 0));
     }
@@ -758,7 +758,7 @@ class TuitionP0FixesTest extends TestCase
         ]);
 
         // Chi tiết phiếu mở trong modal khi chọn phiếu (?selected_id=).
-        $response = $this->actingAs($this->accountant)->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]));
+        $response = $this->actingAs($this->makeUser('accountant'))->get(route('tuition.receipts.approve', ['selected_id' => $receipt->id]));
         $response->assertOk();
         $response->assertSee('Chưa có minh chứng');
         $response->assertDontSee('1029384756');

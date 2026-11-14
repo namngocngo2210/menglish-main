@@ -45,7 +45,7 @@ class Phase4TuitionImportTest extends TestCase
         $other = Branch::create(['name' => 'CN Khác', 'code' => 'OTH', 'is_active' => true]);
 
         $this->accountant = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $this->accountant->assignRole('accountant');
+        $this->accountant->assignRole('finance_staff');
 
         $course = Course::create(['code' => 'IMP-C', 'name' => 'Khóa import', 'is_active' => true]);
         ClassModel::create(['code' => 'IMP-01', 'name' => 'Lớp Import 01', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'status' => 'active']);

@@ -491,7 +491,7 @@ class MaterialOrderTest extends TestCase
     public function test_sidebar_entry_is_gated_by_permission(): void
     {
         $teacher = $this->user('teacher');
-        $accountant = $this->user('accountant');
+        $accountant = $this->user('finance_staff');
 
         // "Order học liệu" là tab của khu Giao việc → Danh sách đầu việc (cả GV lẫn Kế toán đều xem được danh sách).
         $url = route('material-orders.index');

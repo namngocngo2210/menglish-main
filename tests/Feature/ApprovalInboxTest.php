@@ -64,7 +64,6 @@ class ApprovalInboxTest extends TestCase
     {
         return [
             'admin' => ['admin', ['receipt', 'invoice_cancellation', 'refund', 'payment_report', 'enrollment', 'crm_confirmation', 'crm_branch_transfer', 'syllabus_proposal', 'syllabus_adjustment', 'big_test_order', 'work_task', 'class_report', 'staff_attendance_request']],
-            'kế toán' => ['accountant', []],
             'quản lý cơ sở' => ['manager', []],
             'trưởng học thuật' => ['academic_lead', []],
             'học vụ' => ['academic_staff', []],
@@ -158,9 +157,22 @@ class ApprovalInboxTest extends TestCase
         $this->actingAs($this->makeUser(Roles::ACADEMIC_LEAD))->get(route('syllabus.adjustment-requests'))->assertOk();
     }
 
-    public function test_granting_an_approval_permission_to_another_role_has_no_effect(): void
+    public function test_accountant_approves_on_original_screens_not_through_the_admin_only_inbox(): void
     {
         $accountant = $this->makeUser('accountant');
+        $receipt = $this->pendingReceipt($this->makeTuition($this->makeStudent($this->branchA)));
+
+        // TK-2026-0113: hộp "Việc cần duyệt" vẫn chỉ Admin; Kế toán duyệt tiền ở màn nghiệp vụ gốc (Phiếu thu / Hủy hóa đơn / Hoàn tiền).
+        $this->assertSame([], app(ApprovalInboxService::class)->visibleSources($accountant));
+        $this->actingAs($accountant)->get(route('approvals.index'))->assertForbidden();
+        $this->actingAs($accountant)->get(route('tuition.receipts.approve'))->assertOk();
+        $this->actingAs($accountant)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
+        $this->assertSame(TuitionReceipt::STATUS_APPROVED, $receipt->fresh()->status);
+    }
+
+    public function test_granting_an_approval_permission_to_another_role_has_no_effect(): void
+    {
+        $accountant = $this->makeUser('academic_staff');
 
         // Admin cấp quyền duyệt (gán trực tiếp hoặc qua vai trò) → Gate vẫn chặn, không có nguồn duyệt nào.
         $accountant->givePermissionTo('invoice.approve_cancel');
@@ -180,7 +192,7 @@ class ApprovalInboxTest extends TestCase
 
     public function test_badge_equals_sum_of_visible_sources(): void
     {
-        $accountant = $this->makeUser('accountant');
+        $accountant = $this->makeUser('academic_staff');
         $student = $this->makeStudent($this->branchA);
         $tuition = $this->makeTuition($student);
         $this->pendingReceipt($tuition);

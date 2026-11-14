@@ -94,13 +94,13 @@ class AcademicProjectTest extends TestCase
         $this->assertContains('academic-projects.index', $teacherRoutes);
         $this->assertNotContains('academic-projects.report', $teacherRoutes);
         $this->assertContains('academic-projects.report', $this->routesOf($this->makeUser('manager')));
-        $this->assertNotContains('academic-projects.index', $this->routesOf($this->makeUser('accountant')));
+        $this->assertNotContains('academic-projects.index', $this->routesOf($this->makeUser('finance_staff')));
 
         $this->actingAs($this->writer)->get(route('academic-projects.index'))->assertOk();
         $this->actingAs($this->writer)->get(route('academic-projects.report'))->assertForbidden();
         $this->actingAs($this->writer)->get(route('academic-projects.create'))->assertForbidden();
         $this->actingAs($this->writer)->post(route('academic-projects.store'), [])->assertForbidden();
-        $this->actingAs($this->makeUser('accountant'))->get(route('academic-projects.index'))->assertForbidden();
+        $this->actingAs($this->makeUser('finance_staff'))->get(route('academic-projects.index'))->assertForbidden();
         $this->actingAs($this->lead)->get(route('academic-projects.create'))->assertOk()->assertSee('Tạo dự án học thuật');
     }
 

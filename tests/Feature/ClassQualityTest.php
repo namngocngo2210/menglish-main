@@ -119,7 +119,7 @@ class ClassQualityTest extends TestCase
         $staff = $routes($this->makeUser('academic_staff', $this->branch));
         $this->assertContains('class-quality.operations', $staff);
         $this->assertContains('class-quality.checklist', $staff);
-        $this->assertNotContains('class-quality.academic', $this->routesOf($this->makeUser('accountant', $this->branch)));
+        $this->assertNotContains('class-quality.academic', $this->routesOf($this->makeUser('finance_staff', $this->branch)));
 
         $lead = $routes($this->makeUser('academic_lead', $this->branch));
         $this->assertContains('class-quality.teacher-meetings', $lead);
@@ -242,7 +242,7 @@ class ClassQualityTest extends TestCase
         $this->assertSame($lead->id, $report->author_id);
         $this->actingAs($lead)->get(route('class-quality.teacher-meetings'))->assertOk()->assertSee('Lớp ổn định')->assertSee('Đang xử lý');
 
-        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), ['teacher_id' => $this->makeUser('accountant', $this->branch)->id] + $payload)
+        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), ['teacher_id' => $this->makeUser('finance_staff', $this->branch)->id] + $payload)
             ->assertSessionHasErrors('teacher_id');
         $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), ['class_note' => ''] + $payload)
             ->assertSessionHasErrors('class_note');

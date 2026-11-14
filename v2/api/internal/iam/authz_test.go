@@ -37,8 +37,8 @@ func accessFor(t *testing.T, branches []uuid.UUID, roles ...string) *Access {
 
 func TestCatalogDefaultsExpand(t *testing.T) {
 	c := GetCatalog()
-	if len(c.Roles) != 10 {
-		t.Fatalf("có %d vai trò, muốn 10", len(c.Roles))
+	if len(c.Roles) != 11 {
+		t.Fatalf("có %d vai trò, muốn 11", len(c.Roles))
 	}
 	for _, r := range c.Roles {
 		if _, err := c.Expand(r.Name, r.Defaults); err != nil {

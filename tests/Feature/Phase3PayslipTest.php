@@ -40,7 +40,7 @@ class Phase3PayslipTest extends TestCase
 
         $this->branch = Branch::create(['name' => 'Cơ sở PL', 'code' => 'PL', 'is_active' => true]);
         $this->admin = $this->userWithRole('admin');
-        $this->accountant = $this->userWithRole('accountant');
+        $this->accountant = $this->userWithRole('finance_staff');
         $this->manager = $this->userWithRole('manager');
         $this->teacher = $this->userWithRole('teacher', ['name' => 'GV Phiếu Lương', 'base_salary' => 8000000]);
     }

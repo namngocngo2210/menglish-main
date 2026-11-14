@@ -114,7 +114,7 @@ class AclRoleUserTest extends TestCase
     public function test_cannot_delete_permission_assigned_to_role(): void
     {
         $permission = Permission::firstOrCreate(['name' => 'tuition.approve', 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'accountant', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'finance_staff', 'guard_name' => 'web']);
         $role->givePermissionTo($permission);
 
         $response = $this->actingAs($this->adminUser)->delete(route('permissions.destroy', $permission));

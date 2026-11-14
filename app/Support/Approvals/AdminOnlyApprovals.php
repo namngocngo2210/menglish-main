@@ -36,6 +36,33 @@ final class AdminOnlyApprovals
         'lead.approve_transfer',
     ];
 
+    /**
+     * TK-2026-0113: phần quyền duyệt tiền mà vai trò Kế toán (Roles::ACCOUNTANT) được dùng — duyệt / trả về phiếu thu, duyệt
+     * hủy hóa đơn, hoàn tiền / chuyển nhượng / khất nợ. Duyệt chấm công và chuyển khách giữa chi nhánh vẫn chỉ Admin.
+     * Học vụ chỉ lập yêu cầu (request), không bao giờ nằm trong danh sách này.
+     *
+     * @var list<string>
+     */
+    public const ACCOUNTANT_PERMISSIONS = [
+        'tuition.approve',
+        'tuition.reject',
+        'invoice.approve_cancel',
+        'refund_transfer.approve',
+        'refund_transfer.approve_refund',
+        'refund_transfer.approve_transfer',
+        'refund_transfer.reject',
+    ];
+
+    /** Quyền duyệt $permission có bị thu hồi với $user không (Gate::before): chỉ Admin, trừ phần Kế toán được dùng. */
+    public static function revokedFor(User $user, string $permission): bool
+    {
+        if (! self::covers($permission)) {
+            return false;
+        }
+
+        return ! ($user->hasRole(Roles::ACCOUNTANT) && in_array($permission, self::ACCOUNTANT_PERMISSIONS, true));
+    }
+
     public static function allows(?User $user): bool
     {
         return $user !== null && $user->hasRole(Roles::ADMIN);
@@ -43,8 +70,7 @@ final class AdminOnlyApprovals
 
     public static function allowsTuitionView(?User $user): bool
     {
-        // Vai trò "Kế toán" đã gộp vào Quản lý cơ sở (Roles::RETIRED) nên người làm kế toán hiện mang vai trò manager.
-        return $user !== null && $user->hasAnyRole([Roles::ADMIN, Roles::MANAGER, 'accountant']);
+        return $user !== null && $user->hasAnyRole([Roles::ADMIN, Roles::MANAGER, Roles::ACCOUNTANT]);
     }
 
     public static function allowsSyllabus(?User $user): bool

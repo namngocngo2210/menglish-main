@@ -30,7 +30,7 @@ class TuitionTest extends TestCase
     private function accountant(): User
     {
         $user = User::factory()->create();
-        $user->assignRole('accountant');
+        $user->assignRole('finance_staff');
 
         return $this->grantHeadOffice($user);
     }
@@ -229,7 +229,7 @@ class TuitionTest extends TestCase
 
     public function test_can_view_receipts_approve_page_with_pending_list(): void
     {
-        $user = $this->accountant();
+        $user = tap($this->accountant(), fn ($u) => $u->syncRoles(["accountant"]));
         $student = Student::create([
             'code' => 'HV-TEST-APP',
             'name' => 'Nguyễn Văn Duyệt',

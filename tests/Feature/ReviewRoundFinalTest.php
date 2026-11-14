@@ -35,7 +35,7 @@ class ReviewRoundFinalTest extends TestCase
         $this->seed(RoleSeeder::class);
 
         $this->branch = Branch::create(['name' => 'Cơ sở F', 'code' => 'CSF', 'is_active' => true]);
-        $this->accountant = $this->userWithRole('accountant');
+        $this->accountant = $this->userWithRole('finance_staff');
     }
 
     public function test_system_refund_receipt_cannot_be_cancelled_alone(): void

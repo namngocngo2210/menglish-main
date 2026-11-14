@@ -31,7 +31,8 @@ Tài khoản demo (mật khẩu chung = `SEED_DEFAULT_PASSWORD` trong `.env`, m�
 | Học vụ (CM, chấm test, gán lớp) | `nva@menglish.edu.vn` / `giaovu2@menglish.edu.vn` | CG / BD |
 | Học thuật | `academiclead@menglish.edu.vn` | CG |
 | Sale | `tranmaia@menglish.edu.vn` / `hoangthinh@menglish.edu.vn` / `levanvu@menglish.edu.vn` | CG / BD / DD |
-| Kế toán | `ketoan2@menglish.edu.vn` / `ttb@menglish.edu.vn` | CG / BD |
+| Kế toán (vai trò `accountant`, duyệt phiếu thu / hủy hóa đơn / hoàn tiền; TK-2026-0113) | `ketoan@menglish.edu.vn` | CG |
+| Quản lý cơ sở làm kế toán (lập phiếu) | `ketoan2@menglish.edu.vn` / `ttb@menglish.edu.vn` | CG / BD |
 | Giáo viên (nhận xét học thử) | `nguyenvanan@menglish.edu.vn` (CG, lớp FAM1/FAM0) · `gv.cohuu1@menglish.edu.vn` (CG, FAM2) · `gv.cohuu2@menglish.edu.vn` (BD) | |
 | Giáo viên nước ngoài (`foreign_teacher`) | `gv.native1@menglish.edu.vn` | CG |
 | Trợ giảng | `ta.tuan@menglish.edu.vn` / `ta.yen@menglish.edu.vn` | CG / BD |
