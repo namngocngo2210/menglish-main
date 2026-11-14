@@ -1,6 +1,7 @@
 <script setup>
 /** Tạo đợt học phí mới cho học viên đã có trong lớp (TK-2026-0116). Modal từ Công nợ học viên; mở thẳng URL → trang đầy đủ. */
 import { computed, ref } from 'vue';
+import { route } from '@/lib/route';
 
 defineOptions({ layout: { title: 'Tạo đợt học phí mới' } });
 
