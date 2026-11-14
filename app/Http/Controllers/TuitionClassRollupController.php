@@ -33,7 +33,9 @@ class TuitionClassRollupController extends Controller
             // Lớp ngoài phạm vi chi nhánh → 403 (không chỉ ẩn khỏi danh sách chọn).
             abort_unless($classes->contains('id', $classId), 403);
 
-            $tuitions = StudentTuition::query()->where('class_id', $classId)->orderBy('id')
+            $tuitions = StudentTuition::query()->where('class_id', $classId)
+                // Đợt theo ngày bắt đầu (khoản cũ chưa có ngày = đợt đầu), cùng ngày thì theo id.
+                ->orderByRaw('CASE WHEN start_date IS NULL THEN 0 ELSE 1 END')->orderBy('start_date')->orderBy('id')
                 ->with(['receipts' => fn ($q) => $q->where('status', TuitionReceipt::STATUS_APPROVED)->orderBy('id')])
                 ->get()->groupBy('student_id');
             $students = Student::query()->where(fn ($q) => $q->whereIn('id', $tuitions->keys())->orWhere('current_class_id', $classId))

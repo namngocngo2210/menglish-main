@@ -121,6 +121,7 @@ const dueGroupProps = computed(() => ({
                                 <UiBadge v-else :color="t.status_color">{{ t.status_label }}</UiBadge>
                             </td>
                             <td class="whitespace-nowrap text-right">
+                                <UiButton v-if="t.student && can('tuition.create_installment')" size="sm" variant="ghost" icon="add_card" :href="route('tuition.installments.create', { student: t.student.id, class_id: t.class_id })" modal="lg" title="Tạo đợt học phí mới" aria-label="Tạo đợt học phí mới" />
                                 <template v-if="t.debt_amount > 0">
                                     <UiButton v-if="can('tuition.create')" size="sm" variant="ghost" icon="payments" :href="route('tuition.receipts.create', { tuition_id: t.id })" modal="4xl" title="Lập phiếu thu" aria-label="Lập phiếu thu" />
                                 </template>
