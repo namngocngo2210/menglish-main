@@ -138,6 +138,7 @@ const printPayslip = () => window.print();
                         <td class="text-right font-mono">{{ money(ts.rate) }}<span class="font-caption text-caption text-on-surface-variant">/{{ ts.unit === 'minute' ? 'phút' : ts.unit === 'session' ? 'buổi' : 'giờ' }}</span></td>
                         <td class="text-right font-mono">
                             <span v-if="record.is_full_time" class="font-caption text-caption text-on-surface-variant">Trong lương cơ bản</span>
+                            <span v-else-if="ts.co_taught" class="font-caption text-caption text-on-surface-variant">Buổi có GVNN — Kế toán tính tay</span>
                             <template v-else>{{ money(ts.amount) }}</template>
                         </td>
                     </tr>

@@ -8,15 +8,17 @@ use App\Models\ClassSession;
 use App\Models\CrmCustomer;
 use App\Models\CrmTrialBooking;
 use App\Models\MiniTestScore;
+use App\Models\PayrollPeriod;
+use App\Models\PayrollRecord;
 use App\Models\Student;
 use App\Models\StudentAttendance;
 use App\Models\StudentTuition;
 use App\Models\SupportTicket;
-use App\Models\TeacherHourlyRate;
 use App\Models\TeacherTimesheet;
 use App\Models\TuitionReceipt;
 use App\Models\User;
 use App\Models\WorkTask;
+use App\Services\PayrollFormulaService;
 use App\Support\DataScope;
 use App\Support\Money;
 use App\Support\Roles;
@@ -644,19 +646,31 @@ final class Overview
     {
         $timesheets = TeacherTimesheet::query()->where('user_id', $this->user->id)
             ->whereBetween('teaching_date', [now()->startOfMonth()->toDateString(), now()->toDateString()])
-            ->where('status', '!=', 'rejected')->get(['teaching_date', 'hours']);
-        $amount = null;
-        $missing = false;
-        foreach ($timesheets as $ts) {
-            $rate = TeacherHourlyRate::rateFor($this->user->id, $ts->teaching_date);
-            $rate === null ? $missing = true : $amount = ($amount ?? 0) + $rate * (float) $ts->hours;
-        }
+            ->where('status', 'valid')->get();
+        // Cùng đường tính với bảng lương (payOutcome + BR-03): đơn giá buổi / giờ, ca có GVNN không vào lương tự tính.
+        $role = app(PayrollFormulaService::class)->profile($this->user);
+        $coTaught = $role['employee_type'] === PayrollRecord::TYPE_PARTTIME && $role['salary_role'] !== Roles::FOREIGN_TEACHER && $role['salary_role'] !== Roles::ASSISTANT
+            ? PayrollPeriod::coTaughtTimesheetIds($timesheets, $this->user) : collect();
+        $settings = PayrollPeriod::payrollSettings();
+        $outcomes = $timesheets->map(fn (TeacherTimesheet $ts) => match (true) {
+            $role['salary_role'] === Roles::FOREIGN_TEACHER => $ts->foreignTeacherPayOutcome(),
+            $role['salary_role'] === Roles::ASSISTANT => $ts->assistantPayOutcome($settings),
+            $coTaught->has($ts->id) => ['amount' => 0.0, 'counted' => false],
+            default => $ts->payOutcome($this->user, $settings),
+        });
+        $missing = $outcomes->contains(fn (array $o) => $o['missing_rate'] ?? false);
+        $estimate = (float) $outcomes->sum('amount');
+        // Đã có phiếu lương của kỳ hiện tại → hiện đúng net trên phiếu (cùng một con số với bảng lương).
+        $net = PayrollRecord::where('user_id', $this->user->id)
+            ->whereHas('period', fn ($q) => $q->whereDate('start_date', '<=', now()->toDateString())->whereDate('end_date', '>=', now()->toDateString()))
+            ->value('net_salary');
+        $amount = $net !== null ? (float) $net : $estimate;
 
         return [
-            // Chưa dạy giờ nào: 0 đ; có giờ mà chưa có đơn giá: null (giao diện ghi "Chưa có đơn giá").
-            'amount' => $amount === null ? ($timesheets->isEmpty() ? Money::format(0) : null) : Money::format($amount),
-            'hours' => round((float) $timesheets->sum('hours'), 1),
-            'missingRate' => $missing || ($amount === null && $timesheets->isNotEmpty()),
+            // Chỉ "Chưa có đơn giá" (null) khi thật sự thiếu đơn giá và chưa có phiếu / số tiền nào.
+            'amount' => $net === null && $missing && $estimate <= 0 ? null : Money::format($amount),
+            'hours' => round((float) $outcomes->filter(fn (array $o) => $o['counted'] ?? true)->keys()->map(fn ($i) => (float) $timesheets[$i]->hours)->sum(), 1),
+            'missingRate' => $missing,
             'url' => ($this->canOpen)('portal.my-salary') ? route('portal.my-salary') : null,
         ];
     }

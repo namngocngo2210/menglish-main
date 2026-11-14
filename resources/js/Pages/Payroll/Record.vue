@@ -215,7 +215,7 @@ function sessionNote(ts) {
                                     <td>{{ sessionLabel(ts) }}<span v-if="ts.unit === 'minute'" class="block font-caption text-caption text-on-surface-variant">{{ ts.minutes }} phút theo lịch</span></td>
                                     <td>{{ ts.class_code ?? '—' }}</td>
                                     <td class="text-right font-code text-code">{{ money(ts.rate) }}{{ ts.unit === 'minute' ? 'đ/phút' : ts.unit === 'session' ? 'đ/buổi' : 'đ/giờ' }}</td>
-                                    <td><UiMoney :value="ts.amount" suffix="đ" /></td>
+                                    <td><UiMoney :value="ts.amount" suffix="đ" /><span v-if="ts.co_taught" class="block font-caption text-caption text-on-surface-variant">Buổi có GVNN — tính tay ở dòng "Lớp GVNN đan xen"</span></td>
                                     <td class="font-body-small text-body-small text-on-surface-variant">{{ sessionNote(ts) }}</td>
                                 </tr>
                                 <tr v-if="!timesheets.length"><td colspan="6"><UiEmptyState icon="schedule" title="Không có buổi dạy hợp lệ trong kỳ" /></td></tr>

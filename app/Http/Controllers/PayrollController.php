@@ -502,6 +502,10 @@ class PayrollController extends Controller
             ->where('status', 'valid')
             ->orderBy('teaching_date')
             ->get();
+        // BR-03: cùng tập ca loại trừ với bảng lương (chỉ GV part-time dạy buổi; không GVNN / TA / kiêm nhiệm).
+        $coTaughtIds = $record->isPartTime() && ! $record->isForeignTeacher() && ! $record->isAssistant() && ! $record->teaching_concurrent
+            ? PayrollPeriod::coTaughtTimesheetIds($timesheets, $record->user)
+            : collect();
         // Phiếu lương đã qua kiểm tra phạm vi bảng lương: hiện đủ các biên bản đã trừ trên phiếu.
         $penalties = Penalty::withoutViewerScope()->where('payroll_record_id', $record->id)->orderBy('due_date')->get();
         $canDefer = $period->status === PayrollPeriod::STATUS_DRAFT && $request->user()->can('payroll.edit')
@@ -602,11 +606,14 @@ class PayrollController extends Controller
                 'rate_percent' => $currentRate?->isTuitionShare() ? (float) $currentRate->hourly_rate : null,
                 'kpi_sheet' => $this->teachingKpiSheet($record, $period),
             ] : null,
-            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($record) {
+            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($record, $coTaughtIds) {
                 // Trợ giảng: số giờ × đơn giá giờ (TK-0010), cùng cách tính với bảng lương.
+                $coTaught = $coTaughtIds->has($ts->id);
                 $pay = match (true) {
                     $record->isForeignTeacher() => $ts->foreignTeacherPayOutcome(),
                     $record->isAssistant() && $record->isPartTime() => $ts->assistantPayOutcome(),
+                    // BR-03: buổi có GVNN không vào lương buổi tự tính (Kế toán nhập tay) → 0đ, khớp tổng phiếu.
+                    $coTaught => ['amount' => 0.0] + $ts->sessionPay($record->user),
                     default => $ts->sessionPay($record->user),
                 };
 
@@ -626,6 +633,7 @@ class PayrollController extends Controller
                     'unit' => $pay['unit'],
                     'minutes' => $pay['minutes'] ?? null,
                     'amount' => $pay['amount'],
+                    'co_taught' => $coTaught,
                 ];
             })->values(),
             'kpiGroups' => $kpiGroups->map(fn ($items, $group) => [
@@ -2359,6 +2367,9 @@ class PayrollController extends Controller
             $penalties = Penalty::withoutViewerScope()->with('classModel')->where('payroll_record_id', $record->id)->orderBy('violation_date')->get();
             $previous = $records->first(fn (PayrollRecord $r) => $r->period->start_date->lt($period->start_date));
         }
+        $coTaughtIds = $record && $record->isPartTime() && ! $record->isForeignTeacher() && ! $record->isAssistant() && ! $record->teaching_concurrent
+            ? PayrollPeriod::coTaughtTimesheetIds($timesheets, $user)
+            : collect();
         $variant = $record ? self::payslipVariant($record) : null;
 
         return Inertia::render('Payroll/MySalary', [
@@ -2375,8 +2386,10 @@ class PayrollController extends Controller
                 'class' => $pen->classModel ? ($pen->classModel->code ?? $pen->classModel->name) : null,
                 'amount' => (float) $pen->amount,
             ])->values(),
-            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($user, $record) {
+            'timesheets' => $timesheets->map(function (TeacherTimesheet $ts) use ($user, $record, $coTaughtIds) {
+                $coTaught = $coTaughtIds->has($ts->id);
                 $pay = $record->isForeignTeacher() ? $ts->foreignTeacherPayOutcome() : $ts->sessionPay($user);
+                $coTaught && $pay['amount'] = 0.0;
 
                 return [
                     'id' => $ts->id,
@@ -2389,6 +2402,7 @@ class PayrollController extends Controller
                     'unit' => $pay['unit'],
                     'minutes' => $pay['minutes'] ?? null,
                     'amount' => (float) $pay['amount'],
+                    'co_taught' => $coTaught,
                 ];
             })->values(),
             'printHtml' => $record ? view('payroll.partials.payslip-print', ['record' => $record, 'period' => $record->period, 'variant' => $variant])->render() : null,
