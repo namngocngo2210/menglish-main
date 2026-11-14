@@ -32,6 +32,24 @@ const viewState = computed(() => {
     if (!props.feedbackOpen) return hasSaved.value ? 'state-closed' : 'state-empty';
     return hasSaved.value ? 'form-updated' : 'form-new';
 });
+const stageTile = computed(() => {
+    if (!props.stageName) return '';
+    const name = props.stageName.trim();
+    const changMatch = name.match(/Chặng\s*(\d+)/i);
+    if (changMatch) return `C${changMatch[1]}`;
+    const cMatch = name.match(/\bC(\d+)\b/i);
+    if (cMatch) return `C${cMatch[1]}`;
+    const digitMatch = name.match(/\d+/);
+    if (digitMatch) return digitMatch[0];
+    const words = name.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+        return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    if (words.length === 1 && words[0].length <= 3) {
+        return words[0].toUpperCase();
+    }
+    return '';
+});
 const savedRating = computed(() => props.lastFeedback?.rating ?? 0);
 const savedContent = computed(() => props.lastFeedback?.content ?? '');
 
@@ -107,12 +125,12 @@ function validateForm(event) {
 
         <div class="flex-1 space-y-4 overflow-y-auto p-4">
             <!-- VIEW 1: FORM NHẬP / CHỈNH SỬA (lần đầu & đã gửi sửa tiếp) -->
-            <div v-show="viewState === 'form-new' || viewState === 'form-updated'" class="space-y-4">
+            <div v-if="viewState === 'form-new' || viewState === 'form-updated'" class="space-y-4">
                 <UiAlert v-if="showSuccess" type="success" title="Đã ghi nhận feedback thành công">
                     Bạn có thể điều chỉnh và bấm "Cập nhật" bất cứ lúc nào trong thời gian đợt thu thập còn mở.
                 </UiAlert>
 
-                <UiAlert v-show="viewState === 'form-updated' && !feedbackSuccess" type="info" title="Bạn đã gửi đánh giá trước đó">
+                <UiAlert v-if="viewState === 'form-updated' && !feedbackSuccess" type="info" title="Bạn đã gửi đánh giá trước đó">
                     Bạn có thể thay đổi số sao hoặc nội dung góp ý bên dưới rồi bấm "Cập nhật feedback".
                 </UiAlert>
 
@@ -127,7 +145,10 @@ function validateForm(event) {
                     </div>
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2.5">
-                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-container/10 text-sm font-black text-primary">C2</div>
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-container/10 text-sm font-black text-primary">
+                                <span v-if="stageTile">{{ stageTile }}</span>
+                                <span v-else class="material-symbols-outlined text-[18px]" aria-hidden="true">flag</span>
+                            </div>
                             <div>
                                 <h3 class="text-xs font-bold leading-tight text-on-surface">{{ stageName }}</h3>
                                 <p class="mt-0.5 text-xs text-on-surface-variant">Lớp: <span class="font-bold text-on-surface">{{ className }}</span></p>
@@ -208,7 +229,7 @@ function validateForm(event) {
             </div>
 
             <!-- VIEW 2: CHỈ XEM KHI ĐỢT THU THẬP ĐÃ ĐÓNG (AC-R06b) -->
-            <div v-show="viewState === 'state-closed'" class="space-y-4">
+            <div v-if="viewState === 'state-closed'" class="space-y-4">
                 <div class="flex items-start gap-3 rounded-2xl border border-outline-variant bg-surface-container p-3.5">
                     <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-outline text-white">
                         <span class="material-symbols-outlined text-[14px]">lock</span>
@@ -221,13 +242,16 @@ function validateForm(event) {
 
                 <div v-if="hasClass" class="rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 shadow-2xs">
                     <div class="mb-1.5 flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Chặng học đã hoàn thành</span>
-                        <UiBadge color="neutral" pill>Đã đóng</UiBadge>
+                        <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Chặng học</span>
+                        <UiBadge color="neutral" pill>Đã đóng thu thập</UiBadge>
                     </div>
                     <div class="flex items-center gap-2.5">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container-high text-sm font-bold text-on-surface-variant">C1</div>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-container-high text-sm font-bold text-on-surface-variant">
+                            <span v-if="stageTile">{{ stageTile }}</span>
+                            <span v-else class="material-symbols-outlined text-[18px]" aria-hidden="true">flag</span>
+                        </div>
                         <div>
-                            <h3 class="text-xs font-bold leading-tight text-on-surface">Chặng 1: Nền tảng Ngữ pháp &amp; Từ vựng</h3>
+                            <h3 class="text-xs font-bold leading-tight text-on-surface">{{ stageName }}</h3>
                             <p class="mt-0.5 text-xs text-on-surface-variant">Lớp: {{ className }}</p>
                         </div>
                     </div>
@@ -265,7 +289,7 @@ function validateForm(event) {
             </div>
 
             <!-- VIEW 3: TRẠNG THÁI RỖNG (chưa có đợt thu thập nào mở - R-02) -->
-            <div v-show="viewState === 'state-empty'" class="flex flex-col items-center justify-center px-4 py-10 text-center">
+            <div v-if="viewState === 'state-empty'" class="flex flex-col items-center justify-center px-4 py-10 text-center">
                 <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary-container/30 bg-primary-container/10 text-primary shadow-inner">
                     <span class="material-symbols-outlined text-3xl">chat_bubble_outline</span>
                 </div>

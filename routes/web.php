@@ -951,6 +951,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/academic', [ObservationController::class, 'saveAcademic'])->middleware('can:class_quality.observe_academic')->name('academic.save');
         Route::get('/session-feedback', [SessionFeedbackController::class, 'index'])->name('session-feedback');
         Route::get('/parent-feedback', [ParentFeedbackController::class, 'index'])->name('parent-feedback');
+        Route::post('/parent-feedback/manual', [ParentFeedbackController::class, 'storeManual'])->middleware('can:class_quality.parent_feedback')->name('parent-feedback.manual');
+        Route::put('/parent-feedback/records/{record}/handled', [ParentFeedbackController::class, 'toggleHandled'])->whereNumber('record')->middleware('can:class_quality.parent_feedback')->name('parent-feedback.handled');
         Route::put('/parent-feedback/stages/{assignment}', [ParentFeedbackController::class, 'toggle'])->whereNumber('assignment')->middleware('can:class_quality.parent_feedback')->name('parent-feedback.toggle');
         Route::get('/checklist', [ClassChecklistController::class, 'index'])->name('checklist');
         Route::put('/checklist', [ClassChecklistController::class, 'save'])->middleware('can:class_quality.checklist')->name('checklist.save');
