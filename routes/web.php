@@ -69,6 +69,7 @@ use App\Http\Controllers\TeacherSessionReportController;
 use App\Http\Controllers\TeachingShiftController;
 use App\Http\Controllers\TrialGuestController;
 use App\Http\Controllers\TuitionClassRollupController;
+use App\Http\Controllers\TuitionInstallmentController;
 use App\Http\Controllers\TuitionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserGuideController;
@@ -258,6 +259,8 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tuition')->name('tuition.')->middleware('can:tuition.view')->group(function () {
         Route::get('/students', [TuitionController::class, 'students'])->name('students');
         Route::get('/students/{student}/payments', [TuitionController::class, 'studentPayments'])->whereNumber('student')->name('students.payments');
+        Route::get('/students/{student}/installments/create', [TuitionInstallmentController::class, 'create'])->middleware('can:tuition.create_installment')->whereNumber('student')->name('installments.create');
+        Route::post('/students/{student}/installments', [TuitionInstallmentController::class, 'store'])->middleware('can:tuition.create_installment')->whereNumber('student')->name('installments.store');
         Route::get('/import', [TuitionController::class, 'import'])->name('import');
         Route::post('/import', [TuitionController::class, 'importTuition'])->middleware('can:tuition.create')->name('import.store');
         Route::post('/import/confirm', [TuitionController::class, 'confirmImport'])->middleware('can:tuition.create')->name('import.confirm');

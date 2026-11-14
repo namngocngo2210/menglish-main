@@ -131,6 +131,7 @@ class TuitionController extends Controller
             'tuitions' => $tuitions->through(fn (StudentTuition $t) => [
                 'id' => $t->id,
                 'student' => $this->studentBrief($t->student),
+                'class_id' => $t->class_id,
                 'class_name' => $t->classModel?->name,
                 'branch_name' => $t->branch?->name,
                 'fee_label' => $t->fee_label,
