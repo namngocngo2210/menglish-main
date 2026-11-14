@@ -65,7 +65,7 @@ func TestCatalogDefaultsExpand(t *testing.T) {
 func TestManagerAssignsEveryRoleButAdminAndManager(t *testing.T) {
 	m := accessFor(t, nil, RoleManager)
 	got := m.AssignableRoles()
-	want := []string{RoleAcademicLead, RoleAcademicStaff, RoleSalesConsultant, RoleTeacherFulltime, RoleTeacherParttime, "foreign_teacher", RoleAssistant, RoleStudent}
+	want := []string{RoleAccountant, RoleAcademicLead, RoleAcademicStaff, RoleSalesConsultant, RoleTeacherFulltime, RoleTeacherParttime, "foreign_teacher", RoleAssistant, RoleStudent}
 	if !slices.Equal(got, want) {
 		t.Fatalf("Quản lý cơ sở gán được %v, muốn %v", got, want)
 	}
