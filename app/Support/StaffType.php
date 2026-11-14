@@ -26,6 +26,12 @@ final class StaffType
         return self::roles($user)->contains(Roles::FOREIGN_TEACHER);
     }
 
+    /** Academic roles track task timeliness through KPI only. */
+    public static function isAcademicKpiOnly(User $user): bool
+    {
+        return self::roles($user)->intersect([Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF])->isNotEmpty();
+    }
+
     /** Chỉ là trợ giảng (không kiêm giáo viên) — đơn giá trợ giảng. */
     public static function isAssistantOnly(User $user): bool
     {

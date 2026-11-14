@@ -159,13 +159,13 @@ const showAmount = (pen) => shownAmount(pen) > 0 && !['resolved', 'cancelled'].i
                         </td>
                         <td>
                             <UiBadge :color="stepColors[pen.step] ?? 'neutral'">{{ pen.step_label }}</UiBadge>
-                            <span v-if="pen.overdue" class="mt-xs block font-caption text-caption font-semibold text-error">Quá hạn nộp — sẽ trừ lương</span>
+                            <span v-if="!pen.final_auto && pen.overdue" class="mt-xs block font-caption text-caption font-semibold text-error">Quá hạn nộp — sẽ trừ lương</span>
                             <span v-else-if="pen.status === 'deducted'" class="mt-xs block font-caption text-caption text-on-surface-variant">Đã trừ vào bảng lương</span>
                         </td>
                         <td class="text-right">
                             <template v-if="showAmount(pen)">
                                 <UiMoney :value="shownAmount(pen)" suffix="đ" />
-                                <span v-if="pen.due_date && pen.status === 'fined'" class="block font-caption text-caption text-on-surface-variant">Hạn nộp {{ pen.due_date }}</span>
+                                <span v-if="!pen.final_auto && pen.due_date && pen.status === 'fined'" class="block font-caption text-caption text-on-surface-variant">Hạn nộp {{ pen.due_date }}</span>
                                 <span v-else-if="pen.paid_at" class="block font-caption text-caption text-tertiary">Nộp {{ pen.paid_at }}</span>
                             </template>
                             <span v-else-if="isReminder(pen)" class="text-on-surface-variant">Nhắc nhở (0đ)</span>
@@ -182,11 +182,11 @@ const showAmount = (pen) => shownAmount(pen) > 0 && !['resolved', 'cancelled'].i
                                 <UiButton v-if="pen.can_decide && pen.step === 'recorded'" size="sm" variant="secondary" icon="gavel" @click="open = `decide-${pen.id}`">Chốt lỗi</UiButton>
                                 <UiButton v-if="pen.can_decide && pen.status === 'confirmed'" size="sm" variant="secondary" icon="payments" @click="open = `decide-${pen.id}`">Chốt mức phạt</UiButton>
                                 <!-- Quá hạn nộp phạt: không nhận nộp trực tiếp nữa, bảng lương trừ -->
-                                <UiForm v-if="can('violation.mark_paid') && pen.status === 'fined' && !pen.overdue" :action="route('penalties.mark-paid', pen.id)" method="post">
+                                <UiForm v-if="!pen.final_auto && can('violation.mark_paid') && pen.status === 'fined' && !pen.overdue" :action="route('penalties.mark-paid', pen.id)" method="post">
                                     <UiButton type="submit" size="sm" variant="secondary" icon="payments">Đánh dấu đã nộp</UiButton>
                                 </UiForm>
-                                <UiButton v-if="pen.can_defer" size="sm" variant="secondary" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
-                                <UiButton v-if="can('violation.mark_resolved') && pen.step === 'paid'" size="sm" variant="secondary" icon="build" @click="open = `remedy-${pen.id}`">Ghi nhận khắc phục</UiButton>
+                                <UiButton v-if="!pen.final_auto && pen.can_defer" size="sm" variant="secondary" icon="event_upcoming" @click="deferPenalty = pen">Chuyển sang kỳ sau</UiButton>
+                                <UiButton v-if="!pen.final_auto && can('violation.mark_resolved') && pen.step === 'paid'" size="sm" variant="secondary" icon="build" @click="open = `remedy-${pen.id}`">Ghi nhận khắc phục</UiButton>
                                 <!-- Mỗi dòng chỉ giữ nút của bước tiếp theo; Đóng - không phạt / Hủy vi phạm nằm trong "⋯" (xem chi tiết) -->
                                 <UiButton size="sm" variant="ghost" icon="more_horiz" title="Xem chi tiết & thao tác khác" :aria-label="`Xem chi tiết & thao tác khác ${pen.code}`" @click="open = `view-${pen.id}`" />
                             </div>
@@ -214,10 +214,10 @@ const showAmount = (pen) => shownAmount(pen) > 0 && !['resolved', 'cancelled'].i
                                     </template>
                                 </dl>
                                 <template #footer>
-                                    <UiForm v-if="can('violation.mark_resolved') && decidable(pen)" :action="route('penalties.resolve', pen.id)" method="post" preserve-state="errors" :confirm="`Đóng biên bản ${pen.code} — không phạt tiền?`">
+                                    <UiForm v-if="!pen.final_auto && can('violation.mark_resolved') && decidable(pen)" :action="route('penalties.resolve', pen.id)" method="post" preserve-state="errors" :confirm="`Đóng biên bản ${pen.code} — không phạt tiền?`">
                                         <UiButton type="submit" variant="secondary">Đóng - không phạt</UiButton>
                                     </UiForm>
-                                    <UiForm v-if="can('violation.cancel') && decidable(pen)" :action="route('penalties.cancel', pen.id)" method="post" preserve-state="errors" :confirm="`Hủy biên bản ${pen.code}?`" confirm-label="Hủy biên bản" danger>
+                                    <UiForm v-if="pen.can_cancel" :action="route('penalties.cancel', pen.id)" method="post" preserve-state="errors" :confirm="`Hủy biên bản ${pen.code}?`" confirm-label="Hủy biên bản" danger>
                                         <UiButton type="submit" variant="danger-text">Hủy vi phạm</UiButton>
                                     </UiForm>
                                     <UiButton variant="secondary" @click="open = null">Quay lại</UiButton>
@@ -255,7 +255,7 @@ const showAmount = (pen) => shownAmount(pen) > 0 && !['resolved', 'cancelled'].i
                                 </template>
                             </UiModal>
 
-                            <UiModal v-if="can('violation.mark_resolved') && pen.step === 'paid'" :show="open === `remedy-${pen.id}`" :title="`Ghi nhận khắc phục ${pen.code}`" max-width="md" class="text-left" @close="open = null">
+                            <UiModal v-if="!pen.final_auto && can('violation.mark_resolved') && pen.step === 'paid'" :show="open === `remedy-${pen.id}`" :title="`Ghi nhận khắc phục ${pen.code}`" max-width="md" class="text-left" @close="open = null">
                                 <UiForm :id="`remedy-form-${pen.id}`" :action="route('penalties.remedy', pen.id)" method="post" preserve-state="errors" class="space-y-md">
                                     <p class="font-body-small text-body-small text-on-surface-variant">{{ pen.user_name }} — {{ pen.violation_type }}</p>
                                     <UiTextarea name="remedy_note" label="Nội dung khắc phục" rows="3" placeholder="VD: Đã bổ sung nhận xét, cam kết không tái phạm..." />

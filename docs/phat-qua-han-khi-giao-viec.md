@@ -20,7 +20,7 @@ Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt kh
   Sau khi đã cấu hình, hoàn thành lượt vẫn tăng hạn một kỳ như trước.
 - Job quá hạn đọc **trực tiếp mức phạt hiện tại của chuỗi**, bỏ qua hai trường phạt trên từng lượt.
   Mỗi lượt chịu cùng một mức cố định, **không có bậc/tăng phạt** theo số lần vi phạm trước đó; sửa mức áp dụng cho các lần job xử lý tiếp theo.
-  Chưa cấu hình hoặc mức ≤ 0 thì không phạt. Vẫn miễn GVNN, bỏ qua việc SLA/chăm sóc và tối đa một biên bản `task_overdue` cho mỗi lượt, kể cả biên bản đã hủy.
+  Chưa cấu hình hoặc mức ≤ 0 thì không phạt. Miễn GVNN, Học thuật và Học vụ; bỏ qua việc SLA/chăm sóc và tối đa một biên bản `task_overdue` cho mỗi lượt, kể cả biên bản đã hủy.
 - Sau triển khai, migration gom các việc lặp cũ theo `(title, assignee_id, frequency)` vào chuỗi **chưa cấu hình**.
   **Tất cả chuỗi cũ tạm dừng; Admin phải vào màn cấu hình để tiếp tục**. Không đổi việc phát sinh, không phạt hồi tố, không tạo lượt trong migration.
   `WorkTaskSeeder` cấu hình chuỗi demo với mức 0 để vẫn sinh lượt mà không tự thêm phạt vào luồng demo.
@@ -33,9 +33,14 @@ Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt kh
 | `sla_rule_key` (string, null) | Việc SLA tự sinh: mốc SLA đã tạo việc (`SlaBreachService::open`, `care.first_month`). Bật/tắt phạt, mức, bậc phạt đọc **trực tiếp từ Cấu hình SLA**. |
 
 ## Job quá hạn (`tasks:mark-overdue`, mỗi 15 phút)
+- Việc Mới / Đang thực hiện / Bị chặn đã qua hạn → Quá hạn, báo người được giao một lần.
+  Việc Bị chặn **không bao giờ lập phạt**; Chờ xác nhận, Đã hoàn thành, Đã hủy và nhiệm vụ TA hằng ngày không có hạn vẫn bỏ qua.
 - Việc giao tay, phạt **tắt** → chỉ đổi trạng thái "Quá hạn", không biên bản (AC-S15).
 - Việc giao tay, phạt **bật** → tạo biên bản `fined` ("Đã chốt phạt", `auto_source = task_overdue`) đúng số tiền; bảng lương trừ qua
-  `Penalty::scopeDeductibleFor` như mọi biên bản `fined` (AC-S14). GVNN không bị phạt (giống SLA).
+  `Penalty::scopeDeductibleFor` theo ngày vi phạm (AC-S14), **không có hạn nộp**.
+  Đây là trạng thái chốt: không nộp trực tiếp, chuyển kỳ, khắc phục hay đóng miễn phạt; chỉ có thể **Hủy** khi còn `fined`, có quyền `violation.cancel` và kỳ lương chưa khóa.
+  Hủy gỡ liên kết phiếu lương và tính lại kỳ đang mở để bỏ khoản trừ; kỳ đã chốt cần Mở lại trước, kỳ đã gửi GV xem / đã trả không thể hủy.
+  GVNN không bị phạt (giống SLA); Học thuật (`academic_lead`) / Học vụ (`academic_staff`) chỉ tính KPI `task_on_time`, không lập phạt quá hạn việc.
 - Việc SLA (`sla_rule_key` / `care_milestone`) → job này **bỏ qua**; biên bản do `SlaBreachService::breach` / `FirstMonthCareService::enforceSla`
   theo Cấu hình SLA (mốc tắt phạt → không biên bản, AC-S08).
 - Không phạt/trừ hai lần: mỗi việc tối đa một biên bản `task_overdue` (kể cả đã hủy), chạy lại không tạo thêm; việc SLA không bao giờ qua nhánh giao tay.

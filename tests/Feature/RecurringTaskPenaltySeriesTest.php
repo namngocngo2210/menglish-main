@@ -7,6 +7,7 @@ use App\Models\Penalty;
 use App\Models\User;
 use App\Models\WorkTask;
 use App\Models\WorkTaskSeries;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -194,6 +195,7 @@ class RecurringTaskPenaltySeriesTest extends TestCase
         $firstPenalty = Penalty::withoutViewerScope()->where('work_task_id', $task->id)->sole();
         $this->assertSame('fined', $firstPenalty->status);
         $this->assertEquals(50000, $firstPenalty->amount);
+        $this->assertNull($firstPenalty->due_date);
 
         $firstPenalty->update(['status' => 'cancelled']);
         $task->update(['status' => 'in_progress']);
@@ -207,6 +209,7 @@ class RecurringTaskPenaltySeriesTest extends TestCase
         $secondPenalty = Penalty::withoutViewerScope()->where('work_task_id', $next->id)->sole();
         $this->assertSame('fined', $secondPenalty->status);
         $this->assertEquals(50000, $secondPenalty->amount);
+        $this->assertNull($secondPenalty->due_date);
         $this->assertSame(2, Penalty::withoutViewerScope()->where('auto_source', 'task_overdue')->count());
     }
 
@@ -232,15 +235,21 @@ class RecurringTaskPenaltySeriesTest extends TestCase
         $this->assertSame(0, Penalty::withoutViewerScope()->count());
     }
 
-    public function test_series_penalties_keep_foreign_teacher_and_sla_guards(): void
+    public function test_series_penalties_keep_role_and_sla_guards(): void
     {
-        $foreign = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
-        $foreign->assignRole('foreign_teacher');
-        foreach ([['assignee_id' => $foreign->id], ['sla_rule_key' => 'crm.test_result'], ['care_milestone' => 1]] as $attributes) {
+        $excluded = [['sla_rule_key' => 'crm.test_result'], ['care_milestone' => 1], ['status' => 'blocked']];
+        foreach ([Roles::FOREIGN_TEACHER, Roles::ACADEMIC_LEAD, Roles::ACADEMIC_STAFF] as $role) {
+            $assignee = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+            $assignee->assignRole($role);
+            $excluded[] = ['assignee_id' => $assignee->id];
+        }
+        foreach ($excluded as $attributes) {
             $task = $this->task($attributes + ['due_date' => today()->subDay()]);
             $this->configure($task);
         }
         $this->artisan('tasks:mark-overdue')->assertSuccessful();
+        $this->artisan('tasks:mark-overdue')->assertSuccessful();
+        $this->assertSame(0, WorkTask::where('status', 'blocked')->count());
         $this->assertSame(0, Penalty::withoutViewerScope()->where('auto_source', 'task_overdue')->count());
     }
 

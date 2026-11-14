@@ -1224,7 +1224,7 @@ Test: thêm `Phase4AcceptanceTest` (3 test), `FullBpmnSmokeTest` (1 test), `Demo
 - Q8: người xác nhận tính theo **GV chính hiện tại** của lớp lúc duyệt (đổi GV chính sau khi nộp → GV mới xác nhận). GV chính tự nộp báo cáo không ảnh → người giao việc xác nhận. Admin **không** duyệt thay (theo đúng A6) — nếu GV chính nghỉ, Admin đổi GV chính của lớp.
 - Không ảnh + lớp chưa có GV chính + không có đầu việc được giao → không cho nộp (không có ai xác nhận).
 - Hạn 3 ca khi gắn buổi học: Trước = giờ vào lớp, Trong = giờ tan, Sau = tan + 60 phút; không gắn buổi: 14:00 / 18:00 / 21:30 (giữ mốc cũ).
-- "Quá hạn" tính theo ngày + giờ hạn; việc Bị chặn / Chờ xác nhận không chuyển Quá hạn.
+- "Quá hạn" tính theo ngày + giờ hạn; việc Bị chặn chuyển Quá hạn nhưng không lập phạt (TK-2026-0119); Chờ xác nhận vẫn không chuyển Quá hạn.
 - Việc lặp: lượt kế tiếp sinh khi lượt hiện tại **được xác nhận hoàn thành** (không sinh khi Hủy).
 **Route mới:** không. **Lệnh mới:** `tasks:mark-overdue` (mỗi 15 phút).
 **Migration:** `2026_10_05_110000_add_q8_fields_to_class_reports` (`class_reports.board_images` JSON + chép ảnh cũ, `class_session_id`, `confirmer_id`). Sửa kèm: `ClassReport::$fillable` thiếu `rejection_reason` nên lý do trả về trước đây **không được lưu**.
