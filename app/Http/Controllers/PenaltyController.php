@@ -108,6 +108,7 @@ class PenaltyController extends Controller
                     'step_label' => $pen->step_label,
                     'status' => $pen->status,
                     'status_label' => $pen->status_label,
+                    'final_auto' => $pen->isFinalAuto(),
                     'overdue' => $pen->isOverdue(),
                     'amount' => (float) $pen->amount,
                     // Mức theo cấu hình quy chế (null = biên bản lập tay): hiển thị / điền sẵn trước khi quyết phạt.
@@ -118,8 +119,12 @@ class PenaltyController extends Controller
                     'deferred_at' => $pen->deferred_at?->toIso8601String(),
                     'deferred_by' => $pen->deferredBy?->name,
                     'defer_reason' => $pen->defer_reason,
-                    'can_defer' => $pen->status === 'fined' && $user->can('payroll.edit')
+                    'can_defer' => ! $pen->isFinalAuto() && $pen->status === 'fined' && $user->can('payroll.edit')
                         && in_array((int) $pen->user_id, $adjustableStaffIds, true),
+                    'can_cancel' => $user->can('violation.cancel') && ! $pen->isLockedByPayroll()
+                        && ($pen->isFinalAuto()
+                            ? $pen->status === 'fined' && ! ($pen->payrollRecord?->period?->isFrozen() ?? false)
+                            : in_array($pen->status, ['pending', 'explained', 'confirmed'], true)),
                     'employee_state' => $employeeState,
                     'employee_color' => $employeeColor,
                     'remedied' => (bool) $pen->remedied_at,
@@ -346,6 +351,7 @@ class PenaltyController extends Controller
     public function markPaidPenalty(Request $request, $id)
     {
         $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
+        abort_if($penalty->isFinalAuto(), 422, 'Biên bản tự động chỉ có thể hủy.');
         abort_unless($penalty->status === 'fined', 422, 'Chỉ biên bản đã quyết phạt mới ghi nhận nộp phạt.');
         if ($response = $this->rejectIfPayrollLocked($penalty)) {
             return $response;
@@ -373,6 +379,7 @@ class PenaltyController extends Controller
     public function resolvePenalty(Request $request, $id)
     {
         $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
+        abort_if($penalty->isFinalAuto(), 422, 'Biên bản tự động chỉ có thể hủy.');
         abort_unless(in_array($penalty->status, Penalty::OPEN_STATUSES, true), 422, 'Biên bản đã đóng.');
         if ($response = $this->rejectIfPayrollLocked($penalty)) {
             return $response;
@@ -386,19 +393,19 @@ class PenaltyController extends Controller
     /** Chuyển kỳ trừ phạt, giữ nguyên quyết định phạt và lưu người / lý do chuyển. */
     public function deferPenalty(Request $request, int $id): RedirectResponse
     {
-        $validated = $request->validate([
-            'reason' => ['required', 'string', 'max:500'],
-        ], [
-            'reason.required' => 'Vui lòng nhập lý do chuyển phạt sang kỳ sau.',
-            'reason.max' => 'Lý do chuyển phạt tối đa 500 ký tự.',
-        ]);
-
         // Như tính lương: kỳ nguồn / đích xét toàn bộ dữ liệu, không theo phạm vi người thao tác.
-        return DataScopeGuard::bypass(fn () => DB::transaction(function () use ($request, $id, $validated) {
+        return DataScopeGuard::bypass(fn () => DB::transaction(function () use ($request, $id) {
             $penalty = Penalty::withoutViewerScope()->lockForUpdate()->findOrFail($id);
             if (! PayrollAdjustScope::canAdjust($request->user(), $penalty->user_id)) {
                 abort(403, 'Bạn không có quyền chuyển phạt của nhân sự này (ngoài phạm vi bảng lương hoặc là phiếu của chính bạn).');
             }
+            abort_if($penalty->isFinalAuto(), 422, 'Biên bản tự động chỉ có thể hủy.');
+            $validated = $request->validate([
+                'reason' => ['required', 'string', 'max:500'],
+            ], [
+                'reason.required' => 'Vui lòng nhập lý do chuyển phạt sang kỳ sau.',
+                'reason.max' => 'Lý do chuyển phạt tối đa 500 ký tự.',
+            ]);
 
             $refuse = fn (string $message) => redirect()->back()->withErrors(['penalty' => $message])->with('error', $message);
             if ($penalty->status !== 'fined') {
@@ -454,6 +461,7 @@ class PenaltyController extends Controller
     public function remedyPenalty(Request $request, $id)
     {
         $penalty = Penalty::visibleTo($request->user())->findOrFail($id);
+        abort_if($penalty->isFinalAuto(), 422, 'Biên bản tự động chỉ có thể hủy.');
         abort_unless(in_array($penalty->status, ['paid', 'deducted'], true) && $penalty->remedied_at === null, 422, 'Chỉ biên bản đã nộp / đã trừ lương mới ghi nhận khắc phục.');
         $validated = $request->validate(['remedy_note' => ['nullable', 'string', 'max:1000']]);
 
@@ -468,15 +476,23 @@ class PenaltyController extends Controller
 
     public function cancelPenalty(Request $request, $id)
     {
-        $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
-        abort_unless(in_array($penalty->status, ['pending', 'explained', 'confirmed'], true), 422, 'Biên bản đã vào vòng phạt không thể hủy — dùng Đóng vụ nếu cần miễn.');
-        if ($response = $this->rejectIfPayrollLocked($penalty)) {
-            return $response;
-        }
+        return DB::transaction(function () use ($request, $id) {
+            $penalty = Penalty::visibleTo($request->user())->with('payrollRecord.period')->findOrFail($id);
+            abort_unless($penalty->isFinalAuto()
+                ? $penalty->status === 'fined'
+                : in_array($penalty->status, ['pending', 'explained', 'confirmed'], true), 422, 'Biên bản không ở trạng thái cho phép hủy.');
+            if ($response = $this->rejectIfPayrollLocked($penalty)) {
+                return $response;
+            }
 
-        $penalty->update(['status' => 'cancelled']);
+            $period = $penalty->isFinalAuto() ? $penalty->payrollRecord?->period : null;
+            $penalty->update($penalty->isFinalAuto()
+                ? ['status' => 'cancelled', 'payroll_record_id' => null]
+                : ['status' => 'cancelled']);
+            $period?->calculatePayrollForPeriod();
 
-        return redirect()->back()->with('status', "Đã hủy bỏ biên bản vi phạm {$penalty->code}!");
+            return redirect()->back()->with('status', "Đã hủy bỏ biên bản vi phạm {$penalty->code}!");
+        });
     }
 
     /**

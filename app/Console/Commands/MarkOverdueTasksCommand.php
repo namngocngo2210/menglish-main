@@ -12,11 +12,10 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Chuyển công việc "Mới" / "Đang thực hiện" đã qua hạn (ngày + giờ hạn) sang "Quá hạn"
- * (mockup Danh sách công việc / Nhiệm vụ hôm nay TA có trạng thái "Quá hạn — Trễ N giờ").
- * Báo người thực hiện một lần. Việc "Bị chặn" / "Chờ xác nhận" và nhiệm vụ hằng ngày của TA (kind = ta_daily, không có hạn) không bị đổi.
- * Việc chăm sóc tháng đầu quá hạn → biên bản vi phạm SLA cho người được giao (FirstMonthCareService::enforceSla).
- * Idempotent: chạy lại không đổi gì thêm.
+ * Mark new, in-progress and blocked tasks past their deadline as overdue and notify the assignee once.
+ * Blocked tasks never generate task-overdue penalties. Pending confirmation and TA daily tasks without deadlines are excluded.
+ * First-month care SLA penalties are handled separately by FirstMonthCareService::enforceSla.
+ * Idempotent: rerunning does not create additional penalties or notifications.
  */
 class MarkOverdueTasksCommand extends Command
 {
@@ -31,7 +30,7 @@ class MarkOverdueTasksCommand extends Command
 
         WorkTask::query()
             ->withDeadline() // Nhiệm vụ hằng ngày của TA (CV-05) không có hạn → không quét quá hạn.
-            ->whereIn('status', WorkTask::OPEN_STATUSES)
+            ->whereIn('status', [...WorkTask::OPEN_STATUSES, 'blocked'])
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<=', $now->toDateString())
             ->orderBy('id')
@@ -40,9 +39,12 @@ class MarkOverdueTasksCommand extends Command
                     if ($task->lateHours($now) <= 0) {
                         continue;
                     }
+                    $originalStatus = $task->status;
                     $task->update(['status' => 'overdue']);
                     $count++;
-                    $this->penalize($task);
+                    if ($originalStatus !== 'blocked') {
+                        $this->penalize($task);
+                    }
 
                     if ($task->assignee_id) {
                         AdminNotification::create([
@@ -65,10 +67,9 @@ class MarkOverdueTasksCommand extends Command
     }
 
     /**
-     * Việc giao tay bật "Phạt khi quá hạn" (TK-2026-0078): lập biên bản "Đã chốt phạt" (fined) đúng số tiền đã nhập →
-     * bảng lương trừ theo Penalty::scopeDeductibleFor. Một lần / việc (kiểm tra theo biên bản đã có, kể cả đã hủy).
-     * Việc SLA (sla_rule_key) do SlaBreachService / FirstMonthCareService lập biên bản theo Cấu hình SLA → bỏ qua ở đây.
-     * Giao tay chưa có bậc phạt: một mức cố định cho mỗi việc. GVNN không bị phạt (như SLA).
+     * Create one final fined penalty per task, using its configured amount and payroll violation date.
+     * Existing penalties, including cancelled ones, prevent duplicates. SLA/care tasks are handled separately.
+     * Foreign teachers and academic roles are exempt; academic task timeliness only affects KPI.
      */
     private function penalize(WorkTask $task): void
     {
@@ -81,7 +82,7 @@ class MarkOverdueTasksCommand extends Command
             $amount = (float) $task->muc_phat_qua_han;
         }
         $assignee = $task->assignee;
-        if (! $penalize || $task->sla_rule_key || $task->care_milestone || $amount <= 0 || ! $assignee || StaffType::isForeignTeacher($assignee)) {
+        if (! $penalize || $task->sla_rule_key || $task->care_milestone || $amount <= 0 || ! $assignee || StaffType::isForeignTeacher($assignee) || StaffType::isAcademicKpiOnly($assignee)) {
             return;
         }
 
@@ -104,7 +105,6 @@ class MarkOverdueTasksCommand extends Command
                 'status' => 'fined',
                 'decided_at' => now(),
                 'decision_note' => 'Tự động chốt phạt theo cấu hình "Phạt khi quá hạn" của việc.',
-                'due_date' => today()->addDays(Penalty::paymentDueDays())->toDateString(),
                 'notes' => "Hạn {$task->dueAt()?->format('H:i d/m/Y')}, việc chưa hoàn thành.",
             ]);
 

@@ -404,6 +404,9 @@ class Penalty extends Model
 
     public function getStatusLabelAttribute(): string
     {
+        if ($this->isFinalAuto() && $this->status === 'fined') {
+            return 'Đã chốt phạt — trừ vào lương';
+        }
         if ($this->isOverdue()) {
             return 'Quá hạn nộp — sẽ trừ lương';
         }
@@ -439,6 +442,11 @@ class Penalty extends Model
     public function isOverdue(): bool
     {
         return $this->status === 'fined' && $this->due_date !== null && $this->due_date->lt(today());
+    }
+
+    public function isFinalAuto(): bool
+    {
+        return $this->auto_source === 'task_overdue';
     }
 
     /**
