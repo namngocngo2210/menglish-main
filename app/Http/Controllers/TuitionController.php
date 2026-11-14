@@ -2077,7 +2077,7 @@ class TuitionController extends Controller
         }, 'lich-su-thu-hoc-phi-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
-    /** @return array{search: string, student_id: ?int, status: string, method: string, from: ?string, to: ?string, kind: string} */
+    /** @return array{search: string, student_id: ?int, status: string, method: string, from: ?string, to: ?string} */
     private function historyFilters(Request $request): array
     {
         $date = fn ($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null;
@@ -2089,7 +2089,6 @@ class TuitionController extends Controller
             'method' => in_array($request->input('method'), ['transfer', 'vietqr', 'cash', 'pos'], true) ? $request->input('method') : '',
             'from' => $date($request->input('from')),
             'to' => $date($request->input('to')),
-            'kind' => $request->input('kind') === 'renewal' ? 'renewal' : 'all',
         ];
     }
 
@@ -2121,12 +2120,11 @@ class TuitionController extends Controller
         if ($filters['to']) {
             $query->whereDate('payment_date', '<=', $filters['to']);
         }
-        if ($filters['kind'] === 'renewal') {
-            // Khoản tái tục = phiếu thuộc khoản học phí KHÔNG phải khoản đầu tiên (id nhỏ nhất) của học viên
-            // — cùng định nghĩa "lần đầu" với hoa hồng tuyển sinh (Phase 3).
-            $query->whereNotNull('student_tuition_id')
-                ->whereRaw('student_tuition_id > (SELECT MIN(st2.id) FROM student_tuitions st2 WHERE st2.student_id = (SELECT st1.student_id FROM student_tuitions st1 WHERE st1.id = tuition_receipts.student_tuition_id))');
-        }
+        // US R-02: lịch sử chỉ liệt kê khoản tái tục = phiếu thuộc khoản học phí KHÔNG phải khoản đầu tiên
+        // (id nhỏ nhất) của học viên — cùng định nghĩa "lần đầu" với hoa hồng tuyển sinh (Phase 3). Phiếu của
+        // Closing Wizard luôn gắn khoản đầu tiên nên bị ẩn; dữ liệu giữ nguyên, đối soát tại tuition.receipts.approve.
+        $query->whereNotNull('student_tuition_id')
+            ->whereRaw('student_tuition_id > (SELECT MIN(st2.id) FROM student_tuitions st2 WHERE st2.student_id = (SELECT st1.student_id FROM student_tuitions st1 WHERE st1.id = tuition_receipts.student_tuition_id))');
 
         return $query;
     }

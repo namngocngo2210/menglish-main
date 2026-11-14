@@ -26,10 +26,6 @@ const statusOptions = [
     { value: 'rejected', label: 'Bị từ chối' },
     { value: 'cancelled', label: 'Đã hủy hóa đơn' },
 ];
-const kindOptions = [
-    { value: 'all', label: 'Tất cả khoản thu' },
-    { value: 'renewal', label: 'Chỉ khoản thu tái tục' },
-];
 const money = (value) => formatNumber(value, 0);
 const exportUrl = computed(() => route('tuition.history.export') + currentUrl().search);
 
@@ -73,10 +69,9 @@ onBeforeUnmount(() => {
         <UiSelect name="status" label="Trạng thái" placeholder="Tất cả trạng thái" :value="filters.status" :options="statusOptions" />
         <UiSelect name="method" label="Hình thức" placeholder="Tất cả hình thức" :value="filters.method" :options="methodOptions" />
         <UiDateRange label="Ngày thu" :from-value="filters.from" :to-value="filters.to" />
-        <UiSelect name="kind" label="Khoản thu" :value="filters.kind" :options="kindOptions" />
     </UiFilterBar>
 
-    <UiAlert v-if="filters.kind === 'renewal'" type="info" class="mb-md">Danh sách chỉ hiển thị các khoản thu tái tục — khoản phí đăng ký ban đầu xem tại hồ sơ CRM của học viên.</UiAlert>
+    <UiAlert type="info" class="mb-md" data-history-renewal-banner>Danh sách chỉ hiển thị các khoản thu tái tục — khoản phí đăng ký ban đầu xem tại hồ sơ CRM của học viên.</UiAlert>
 
     <div id="receipt-history">
         <UiDataTable min-width="960px">

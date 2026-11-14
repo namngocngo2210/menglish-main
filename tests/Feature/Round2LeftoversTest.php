@@ -388,6 +388,9 @@ class Round2LeftoversTest extends TestCase
         $manager = $this->makeUser('manager');
         $own = $this->makeStudent('HV-R2-OWN');
         $other = $this->makeStudent('HV-R2-OTH', $this->branch2);
+        // Khoản đầu tiên không hiện ở lịch sử thu (R-02) → phiếu đặt ở khoản thứ hai (tái tục).
+        $this->makeTuition($own);
+        $this->makeTuition($other);
         $ownTuition = $this->makeTuition($own);
         $otherTuition = $this->makeTuition($other);
         $ownReceipt = TuitionReceipt::create([

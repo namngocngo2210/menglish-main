@@ -352,31 +352,40 @@ class Phase4FinanceParityTest extends TestCase
         $other = $this->makeStudent('HV-PAR-H2', 'Học Viên Hai', $this->branch);
         $this->makeTuition($other, 1000000, paid: 500000);
 
+        // R-02: lịch sử chỉ có khoản tái tục (khoản đầu tiên, gồm phiếu Closing Wizard, bị ẩn) + banner luôn hiện.
+        $renewal = StudentTuition::create(['student_id' => $this->student->id, 'branch_id' => $this->branch->id, 'total_amount' => 4000000, 'final_amount' => 4000000, 'paid_amount' => 0, 'debt_amount' => 4000000, 'status' => 'unpaid']);
+        $this->approvedReceipt($renewal, 1000000, ['receipt_number' => 'PT-RENEWAL-1', 'invoice_number' => 'C26CG-0000008']);
+        $wizard = $this->approvedReceipt($this->tuition, 500000, ['receipt_number' => 'PT-WIZARD-1', 'transaction_code' => 'CW-TEST', 'notes' => 'Khoản thu từ Closing Wizard, chờ Kế toán/Admin đối soát.']);
+
         $this->actingAs($this->accountant)->get(route('tuition.history', ['student_id' => $this->student->id]))
             ->assertOk()
             ->assertSee('Lịch sử thu học phí')
             ->assertSee('Học viên: Nguyễn Hoàn')
-            ->assertSee('C26CG-0000007')
-            ->assertSee('Chính thức')
+            ->assertSee('PT-RENEWAL-1')
+            ->assertSee('C26CG-0000008')
+            ->assertSee('data-history-renewal-banner', false)
+            ->assertSee('Danh sách chỉ hiển thị các khoản thu tái tục')
             ->assertSee('Chi tiết Phiếu thu')
             ->assertSee('Tải lên biên lai mới')
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('receipts.data', fn ($rows) => $rows->firstWhere('invoice_number', 'C26CG-0000007')['template_code'] === '1/002'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('receipts.total', 1)
+                ->where('receipts.data', fn ($rows) => $rows->firstWhere('invoice_number', 'C26CG-0000008')['template_code'] === '1/002'))
+            ->assertDontSee('C26CG-0000007')
+            ->assertDontSee('PT-WIZARD-1')
             ->assertDontSee('HV-PAR-H2')
             ->assertDontSee('01GTKT0/001');
 
+        // Bộ lọc vẫn áp dụng trên tập tái tục; phiếu đầu tiên vẫn truy cập được để đối soát.
         $this->actingAs($this->accountant)->get(route('tuition.history', ['method' => 'cash']))
-            ->assertOk()->assertSee('HV-PAR-H2')->assertDontSee('C26CG-0000007');
-
-        // Chỉ khoản tái tục: khoản học phí đầu tiên của học viên bị loại.
-        $renewal = StudentTuition::create(['student_id' => $this->student->id, 'branch_id' => $this->branch->id, 'total_amount' => 4000000, 'final_amount' => 4000000, 'paid_amount' => 0, 'debt_amount' => 4000000, 'status' => 'unpaid']);
-        $this->approvedReceipt($renewal, 1000000, ['receipt_number' => 'PT-RENEWAL-1']);
-        $this->actingAs($this->accountant)->get(route('tuition.history', ['kind' => 'renewal']))
-            ->assertOk()->assertSee('PT-RENEWAL-1')->assertDontSee('C26CG-0000007')->assertSee('khoản thu tái tục');
+            ->assertOk()->assertSee('PT-RENEWAL-1')->assertDontSee('C26CG-0000007')->assertDontSee('HV-PAR-H2');
+        $this->actingAs($this->admin)->get(route('tuition.receipts.approve', ['status' => 'all', 'selected_id' => $wizard->id]))
+            ->assertOk()->assertSee('PT-WIZARD-1');
+        $this->assertDatabaseHas('tuition_receipts', ['id' => $wizard->id, 'transaction_code' => 'CW-TEST']);
 
         $csv = $this->actingAs($this->accountant)->get(route('tuition.history.export', ['student_id' => $this->student->id]))
             ->assertOk()->streamedContent();
-        $this->assertStringContainsString('C26CG-0000007', $csv);
         $this->assertStringContainsString('PT-RENEWAL-1', $csv);
+        $this->assertStringNotContainsString('C26CG-0000007', $csv);
         $this->assertStringNotContainsString('HV-PAR-H2', $csv);
     }
 
