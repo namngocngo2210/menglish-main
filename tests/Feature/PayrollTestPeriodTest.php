@@ -187,6 +187,24 @@ class PayrollTestPeriodTest extends TestCase
         }
     }
 
+    public function test_command_refuses_golden_accounts_and_reopen_works_on_allowlisted_period(): void
+    {
+        $this->app['env'] = 'staging';
+        $golden = User::factory()->create(['email' => 'FT-A.gd@test.menglish']);
+        $golden->assignRole(Roles::TEACHER_FULLTIME);
+        $this->artisan('payroll:test-period', ['--emails' => $this->teacher->email.',ft-a.gd@test.menglish'])
+            ->expectsOutputToContain('Golden')->assertFailed();
+        $this->assertDatabaseCount('payroll_periods', 0);
+
+        $this->artisan('payroll:test-period', ['--emails' => $this->teacher->email])->assertSuccessful();
+        $period = PayrollPeriod::where('code', 'PR-2026-TEST-A')->firstOrFail();
+        $this->assertSame([$this->teacher->id], $period->records()->pluck('user_id')->all());
+        $this->actingAs($this->admin);
+        $this->post(route('payroll.periods.approve', $period->id))->assertSessionHasNoErrors();
+        $this->post(route('payroll.periods.reopen', $period->id))->assertSessionHasNoErrors();
+        $this->assertSame('draft', $period->fresh()->status);
+    }
+
     public function test_command_is_idempotent_and_prepares_period_a_for_close(): void
     {
         $this->app['env'] = 'staging';

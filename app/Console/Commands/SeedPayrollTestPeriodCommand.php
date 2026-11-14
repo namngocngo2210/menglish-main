@@ -20,6 +20,9 @@ class SeedPayrollTestPeriodCommand extends Command
 
     protected $description = 'Prepare isolated payroll lifecycle QA periods on staging only';
 
+    /** Golden accounts hold fixed BA expectations; they must never join a mutable QA period. */
+    private const GOLDEN_EMAILS = ['ft-a.gd@test.menglish', 'pt-a.gd@test.menglish', 'ht-a.gd@test.menglish'];
+
     public function handle(): int
     {
         if (! app()->environment('staging')) {
@@ -45,6 +48,12 @@ class SeedPayrollTestPeriodCommand extends Command
         $emails = array_values(array_unique(array_filter(array_map('trim', explode(',', (string) $this->option('emails'))), fn ($email) => $email !== '')));
         if ($emails === []) {
             $this->error('Provide test staff emails with --emails=a@example.test,b@example.test.');
+
+            return self::FAILURE;
+        }
+        $golden = array_intersect(array_map('strtolower', $emails), self::GOLDEN_EMAILS);
+        if ($golden !== []) {
+            $this->error('Golden accounts cannot be used in a QA period: '.implode(', ', $golden));
 
             return self::FAILURE;
         }
