@@ -37,7 +37,8 @@ class CoverRequestController extends Controller
         abort_unless($approver || $user->can('class.teach'), 403);
         $sessions = $user->can('cover.request') || $approver
             ? ClassSession::query()->with('classModel:id,name')
-                ->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id))
+                // Admin / Học vụ (cover.approve) can open a request for any session they can see (TK-2026-0111).
+                ->when(! $approver, fn ($q) => $q->where(fn ($q) => $q->where('teacher_id', $user->id)->orWhere('foreign_teacher_id', $user->id)))
                 ->where('status', 'scheduled')->whereDate('date', '>=', today())
                 ->whereDoesntHave('coverRequests', fn ($q) => $q->whereIn('status', ['open', 'approved']))
                 ->orderBy('date')->orderBy('start_time')->limit(30)->get()
@@ -51,6 +52,7 @@ class CoverRequestController extends Controller
             'sessions' => $sessions,
             'canApprove' => $approver,
             'userId' => $user->id,
+            'propose' => $request->integer('propose') ?: null,
         ]);
     }
 

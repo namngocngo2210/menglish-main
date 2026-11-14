@@ -23,3 +23,9 @@ Màn **Lớp học → Dạy thay** (`/day-thay`, route `cover.board`). Backend:
 
 ## Test
 `tests/Feature/CoverRequestTest.php` (quy tắc), `tests/Feature/CoverBoardTest.php` (trang + thông báo), `tests/Feature/CoverPerSessionScopeTest.php` (ma trận quyền theo buổi), `tests/Feature/CoverScopeTest.php` (duyệt / mở lại / hủy), `resources/js/lib/cover.test.js` (nút hiển thị theo vai trò).
+
+## TK-2026-0111 — điểm vào nút & nghỉ phép đã duyệt
+- Nút **Tìm GV dạy thay** trên lịch dạy tuần của GV (`/teacher/home`, buổi sắp tới của mình) dẫn tới `/day-thay?propose=<buổi>` và mở sẵn hộp thoại. Admin / Học vụ (`cover.approve`) thấy mọi buổi sắp tới còn lên lịch trong phạm vi của mình ở màn Dạy thay và tạo yêu cầu cho bất kỳ buổi nào.
+- **Giả định (cần chủ dự án xác nhận):** khi đơn **nghỉ phép** (`leave`) được duyệt, hệ thống tự mở yêu cầu dạy thay (`CoverService::openForLeave`) cho mọi buổi sắp tới còn lên lịch của GV (chính / GVNN) trong khoảng nghỉ; buổi đã có yêu cầu hoạt động hoặc đã bắt đầu thì bỏ qua. Người đề xuất ghi là người duyệt đơn. Duyệt / mở lại / hủy vẫn do Admin / Học vụ.
+- AC-S07/S09 (GV dạy thay thấy thông tin): chọn cách đọc an toàn nhất — chỉ sau khi được duyệt, chỉ đúng buổi đó (xem Phạm vi dữ liệu ở trên); trước duyệt chỉ thấy ngày giờ.
+- Chưa làm: nút trên trang điểm danh / màn đơn nghỉ (chỉ lịch tuần + màn Dạy thay); trạng thái "Sắp tới" của buổi không đổi theo yêu cầu dạy thay.

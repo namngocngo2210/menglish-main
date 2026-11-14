@@ -7,7 +7,9 @@ use App\Models\Branch;
 use App\Models\ClassModel;
 use App\Models\ClassSession;
 use App\Models\Course;
+use App\Models\StaffAttendanceRequest;
 use App\Models\User;
+use App\Services\StaffAttendance\StaffAttendanceService;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -88,6 +90,41 @@ class CoverBoardTest extends TestCase
 
         $this->actingAs($this->approver)->postJson(route('cover-requests.reopen', $id))->assertOk();
         $this->assertTrue(AdminNotification::where('type', 'cover_reopened')->where('user_id', $this->other->id)->exists());
+    }
+
+    public function test_approver_board_lists_any_scheduled_session_for_the_find_cover_dialog(): void
+    {
+        $this->actingAs($this->approver)->get(route('cover.board', ['propose' => $this->session->id]))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('sessions', 1)->where('sessions.0.id', $this->session->id)->where('propose', $this->session->id));
+        // A teacher who does not own the session only sees their own sessions.
+        $this->actingAs($this->other)->get(route('cover.board'))->assertInertia(fn (Assert $page) => $page->has('sessions', 0)->where('propose', null));
+    }
+
+    public function test_approved_leave_opens_cover_for_the_teachers_upcoming_sessions_only(): void
+    {
+        $admin = $this->staff(Roles::ADMIN);
+        $outside = ClassSession::create(['class_id' => $this->session->class_id, 'branch_id' => $this->session->branch_id, 'date' => '2026-12-18',
+            'start_time' => '18:00', 'end_time' => '19:30', 'shift_name' => 'Ca tối', 'teacher_id' => $this->teacher->id, 'status' => 'scheduled']);
+        $leave = StaffAttendanceRequest::create([
+            'user_id' => $this->teacher->id, 'branch_id' => $this->session->branch_id, 'type' => StaffAttendanceRequest::TYPE_LEAVE,
+            'date_from' => '2026-12-11', 'date_to' => '2026-12-12', 'reason' => 'Việc nhà', 'status' => StaffAttendanceRequest::STATUS_PENDING,
+        ]);
+
+        app(StaffAttendanceService::class)->approve($leave, $admin);
+
+        $this->assertDatabaseHas('cover_requests', ['class_session_id' => $this->session->id, 'status' => 'open', 'original_teacher_id' => $this->teacher->id]);
+        $this->assertDatabaseMissing('cover_requests', ['class_session_id' => $outside->id]);
+        // Other teachers see it (no class info); assistant and student stay out.
+        $this->actingAs($this->other)->get(route('cover.board'))->assertInertia(fn (Assert $page) => $page->has('covers', 1)->missing('covers.0.class'));
+        $this->actingAs($this->staff(Roles::ASSISTANT))->get(route('cover.board'))->assertForbidden();
+        $this->actingAs($this->staff(Roles::STUDENT))->get(route('cover.board'))->assertForbidden();
+    }
+
+    public function test_non_owner_teacher_and_assistant_cannot_open_cover_for_someone_elses_session(): void
+    {
+        $this->actingAs($this->other)->postJson(route('teacher.cover.store'), ['class_session_id' => $this->session->id])->assertForbidden();
+        $this->actingAs($this->staff(Roles::ASSISTANT))->postJson(route('teacher.cover.store'), ['class_session_id' => $this->session->id])->assertForbidden();
+        $this->assertDatabaseCount('cover_requests', 0);
     }
 
     private function staff(string $role): User

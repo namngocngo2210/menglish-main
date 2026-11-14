@@ -275,6 +275,7 @@ const chip = 'inline-flex min-h-11 items-center gap-xs rounded-full border px-sm
                                 <span v-if="s.type_label" class="block truncate text-on-surface-variant" :title="s.type_label">{{ s.type_label }}</span>
                                 <span :class="['mt-[2px] block truncate font-semibold', weekState(s).cls]">{{ weekState(s).label }}</span>
                                 <span v-if="s.checkin_overdue" class="block text-xs font-semibold text-error">Quá hạn chấm công</span>
+                                <Link v-if="s.can_cover && can('cover.request')" :href="route('cover.board', { propose: s.id })" class="mt-[2px] block truncate text-xs font-semibold text-primary hover:underline" @click.stop>Tìm GV dạy thay</Link>
                             </component>
                         </div>
                     </div>
