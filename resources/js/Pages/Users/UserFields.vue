@@ -180,8 +180,8 @@ onMounted(() => {
                 <UiInput name="personal_email" :id="fid('personal_email')" type="email" label="Email cá nhân" :value="user?.personal_email" placeholder="Email riêng, khác email công việc" />
                 <UiInput name="facebook" :id="fid('facebook')" label="Facebook" :value="user?.facebook" placeholder="Link trang cá nhân" />
                 <UiInput name="contact_channel" :id="fid('contact_channel')" label="Kênh liên lạc với quản lý nhân sự" :value="user?.contact_channel" placeholder="VD: Điện thoại" />
-                <UiInput v-if="canEditSensitive" name="id_card_number" :id="fid('id_card_number')" label="Số CCCD (12 số)" :value="user?.id_card_number" placeholder="VD: 001201004567" class="font-code" />
-                <UiDate v-if="canEditSensitive" name="id_card_issued_on" :id="fid('id_card_issued_on')" label="Ngày cấp CCCD" :value="user?.id_card_issued_on" />
+                <UiInput name="id_card_number" :id="fid('id_card_number')" label="Số CCCD (12 số)" :value="user?.id_card_number" placeholder="VD: 001201004567" class="font-code" />
+                <UiDate name="id_card_issued_on" :id="fid('id_card_issued_on')" label="Ngày cấp CCCD" :value="user?.id_card_issued_on" />
                 <UiInput name="emergency_contact" :id="fid('emergency_contact')" label="Liên lạc khẩn cấp (Tên & SĐT)" :value="user?.emergency_contact" placeholder="Tên người thân - SĐT" />
                 <UiInput name="hometown" :id="fid('hometown')" label="Quê quán" :value="user?.hometown" placeholder="VD: Hà Nội" />
                 <UiInput name="current_address" :id="fid('current_address')" label="Nơi ở hiện tại" :value="user?.current_address" placeholder="Quận/huyện, tỉnh/thành" />
@@ -205,7 +205,7 @@ onMounted(() => {
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiDate name="joined_on" :id="fid('joined_on')" label="Ngày bắt đầu làm việc" :value="user?.joined_on" />
-                <UiInput v-if="canEditSensitive" name="bank_account" :id="fid('bank_account')" label="TK ngân hàng nhận lương" :value="user?.bank_account" placeholder="Số TK - Ngân hàng" class="font-code" />
+                <UiInput name="bank_account" :id="fid('bank_account')" label="TK ngân hàng nhận lương" :value="user?.bank_account" placeholder="Số TK - Ngân hàng" class="font-code" />
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiDate name="contract_start_date" :id="fid('contract_start_date')" label="Ngày bắt đầu hợp đồng" :value="user?.contract_start_date" />

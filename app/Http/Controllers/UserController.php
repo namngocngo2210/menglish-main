@@ -193,7 +193,9 @@ class UserController extends Controller
         $canViewSensitive = self::canViewSensitive($request->user());
         $primaryRole = $user->roles->first()?->name;
         $contractState = $user->contractExpiryStatus();
-        $sensitive = fn ($value) => $canViewSensitive ? $value : false;
+        // Hồ sơ nhân sự (CCCD, liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng) theo quyền nhân sự user.view; chỉ lương/thù lao cần canViewSensitive.
+        $canViewProfile = self::canViewProfile($request->user());
+        $sensitive = fn ($value) => $canViewProfile ? $value : false;
 
         return Inertia::render('Users/Show', [
             'user' => [
@@ -280,6 +282,7 @@ class UserController extends Controller
             ...$request->safe()->except([
                 'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
                 'weekly_days_off', 'weekly_days_off_present',
+                ...(self::canViewSensitive(auth()->user()) ? [] : self::SALARY_FIELDS),
             ]),
             'weekly_days_off' => $this->weeklyDaysOff($request, null),
             'password' => Hash::make($request->validated('password')),
@@ -311,8 +314,8 @@ class UserController extends Controller
         $assignable = Rbac::assignableRoles(auth()->user());
         $currentRole = $user->exists ? $user->getRoleNames()->first() : null;
         $tabs = ['account', 'profile', 'salary'];
-        // CCCD, lương cơ bản, thù lao giờ: chỉ người xem được lương (payroll.view) đọc / sửa trên tài khoản đã có.
-        $canEditSensitive = ! $user->exists || self::canViewSensitive(auth()->user());
+        // Chỉ lương cơ bản, phụ cấp, thù lao giờ cần quyền lương (Admin); hồ sơ nhân sự (CCCD, TK ngân hàng...) sửa theo user.update của route.
+        $canEditSensitive = self::canViewSensitive(auth()->user());
 
         return $this->modalPage('Users/Form', [
             'user' => $user->exists ? [
@@ -327,8 +330,9 @@ class UserController extends Controller
                 'weekly_days_off' => array_map('intval', (array) $user->weekly_days_off),
                 'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
                 'joined_on' => $user->joined_on?->format('Y-m-d'),
-                ...($canEditSensitive ? $user->only(self::SENSITIVE_FIELDS) : []),
-                'id_card_issued_on' => $canEditSensitive ? $user->id_card_issued_on?->format('Y-m-d') : null,
+                ...$user->only(['id_card_number', 'bank_account']),
+                ...($canEditSensitive ? $user->only(self::SALARY_FIELDS) : []),
+                'id_card_issued_on' => $user->id_card_issued_on?->format('Y-m-d'),
                 'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
                 'contract_end_date' => $user->contract_end_date?->format('Y-m-d'),
                 'has_contract_file' => (bool) $user->contract_file_path,
@@ -356,8 +360,8 @@ class UserController extends Controller
         return $days === [] ? null : $days;
     }
 
-    /** Trường nhạy cảm trên form nhân sự: chỉ người có payroll.view đọc / sửa (canViewSensitive). */
-    private const SENSITIVE_FIELDS = ['id_card_number', 'id_card_issued_on', 'bank_account', 'base_salary', 'monthly_allowance', 'hourly_rate'];
+    /** Trường lương trên form nhân sự: chỉ Admin (canViewSensitive) đọc / sửa. */
+    private const SALARY_FIELDS = ['base_salary', 'monthly_allowance', 'hourly_rate'];
 
     public function update(UserRequest $request, User $user): Response|RedirectResponse
     {
@@ -371,7 +375,7 @@ class UserController extends Controller
         $user->fill($request->safe()->except([
             'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
             'weekly_days_off', 'weekly_days_off_present',
-            ...(self::canViewSensitive(auth()->user()) ? [] : self::SENSITIVE_FIELDS),
+            ...(self::canViewSensitive(auth()->user()) ? [] : self::SALARY_FIELDS),
         ]));
         $user->weekly_days_off = $this->weeklyDaysOff($request, $user->weekly_days_off);
 
@@ -724,16 +728,25 @@ class UserController extends Controller
             'show_url' => route('users.show', $user),
         ];
 
-        if (self::canViewSensitive($viewer)) {
-            $payload += $user->only(['id_card_number', 'base_salary', 'monthly_allowance', 'hourly_rate', 'hometown', 'current_address', 'emergency_contact', 'bank_account'])
+        if (self::canViewProfile($viewer)) {
+            $payload += $user->only(['id_card_number', 'hometown', 'current_address', 'emergency_contact', 'bank_account'])
                 + ['id_card_issued_on' => $user->id_card_issued_on?->format('d/m/Y')];
+        }
+        if (self::canViewSensitive($viewer)) {
+            $payload += $user->only(['base_salary', 'monthly_allowance', 'hourly_rate']);
         }
 
         return $payload;
     }
 
+    /** Hồ sơ nhân sự nhạy cảm (CCCD, liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng): theo quyền nhân sự user.view (phạm vi do route/ensureCanManageTarget giữ). */
+    public static function canViewProfile(?User $actor): bool
+    {
+        return (bool) $actor && $actor->can('user.view');
+    }
+
     /**
-     * Người được xem CCCD, lương cơ bản, đơn giá của nhân sự.
+     * Người được xem lương cơ bản, phụ cấp, thù lao giờ của nhân sự (chỉ Admin).
      */
     public static function canViewSensitive(?User $actor): bool
     {
