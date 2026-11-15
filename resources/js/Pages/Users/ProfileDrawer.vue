@@ -10,6 +10,7 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const has = (key) => !!props.user && key in props.user;
+const pii = (key) => (has(key) ? (props.user[key] || 'Chưa cập nhật') : 'Không có quyền xem');
 const contractTone = computed(() => ({
     'Đã hết hạn': 'bg-error-container text-error',
     'Sắp hết hạn': 'bg-warning-container text-on-warning-container',
@@ -50,7 +51,12 @@ function openModal(url, size) {
                         <h3 class="flex items-center gap-xs font-label text-label uppercase text-on-surface"><span class="material-symbols-outlined text-[16px] text-primary-container">badge</span>Thông tin người dùng</h3>
                         <dl class="grid grid-cols-2 gap-sm">
                             <div><dt class="text-on-surface-variant">Số điện thoại</dt><dd class="font-code">{{ user.phone || 'Chưa cập nhật' }}</dd></div>
-                            <div><dt class="text-on-surface-variant">Số CCCD</dt><dd class="font-code">{{ has('id_card_number') ? (user.id_card_number || 'Chưa cập nhật') : 'Không có quyền xem' }}</dd></div>
+                            <div><dt class="text-on-surface-variant">Số CCCD</dt><dd class="font-code">{{ pii('id_card_number') }}</dd></div>
+                            <div><dt class="text-on-surface-variant">Ngày cấp CCCD</dt><dd>{{ pii('id_card_issued_on') }}</dd></div>
+                            <div><dt class="text-on-surface-variant">Liên lạc khẩn cấp</dt><dd>{{ pii('emergency_contact') }}</dd></div>
+                            <div><dt class="text-on-surface-variant">Quê quán</dt><dd>{{ pii('hometown') }}</dd></div>
+                            <div class="col-span-2"><dt class="text-on-surface-variant">Nơi ở hiện tại</dt><dd>{{ pii('current_address') }}</dd></div>
+                            <div class="col-span-2"><dt class="text-on-surface-variant">TK ngân hàng nhận lương</dt><dd class="font-code">{{ pii('bank_account') }}</dd></div>
                             <div><dt class="text-on-surface-variant">Tốt nghiệp</dt><dd>{{ user.graduation_school || 'Chưa cập nhật' }}</dd></div>
                             <div><dt class="text-on-surface-variant">Chứng chỉ</dt><dd>{{ user.certificates || 'Chưa cập nhật' }}</dd></div>
                             <div class="col-span-2"><dt class="text-on-surface-variant">Level giảng dạy</dt><dd>{{ user.teaching_level || 'Chưa cập nhật' }}</dd></div>

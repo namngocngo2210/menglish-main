@@ -346,3 +346,8 @@ Bảng mới có dữ liệu theo chi nhánh / theo người: dùng lọc tự �
   `Rbac::SUPER_ADMIN`. Các chỗ này không cấp quyền truy cập dữ liệu; có thể chuyển dần sang quyền đối tượng khi BA cần.
 - Seeder demo / test (`UserSeeder`, `DemoPhase*Seeder`, `tests/`) gán vai trò theo tên — dữ liệu mẫu, không phải kiểm tra
   quyền.
+
+## Hồ sơ nhân sự nhạy cảm (TK-2026-0122)
+
+- CCCD (số, ngày cấp), liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng nhận lương: xem theo `user.view`, sửa theo `user.update` (trong phạm vi chi nhánh/cây vai trò của `UserController::ensureCanManageTarget`).
+- Lương cơ bản, phụ cấp, thù lao giờ dạy: chỉ Admin (`payroll.view` + phạm vi mọi chi nhánh) xem/ghi; trang hồ sơ, drawer, form, `store`/`update` đều lọc phía server.
