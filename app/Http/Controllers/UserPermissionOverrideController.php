@@ -336,15 +336,15 @@ class UserPermissionOverrideController extends Controller
     }
 
     /**
-     * Không cho tự cấp quyền cho chính mình (Super Admin luôn toàn quyền nên không tự khóa được); chỉ Super Admin được
-     * chỉnh quyền của Super Admin.
+     * Không ai (kể cả Admin / Super Admin) xem hoặc sửa phân quyền cá nhân của chính mình (TK-2026-0123, edit + update
+     * đều 403); chỉ Super Admin được chỉnh quyền của Super Admin.
      */
     private function ensureCanOverride(User $target): void
     {
         $actor = auth()->user();
-        abort_if($actor && (int) $actor->id === (int) $target->id && ! $actor->isSuperAdmin(), 403, 'Không thể tự phân quyền cho chính mình.');
+        abort_if($actor && (int) $actor->id === (int) $target->id, 403, 'Không thể tự thay đổi phân quyền của chính mình.');
         abort_if($target->isSuperAdmin() && ! $actor?->isSuperAdmin(), 403, 'Chỉ Admin được chỉnh quyền của Admin.');
         // Chỉ phân quyền cho cấp dưới trong cây vai trò (cùng quy tắc danh sách Người dùng).
-        abort_unless((int) $actor?->id === (int) $target->id || Rbac::isSubordinate($actor, $target), 403, 'Bạn chỉ phân quyền được cho cấp dưới của mình.');
+        abort_unless(Rbac::isSubordinate($actor, $target), 403, 'Bạn chỉ phân quyền được cho cấp dưới của mình.');
     }
 }
