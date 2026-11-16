@@ -9,6 +9,7 @@ use App\Models\CommissionItem;
 use App\Models\CrmCustomer;
 use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
+use App\Models\Student;
 use App\Models\SupportTicket;
 use App\Models\TeacherTimesheet;
 use App\Models\User;
@@ -120,6 +121,8 @@ class ProfileController extends Controller
             return Inertia::render('Profile/Edit', [
                 ...$this->accountProps($request, $user, showOperations: false),
                 'portal' => $portal,
+                // Chỉ hồ sơ học viên gắn với CHÍNH tài khoản đang đăng nhập (không nhận id từ request).
+                'studentProfile' => $this->studentProfile($user),
                 'roleLabels' => $this->roleLabels($user),
                 'quickLinks' => $this->quickLinks($user, $portal, $request),
                 'statCards' => [],
@@ -402,6 +405,19 @@ class ProfileController extends Controller
             $roles->contains(Roles::ASSISTANT) || $user->can('portal.assistant') => 'assistant',
             default => 'staff',
         };
+    }
+
+    /** @return array{name: string, dob: ?string, phone: ?string, address: ?string}|null */
+    private function studentProfile(User $user): ?array
+    {
+        $student = Student::where('user_id', $user->id)->first();
+
+        return $student ? [
+            'name' => $student->name,
+            'dob' => $student->dob?->format('d/m/Y'),
+            'phone' => $student->phone ?: null,
+            'address' => $student->address ?: null,
+        ] : null;
     }
 
     /** @return list<string> */
