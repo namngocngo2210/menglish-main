@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Student;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -104,6 +105,54 @@ class ProfilePortalByRoleTest extends TestCase
             ->assertDontSee('Giờ dạy tháng này')
             ->assertDontSee('#NV-')
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Profile/Edit')->where('initialTab', 'settings'));
+    }
+
+    public function test_student_sees_own_contact_info_only(): void
+    {
+        $user = $this->userWithRole('student');
+        $other = $this->userWithRole('student');
+        Student::create(['code' => 'HV-A', 'name' => 'Nguyễn An', 'user_id' => $user->id, 'dob' => '2012-03-05', 'phone' => '0911111111', 'address' => '12 Lê Lợi, Hà Nội']);
+        Student::create(['code' => 'HV-B', 'name' => 'Trần Bình', 'user_id' => $other->id, 'dob' => '2011-01-01', 'phone' => '0922222222', 'address' => '99 Trần Phú']);
+
+        $this->actingAs($user)->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('studentProfile', ['name' => 'Nguyễn An', 'dob' => '05/03/2012', 'phone' => '0911111111', 'address' => '12 Lê Lợi, Hà Nội']));
+
+        $this->actingAs($user)->get(route('profile.edit', ['id' => $other->id, 'student_id' => 2]))
+            ->assertOk()
+            ->assertDontSee('0922222222')
+            ->assertDontSee('99 Trần Phú');
+    }
+
+    public function test_student_without_record_has_no_profile_block(): void
+    {
+        $user = $this->userWithRole('student');
+
+        $this->actingAs($user)->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('studentProfile', null));
+    }
+
+    public function test_student_with_empty_fields_gets_nulls(): void
+    {
+        $user = $this->userWithRole('student');
+        Student::create(['code' => 'HV-C', 'name' => 'Lê Cường', 'user_id' => $user->id, 'phone' => '']);
+
+        $this->actingAs($user)->get(route('profile.edit'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('studentProfile.dob', null)->where('studentProfile.phone', null)->where('studentProfile.address', null));
+    }
+
+    public function test_staff_profile_has_no_student_block(): void
+    {
+        $user = $this->userWithRole('academic_staff');
+        Student::create(['code' => 'HV-D', 'name' => 'Phạm Dũng', 'user_id' => $user->id, 'phone' => '0933333333']);
+
+        $this->actingAs($user)->get(route('profile.edit'))
+            ->assertOk()
+            ->assertDontSee('0933333333')
+            ->assertInertia(fn (AssertableInertia $page) => $page->missing('studentProfile'));
     }
 
     public function test_forced_password_change_opens_account_settings_tab(): void

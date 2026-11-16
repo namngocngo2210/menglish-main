@@ -17,6 +17,7 @@ const props = defineProps({
     initialTab: { type: String, default: 'settings' },
     status: { type: String, default: null },
     portal: { type: String, required: true },
+    studentProfile: { type: Object, default: null },
     teaches: { type: Boolean, default: false },
     roleLabels: { type: Array, default: () => [] },
     quickLinks: { type: Array, default: () => [] },
@@ -636,6 +637,15 @@ const ticketColor = (s) => (s === 'resolved' ? 'success' : s === 'in_progress' ?
                         <span class="min-w-0">{{ link.label }}</span>
                     </Link>
                 </div>
+            </div>
+            <div v-if="studentProfile" class="mb-6 rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-6 shadow-sm sm:p-8">
+                <h2 class="text-base font-bold text-on-surface">Thông tin học viên</h2>
+                <dl class="mt-4 grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
+                    <div><dt class="text-on-surface-variant">Họ và tên</dt><dd class="font-semibold text-on-surface">{{ studentProfile.name }}</dd></div>
+                    <div><dt class="text-on-surface-variant">Ngày sinh</dt><dd class="font-semibold text-on-surface">{{ studentProfile.dob || 'Chưa cập nhật' }}</dd></div>
+                    <div><dt class="text-on-surface-variant">Số điện thoại</dt><dd class="font-semibold text-on-surface">{{ studentProfile.phone || 'Chưa cập nhật' }}</dd></div>
+                    <div><dt class="text-on-surface-variant">Địa chỉ liên hệ</dt><dd class="font-semibold text-on-surface">{{ studentProfile.address || 'Chưa cập nhật' }}</dd></div>
+                </dl>
             </div>
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <!-- Thông tin tài khoản -->
