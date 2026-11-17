@@ -60,22 +60,45 @@ class UserCreateStudentTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('creators')]
-    public function test_creates_student_from_modal_without_staff_only_fields(string $creatorRole): void
+    public function test_rejects_student_as_primary_or_concurrent_role(string $creatorRole): void
     {
+        // TK-2026-0125: màn nhân sự không tạo học viên; server từ chối cả vai trò chính lẫn kiêm nhiệm khi gửi tay.
         $this->actingAs($this->actor($creatorRole))
             ->from(route('users.index'))
             ->withHeaders(self::MODAL)
             ->post(route('users.store'), $this->studentPayload())
-            ->assertSessionHasNoErrors()
-            ->assertRedirect(route('users.index'));
+            ->assertSessionHasErrors('role');
 
-        $student = User::where('email', 'hocvien.moi@menglish.edu.vn')->firstOrFail();
-        $this->assertSame([Roles::STUDENT], $student->getRoleNames()->all());
-        $this->assertSame($this->branch->id, (int) $student->branch_id);
-        $this->assertTrue((bool) $student->must_change_password);
-        $this->assertNull($student->contract_type);
-        $this->assertEquals(0, $student->base_salary);
-        $this->assertMatchesRegularExpression('/^MES\d+$/', $student->employee_code);
+        $this->actingAs($this->actor($creatorRole))
+            ->from(route('users.index'))
+            ->withHeaders(self::MODAL)
+            ->post(route('users.store'), $this->studentPayload(['role' => Roles::ASSISTANT, 'concurrent_roles' => [Roles::STUDENT]]))
+            ->assertSessionHasErrors('concurrent_roles.0');
+
+        $this->assertDatabaseMissing('users', ['email' => 'hocvien.moi@menglish.edu.vn']);
+    }
+
+    public function test_update_cannot_switch_staff_to_student_but_existing_student_stays_editable(): void
+    {
+        $admin = $this->actor(Roles::ADMIN);
+        $staff = $this->actor(Roles::ASSISTANT);
+        $this->actingAs($admin)->put(route('users.update', $staff), ['name' => 'X', 'email' => $staff->email, 'branch_id' => $this->branch->id, 'role' => Roles::STUDENT])
+            ->assertSessionHasErrors('role');
+        $this->assertTrue($staff->fresh()->hasRole(Roles::ASSISTANT));
+
+        $student = $this->actor(Roles::STUDENT);
+        $this->actingAs($admin)->get(route('users.edit', $student))->assertOk();
+        $this->actingAs($admin)->put(route('users.update', $student), ['name' => 'Học viên đổi tên', 'email' => $student->email, 'branch_id' => $this->branch->id, 'role' => Roles::STUDENT])
+            ->assertSessionHasNoErrors();
+        $this->assertTrue($student->fresh()->hasRole(Roles::STUDENT));
+    }
+
+    public function test_create_form_does_not_offer_student_role(): void
+    {
+        $html = $this->actingAs($this->actor(Roles::ADMIN))->withHeaders(self::MODAL)->get(route('users.create'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('value="student"', $html);
+        $this->assertStringContainsString('value="'.Roles::ASSISTANT.'"', $html);
     }
 
     public function test_missing_fields_get_vietnamese_message_per_field(): void

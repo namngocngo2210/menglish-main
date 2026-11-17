@@ -33,6 +33,14 @@ class UserRequest extends FormRequest
         }
     }
 
+    /** Vai trò Học viên bị chặn, trừ khi người đang sửa đã có sẵn vai trò đó. @return list<string> */
+    private function blockedStudentRole(): array
+    {
+        $user = $this->route('user');
+
+        return $user && $user->hasRole(Roles::STUDENT) ? [] : [Roles::STUDENT];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -51,7 +59,8 @@ class UserRequest extends FormRequest
             'extra_branch_ids_present' => ['nullable', 'boolean'],
             'extra_branch_ids' => ['nullable', 'array'],
             'extra_branch_ids.*' => ['integer', 'distinct', 'exists:branches,id'],
-            'role' => ['required', 'string', 'exists:roles,name'],
+            // TK-2026-0125: màn nhân sự không tạo tài khoản học viên; người đã là học viên vẫn sửa được (giữ nguyên vai trò).
+            'role' => ['required', 'string', 'exists:roles,name', Rule::notIn($this->blockedStudentRole())],
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
             // Phụ cấp theo hợp đồng (đ/tháng), trả theo ngày công như lương cơ bản (TK-0012).
@@ -92,7 +101,7 @@ class UserRequest extends FormRequest
             'contract_file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,jpg,jpeg,png,webp'],
             'concurrent_roles_present' => ['nullable', 'boolean'],
             'concurrent_roles' => ['nullable', 'array'],
-            'concurrent_roles.*' => ['string', 'exists:roles,name'],
+            'concurrent_roles.*' => ['string', 'exists:roles,name', Rule::notIn($this->blockedStudentRole())],
         ];
     }
 
@@ -108,6 +117,8 @@ class UserRequest extends FormRequest
             'extra_branch_ids.*.exists' => 'Cơ sở làm việc thêm không tồn tại.',
             'role.required' => 'Vui lòng chọn vai trò.',
             'role.exists' => 'Vai trò không tồn tại.',
+            'role.not_in' => 'Không tạo tài khoản học viên ở màn hình này.',
+            'concurrent_roles.*.not_in' => 'Không gán vai trò Học viên ở màn hình này.',
             'password.required' => 'Vui lòng nhập mật khẩu khởi tạo.',
             'password.min' => 'Mật khẩu tối thiểu 8 ký tự.',
             'personal_email.email' => 'Email cá nhân không hợp lệ.',
