@@ -5,12 +5,13 @@ namespace App\Services\Students;
 use App\Models\ClassEnrollment;
 use App\Models\ClassModel;
 use App\Models\Student;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Học viên "Chờ khai giảng" → "Đang học" khi đã hoàn tất nhập học (lượt ghi danh "completed": xác nhận chính thức
- * từ CRM hoặc bàn giao đủ ở màn Học viên) vào một lớp đã khai giảng (lớp đang hoạt động, tới ngày bắt đầu).
- * Gọi ngay khi xác nhận / bàn giao xong, và chạy hằng ngày (students:start-studying) cho lớp khai giảng sau đó.
+ * Start due classes and move waiting students to studying, without requiring enrollment confirmation.
+ * Also activate students immediately after manual confirmation or handoff into an already-started class.
  */
 class ClassStartActivation
 {
@@ -20,7 +21,7 @@ class ClassStartActivation
             && (! $class->start_date || $class->start_date->copy()->startOfDay()->lte(today()));
     }
 
-    /** Sau khi một lượt ghi danh hoàn tất: chuyển học viên sang Đang học nếu lớp đã khai giảng. */
+    /** After manual enrollment completion, activate the student if the class has started. */
     public function forEnrollment(ClassEnrollment $enrollment): bool
     {
         $student = $enrollment->student;
@@ -34,27 +35,45 @@ class ClassStartActivation
         return true;
     }
 
-    /** Học viên Chờ khai giảng có lượt ghi danh hoàn tất ở lớp đã khai giảng. */
-    public function dueStudents(): Builder
+    /** Waiting students with an active enrollment or current class that has started. */
+    public function dueStudents(?CarbonInterface $now = null): Builder
     {
+        $today = ($now ?? now())->toDateString();
+        $startedClass = fn (Builder $class) => $class
+            ->where('status', 'active')
+            ->where(fn (Builder $date) => $date->whereNull('start_date')->orWhereDate('start_date', '<=', $today));
+
         return Student::query()
             ->where('status', Student::INITIAL_STATUS)
-            ->whereHas('enrollments', fn (Builder $enrollment) => $enrollment
-                ->where('status', 'completed')
-                ->whereHas('classModel', fn (Builder $class) => $class
-                    ->where('status', 'active')
-                    ->where(fn (Builder $date) => $date->whereNull('start_date')->orWhereDate('start_date', '<=', today()))));
+            ->where(fn (Builder $student) => $student
+                ->whereHas('enrollments', fn (Builder $enrollment) => $enrollment
+                    ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)
+                    ->whereHas('classModel', $startedClass))
+                ->orWhereHas('currentClass', $startedClass));
     }
 
-    /** @return int số học viên đã chuyển sang Đang học */
-    public function run(): int
+    /** @return array{classes_started: int, students_started: int} */
+    public function run(?CarbonInterface $now = null): array
     {
-        $count = 0;
-        $this->dueStudents()->each(function (Student $student) use (&$count) {
-            $student->update(['status' => 'studying']);
-            $count++;
-        });
+        $now ??= now();
 
-        return $count;
+        return DB::transaction(function () use ($now) {
+            $counts = ['classes_started' => 0, 'students_started' => 0];
+            ClassModel::query()
+                ->where('status', 'upcoming')
+                ->whereNotNull('start_date')
+                ->whereDate('start_date', '<=', $now->toDateString())
+                ->eachById(function (ClassModel $class) use (&$counts) {
+                    $class->update(['status' => 'active']);
+                    $counts['classes_started']++;
+                });
+
+            $this->dueStudents($now)->eachById(function (Student $student) use (&$counts) {
+                $student->update(['status' => 'studying']);
+                $counts['students_started']++;
+            });
+
+            return $counts;
+        });
     }
 }

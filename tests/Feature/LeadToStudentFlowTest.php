@@ -159,14 +159,19 @@ class LeadToStudentFlowTest extends TestCase
         $this->assertSame('studying', $enrollment->student->fresh()->status);
     }
 
-    public function test_unconfirmed_enrollment_does_not_start_studying(): void
+    public function test_unconfirmed_enrollment_starts_studying_only_when_class_has_started(): void
     {
         $class = $this->makeClass('F1A', ['start_date' => today()->subDay()]);
         $student = Student::create(['code' => 'HV-P1', 'name' => 'HV chờ', 'branch_id' => $this->branch->id, 'status' => 'waiting_start', 'phone' => '0900000001']);
         ClassEnrollment::create(['student_id' => $student->id, 'class_id' => $class->id, 'status' => 'pending']);
 
+        $futureClass = $this->makeClass('F1B', ['start_date' => today()->addDay()]);
+        $futureStudent = Student::create(['code' => 'HV-P2', 'name' => 'Waiting student', 'branch_id' => $this->branch->id, 'status' => 'waiting_start', 'phone' => '0900000002']);
+        ClassEnrollment::create(['student_id' => $futureStudent->id, 'class_id' => $futureClass->id, 'status' => 'pending']);
+
         $this->artisan('students:start-studying')->assertSuccessful();
-        $this->assertSame('waiting_start', $student->fresh()->status);
+        $this->assertSame('studying', $student->fresh()->status);
+        $this->assertSame('waiting_start', $futureStudent->fresh()->status);
     }
 
     public function test_completing_handoff_on_student_screen_starts_studying_in_started_class(): void

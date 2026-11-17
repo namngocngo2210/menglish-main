@@ -392,7 +392,8 @@ class StudentProfileController extends Controller
             'curriculum_delivered' => $curriculumDelivered,
             'status' => $curriculumDelivered ? 'completed' : 'pending',
         ]);
-        // Bàn giao xong vào lớp đã khai giảng → Đang học (lớp chưa khai giảng: lệnh hằng ngày students:start-studying).
+        // Activate immediately after handoff into a started class; the daily command also
+        // activates waiting students when classes start, without requiring handoff completion.
         app(ClassStartActivation::class)->forEnrollment($enrollment);
 
         return redirect()->route('students.enrollments')
