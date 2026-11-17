@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BigTestOrder;
 use App\Models\ClassModel;
+use App\Models\MaterialOrder;
 use App\Models\SyllabusAssignment;
 use App\Services\Syllabus\SyllabusOrders;
+use App\Support\Audit;
 use App\Support\Ui;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -59,6 +62,10 @@ class TeacherOrderController extends Controller
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
         $code = $this->orders->place($user, $assignment, (int) $validated['lesson_id'], $validated);
+        $order = MaterialOrder::where('code', $code)->first() ?? BigTestOrder::where('code', $code)->first();
+        if ($order) {
+            Audit::logOrder($user, $order, 'created', "Giáo viên tạo order {$code} theo syllabus (lớp {$classModel->name})", null, Audit::orderSnapshot($order));
+        }
 
         return redirect()->back()->with('status', "Đã gửi order {$code}.");
     }

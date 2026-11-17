@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\BigTestOrder;
 use App\Models\Branch;
 use App\Models\ClassLessonOverride;
 use App\Models\ClassModel;
@@ -124,6 +125,36 @@ class Audit
         if (app()->bound(self::CONTAINER_KEY)) {
             app()->forgetInstance(self::CONTAINER_KEY);
         }
+    }
+
+    /**
+     * Ghi một dòng nhật ký thủ công cho order (phân hệ Giáo trình & Syllabus) với dữ liệu trước/sau.
+     * Dòng này nằm trong batch của request nên middleware không ghi thêm dòng chung.
+     */
+    public static function logOrder(?User $actor, Model $order, string $event, string $description, ?array $before, array $after): void
+    {
+        $activity = activity('Giáo trình & Syllabus')->performedOn($order)->event($event)
+            ->withProperties(['before' => $before, 'after' => $after]);
+        if ($actor) {
+            $activity->causedBy($actor);
+        }
+        $activity->log($description);
+    }
+
+    /** Dữ liệu order để so sánh trước/sau: mã, lớp, các dòng hàng (số lượng, ghi chú), trạng thái. */
+    public static function orderSnapshot(Model $order): array
+    {
+        $isTest = $order instanceof BigTestOrder;
+        $class = $isTest ? $order->classModel : $order->classRoom;
+        $title = $isTest ? trim($order->type_label.' '.$order->stage_name) : $order->title;
+        $note = $isTest ? $order->note : $order->description;
+
+        return [
+            'code' => $order->code,
+            'class' => $class?->name,
+            'status' => $order->status,
+            'items' => [['title' => $title, 'quantity' => $isTest ? 1 : $order->quantity, 'note' => $note]],
+        ];
     }
 
     public static function config(Model|string $model): ?array

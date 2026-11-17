@@ -2123,6 +2123,7 @@ class SyllabusController extends Controller
         ]);
 
         $created = null;
+        $before = Audit::orderSnapshot($order);
         DB::transaction(function () use ($order, $validated, $isBig, &$created) {
             $bigTestId = $validated['big_test_id'] ?? null;
             if (! $bigTestId && $isBig) {
@@ -2160,6 +2161,8 @@ class SyllabusController extends Controller
             }
             app(TestOrderTasks::class)->close($order);
         });
+
+        Audit::logOrder(Auth::user(), $order, 'updated', "Duyệt & phân phối order đề {$order->code}", $before, Audit::orderSnapshot($order->refresh()));
 
         $createdNote = $created ? " Đã tạo đợt thi {$created->code} lúc ".$created->scheduled_at->format('H:i d/m/Y')." tại {$created->room}." : '';
         $this->notifyUser($order->teacher_id, 'Order đề đã được duyệt', "Đề {$order->type_label} chặng \"{$order->stage_name}\" lớp {$order->classModel?->name} đã được phân phối.".$createdNote, route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'approved']));
@@ -2202,6 +2205,7 @@ class SyllabusController extends Controller
             'rejection_reason.required' => 'Vui lòng nhập lý do từ chối.',
         ]);
 
+        $before = Audit::orderSnapshot($order);
         $order->update([
             'status' => 'rejected',
             'rejection_reason' => $validated['rejection_reason'],
@@ -2209,6 +2213,7 @@ class SyllabusController extends Controller
             'reviewed_at' => now(),
         ]);
         app(TestOrderTasks::class)->close($order);
+        Audit::logOrder(Auth::user(), $order, 'updated', "Từ chối order đề {$order->code}: {$validated['rejection_reason']}", $before, Audit::orderSnapshot($order));
         $this->notifyUser($order->teacher_id, 'Order đề bị từ chối', "Order {$order->code} lớp {$order->classModel?->name} — Lý do: {$validated['rejection_reason']}", route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'rejected']));
 
         return redirect()->route('syllabus.big-tests.distribution', ['order' => $order->id, 'order_status' => 'rejected'])
