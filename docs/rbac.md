@@ -114,7 +114,7 @@ Quy tắc chung:
 |---|---|---|---|---|
 | `lead` | own/branch/all | khách được giao phụ trách | khách thuộc chi nhánh | `CrmCustomer::scopeVisibleTo` (mọi màn / báo cáo / xuất CRM), bộ lọc chi nhánh, bảng hiệu suất, nhập Excel, khách học thử (all = mọi buổi) |
 | `student` | own/branch/all | học viên lớp mình được xem | theo `students.branch_id`, trống thì theo lớp đang học | `Student::scopeVisibleTo`, tạo học viên, lớp được xếp |
-| `class` | own/branch/all | lớp mình dạy / TA / GVNN / dạy thay theo buổi | lớp của mình + lớp thuộc chi nhánh | `ClassModel::scopeVisibleTo`, `userManagesAll`, tạo / sửa lớp, chấm bài nộp (all = mọi lớp); + cấp riêng theo chi nhánh / lớp (Phân quyền cá nhân) |
+| `class` | own/branch/all | lớp mình dạy / TA / GVNN / dạy thay theo buổi | lớp của mình + lớp thuộc chi nhánh | `ClassModel::scopeVisibleTo`, `userManagesAll`, tạo / sửa lớp, chấm bài nộp (all = mọi lớp); + Phân quyền cá nhân "Theo lớp / chi nhánh": mức Chi nhánh/Toàn hệ thống bị GIỚI HẠN đúng các lớp đã chọn (lưu ở action `scope`, không cấp quyền); mức Của tôi chỉ cấp thêm lớp |
 | `big_test` | own/branch/all | đợt thi / order của lớp mình (hoặc mình gửi) | + lớp thuộc chi nhánh | `BigTest`, `BigTestOrder` |
 | `tuition` | branch/all | — | học phí học viên thuộc chi nhánh | `TuitionBranchScope` (mọi màn Học phí, dải số, người nhận phiếu chờ duyệt) |
 | `finance` | branch/all | — | số liệu chi nhánh | `FinanceController` |

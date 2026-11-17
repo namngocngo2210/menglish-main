@@ -27,6 +27,12 @@ class UserPermissionOverride extends Model
         'class' => ['view', 'update', 'delete'],
     ];
 
+    /**
+     * Hành động "giả" lưu riêng phạm vi áp dụng (chi nhánh/lớp) khi chỉ đổi phạm vi mà không đổi quyền nào
+     * (TK-2026-0137). Không phải permission thật nên không cấp thêm quyền nào.
+     */
+    public const SCOPE_MARKER_ACTION = 'scope';
+
     /** 4 cột chuẩn của ma trận phân quyền (Xem / Thêm / Sửa / Xóa). */
     public const MATRIX_ACTIONS = [
         'view' => 'Xem',

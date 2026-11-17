@@ -20,11 +20,14 @@ class SystemCategory extends Model
 
     public const TYPE_FINE_LEVEL = 'fine_level';
 
+    public const TYPE_TA_CHECKLIST_GROUP = 'nhom_dau_muc_tro_giang';
+
     public const TYPES = [
         self::TYPE_LEAD_SOURCE,
         self::TYPE_LOST_REASON,
         self::TYPE_POSITION,
         self::TYPE_FINE_LEVEL,
+        self::TYPE_TA_CHECKLIST_GROUP,
     ];
 
     /** Nhãn tab (mockup) và tiền tố mã gợi ý (VD: SRC_06). */
@@ -33,6 +36,7 @@ class SystemCategory extends Model
         self::TYPE_LOST_REASON => 'Lý do không chốt',
         self::TYPE_POSITION => 'Chức vụ',
         self::TYPE_FINE_LEVEL => 'Mức phạt',
+        self::TYPE_TA_CHECKLIST_GROUP => 'Nhóm đầu mục trợ giảng',
     ];
 
     public const CODE_PREFIXES = [
@@ -40,6 +44,7 @@ class SystemCategory extends Model
         self::TYPE_LOST_REASON => 'LOST',
         self::TYPE_POSITION => 'POS',
         self::TYPE_FINE_LEVEL => 'FINE',
+        self::TYPE_TA_CHECKLIST_GROUP => 'TAG',
     ];
 
     /** Mã gợi ý kế tiếp của nhóm: TIỀNTỐ_NN (tính cả bản ghi đã ngừng / đã xóa mềm). */

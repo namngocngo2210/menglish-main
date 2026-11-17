@@ -18,6 +18,7 @@ use App\Models\Room;
 use App\Models\StudentAttendance;
 use App\Models\SupportSession;
 use App\Models\SyllabusDocument;
+use App\Models\SystemCategory;
 use App\Models\TeacherSessionReport;
 use App\Models\TeachingShift;
 use App\Models\User;
@@ -47,6 +48,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -703,6 +705,7 @@ class WorkTaskController extends Controller
             'classes' => Ui::options($classes, fn (ClassModel $c) => "{$c->name} ({$c->code})".($c->schedule_text ? ' - '.$c->schedule_text : '')),
             'classSessions' => $classSessions,
             'slots' => Ui::options(WorkTask::TIME_SLOTS),
+            'checklistGroups' => Ui::options(SystemCategory::active()->ofType(SystemCategory::TYPE_TA_CHECKLIST_GROUP)->orderBy('sort_order')->orderBy('id')->get(), 'name'),
             'today' => now()->toDateString(),
             'nowTime' => now()->format('H:i'),
             'cutoff' => self::TA_ASSIGN_CUTOFF,
@@ -719,6 +722,7 @@ class WorkTaskController extends Controller
             'tasks' => 'required|array|min:1|max:30',
             'tasks.*.category' => 'required|in:before,during,after',
             'tasks.*.content' => 'required|string|max:500',
+            'tasks.*.checklist_group_id' => ['nullable', Rule::exists('system_categories', 'id')->where(fn ($q) => $q->where('type', SystemCategory::TYPE_TA_CHECKLIST_GROUP)->where('is_active', true)->whereNull('deleted_at'))],
             'tasks.*.attach_class' => 'nullable',
             'tasks.*.class_id' => 'nullable|exists:classes,id',
             'tasks.*.class_session_id' => 'nullable|integer|exists:class_sessions,id',
@@ -767,7 +771,9 @@ class WorkTaskController extends Controller
             foreach ($rows as [$item, $attach, $session]) {
                 $created->push(WorkTask::create([
                     'title' => $item['content'],
-                    'description' => 'Nhiệm vụ trực ca '.WorkTask::TIME_SLOTS[$item['category']],
+                    // shortcut: nhóm đầu mục lưu trong mô tả, chưa có cột riêng; nâng cấp khi cần lọc/báo cáo theo nhóm.
+                    'description' => 'Nhiệm vụ trực ca '.WorkTask::TIME_SLOTS[$item['category']]
+                        .(filled($item['checklist_group_id'] ?? null) ? ' · Nhóm: '.SystemCategory::find($item['checklist_group_id'])->name : ''),
                     'creator_id' => Auth::id(),
                     'assignee_id' => $validated['assistant_id'],
                     'branch_id' => $validated['branch_id'] ?? ($session?->branch_id),
