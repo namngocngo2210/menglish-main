@@ -45,10 +45,17 @@ class RoomTypeController extends Controller
         return back()->with('success', "Đã lưu loại phòng {$roomType->name}.");
     }
 
-    /** Ngừng dùng ↔ Dùng lại: loại ngừng dùng không chọn được cho phòng mới, phòng cũ giữ nguyên loại. */
-    public function toggle(RoomType $roomType): RedirectResponse
+    /** Set the target state without logging repeated requests for the same state. */
+    public function toggle(Request $request, RoomType $roomType): RedirectResponse
     {
-        $roomType->update(['is_active' => ! $roomType->is_active]);
+        $data = $request->validate(['is_active' => ['required', 'boolean']]);
+        $isActive = (bool) $data['is_active'];
+
+        if ($roomType->is_active === $isActive) {
+            return back()->with('success', "Loại phòng {$roomType->name} đã ở trạng thái yêu cầu.");
+        }
+
+        $roomType->update(['is_active' => $isActive]);
 
         return back()->with('success', $roomType->is_active ? "Đã dùng lại loại phòng {$roomType->name}." : "Đã ngừng dùng loại phòng {$roomType->name}.");
     }

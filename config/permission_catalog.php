@@ -184,7 +184,8 @@ return [
                 'view' => ['Xem phòng học', 'Xem danh sách phòng, tra cứu phòng trống (trong phạm vi dữ liệu).'],
                 'manage' => ['Thêm / sửa phòng học', 'Thêm phòng, sửa tên / loại phòng / sức chứa / ghi chú của phòng.'],
                 'delete' => ['Xóa phòng học', 'Xóa phòng (bị chặn khi phòng đang có lớp học).'],
-                'manage_types' => ['Quản lý loại phòng', 'Thêm / sửa / ngừng dùng / xóa danh mục loại phòng dùng chung toàn hệ thống.'],
+                'edit_types' => ['Thêm / sửa loại phòng', 'Thêm / sửa loại phòng dùng chung toàn hệ thống.'],
+                'manage_types' => ['Ngừng dùng / dùng lại / xóa loại phòng', 'Ngừng dùng / dùng lại / xóa loại phòng dùng chung toàn hệ thống.'],
             ],
             'scope' => [
                 'levels' => ['branch', 'all'],

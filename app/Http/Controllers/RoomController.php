@@ -218,6 +218,7 @@ class RoomController extends Controller
             'canManage' => $user->can('room.manage'),
             'canDelete' => $user->can('room.delete'),
             'canManageTypes' => $user->can('room.manage_types'),
+            'canEditTypes' => $user->can('room.edit_types'),
         ];
     }
 
@@ -247,6 +248,7 @@ class RoomController extends Controller
             'lockedBranch' => $shared['lockedBranch'],
             'types' => $typeOptions,
             'canManageTypes' => $shared['canManageTypes'],
+            'canEditTypes' => $shared['canEditTypes'],
         ]);
     }
 

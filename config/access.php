@@ -120,8 +120,8 @@ return [
             'staff_report.submit', 'portal.staff',
             // Nhân sự full-time có phiếu lương: xem "Lương của tôi".
             'payroll.view_own', 'payroll.scope_own',
-            // Phòng học: thêm / sửa phòng chi nhánh mình; xóa phòng và danh mục loại phòng chỉ Admin.
-            'room.view', 'room.manage', 'room.scope_branch',
+            // TK-2026-0144: Academic staff can manage branch rooms and add/edit shared types; deletion and type lifecycle actions remain separate.
+            'room.view', 'room.manage', 'room.edit_types', 'room.scope_branch',
             // Dự giờ vận hành (QA) + checklist học phí & feedback theo lớp; đánh giá dự giờ học thuật là việc của Học thuật.
             'class_quality.view', 'class_quality.observe_operations', 'class_quality.checklist', 'class_quality.parent_feedback',
             'academic_project.view',
