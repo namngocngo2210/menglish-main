@@ -229,7 +229,7 @@ Mỗi module có 3 lớp: `handler` (HTTP, DTO, kiểm tra đầu vào) → `ser
 | `kpi:create-sheets` | 00:20 hằng ngày | Sang tháng mới tự tạo phiếu KPI (Chờ duyệt) cho nhân sự có tiêu chí | 6 |
 | `students:start-deferrals` | 06:45 | Tới ngày bảo lưu đã duyệt: đóng băng số buổi/công nợ, học viên sang Bảo lưu | 3 |
 | `students:end-deferrals` | 06:50 | Hết bảo lưu: về Đang học / Chờ khai giảng, báo Học vụ | 3 |
-| `students:start-studying` | 06:55 | Lớp tới ngày khai giảng: học viên Chờ khai giảng đã nhập học sang Đang học | 3 |
+| `students:start-studying` | 06:55 | Chuyển lớp upcoming có ngày bắt đầu ≤ hôm nay sang active; học viên Chờ khai giảng thuộc lớp active (ngày bắt đầu trống hoặc ≤ hôm nay) qua ghi danh pending/completed hoặc current_class_id sang Đang học, không cần xác nhận chính thức; chạy lại không đổi, báo số lớp và học viên đã chuyển | 3 |
 | `bigtests:remind-upcoming` | 07:45 | Nhắc Big Test sắp tới, nhắc duyệt đề | 5 |
 | `hr:notify-expiring-contracts` | 07:50 | Hợp đồng nhân sự hết hạn trong N ngày (mặc định 30) | 6 |
 | `bigtests:enforce-sla` | 07:55 | Phạt trả kết quả trễ, việc duyệt đề của Học thuật | 5 |

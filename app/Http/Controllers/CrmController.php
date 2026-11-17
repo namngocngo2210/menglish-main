@@ -2096,8 +2096,8 @@ class CrmController extends Controller
             if ($confirming) {
                 $enrollment->fill(['status' => 'completed', 'confirmed_at' => now(), 'confirmed_by' => $request->user()->id]);
                 $class = $enrollment->classModel;
-                // Lớp đã khai giảng → học viên chính thức "Đang học"; lớp sắp mở giữ "Chờ khai giảng" tới ngày khai giảng
-                // (lệnh hằng ngày students:start-studying).
+                // Activate immediately when confirming into a started class; the daily command also
+                // activates waiting students when classes start, without requiring confirmation.
                 app(ClassStartActivation::class)->forEnrollment($enrollment);
                 CrmCustomerHistory::create([
                     'customer_id' => $enrollment->customer_id,
