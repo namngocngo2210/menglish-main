@@ -139,6 +139,7 @@ class UserPermissionOverrideController extends Controller
                             'title' => PermissionCatalog::scopeLevelDescription($module, $level),
                         ])->all(),
                         'personal' => $dataScope['personal'],
+                        'effectiveLevel' => $dataScope['effective'],
                         'effective' => ($levelLabels[$dataScope['effective']] ?? $dataScope['effective']).' — '.PermissionCatalog::scopeLevelDescription($module, $dataScope['effective']),
                     ] : null,
                     'supportsScope' => UserPermissionOverride::supportsScope($module),
@@ -182,6 +183,9 @@ class UserPermissionOverrideController extends Controller
         $summary = [];
 
         DB::transaction(function () use ($data, $scopeInput, $dataScopeInput, $user, $request, $known, &$summary) {
+            // Module chỉ đổi phạm vi (mọi ô quyền để "theo vai trò") vẫn phải được lưu: duyệt cả module có trong scope[].
+            $data = array_merge(array_fill_keys(array_keys($scopeInput), []), $data);
+
             foreach ($data as $module => $actions) {
                 $scopeType = $scopeInput[$module]['type'] ?? UserPermissionOverride::SCOPE_ALL;
                 $scopeIds = collect($scopeInput[$module]['ids'] ?? [])->filter()->map(fn ($id) => (int) $id)->unique()->values();
@@ -190,6 +194,21 @@ class UserPermissionOverrideController extends Controller
 
                 if ($scopeType !== UserPermissionOverride::SCOPE_ALL) {
                     $this->validateScope($module, $actions, $scopeType, $scopeIds->all());
+                }
+
+                // Phạm vi áp dụng lưu độc lập với quyền: hành động "scope" (không phải permission thật, không cấp quyền).
+                $marker = UserPermissionOverride::SCOPE_MARKER_ACTION;
+                if (UserPermissionOverride::supportsScope($module)) {
+                    $user->permissionOverrides()->where('module', $module)->where('action', $marker)->delete();
+                    if ($scopeType !== UserPermissionOverride::SCOPE_ALL) {
+                        foreach ($scopeIds as $scopeId) {
+                            $user->permissionOverrides()->create([
+                                'module' => $module, 'action' => $marker, 'allow' => true,
+                                'scope_type' => $scopeType, 'scope_id' => $scopeId, 'created_by' => $request->user()->id,
+                            ]);
+                        }
+                        $summary[] = "{$module}.scope={$scopeType} (".$scopeIds->implode(',').')';
+                    }
                 }
 
                 foreach ($actions as $action => $decision) {
