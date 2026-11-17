@@ -534,7 +534,7 @@ class StudentProfileController extends Controller
 
         $props = $flags + [
             'viewerRoleLabel' => $roleName ? AclHelper::roleLabel($roleName) : 'Người dùng',
-            'statusOptions' => collect(Student::STATUSES)->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label, 'color' => Student::STATUS_COLORS[$key] ?? 'neutral'])->values()->all(),
+            'statusOptions' => collect(Student::STATUSES)->only($student->allowedStatusTransitions())->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label, 'color' => Student::STATUS_COLORS[$key] ?? 'neutral'])->values()->all(),
             'canAssignClass' => $user->can('student.assign_class'),
             'student' => [
                 'id' => $student->id,
@@ -809,6 +809,10 @@ class StudentProfileController extends Controller
         $validated = $request->validate([
             'status' => ['required', Rule::in(array_keys(Student::STATUSES))],
         ]);
+
+        if (! in_array($validated['status'], $student->allowedStatusTransitions(), true)) {
+            abort(400, 'Không thể chuyển trạng thái từ "'.$student->status_label.'" sang "'.Student::STATUSES[$validated['status']].'".');
+        }
 
         $oldLabel = $student->status_label;
         $wasDeferred = $student->status === 'deferred';

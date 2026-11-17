@@ -61,7 +61,8 @@ const menuItem = 'flex w-full items-center gap-sm px-md py-sm text-left font-bod
 const genders = [{ value: 'Nam', label: 'Nam' }, { value: 'Nữ', label: 'Nữ' }, { value: 'Khác', label: 'Khác' }];
 // Giá trị cũ ngoài danh sách (nhập Excel CRM ghi tự do) vẫn hiện để lưu form không làm mất.
 const genderOptions = computed(() => (props.student.gender && !genders.some((g) => g.value === props.student.gender) ? [...genders, { value: props.student.gender, label: props.student.gender }] : genders));
-const otherStatuses = computed(() => props.statusOptions.filter((s) => s.value !== props.student.status));
+// Server chỉ gửi các đích hợp lệ theo ma trận chuyển trạng thái.
+const otherStatuses = computed(() => props.statusOptions);
 const taskTone = (status) => (status === 'completed' ? 'text-tertiary' : status === 'overdue' ? 'text-error' : 'text-warning');
 const receiptUrl = computed(() => route('tuition.receipts.create', { student_id: props.student.id }));
 const openReceipt = () => openRemoteModal(receiptUrl.value, { size: '4xl' });
@@ -175,7 +176,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                             <span v-if="student.deferred_until" class="text-on-surface-variant">(hạn {{ student.deferred_until }})</span>
                         </UiButton>
                     </UiForm>
-                    <UiDropdown width="56">
+                    <UiDropdown v-if="otherStatuses.length" width="56">
                         <template #trigger="{ open }">
                             <UiButton variant="secondary" icon="sync" :aria-expanded="open ? 'true' : 'false'">
                                 Đổi trạng thái <span class="material-symbols-outlined text-[18px]" aria-hidden="true">expand_more</span>

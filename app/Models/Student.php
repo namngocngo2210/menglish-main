@@ -35,6 +35,27 @@ class Student extends Model
         'dropped' => 'Thôi học',
     ];
 
+    /**
+     * Ma trận chuyển trạng thái thủ công (9 đường, không lùi). Hoàn thành / Thôi học là trạng thái cuối.
+     * Giả định (docs chưa liệt kê đủ 9): suy từ danh sách cấm của TK-2026-0138.
+     *
+     * @var array<string, list<string>>
+     */
+    public const STATUS_TRANSITIONS = [
+        'waiting_start' => ['studying', 'dropped'],
+        'studying' => ['deferred', 'summer_break', 'completed', 'dropped'],
+        'deferred' => ['studying', 'dropped'],
+        'summer_break' => ['studying'],
+        'completed' => [],
+        'dropped' => [],
+    ];
+
+    /** @return list<string> */
+    public function allowedStatusTransitions(): array
+    {
+        return self::STATUS_TRANSITIONS[$this->status] ?? [];
+    }
+
     /** Trạng thái khởi tạo khi chốt (có hoặc chưa có lớp). */
     public const INITIAL_STATUS = 'waiting_start';
 
