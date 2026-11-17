@@ -323,7 +323,8 @@ class CrmController extends Controller
             // Người phụ trách (chủ dự án 29/09/2026): Admin + Học vụ trong phạm vi, kèm người đang phụ trách khách trong
             // phạm vi (vd Sale phụ trách khách cũ) để vẫn lọc được.
             'filterSales' => Ui::options(LeadOwners::options($this->ownerFilterOptions($user, $leadScope, $scopedIds))),
-            'filterSources' => CrmCustomer::query()->whereIn('id', $scopedIds)->whereNotNull('source')->distinct()->orderBy('source')->pluck('source')->all(),
+            'filterSources' => CrmCustomer::query()->whereIn('id', $scopedIds)->whereNotNull('source')
+                ->whereNotIn('source', SystemCategory::where('type', 'lead_source')->where('is_active', false)->select('name'))->distinct()->orderBy('source')->pluck('source')->all(),
         ];
     }
 
@@ -600,7 +601,7 @@ class CrmController extends Controller
         $branches = $this->leadBranchOptions($user);
         // Người phụ trách: Admin + Học vụ; phạm vi chi nhánh chỉ thấy Học vụ cơ sở mình (máy chủ kiểm tra theo cơ sở của khách).
         $salesUsers = LeadOwners::candidates(DataScope::isAll($user, 'lead') ? null : $user->branchIds());
-        $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
+        $leadSources = SystemCategory::active()->where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
         if ($leadSources->isEmpty()) {
             $leadSources = collect(CrmCustomer::DEFAULT_SOURCES);
         }
@@ -623,7 +624,8 @@ class CrmController extends Controller
             'parent_name' => 'nullable|string|max:255',
             'parent_phone' => 'nullable|string|max:20',
             'next_follow_up_at' => 'nullable|date',
-            'source' => 'required|string|max:255',
+            // Nguồn đã ngừng sử dụng không được chọn cho khách mới (khách cũ giữ nguyên nguồn).
+            'source' => ['required', 'string', 'max:255', Rule::notIn(SystemCategory::where('type', 'lead_source')->where('is_active', false)->pluck('name')->all())],
             'branch_id' => ['required', Rule::in($this->leadBranchOptions($request->user())->pluck('id')->all())],
             'assigned_user_id' => ['nullable', Rule::exists('users', 'id')->whereNull('deleted_at')],
             'email' => 'nullable|email|max:255',
@@ -1516,7 +1518,7 @@ class CrmController extends Controller
      */
     protected function customerFormOptions(CrmCustomer $customer): array
     {
-        $leadSources = SystemCategory::where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
+        $leadSources = SystemCategory::active()->where('type', 'lead_source')->orderBy('sort_order')->pluck('name');
         $salesUsers = $this->assignableUsers();
         // Người phụ trách hiện tại (vd Học vụ tự tạo khách, hoặc tài khoản đã khóa) luôn có trong danh sách,
         // nếu không trình duyệt sẽ gửi lựa chọn đầu tiên → âm thầm đổi người phụ trách khi chỉ sửa SĐT.
