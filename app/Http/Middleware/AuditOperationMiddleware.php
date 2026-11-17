@@ -37,7 +37,9 @@ class AuditOperationMiddleware
 
             try {
                 $alreadyLogged = $batchUuid && Activity::query()->where('batch_uuid', $batchUuid)->exists();
-                if (! $alreadyLogged) {
+                // Request bị từ chối (401/403) không thay đổi dữ liệu -> không ghi nhật ký thao tác.
+                $denied = in_array($response->getStatusCode(), [401, 403], true);
+                if (! $alreadyLogged && ! $denied) {
                     $this->logActivity($request, $response);
                 }
             } catch (\Throwable $e) {
