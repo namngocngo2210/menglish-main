@@ -16,6 +16,7 @@ const props = defineProps({
     classes: { type: Array, default: () => [] },
     classSessions: { type: [Object, Array], default: () => ({}) },
     slots: { type: Array, default: () => [] },
+    checklistGroups: { type: Array, default: () => [] },
     today: { type: String, required: true },
     nowTime: { type: String, default: '00:00' },
     cutoff: { type: String, required: true },
@@ -26,7 +27,7 @@ const props = defineProps({
 const formId = computed(() => (props.asModal ? 'modal-ta-assign-form' : 'ta-assign-form'));
 const assignDate = ref(props.today);
 let seq = 1;
-const tasks = ref([{ id: seq++, category: 'before', content: '', attach_class: false, class_id: '', class_session_id: '', session: '' }]);
+const tasks = ref([{ id: seq++, category: 'before', content: '', checklist_group_id: '', attach_class: false, class_id: '', class_session_id: '', session: '' }]);
 
 // Cảnh báo trực tiếp: giờ hệ thống (múi giờ ứng dụng, lấy từ server rồi chạy tiếp theo đồng hồ trình duyệt) đã quá hạn gửi
 // cho ngày được chọn → gửi vẫn được nhưng sẽ báo tất cả Admin và người giao.
@@ -53,7 +54,7 @@ const dueRules = computed(() => props.slots.map((slot) => ({
 })));
 
 const sessionsFor = (item) => (props.classSessions[item.class_id] || []).filter((s) => s.date === assignDate.value);
-const addTask = () => tasks.value.push({ id: seq++, category: 'during', content: '', attach_class: false, class_id: '', class_session_id: '', session: '' });
+const addTask = () => tasks.value.push({ id: seq++, category: 'during', content: '', checklist_group_id: '', attach_class: false, class_id: '', class_session_id: '', session: '' });
 const removeTask = (index) => tasks.value.length > 1 && tasks.value.splice(index, 1);
 
 /** Lỗi của "tasks" và mọi "tasks.N.*" gom về một chỗ trên danh sách đầu việc. */
@@ -95,7 +96,14 @@ const labelCls = 'mb-xs block font-label text-label uppercase text-on-surface-va
                                 <option v-for="slot in slots" :key="slot.value" :value="slot.value">{{ slot.label }}</option>
                             </select>
                         </label>
-                        <label class="md:col-span-7">
+                        <label v-if="checklistGroups.length" class="md:col-span-3">
+                            <span :class="labelCls">Nhóm đầu mục trợ giảng</span>
+                            <select v-model="item.checklist_group_id" :name="`tasks[${index}][checklist_group_id]`" :class="control">
+                                <option value="">Không chọn</option>
+                                <option v-for="g in checklistGroups" :key="g.value" :value="String(g.value)">{{ g.label }}</option>
+                            </select>
+                        </label>
+                        <label :class="checklistGroups.length ? 'md:col-span-4' : 'md:col-span-7'">
                             <span :class="labelCls">Nội dung</span>
                             <textarea
                                 v-model="item.content"

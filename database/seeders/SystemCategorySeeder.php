@@ -45,6 +45,11 @@ class SystemCategorySeeder extends Seeder
                 ['code' => 'FINE_02', 'name' => 'Trung bình - 200.000đ'],
                 ['code' => 'FINE_03', 'name' => 'Nặng - 500.000đ'],
             ],
+            SystemCategory::TYPE_TA_CHECKLIST_GROUP => [
+                ['code' => 'TAG_01', 'name' => 'Chuẩn bị lớp'],
+                ['code' => 'TAG_02', 'name' => 'Trong buổi học'],
+                ['code' => 'TAG_03', 'name' => 'Sau buổi học'],
+            ],
         ];
 
         foreach ($groups as $type => $items) {
