@@ -12,6 +12,7 @@ defineOptions({ layout: { title: 'Quản lý phòng học' } });
 defineProps({
     roomTypes: { type: Array, default: () => [] },
     counts: { type: Object, default: () => ({}) },
+    canEditTypes: { type: Boolean, default: false },
     canManageTypes: { type: Boolean, default: false },
 });
 
@@ -29,14 +30,14 @@ const blockDelete = () => toast('Loại phòng đang được sử dụng — ch
                 <h2 class="font-h3 text-h3 text-on-surface">Danh mục loại phòng học</h2>
                 <p class="font-body-small text-body-small text-on-surface-variant">Quy chuẩn dùng chung toàn hệ thống cho tất cả các cơ sở trực thuộc.</p>
             </div>
-            <UiButton v-if="canManageTypes && !adding" icon="add" @click="adding = true">Thêm loại phòng</UiButton>
+            <UiButton v-if="canEditTypes && !adding" icon="add" @click="adding = true">Thêm loại phòng</UiButton>
         </template>
         <table>
             <thead>
                 <tr>
                     <th>Tên loại phòng</th>
                     <th>Trạng thái</th>
-                    <th v-if="canManageTypes" class="text-right">Thao tác</th>
+                    <th v-if="canEditTypes || canManageTypes" class="text-right">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -69,14 +70,15 @@ const blockDelete = () => toast('Loại phòng đang được sử dụng — ch
                         <td>
                             <UiBadge :color="t.is_active ? 'success' : 'neutral'">{{ t.is_active ? 'Đang dùng' : 'Ngừng dùng' }}</UiBadge>
                         </td>
-                        <td v-if="canManageTypes" class="whitespace-nowrap text-right">
+                        <td v-if="canEditTypes || canManageTypes" class="whitespace-nowrap text-right">
                             <div class="inline-flex items-center gap-xs">
-                                <UiButton variant="ghost" size="sm" icon="edit" @click="editingId = t.id">Sửa</UiButton>
-                                <UiForm :action="route('rooms.types.toggle', t.id)" method="post" back>
+                                <UiButton v-if="canEditTypes" variant="ghost" size="sm" icon="edit" @click="editingId = t.id">Sửa</UiButton>
+                                <UiForm v-if="canManageTypes" :action="route('rooms.types.toggle', t.id)" method="post" back>
+                                    <input type="hidden" name="is_active" :value="t.is_active ? 0 : 1" />
                                     <UiButton type="submit" variant="ghost" size="sm" :icon="t.is_active ? 'block' : 'restart_alt'">{{ t.is_active ? 'Ngừng dùng' : 'Dùng lại' }}</UiButton>
                                 </UiForm>
-                                <UiButton v-if="t.in_use" variant="danger-text" size="sm" icon="delete" :aria-label="`Xóa ${t.name}`" @click="blockDelete" />
-                                <UiForm v-else :action="route('rooms.types.destroy', t.id)" method="delete" back :confirm="`Xóa loại phòng ${t.name}? Thao tác này sẽ xóa loại phòng khỏi hệ thống.`" confirm-title="Xóa loại phòng" confirm-label="Xóa" danger>
+                                <UiButton v-if="canManageTypes && t.in_use" variant="danger-text" size="sm" icon="delete" :aria-label="`Xóa ${t.name}`" @click="blockDelete" />
+                                <UiForm v-else-if="canManageTypes" :action="route('rooms.types.destroy', t.id)" method="delete" back :confirm="`Xóa loại phòng ${t.name}? Thao tác này sẽ xóa loại phòng khỏi hệ thống.`" confirm-title="Xóa loại phòng" confirm-label="Xóa" danger>
                                     <UiButton type="submit" variant="danger-text" size="sm" icon="delete" :aria-label="`Xóa ${t.name}`" />
                                 </UiForm>
                             </div>
@@ -85,8 +87,8 @@ const blockDelete = () => toast('Loại phòng đang được sử dụng — ch
                 </tr>
                 <tr v-if="!roomTypes.length && !adding">
                     <td colspan="3">
-                        <UiEmptyState icon="category" title="Chưa có loại phòng nào" :description="canManageTypes ? 'Bấm Thêm loại phòng để bắt đầu.' : 'Liên hệ Admin để thêm loại phòng.'">
-                            <UiButton v-if="canManageTypes" icon="add" @click="adding = true">Thêm loại phòng mới</UiButton>
+                        <UiEmptyState icon="category" title="Chưa có loại phòng nào" :description="canEditTypes ? 'Bấm Thêm loại phòng để bắt đầu.' : 'Liên hệ Admin để thêm loại phòng.'">
+                            <UiButton v-if="canEditTypes" icon="add" @click="adding = true">Thêm loại phòng mới</UiButton>
                         </UiEmptyState>
                     </td>
                 </tr>

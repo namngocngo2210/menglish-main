@@ -14,6 +14,7 @@ const props = defineProps({
     branches: { type: Array, default: () => [] },
     lockedBranch: { type: Object, default: null },
     types: { type: Array, default: () => [] },
+    canEditTypes: { type: Boolean, default: false },
     canManageTypes: { type: Boolean, default: false },
 });
 
@@ -32,7 +33,7 @@ const fixedBranch = computed(() => (props.room ? props.room.branch : props.locke
     >
         <UiAlert v-if="noTypes" type="warning" title="Chưa có loại phòng">
             Vui lòng cấu hình danh mục loại phòng trước khi tạo phòng mới.
-            <UiButton v-if="canManageTypes" variant="ghost" size="sm" icon="arrow_forward" :href="route('rooms.types.index')" class="mt-xs">Chuyển sang tab Danh mục loại phòng</UiButton>
+            <UiButton v-if="canEditTypes || canManageTypes" variant="ghost" size="sm" icon="arrow_forward" :href="route('rooms.types.index')" class="mt-xs">Chuyển sang tab Danh mục loại phòng</UiButton>
             <span v-else>Liên hệ Admin để thêm loại phòng.</span>
         </UiAlert>
 

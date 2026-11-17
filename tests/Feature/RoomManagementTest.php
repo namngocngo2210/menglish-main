@@ -181,13 +181,13 @@ class RoomManagementTest extends TestCase
             ->assertSessionHas('error', 'Loại phòng đang được sử dụng — chỉ có thể Ngừng dùng');
         $this->assertNotSoftDeleted($this->type);
 
-        $this->actingAs($this->admin)->post(route('rooms.types.toggle', $this->type->id))->assertSessionHas('success');
+        $this->actingAs($this->admin)->post(route('rooms.types.toggle', $this->type->id), ['is_active' => false])->assertSessionHas('success');
         $this->assertFalse($this->type->fresh()->is_active);
 
         $this->actingAs($this->admin)->delete(route('rooms.types.destroy', $lab->id))->assertSessionHas('success');
         $this->assertSoftDeleted($lab);
 
-        $this->actingAs($this->academic)->post(route('rooms.types.store'), ['name' => 'Không được'])->assertForbidden();
+        $this->actingAs($this->academic)->post(route('rooms.types.store'), ['name' => 'Phòng Học vụ'])->assertSessionHasNoErrors();
         $this->actingAs($this->admin)->get(route('rooms.types.index'))->assertOk()->assertSee('Ngừng dùng');
     }
 

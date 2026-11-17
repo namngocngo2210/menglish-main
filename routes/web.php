@@ -744,8 +744,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/{room}', [RoomController::class, 'update'])->whereNumber('room')->middleware('can:room.manage')->name('update');
         Route::delete('/{room}', [RoomController::class, 'destroy'])->whereNumber('room')->middleware('can:room.delete')->name('destroy');
         Route::get('/types', [RoomTypeController::class, 'index'])->name('types.index');
-        Route::post('/types', [RoomTypeController::class, 'store'])->middleware('can:room.manage_types')->name('types.store');
-        Route::put('/types/{roomType}', [RoomTypeController::class, 'update'])->middleware('can:room.manage_types')->name('types.update');
+        Route::post('/types', [RoomTypeController::class, 'store'])->middleware('can:room.edit_types')->name('types.store');
+        Route::put('/types/{roomType}', [RoomTypeController::class, 'update'])->middleware('can:room.edit_types')->name('types.update');
         Route::post('/types/{roomType}/toggle', [RoomTypeController::class, 'toggle'])->middleware('can:room.manage_types')->name('types.toggle');
         Route::delete('/types/{roomType}', [RoomTypeController::class, 'destroy'])->middleware('can:room.manage_types')->name('types.destroy');
     });

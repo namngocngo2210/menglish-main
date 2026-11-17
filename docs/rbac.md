@@ -361,3 +361,7 @@ Bảng mới có dữ liệu theo chi nhánh / theo người: dùng lọc tự �
 - Chức vụ **chưa ánh xạ** (thêm mới, `role_code` rỗng): hiện ở ô chọn nhưng chỉ cho Super Admin; tài khoản được tạo **không có vai trò nào** → không có quyền nào (kể cả kiêm nhiệm); gán vai trò sau ở màn "Gán vai trò".
 - Request cũ chỉ gửi `role` (không `position_id`) vẫn hoạt động như trước; form sửa chọn sẵn chức vụ đầu tiên cùng vai trò cho người chưa có `position_id`.
 - Test: `UserPositionRoleTest` (gồm guard: mọi vai trò nhân sự đều có chức vụ seed).
+
+TK-2026-0144: `room.edit_types` (Thêm / sửa loại phòng) is granted by default to Admin and Học vụ (`academic_staff`), not manager.
+`room.manage_types` controls deactivation, reactivation, and deletion. The migration also grants `room.edit_types` to existing
+roles holding `room.manage_types`, preserving custom type administrators. Super Admin retains all actions through `Gate::before`.
