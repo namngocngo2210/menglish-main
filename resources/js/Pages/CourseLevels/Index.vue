@@ -71,14 +71,20 @@ const rows = ref([...props.levels.data]);
 watch(() => props.levels, (value) => (rows.value = [...value.data]));
 const dragging = ref(null);
 const armed = ref(null);
+let orderBefore = [];
 
 function start(event, lv) {
     dragging.value = lv.id;
+    orderBefore = [...rows.value];
     event.dataTransfer.effectAllowed = 'move';
 }
+// Lưu ở dragend (luôn bắn, kể cả khi thả ngoài vùng <tbody>) thay vì drop để không bao giờ chỉ đổi UI mà không lưu.
 function end() {
+    const before = orderBefore;
     dragging.value = null;
     armed.value = null;
+    orderBefore = [];
+    if (before.length && before.some((r, i) => r.id !== rows.value[i]?.id)) save(before);
 }
 function over(event) {
     const row = event.target.closest('tr[data-level-id]');
@@ -93,11 +99,14 @@ function over(event) {
     list.splice(to, 0, moved);
     rows.value = list;
 }
-function drop() {
+function save(before) {
     const ids = rows.value.map((r) => String(r.id));
     postJson(route('course-levels.reorder'), { ids })
-        .then(({ ok, data }) => (ok ? toast(data.message, 'success') : Promise.reject()))
-        .catch(() => toast('Không lưu được thứ tự, vui lòng tải lại trang.', 'error'));
+        .then(({ ok, data }) => (ok ? toast(data.message ?? 'Đã lưu thứ tự trình độ.', 'success') : Promise.reject()))
+        .catch(() => {
+            rows.value = before;
+            toast('Không lưu được thứ tự, vui lòng thử lại.', 'error');
+        });
 }
 </script>
 
@@ -140,7 +149,7 @@ function drop() {
                         <th class="text-right">Hành động</th>
                     </tr>
                 </thead>
-                <tbody @dragover.prevent="reorderable && over($event)" @drop.prevent="reorderable && drop()">
+                <tbody @dragover.prevent="reorderable && over($event)" @drop.prevent>
                     <tr
                         v-for="(lv, index) in rows"
                         :key="lv.id"
