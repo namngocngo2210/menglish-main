@@ -23,6 +23,7 @@ use App\Models\TeacherTimesheet;
 use App\Models\User;
 use App\Services\SupportSessionService;
 use App\Services\Syllabus\ClassSyllabus;
+use App\Support\Audit;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -815,7 +816,9 @@ class TeacherPortalController extends Controller
             ? $user->id
             : ($session->teacher_id ?? $class->teacher_id ?? $user->id);
 
-        $count = DB::transaction(function () use ($validated, $session, $class, $teacherId, $user, $existing) {
+        $students = Student::whereIn('id', array_keys($validated['status']))->get()->keyBy('id');
+        $changes = [];
+        $count = DB::transaction(function () use ($validated, $session, $class, $teacherId, $user, $existing, $students, &$changes) {
             $count = 0;
             foreach ($validated['status'] as $studentId => $status) {
                 $note = $validated['note'][$studentId] ?? null;
@@ -826,6 +829,12 @@ class TeacherPortalController extends Controller
 
                     continue;
                 }
+                $student = $students->get((int) $studentId);
+                $changes[$studentId] = [
+                    'name' => $student ? trim($student->name.' ('.$student->code.')') : "#{$studentId}",
+                    'before' => $current ? ['status' => $current->status, 'note' => $current->note] : null,
+                    'after' => ['status' => $status, 'note' => $note],
+                ];
                 StudentAttendance::updateOrCreate(
                     ['class_session_id' => $session->id, 'student_id' => $studentId],
                     [
@@ -849,6 +858,9 @@ class TeacherPortalController extends Controller
 
             return $count;
         });
+
+        // Luôn ghi 1 dòng mỗi lần lưu (kể cả không đổi) để middleware không thêm dòng chung gây hiểu nhầm.
+        Audit::logAttendance($user, $class, $session, $changes);
 
         // Buổi phụ đạo: điểm danh là cách đóng buổi bổ trợ (hoàn thành / học sinh vắng → hủy để xếp lại).
         app(SupportSessionService::class)->syncFromAttendance($session->refresh(), $user);

@@ -6,6 +6,7 @@ use App\Models\BigTestOrder;
 use App\Models\Branch;
 use App\Models\ClassLessonOverride;
 use App\Models\ClassModel;
+use App\Models\ClassSession;
 use App\Models\CrmCustomer;
 use App\Models\QuestionBankQuestion;
 use App\Models\Room;
@@ -155,6 +156,38 @@ class Audit
             'status' => $order->status,
             'items' => [['title' => $title, 'quantity' => $isTest ? 1 : $order->quantity, 'note' => $note]],
         ];
+    }
+
+    /**
+     * Ghi một dòng nhật ký cho một lần lưu điểm danh (phân hệ Lớp học/Điểm danh). $changes: [student_id => [name, before, after]]
+     * với before/after dạng ['status' => .., 'note' => ..] (before null = chưa điểm danh). Nằm trong batch của request nên middleware không ghi thêm dòng chung.
+     */
+    public static function logAttendance(?User $actor, ClassModel $class, ClassSession $session, array $changes): void
+    {
+        $labels = ['present' => 'Có mặt', 'late' => 'Đi muộn', 'absent' => 'Vắng không phép', 'excused' => 'Vắng có phép'];
+        $before = $after = [];
+        foreach ($changes as $change) {
+            foreach (['status' => 'trạng thái', 'note' => 'ghi chú'] as $field => $label) {
+                $old = $change['before'][$field] ?? null;
+                $new = $change['after'][$field] ?? null;
+                if ($old === $new) {
+                    continue;
+                }
+                $key = $change['name'].' — '.$label;
+                $before[$key] = $field === 'status' ? ($labels[$old] ?? $old) : $old;
+                $after[$key] = $field === 'status' ? ($labels[$new] ?? $new) : $new;
+            }
+        }
+
+        $activity = activity('Lớp học/Điểm danh')->performedOn($session)->event('updated')
+            ->withProperties([
+                'class_id' => $class->id, 'class' => $class->name, 'class_session_id' => $session->id,
+                'session_date' => $session->date->toDateString(), 'before' => $before, 'after' => $after,
+            ]);
+        if ($actor) {
+            $activity->causedBy($actor);
+        }
+        $activity->log("Điểm danh lớp {$class->name} buổi {$session->date->format('d/m/Y')}: ".count($changes).' học viên thay đổi');
     }
 
     public static function config(Model|string $model): ?array

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\ActivityLogController;
 use App\Models\AcademicRecord;
 use App\Models\AdminNotification;
 use App\Models\BigTest;
@@ -27,6 +28,7 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 /**
@@ -113,6 +115,38 @@ class Phase2AttendanceTest extends TestCase
             'class_session_id' => $past->id, 'status' => [$this->student->id => 'excused'], 'note' => [$this->student->id => 'Ốm'],
         ]);
         $this->assertSame(3, StudentAttendance::count());
+    }
+
+    public function test_attendance_save_is_audit_logged_with_class_session_student_and_before_after(): void
+    {
+        $session = $this->makeSession('2026-10-07', '08:00', '09:30');
+        $post = fn (array $status, array $note = []) => $this->actingAs($this->teacher)
+            ->post(route('teacher.attendance.store', $this->classModel->id), ['class_session_id' => $session->id, 'status' => $status, 'note' => $note])
+            ->assertSessionHasNoErrors();
+        Activity::query()->delete();
+
+        $post([$this->student->id => 'present']);
+        $post([$this->student->id => 'present']); // không đổi: log 0 thay đổi
+        $post([$this->student->id => 'absent'], [$this->student->id => 'Ốm']);
+
+        $logs = Activity::orderBy('id')->get();
+        // Mỗi lần lưu = đúng 1 dòng (kể cả lần không đổi), không có dòng chung của middleware.
+        $this->assertSame(['Lớp học/Điểm danh', 'Lớp học/Điểm danh', 'Lớp học/Điểm danh'], $logs->pluck('log_name')->all());
+        $this->assertSame([], $logs[1]->properties['after']);
+        $logs = collect([$logs[0], $logs[2]]);
+        $this->assertSame($this->teacher->id, $logs[1]->causer_id);
+        $this->assertNotNull($logs[1]->created_at);
+        $this->assertStringContainsString($this->classModel->name, $logs[1]->description);
+        $this->assertSame($session->id, $logs[1]->properties['class_session_id']);
+        $this->assertSame('2026-10-07', $logs[1]->properties['session_date']);
+
+        $key = $this->student->name.' ('.$this->student->code.')';
+        $this->assertSame('Có mặt', $logs[0]->properties['after']["{$key} — trạng thái"]);
+        $this->assertNull($logs[0]->properties['before']["{$key} — trạng thái"]);
+        $this->assertSame('Có mặt', $logs[1]->properties['before']["{$key} — trạng thái"]);
+        $this->assertSame('Vắng không phép', $logs[1]->properties['after']["{$key} — trạng thái"]);
+        $this->assertSame('Ốm', $logs[1]->properties['after']["{$key} — ghi chú"]);
+        $this->assertNotEmpty(ActivityLogController::diff($logs[1]));
     }
 
     public function test_student_with_tuition_overdue_7_days_can_still_be_marked_present(): void
