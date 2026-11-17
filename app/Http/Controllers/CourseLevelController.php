@@ -22,7 +22,7 @@ class CourseLevelController extends Controller
         ]);
 
         $levels = CourseLevel::query()
-            ->with('syllabus:id,code,title,version')
+            ->with(['syllabus:id,code,title,version', 'secondarySyllabus:id,code,title,version'])
             ->withCount('courses')
             ->withClassesCount()
             ->when($validated['search'] ?? null, fn ($q, $search) => $q->where(fn ($q) => $q
@@ -49,7 +49,8 @@ class CourseLevelController extends Controller
         $stats = [
             'total' => CourseLevel::count(),
             'active' => CourseLevel::where('is_active', true)->count(),
-            'syllabus' => CourseLevel::where('is_active', true)->whereNotNull('syllabus_curriculum_id')->distinct()->count('syllabus_curriculum_id'),
+            'syllabus' => CourseLevel::where('is_active', true)->get(['syllabus_curriculum_id', 'secondary_syllabus_curriculum_id'])
+                ->flatMap(fn (CourseLevel $lv) => [$lv->syllabus_curriculum_id, $lv->secondary_syllabus_curriculum_id])->filter()->unique()->count(),
             'groups' => CourseLevel::whereNotNull('level_group')->distinct()->count('level_group'),
         ];
         $groups = CourseLevel::whereNotNull('level_group')->distinct()->orderBy('level_group')->pluck('level_group');
@@ -69,11 +70,11 @@ class CourseLevelController extends Controller
                 'target' => $lv->target,
                 'lessons_count' => $lv->lessons_count,
                 'syllabus_curriculum_id' => $lv->syllabus_curriculum_id,
+                'secondary_syllabus_curriculum_id' => $lv->secondary_syllabus_curriculum_id,
                 'is_active' => (bool) $lv->is_active,
-                'syllabus' => $lv->syllabus ? [
-                    'label' => $lv->syllabus->code.($lv->syllabus->version ? '.'.$lv->syllabus->version : ''),
-                    'title' => $lv->syllabus->title,
-                ] : null,
+                'syllabi' => collect([$lv->syllabus, $lv->secondarySyllabus])->filter()
+                    ->map(fn (SyllabusCurriculum $s) => ['label' => $s->code.($s->version ? '.'.$s->version : ''), 'title' => $s->title])
+                    ->values()->all(),
                 'courses_count' => (int) $lv->courses_count,
                 'classes_count' => (int) $lv->classes_count,
                 'students_using' => (int) ($studentCounts[$lv->code] ?? 0),
@@ -103,12 +104,13 @@ class CourseLevelController extends Controller
             'level_group' => 'nullable|string|max:50',
             'target' => 'required|string|max:255',
             'lessons_count' => 'required|integer|min:1',
-            'syllabus_curriculum_id' => 'nullable|integer|exists:syllabus_curriculums,id,deleted_at,NULL',
+            ...self::syllabusRules(),
             'is_active' => 'nullable|boolean',
             ...self::gradeLevelRules(),
         ]);
         $validated['level_group'] = isset($validated['level_group']) ? mb_strtoupper(trim($validated['level_group'])) : null;
         $validated['grade_levels'] = self::gradeLevels($validated);
+        $validated = self::normalizeSyllabi($validated);
         // Mặc định "Hoạt động"; form có công tắc "Trạng thái hoạt động" để tạo sẵn ở trạng thái ngừng.
         $validated['is_active'] = $request->has('is_active') ? $request->boolean('is_active') : true;
         $validated['sort_order'] = (int) CourseLevel::max('sort_order') + 1;
@@ -137,19 +139,44 @@ class CourseLevelController extends Controller
             'level_group' => 'nullable|string|max:50',
             'target' => 'required|string|max:255',
             'lessons_count' => 'required|integer|min:1',
-            'syllabus_curriculum_id' => ['nullable', 'integer', Rule::exists('syllabus_curriculums', 'id')->whereNull('deleted_at')],
+            ...self::syllabusRules(),
             'is_active' => 'nullable|boolean',
             ...self::gradeLevelRules(),
         ]);
         $validated['level_group'] = isset($validated['level_group']) ? mb_strtoupper(trim($validated['level_group'])) : null;
         $validated['grade_levels'] = self::gradeLevels($validated);
-        $validated['syllabus_curriculum_id'] ??= null;
+        $validated = self::normalizeSyllabi($validated);
         $validated['is_active'] = $request->has('is_active') ? $request->boolean('is_active') : $level->is_active;
 
         $level->update($validated);
 
         return redirect()->route('course-levels.index')
             ->with('status', "Cập nhật khung trình độ {$level->name} thành công!");
+    }
+
+    /** Tối đa 2 Syllabus (TD R-02): 2 Syllabus phải khác nhau. */
+    private static function syllabusRules(): array
+    {
+        $exists = Rule::exists('syllabus_curriculums', 'id')->whereNull('deleted_at');
+
+        return [
+            'syllabus_curriculum_id' => ['nullable', 'integer', $exists],
+            'secondary_syllabus_curriculum_id' => ['nullable', 'integer', $exists, 'different:syllabus_curriculum_id'],
+        ];
+    }
+
+    /** Chỉ có Syllabus thứ hai → chuyển thành Syllabus chính (các nơi khác đọc syllabus_curriculum_id). */
+    private static function normalizeSyllabi(array $validated): array
+    {
+        $primary = $validated['syllabus_curriculum_id'] ?? null;
+        $secondary = $validated['secondary_syllabus_curriculum_id'] ?? null;
+        if (! $primary) {
+            [$primary, $secondary] = [$secondary, null];
+        }
+        $validated['syllabus_curriculum_id'] = $primary;
+        $validated['secondary_syllabus_curriculum_id'] = $secondary;
+
+        return $validated;
     }
 
     /** "Cấp độ test đầu vào" ứng với trình độ: xếp lớp lọc lớp theo cấp độ test của học viên (PlacementLevelMatcher). */

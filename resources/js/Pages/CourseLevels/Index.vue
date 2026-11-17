@@ -22,20 +22,16 @@ const props = defineProps({
     canDelete: { type: Boolean, default: false },
 });
 
-const blank = () => ({ id: null, code: '', name: '', description: '', level_group: '', grade_levels: [], target: '', lessons_count: 24, syllabus_curriculum_id: '', is_active: true });
+const blank = () => ({ id: null, code: '', name: '', description: '', level_group: '', grade_levels: [], target: '', lessons_count: 24, syllabus_curriculum_id: '', secondary_syllabus_curriculum_id: '', is_active: true });
 const open = ref(false);
 const level = reactive(blank());
-const pickSyllabus = ref(false);
 
 const groupOptions = computed(() => props.groups.map((g) => ({ value: g, label: g })));
 const groupSuggestions = computed(() => [...new Set([...props.groups, 'KIDS', 'TEENS', 'IELTS', 'ADULTS'])]);
-const syllabi = computed(() => Object.fromEntries(props.curriculums.map((c) => [String(c.id), c])));
-const pickedSyllabus = computed(() => (level.syllabus_curriculum_id ? syllabi.value[String(level.syllabus_curriculum_id)] : null));
 const reorderable = computed(() => props.canUpdate && props.canReorder);
 
 function create() {
     Object.assign(level, blank());
-    pickSyllabus.value = false;
     open.value = true;
 }
 function edit(lv) {
@@ -49,9 +45,9 @@ function edit(lv) {
         target: lv.target,
         lessons_count: lv.lessons_count,
         syllabus_curriculum_id: lv.syllabus_curriculum_id ?? '',
+        secondary_syllabus_curriculum_id: lv.secondary_syllabus_curriculum_id ?? '',
         is_active: lv.is_active,
     });
-    pickSyllabus.value = false;
     open.value = true;
 }
 
@@ -166,7 +162,7 @@ function drop() {
                             <div v-if="lv.grade_labels?.length" class="mt-xs font-caption text-caption text-on-surface-variant">Test: {{ lv.grade_labels.join(', ') }}</div>
                         </td>
                         <td>
-                            <UiBadge v-if="lv.syllabus" color="secondary" :dot="false" pill class="font-code font-semibold" :title="lv.syllabus.title">{{ lv.syllabus.label }}</UiBadge>
+                            <div v-if="lv.syllabi?.length" class="flex flex-wrap gap-xs"><UiBadge v-for="sy in lv.syllabi" :key="sy.label" color="secondary" :dot="false" pill class="font-code font-semibold" :title="sy.title">{{ sy.label }}</UiBadge></div>
                             <span v-else class="font-caption text-caption italic text-on-surface-variant">Chưa gắn Syllabus</span>
                         </td>
                         <td class="text-center font-code">{{ lv.courses_count }} / {{ lv.classes_count }}</td>
@@ -276,33 +272,25 @@ function drop() {
                         </section>
 
                         <section class="space-y-md border-t border-surface-container pt-lg">
-                            <div class="flex items-center justify-between">
-                                <h3 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Thiết lập Syllabus</h3>
-                                <UiButton variant="ghost" size="sm" icon="add" class="font-semibold !text-primary" @click="pickSyllabus = true">Gắn Syllabus mới</UiButton>
-                            </div>
-                            <input type="hidden" name="syllabus_curriculum_id" :value="level.syllabus_curriculum_id ?? ''" />
-                            <div v-if="pickedSyllabus" class="flex items-center justify-between gap-md rounded-lg border border-primary-container/30 bg-primary-container/5 p-md">
-                                <div class="flex min-w-0 items-center gap-md">
-                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-container/10 text-primary"><span class="material-symbols-outlined" aria-hidden="true">menu_book</span></span>
-                                    <div class="min-w-0">
-                                        <p class="truncate font-body-medium text-body-medium font-semibold text-on-surface">{{ pickedSyllabus.label }}</p>
-                                        <p class="font-caption text-caption text-on-surface-variant">{{ `Cập nhật: ${pickedSyllabus.updated ?? '—'} | Trạng thái: Hiện tại` }}</p>
-                                    </div>
-                                </div>
-                                <UiButton variant="ghost" icon="link_off" class="hover:!text-error" title="Gỡ Syllabus" aria-label="Gỡ Syllabus" @click="level.syllabus_curriculum_id = ''" />
-                            </div>
-                            <p v-if="!level.syllabus_curriculum_id && !pickSyllabus" class="rounded-lg border border-dashed border-outline-variant p-md text-center font-body-small text-body-small italic text-on-surface-variant">Chưa gắn Syllabus</p>
-                            <div v-show="pickSyllabus">
-                                <UiSelect
-                                    id="lv_syllabus"
-                                    v-model="level.syllabus_curriculum_id"
-                                    label="Chọn giáo trình"
-                                    placeholder="-- Chưa gắn Syllabus --"
-                                    :options="curriculums.map((c) => ({ value: String(c.id), label: c.option }))"
-                                    :error="$page.props.errors?.syllabus_curriculum_id"
-                                    @change="pickSyllabus = false"
-                                />
-                            </div>
+                            <h3 class="font-label-caps text-label-caps uppercase text-on-surface-variant">Thiết lập Syllabus (tối đa 2 phiên bản)</h3>
+                            <UiSelect
+                                id="lv_syllabus"
+                                v-model="level.syllabus_curriculum_id"
+                                name="syllabus_curriculum_id"
+                                label="Syllabus 1"
+                                placeholder="-- Chưa gắn Syllabus --"
+                                :options="curriculums.map((c) => ({ value: String(c.id), label: c.option }))"
+                                :error="$page.props.errors?.syllabus_curriculum_id"
+                            />
+                            <UiSelect
+                                id="lv_syllabus_2"
+                                v-model="level.secondary_syllabus_curriculum_id"
+                                name="secondary_syllabus_curriculum_id"
+                                label="Syllabus 2"
+                                placeholder="-- Không gắn Syllabus thứ hai --"
+                                :options="curriculums.filter((c) => String(c.id) !== String(level.syllabus_curriculum_id)).map((c) => ({ value: String(c.id), label: c.option }))"
+                                :error="$page.props.errors?.secondary_syllabus_curriculum_id"
+                            />
                         </section>
                     </div>
 

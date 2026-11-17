@@ -534,6 +534,7 @@ class SyllabusController extends Controller
         // Xóa mềm dây chuyền (khóa ngoại cascade chỉ chạy khi xóa cứng); giữ file tài liệu để có thể khôi phục.
         DB::transaction(function () use ($curriculum) {
             $curriculum->levels()->update(['syllabus_curriculum_id' => null]);
+            CourseLevel::where('secondary_syllabus_curriculum_id', $curriculum->id)->update(['secondary_syllabus_curriculum_id' => null]);
             $curriculum->documents()->delete();
             $curriculum->lessons()->get()->each->delete();
             $curriculum->units()->delete();

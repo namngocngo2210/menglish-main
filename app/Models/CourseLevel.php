@@ -25,6 +25,7 @@ class CourseLevel extends Model
         'duration',
         'lessons_count',
         'syllabus_curriculum_id',
+        'secondary_syllabus_curriculum_id',
         'is_active',
         'sort_order',
     ];
@@ -51,6 +52,12 @@ class CourseLevel extends Model
     public function syllabus(): BelongsTo
     {
         return $this->belongsTo(SyllabusCurriculum::class, 'syllabus_curriculum_id');
+    }
+
+    /** Giáo trình thứ hai (tối đa 2 Syllabus / trình độ, TD R-02). */
+    public function secondarySyllabus(): BelongsTo
+    {
+        return $this->belongsTo(SyllabusCurriculum::class, 'secondary_syllabus_curriculum_id');
     }
 
     /** Lớp học dùng trình độ này (classes.level lưu mã trình độ). */
