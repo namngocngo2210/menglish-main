@@ -371,7 +371,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_admin_can_create_any_role(): void
     {
-        $rolesToTest = ['manager', 'finance_staff', 'academic_lead', 'academic_staff', 'teacher', 'student'];
+        $rolesToTest = ['manager', 'finance_staff', 'academic_lead', 'academic_staff', 'teacher'];
 
         foreach ($rolesToTest as $idx => $role) {
             $email = "test_create_{$role}_{$idx}@menglish.edu.vn";
@@ -422,8 +422,8 @@ class MultiRoleComprehensiveQaTest extends TestCase
 
     public function test_academic_staff_can_only_create_underlings_assistant_teachers_student(): void
     {
-        // 1. Cho phép: trợ giảng, giáo viên (gồm GVNN), học viên và Học thuật.
-        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'foreign_teacher', 'student', 'academic_lead'];
+        // 1. Cho phép: trợ giảng, giáo viên (gồm GVNN) và Học thuật.
+        $allowed = ['assistant', 'teacher_fulltime', 'teacher_parttime', 'foreign_teacher', 'academic_lead'];
         foreach ($allowed as $idx => $role) {
             $email = "staff_created_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [
@@ -438,7 +438,7 @@ class MultiRoleComprehensiveQaTest extends TestCase
         }
 
         // 2. Từ chối: admin, manager, Học vụ khác + vai trò tùy chỉnh (accountant, teacher) chưa được Admin cấp quyền gán
-        $forbidden = ['admin', 'academic_staff', 'manager', 'finance_staff', 'teacher'];
+        $forbidden = ['admin', 'academic_staff', 'manager', 'finance_staff', 'teacher', 'student'];
         foreach ($forbidden as $idx => $role) {
             $email = "staff_illegal_{$role}_{$idx}@menglish.edu.vn";
             $res = $this->actingAs($this->academicStaff)->post(route('users.store'), [

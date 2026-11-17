@@ -141,16 +141,15 @@ class UserCreationHierarchyTest extends TestCase
         $res2->assertRedirect(route('users.index'));
         $this->assertDatabaseHas('users', ['email' => 'gv.ft2@menglish.edu.vn']);
 
-        // Allowed: student
-        $res3 = $this->actingAs($this->academicStaff)->post(route('users.store'), [
+        // TK-2026-0125: student accounts are no longer created on this screen.
+        $this->actingAs($this->academicStaff)->post(route('users.store'), [
             'name' => 'Học viên A',
             'email' => 'hv.allowed@menglish.edu.vn',
             'branch_id' => $this->branch->id,
             'role' => 'student',
             'password' => 'Password123!',
-        ]);
-        $res3->assertRedirect(route('users.index'));
-        $this->assertDatabaseHas('users', ['email' => 'hv.allowed@menglish.edu.vn']);
+        ])->assertSessionHasErrors('role');
+        $this->assertDatabaseMissing('users', ['email' => 'hv.allowed@menglish.edu.vn']);
 
         // Allowed: academic_lead (cây vai trò 06/10/2026: Học vụ CRU Học thuật)
         $res4 = $this->actingAs($this->academicStaff)->post(route('users.store'), [
@@ -189,9 +188,10 @@ class UserCreationHierarchyTest extends TestCase
     {
         [$values, $block] = $this->roleOptionValues($this->actingAs($this->admin)->get(route('users.create'))->assertOk()->getContent());
 
-        foreach (Roles::ALL as $role) {
+        foreach (array_diff(Roles::ALL, [Roles::STUDENT]) as $role) {
             $this->assertContains($role, $values, "Thiếu vai trò {$role} trong ô chọn");
         }
+        $this->assertNotContains(Roles::STUDENT, $values);
         $this->assertStringContainsString('Quản lý Cơ sở', $block);
         $this->assertStringContainsString('Học vụ', $block);
         $this->assertStringNotContainsString('Giám đốc', $block);

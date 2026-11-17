@@ -313,6 +313,10 @@ class UserController extends Controller
     {
         $assignable = Rbac::assignableRoles(auth()->user());
         $currentRole = $user->exists ? $user->getRoleNames()->first() : null;
+        // TK-2026-0125: không mời chọn Học viên; người đã là học viên vẫn giữ vai trò khi sửa.
+        if (! ($user->exists && $user->hasRole(Roles::STUDENT))) {
+            $assignable = array_values(array_diff($assignable, [Roles::STUDENT]));
+        }
         $tabs = ['account', 'profile', 'salary'];
         // Chỉ lương cơ bản, phụ cấp, thù lao giờ cần quyền lương (Admin); hồ sơ nhân sự (CCCD, TK ngân hàng...) sửa theo user.update của route.
         $canEditSensitive = self::canViewSensitive(auth()->user());
