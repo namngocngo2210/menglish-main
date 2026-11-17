@@ -172,6 +172,7 @@ class RoomController extends Controller
                     'branch' => collect($shared['branches'])->firstWhere('value', (int) $input['branch_id'])['label'] ?? '',
                     'total' => $found['total'],
                     'holiday' => $found['holiday'],
+                    'no_schedule' => $found['no_schedule'],
                     'branch_has_rooms' => Room::where('branch_id', $input['branch_id'])->exists(),
                     'rooms' => $found['rooms']->map(fn (Room $room) => [
                         'id' => $room->id,

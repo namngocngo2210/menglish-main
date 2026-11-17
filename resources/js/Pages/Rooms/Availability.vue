@@ -80,6 +80,7 @@ function search() {
         <template v-else>
             <div class="rounded-xl border border-surface-container-highest bg-surface-container-lowest">
                 <UiEmptyState v-if="!result.branch_has_rooms" icon="domain_disabled" title="Chưa thiết lập phòng" description="Chi nhánh chưa có phòng học nào." />
+                <UiEmptyState v-else-if="result.no_schedule" icon="event_busy" title="Chưa có lịch cho ngày này" description="Lịch học chưa được tạo đến ngày đã chọn nên chưa thể xác định phòng trống." />
                 <UiEmptyState v-else-if="!result.total" icon="filter_alt_off" title="Không tìm thấy phân loại" description="Chi nhánh chưa có phòng thuộc loại này." />
                 <UiEmptyState v-else-if="result.holiday" icon="event_busy" title="Chưa phát sinh lịch" description="Ngày đã chọn là ngày nghỉ của chi nhánh, không có lịch học." />
                 <UiEmptyState v-else-if="!result.rooms.length" icon="block" title="Đã kín lịch học" description="Không còn phòng trống trong khoảng giờ này." />

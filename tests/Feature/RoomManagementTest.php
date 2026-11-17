@@ -214,6 +214,23 @@ class RoomManagementTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('filterErrors.end', 'Giờ kết thúc phải sau giờ bắt đầu')->where('result', null));
     }
 
+    public function test_availability_shows_no_schedule_after_furthest_generated_session(): void
+    {
+        $last = now()->addDays(3);
+        $this->room($this->branch, 'Phòng 101');
+        $class = $this->makeClass('RM-NS', ['room' => 'Phòng 101']);
+        ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => $last->toDateString(),
+            'start_time' => '08:00', 'end_time' => '09:00', 'room' => 'Phòng 101', 'status' => 'scheduled']);
+        $query = fn (CarbonInterface $d) => route('rooms.availability', ['date' => $d->toDateString(), 'start' => '18:00', 'end' => '19:00']);
+
+        $this->actingAs($this->academic)->get($query($last->copy()->addDay()))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('result.no_schedule', true));
+        $this->actingAs($this->academic)->get($query($last))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('result.no_schedule', false)->has('result.rooms', 1));
+        $this->actingAs($this->academic)->get($query($last->copy()->subDay()))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('result.no_schedule', false)->has('result.rooms', 1));
+    }
+
     public function test_class_create_takes_room_from_selected_branch_only(): void
     {
         $own = $this->room($this->branch, 'Phòng 101');
