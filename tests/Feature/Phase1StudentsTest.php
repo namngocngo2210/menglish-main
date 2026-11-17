@@ -164,6 +164,29 @@ class Phase1StudentsTest extends TestCase
         }
     }
 
+    public function test_index_status_filter_is_multi_select_and_never_silently_returns_all(): void
+    {
+        $this->student('HV-S', $this->hn, $this->classHn);
+        $this->student('HV-D', $this->hn, $this->classHn, ['status' => 'deferred']);
+        $this->student('HV-X', $this->hn, $this->classHn, ['status' => 'dropped']);
+        $staff = $this->user('academic_staff', $this->hn);
+        $get = fn (array $q) => $this->actingAs($staff)->get(route('students.index', $q))->assertOk();
+
+        // một trạng thái (kiểu cũ)
+        $get(['status' => 'studying'])->assertSee('Học viên HV-S')->assertDontSee('Học viên HV-D')->assertDontSee('Học viên HV-X');
+        // nhiều trạng thái: status[]
+        $get(['status' => ['studying', 'deferred']])->assertSee('Học viên HV-S')->assertSee('Học viên HV-D')->assertDontSee('Học viên HV-X');
+        // danh sách phẩy
+        $get(['status' => 'studying,deferred'])->assertSee('Học viên HV-S')->assertSee('Học viên HV-D')->assertDontSee('Học viên HV-X');
+        // giá trị lạ: không trả về tất cả; lẫn giá trị hợp lệ thì chỉ lọc theo giá trị hợp lệ
+        $get(['status' => 'bogus'])->assertDontSee('Học viên HV-S')->assertDontSee('Học viên HV-D')->assertDontSee('Học viên HV-X');
+        $get(['status' => 'bogus,deferred'])->assertSee('Học viên HV-D')->assertDontSee('Học viên HV-S');
+        // kết hợp tìm kiếm
+        $get(['status' => 'studying,deferred', 'search' => 'HV-D'])->assertSee('Học viên HV-D')->assertDontSee('Học viên HV-S');
+        // không chọn = tất cả
+        $get([])->assertSee('Học viên HV-S')->assertSee('Học viên HV-D')->assertSee('Học viên HV-X');
+    }
+
     // ───────────── 5. Không tạo học viên ngoài luồng Lead → Chốt ─────────────
 
     public function test_students_cannot_be_created_outside_crm(): void
