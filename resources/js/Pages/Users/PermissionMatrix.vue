@@ -18,6 +18,7 @@ const props = defineProps({
 const allCells = props.matrix.flatMap((group) => group.modules.flatMap((m) => [...Object.values(m.cells).filter(Boolean), ...m.extra]));
 const on = reactive(Object.fromEntries(allCells.map((c) => [c.name, c.decision === 'allow' || (c.decision === 'inherit' && c.role)])));
 const scopeType = reactive(Object.fromEntries(props.matrix.flatMap((group) => group.modules.map((m) => [m.module, m.scope.type]))));
+const dataScope = reactive(Object.fromEntries(props.matrix.flatMap((group) => group.modules.filter((m) => m.dataScope).map((m) => [m.module, m.dataScope.personal]))));
 const columnValue = reactive(Object.fromEntries(props.columns.map((c) => [c.value, true])));
 
 const decision = (cell) => (on[cell.name] === cell.role ? 'inherit' : on[cell.name] ? 'allow' : 'deny');
@@ -36,6 +37,9 @@ function toggleColumn(action) {
 }
 function reset() {
     allCells.forEach((c) => (on[c.name] = c.role));
+    // TK-2026-0126: reset cũng đưa phạm vi dữ liệu cá nhân và phạm vi áp dụng về mặc định (Theo vai trò / Toàn hệ thống).
+    Object.keys(dataScope).forEach((m) => (dataScope[m] = 'inherit'));
+    Object.keys(scopeType).forEach((m) => (scopeType[m] = 'all'));
 }
 
 defineExpose({ reset });
@@ -106,9 +110,9 @@ defineExpose({ reset });
                         </td>
                         <td>
                             <template v-if="module.dataScope">
-                                <UiSelect :name="`data_scope[${module.module}]`" :value="module.dataScope.personal" :aria-label="`Phạm vi dữ liệu ${module.label}`">
-                                    <option value="inherit" :selected="module.dataScope.personal === 'inherit'">Theo vai trò ({{ module.dataScope.roleLabel }})</option>
-                                    <option v-for="level in module.dataScope.levels" :key="level.value" :value="level.value" :selected="module.dataScope.personal === level.value" :title="level.title">{{ level.label }}</option>
+                                <UiSelect :name="`data_scope[${module.module}]`" v-model="dataScope[module.module]" :aria-label="`Phạm vi dữ liệu ${module.label}`">
+                                    <option value="inherit" :selected="dataScope[module.module] === 'inherit'">Theo vai trò ({{ module.dataScope.roleLabel }})</option>
+                                    <option v-for="level in module.dataScope.levels" :key="level.value" :value="level.value" :selected="dataScope[module.module] === level.value" :title="level.title">{{ level.label }}</option>
                                 </UiSelect>
                                 <p class="mt-xs font-caption text-caption text-on-surface-variant">Hiệu lực: {{ module.dataScope.effective }}</p>
                             </template>
