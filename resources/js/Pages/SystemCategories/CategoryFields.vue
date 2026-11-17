@@ -11,6 +11,7 @@ const props = defineProps({
     typeSelect: { type: Boolean, default: null },
     showTypeLabel: { type: Boolean, default: false },
     nextOrder: { type: Number, default: null },
+    roleOptions: { type: Array, default: () => [] },
     idPrefix: { type: String, default: null },
 });
 const exists = computed(() => !!props.category.id);
@@ -27,6 +28,7 @@ const typeLabel = computed(() => props.typeLabels.find((t) => t.value === props.
     </template>
     <UiInput name="code" :id="fid('code')" label="Mã danh mục" required maxlength="50" :value="category.code" class="font-code" :placeholder="exists ? undefined : `Vd: ${category.code}`" />
     <UiInput name="name" :id="fid('name')" label="Tên danh mục" required maxlength="255" :value="category.name" placeholder="Nhập tên..." />
+    <UiSelect v-if="category.type === 'position'" name="role_code" :id="fid('role_code')" label="Vai trò (phân quyền)" :options="roleOptions" :value="category.role_code" placeholder="-- Chưa gắn vai trò (không có quyền) --" hint="Người được gán chức vụ này nhận đúng quyền của vai trò đã chọn. Để trống = chỉ là chức danh hiển thị." />
     <UiInput type="number" name="sort_order" :id="fid('sort_order')" label="Thứ tự hiển thị" min="0" :value="category.sort_order ?? nextOrder" :placeholder="nextOrder !== null ? String(nextOrder) : 'Để trống = cuối danh sách'" />
     <label class="flex items-center gap-sm font-body-small text-body-small">
         <input type="hidden" name="is_active" value="0" />

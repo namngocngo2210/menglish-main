@@ -13,6 +13,9 @@ const props = defineProps({
     currentConcurrent: { type: Array, default: () => [] },
     branches: { type: Array, default: () => [] },
     roleOptions: { type: Array, default: () => [] },
+    positionOptions: { type: Array, default: () => [] },
+    positionRoles: { type: Object, default: () => ({}) },
+    currentPositionId: { type: Number, default: null },
     concurrentOptions: { type: Array, default: () => [] },
     initialTab: { type: String, default: 'account' },
     idPrefix: { type: String, default: '' },
@@ -46,6 +49,10 @@ const firstErrorTab = () => Object.keys(tabs).find((key) => tabHasError(key)) ??
 
 // Học thuật: option "Kiêm nhiệm giảng dạy" hiện ngay dưới ô vai trò khi chọn vai trò chính Học thuật.
 const role = ref(props.currentRole ?? '');
+// TK-2026-0134: ô Chức vụ (danh mục Chức vụ) quyết định vai trò; máy chủ tự suy ra vai trò từ chức vụ, "role" gửi kèm chỉ để form ẩn/hiện ô.
+const usePositions = computed(() => props.positionOptions.length > 0);
+const positionId = ref(props.currentPositionId ?? '');
+watch(positionId, (id) => { if (usePositions.value) role.value = props.positionRoles[id] ?? ''; });
 const branchOptional = computed(() => props.branchOptionalRoles.includes(role.value));
 
 // Nhân sự làm việc ở nhiều cơ sở: 1 cơ sở chính (chấm công mặc định, lương, báo cáo) + các cơ sở làm việc thêm.
@@ -122,7 +129,11 @@ onMounted(() => {
                 <UiInput name="email" :id="fid('email')" type="email" label="Email công việc" required :value="user?.email" placeholder="VD: nva@menglish.edu.vn" />
                 <UiInput name="phone" :id="fid('phone')" label="Số điện thoại" :value="user?.phone" placeholder="10 số, bắt đầu bằng 0" class="font-code" />
                 <UiSelect v-model="primaryBranch" name="branch_id" :id="fid('branch_id')" label="Cơ sở chính" :required="!branchOptional" :hint="branchOptional ? 'Giáo viên, trợ giảng không bắt buộc cơ sở: để trống thì dạy được ở mọi cơ sở' : null" placeholder="-- Chọn cơ sở --" :options="branches" />
-                <UiSelect v-model="role" name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :options="roleOptions" />
+                <template v-if="usePositions">
+                    <UiSelect v-model="positionId" name="position_id" :id="fid('position_id')" label="Vai trò & Chức vụ" required placeholder="-- Chọn chức vụ --" :options="positionOptions" hint="Danh sách lấy từ Danh mục hệ thống > Chức vụ. Chức vụ chưa gắn vai trò thì không có quyền nào." />
+                    <input type="hidden" name="role" :value="role" />
+                </template>
+                <UiSelect v-else v-model="role" name="role" :id="fid('role')" label="Vai trò & Chức vụ" required placeholder="-- Chọn vai trò --" :options="roleOptions" />
             </div>
 
             <!-- Cơ sở làm việc thêm (user_branches): nhân sự dạy / làm việc ở nhiều cơ sở. -->

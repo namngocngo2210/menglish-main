@@ -351,3 +351,13 @@ Bảng mới có dữ liệu theo chi nhánh / theo người: dùng lọc tự �
 
 - CCCD (số, ngày cấp), liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng nhận lương: xem theo `user.view`, sửa theo `user.update` (trong phạm vi chi nhánh/cây vai trò của `UserController::ensureCanManageTarget`).
 - Lương cơ bản, phụ cấp, thù lao giờ dạy: chỉ Admin (`payroll.view` + phạm vi mọi chi nhánh) xem/ghi; trang hồ sơ, drawer, form, `store`/`update` đều lọc phía server.
+
+## Chức vụ ở form nhân sự (TK-2026-0134)
+
+Ô "Vai trò & Chức vụ" của form Thêm/Sửa nhân sự lấy từ **Danh mục hệ thống › Chức vụ** (`system_categories.type = position`, chỉ mục đang dùng), không còn gõ cứng 10 vai trò. Phân quyền vẫn **chỉ** đi qua vai trò (Spatie), không qua chức vụ:
+
+- `system_categories.role_code` (nullable) ánh xạ chức vụ → mã vai trò (`App\Support\Roles`, không có `student`). Chọn ở màn Danh mục khi sửa/thêm chức vụ. Seed/migration ánh xạ đủ 10 vai trò nhân sự (POS_01…POS_10).
+- `users.position_id` lưu chức vụ hiển thị. Máy chủ **tự suy ra vai trò từ chức vụ** (`UserRequest::prepareForValidation`), bỏ qua `role` client gửi kèm; vẫn qua `Rbac::canAssignRole` (không phải Super Admin thì không gán được `admin`/vai trò ngoài phân cấp).
+- Chức vụ **chưa ánh xạ** (thêm mới, `role_code` rỗng): hiện ở ô chọn nhưng chỉ cho Super Admin; tài khoản được tạo **không có vai trò nào** → không có quyền nào (kể cả kiêm nhiệm); gán vai trò sau ở màn "Gán vai trò".
+- Request cũ chỉ gửi `role` (không `position_id`) vẫn hoạt động như trước; form sửa chọn sẵn chức vụ đầu tiên cùng vai trò cho người chưa có `position_id`.
+- Test: `UserPositionRoleTest` (gồm guard: mọi vai trò nhân sự đều có chức vụ seed).

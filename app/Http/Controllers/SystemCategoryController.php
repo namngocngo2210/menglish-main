@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\RendersModals;
 use App\Http\Requests\SystemCategoryRequest;
+use App\Helpers\AclHelper;
 use App\Models\SystemCategory;
+use App\Support\Roles;
 use App\Support\Audit;
 use App\Support\Ui;
 use Illuminate\Http\RedirectResponse;
@@ -40,6 +42,7 @@ class SystemCategoryController extends Controller
             'categories' => $categories->through(fn (SystemCategory $category) => $this->categoryData($category)),
             'type' => $type,
             'types' => Ui::options(collect(SystemCategory::TYPES)->mapWithKeys(fn (string $t) => [$t => SystemCategory::TYPE_LABELS[$t] ?? $t])),
+            'roleOptions' => $this->roleOptions(),
             'editing' => $editing ? $this->categoryData($editing) : null,
             'search' => $search,
             'canManage' => $request->user()->can('system_category.manage'),
@@ -53,6 +56,7 @@ class SystemCategoryController extends Controller
         return $this->modalPage('SystemCategories/Form', [
             'category' => ['type' => $type, 'code' => SystemCategory::suggestCode($type)],
             'typeLabels' => Ui::options(SystemCategory::TYPE_LABELS),
+            'roleOptions' => $this->roleOptions(),
             'nextOrder' => (int) SystemCategory::query()->ofType($type)->max('sort_order') + 1,
         ]);
     }
@@ -76,6 +80,7 @@ class SystemCategoryController extends Controller
             return $this->modalPage('SystemCategories/Form', [
                 'category' => $this->categoryData($systemCategory),
                 'typeLabels' => Ui::options(SystemCategory::TYPE_LABELS),
+                'roleOptions' => $this->roleOptions(),
             ]);
         }
 
@@ -126,9 +131,15 @@ class SystemCategoryController extends Controller
     private function categoryData(SystemCategory $category): array
     {
         return [
-            ...$category->only(['id', 'type', 'code', 'name', 'sort_order']),
+            ...$category->only(['id', 'type', 'code', 'name', 'role_code', 'sort_order']),
             'is_active' => (bool) $category->is_active,
         ];
+    }
+
+    /** Vai trò chọn được để ánh xạ cho Chức vụ (không có Học viên). */
+    private function roleOptions(): array
+    {
+        return Ui::options(collect(array_diff(Roles::ALL, [Roles::STUDENT]))->mapWithKeys(fn (string $r) => [$r => AclHelper::roleLabel($r)]));
     }
 
     private function validType(mixed $type): string

@@ -8,6 +8,7 @@ use App\Http\Requests\AssignRoleRequest;
 use App\Http\Requests\UserRequest;
 use App\Models\Branch;
 use App\Models\ClassModel;
+use App\Models\SystemCategory;
 use App\Models\User;
 use App\Services\SafeUploadService;
 use App\Support\Audit;
@@ -346,11 +347,39 @@ class UserController extends Controller
             'currentConcurrent' => $user->exists ? $user->getRoleNames()->slice(1)->values()->all() : [],
             'branches' => Ui::options($this->assignableBranches($user->branch_id), 'name'),
             'roleOptions' => Ui::options(AclHelper::primaryRoleOptions($assignable, $currentRole)),
+            ...$this->positionFormProps($user, $assignable, $currentRole),
             'concurrentOptions' => Ui::options(collect($assignable)->mapWithKeys(fn (string $role) => [$role => AclHelper::shortRoleLabel($role)])),
             'initialTab' => in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'account',
             'canEditSensitive' => $canEditSensitive,
             'branchOptionalRoles' => Roles::BRANCH_OPTIONAL,
         ]);
+    }
+
+    /**
+     * Ô "Chức vụ" của form (TK-2026-0134): chức vụ đang dùng trong danh mục, giữ chức vụ hiện tại của người đang sửa.
+     * Chức vụ có vai trò chỉ hiện khi người thao tác gán được vai trò đó (Admin chỉ Super Admin); chức vụ chưa ánh xạ
+     * (không cấp quyền) chỉ hiện cho Super Admin. positionRoles: id chức vụ -> vai trò, để form ẩn/hiện ô theo vai trò.
+     *
+     * @param  string[]  $assignable
+     * @return array<string, mixed>
+     */
+    private function positionFormProps(User $user, array $assignable, ?string $currentRole): array
+    {
+        $isSuper = (bool) auth()->user()?->isSuperAdmin();
+        $positions = SystemCategory::query()->ofType(SystemCategory::TYPE_POSITION)
+            ->where(fn ($q) => $q->where('is_active', true)->when($user->position_id, fn ($q) => $q->orWhere('id', $user->position_id)))
+            ->orderBy('sort_order')->orderBy('id')->get()
+            ->filter(fn (SystemCategory $p) => $p->id === $user->position_id
+                || ($p->role_code === null ? $isSuper : in_array($p->role_code, $assignable, true)))
+            ->values();
+        // Người chưa có chức vụ (tạo trước TK-0134): chọn sẵn chức vụ đầu tiên cùng vai trò.
+        $currentId = $user->position_id ?? ($currentRole ? $positions->firstWhere('role_code', $currentRole)?->id : null);
+
+        return [
+            'positionOptions' => Ui::options($positions, 'name'),
+            'positionRoles' => $positions->mapWithKeys(fn (SystemCategory $p) => [$p->id => $p->role_code])->all(),
+            'currentPositionId' => $currentId,
+        ];
     }
 
     /** Ngày nghỉ cố định trong tuần từ form (ô tick; không gửi cờ _present thì giữ giá trị cũ). @return list<int>|null */
@@ -538,8 +567,13 @@ class UserController extends Controller
      * @param  string[]  $currentConcurrent
      * @return string[]
      */
-    private function rolesWithConcurrent(UserRequest $request, string $primary, array $currentConcurrent): array
+    private function rolesWithConcurrent(UserRequest $request, ?string $primary, array $currentConcurrent): array
     {
+        // Chức vụ chưa ánh xạ vai trò: không vai trò nào, kể cả kiêm nhiệm (gán sau ở màn "Gán vai trò").
+        if ($primary === null) {
+            return [];
+        }
+
         $concurrent = $currentConcurrent;
         if ($request->boolean('concurrent_roles_present') && auth()->user()?->can('user.assign_role')) {
             $concurrent = array_values(array_unique((array) $request->validated('concurrent_roles', [])));
@@ -761,9 +795,11 @@ class UserController extends Controller
     /**
      * Chặn việc gán vai trò vượt phân cấp cho phép.
      */
-    private function ensureCanAssignRole(string $role): void
+    private function ensureCanAssignRole(?string $role): void
     {
-        if (! Rbac::canAssignRole(auth()->user(), $role)) {
+        // Chức vụ chưa ánh xạ vai trò (role null): chỉ Super Admin tạo, vì người không có vai trò nào sẽ không còn nằm trong cây cấp dưới của ai khác.
+        $allowed = $role === null ? (bool) auth()->user()?->isSuperAdmin() : Rbac::canAssignRole(auth()->user(), $role);
+        if (! $allowed) {
             throw ValidationException::withMessages([
                 'role' => 'Bạn không được phép tạo/gán vai trò này.',
             ]);
