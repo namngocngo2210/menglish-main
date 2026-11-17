@@ -65,4 +65,22 @@ class StudentStatusTransitionTest extends TestCase
             $this->assertSame($from, $status, "$from -> $to");
         }
     }
+
+    /** Profile edit ignores `status` entirely (changes only via students.status.update), allowed or forbidden. */
+    public function test_profile_update_ignores_status_field(): void
+    {
+        $this->user->givePermissionTo('student.change_status');
+        foreach ([['dropped', 'studying'], ['studying', 'completed']] as $i => [$from, $to]) {
+            $student = Student::create([
+                'code' => 'HV-PU'.$i, 'name' => 'HV PU'.$i, 'phone' => '09100000'.str_pad((string) $i, 2, '0', STR_PAD_LEFT),
+                'branch_id' => $this->branch->id, 'status' => $from,
+            ]);
+            $this->actingAs($this->user)->put(route('students.update', $student->id), [
+                'name' => 'Tên mới '.$i, 'phone' => $student->phone, 'status' => $to,
+            ])->assertSessionHasNoErrors();
+            $student->refresh();
+            $this->assertSame($from, $student->status, "$from -> $to via profile edit");
+            $this->assertSame('Tên mới '.$i, $student->name);
+        }
+    }
 }

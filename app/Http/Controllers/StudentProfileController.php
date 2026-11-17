@@ -755,7 +755,6 @@ class StudentProfileController extends Controller
             'address' => 'nullable|string|max:255',
             'school' => 'nullable|string|max:255',
             'study_started_on' => 'nullable|date|before_or_equal:today|after:1990-01-01',
-            'status' => ['nullable', Rule::in(array_keys(Student::STATUSES))],
             'notes' => 'nullable|string|max:500',
             'school_grade' => 'nullable|integer|between:1,12',
         ], [
@@ -765,10 +764,8 @@ class StudentProfileController extends Controller
             'study_started_on.before_or_equal' => 'Ngày bắt đầu học không được sau hôm nay.',
         ], ['study_started_on' => 'ngày bắt đầu học', 'dob' => 'ngày sinh', 'gender' => 'giới tính']);
 
-        // Form sửa hồ sơ không gửi trạng thái; đổi trạng thái cần quyền riêng (student.change_status).
-        if (! $request->user()->can('student.change_status') || empty($validated['status'])) {
-            unset($validated['status']);
-        }
+        // Trạng thái chỉ đổi qua students.status.update (có kiểm tra ma trận); sửa hồ sơ luôn bỏ qua `status`.
+        unset($validated['status']);
 
         // Khối hiện tại: form luôn gửi lại khối đang hiển thị, nên chỉ coi là ghi đè khi khác khối hiển thị (theo dob + chênh lệch cũ).
         // Ghi đè được tính theo ngày sinh mới của cùng request, lưu dưới dạng chênh lệch so với khối theo năm sinh.
