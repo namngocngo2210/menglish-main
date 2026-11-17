@@ -123,7 +123,7 @@ class Phase2MockupClassesTest extends TestCase
             ->assertSee('Cấu hình Trình độ &amp; Syllabus', false)
             ->assertSee('Tìm kiếm trình độ...')
             ->assertSee('Thêm/Sửa Trình độ đào tạo')
-            ->assertSee('Thiết lập Syllabus')->assertSee('Gắn Syllabus mới')
+            ->assertSee('Thiết lập Syllabus')->assertSee('Syllabus 1')->assertSee('Syllabus 2')
             ->assertSee('Trạng thái hoạt động')->assertSee('Mô tả')
             ->assertSee('drag_indicator')
             ->assertSee('Không thể xóa')
