@@ -18,6 +18,7 @@ class Flow1AndHomeworkScreensTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->makeLevelWithSyllabus();
         \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $this->admin = User::factory()->create(['name' => 'Admin Test', 'email' => 'admin.test@menglish.local']);
         $this->admin->assignRole('admin');

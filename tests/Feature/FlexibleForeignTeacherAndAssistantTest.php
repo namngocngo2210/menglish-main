@@ -45,6 +45,7 @@ class FlexibleForeignTeacherAndAssistantTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->makeLevelWithSyllabus();
         // Thứ 2, 05/10/2026.
         $this->travelTo(Carbon::parse('2026-10-05 08:00:00'));
         $this->seed(PermissionSeeder::class);

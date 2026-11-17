@@ -2,8 +2,10 @@
 
 namespace Tests;
 
+use App\Models\CourseLevel;
 use App\Models\Room;
 use App\Models\RoomType;
+use App\Models\SyllabusCurriculum;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -96,5 +98,13 @@ abstract class TestCase extends BaseTestCase
         $type = RoomType::firstOrCreate(['name' => 'Phòng tiêu chuẩn'], ['is_active' => true]);
 
         return Room::create(['branch_id' => $branchId, 'room_type_id' => $type->id, 'name' => $name, 'capacity' => $capacity]);
+    }
+
+    /** Trình độ đã gắn Giáo trình — lớp học chỉ được chọn loại này (TD R-04). */
+    protected function makeLevelWithSyllabus(string $code = 'B1'): CourseLevel
+    {
+        $syllabus = SyllabusCurriculum::firstOrCreate(['code' => "SYL-{$code}"], ['title' => "Giáo trình {$code}", 'version' => 'v1.0']);
+
+        return CourseLevel::updateOrCreate(['code' => $code], ['name' => $code, 'target' => 'IELTS', 'is_active' => true, 'syllabus_curriculum_id' => $syllabus->id]);
     }
 }

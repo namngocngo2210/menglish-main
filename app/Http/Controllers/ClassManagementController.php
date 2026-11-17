@@ -111,7 +111,7 @@ class ClassManagementController extends Controller
 
         $branches = Branch::where('is_active', true)->get();
         $courses = Course::where('is_active', true)->get();
-        $levels = CourseLevel::where('is_active', true)->get();
+        $levels = CourseLevel::where('is_active', true)->whereNotNull('syllabus_curriculum_id')->get();
 
         [$teachers] = $this->teachingStaffOptions();
 
@@ -141,6 +141,20 @@ class ClassManagementController extends Controller
         'min_students.min' => 'Ngưỡng khai giảng phải từ 1 học viên.',
     ];
 
+    /** Cấp độ phải là trình độ đang mở và đã gắn Giáo trình (TD R-04); lớp cũ được giữ nguyên cấp độ hiện tại. */
+    private function levelHasSyllabusRule(?string $currentLevel = null): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($currentLevel) {
+            if ($currentLevel !== null && $value === $currentLevel) {
+                return;
+            }
+            $ok = CourseLevel::where('code', $value)->where('is_active', true)->whereNotNull('syllabus_curriculum_id')->exists();
+            if (! $ok) {
+                $fail('Cấp độ chưa gắn Giáo trình nên không thể chọn.');
+            }
+        };
+    }
+
     public function store(Request $request)
     {
         abort_if(! auth()->user()->can('class.create'), 403, 'Bạn không có quyền tạo lớp học.');
@@ -150,7 +164,7 @@ class ClassManagementController extends Controller
             'ma_lop' => 'nullable|string|max:50',
             'chi_nhanh' => 'required',
             'chuong_trinh' => 'required|string|max:100',
-            'cap_do' => 'required|string|max:100',
+            'cap_do' => ['required', 'string', 'max:100', $this->levelHasSyllabusRule()],
             'si_so_toi_da' => 'required|integer|min:1|max:100',
             // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
             'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
@@ -903,7 +917,8 @@ class ClassManagementController extends Controller
         $branches = Branch::where('is_active', true)->get();
         $slots = $this->reschedule->currentSlots($class);
         $courses = Course::where('is_active', true)->get();
-        $levels = CourseLevel::where('is_active', true)->get();
+        // Chỉ trình độ đã gắn Giáo trình (TD R-04); giữ giá trị hiện tại của lớp cũ để không mất dữ liệu.
+        $levels = CourseLevel::where('is_active', true)->whereNotNull('syllabus_curriculum_id')->get();
         [$teachers, $assistants] = $this->teachingStaffOptions([$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id]);
 
         return Inertia::render('Classes/Edit', [
@@ -942,7 +957,9 @@ class ClassManagementController extends Controller
                 ...Ui::options($courses, 'name', 'name'),
             ],
             'levels' => [
-                ...Ui::options(['B1' => 'Cấp độ B1 (Mục tiêu 5.5 - 6.0)', 'FOUNDATION' => 'Foundation (Mục tiêu 4.0 - 5.0)', 'B2' => 'Cấp độ B2 (Mục tiêu 6.5 - 7.0)', 'ADVANCED' => 'Mastery (Mục tiêu 7.5+)']),
+                ...($class->level && ! $levels->contains('code', $class->level)
+                    ? Ui::options([$class->level => $class->level.' (chưa gắn Giáo trình)'])
+                    : []),
                 ...Ui::options($levels, 'name', 'code'),
             ],
             'rooms' => RoomController::classFormOptions([...$branches->modelKeys(), $class->branch_id], $class->id),
@@ -972,7 +989,7 @@ class ClassManagementController extends Controller
             'ma_lop' => 'nullable|string|max:50',
             'chi_nhanh' => 'required',
             'chuong_trinh' => 'required|string|max:100',
-            'cap_do' => 'required|string|max:100',
+            'cap_do' => ['required', 'string', 'max:100', $this->levelHasSyllabusRule($class->level)],
             'si_so_toi_da' => 'required|integer|min:1|max:100',
             // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
             'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
