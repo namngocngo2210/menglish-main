@@ -74,12 +74,14 @@ class StudentProfileController extends Controller
             ->select('students.status')->selectRaw('COUNT(*) as aggregate')->groupBy('students.status')
             ->pluck('aggregate', 'status')->map(fn ($n) => (int) $n);
 
-        // Tab trạng thái: ?status= một trạng thái; giữ tương thích statuses[] (chọn nhiều) của link cũ.
-        $statuses = collect((array) $request->input('statuses', []))
-            ->push($request->input('status'))
-            ->filter(fn ($s) => is_string($s) && array_key_exists($s, Student::STATUSES))
-            ->unique()->values()->all();
-        if ($statuses !== []) {
+        // Lọc nhiều trạng thái: ?status[]=a&status[]=b, ?status=a,b, ?status=a hoặc statuses[] (link cũ).
+        // Có chọn mà toàn giá trị lạ => không ra dòng nào (không âm thầm trả về tất cả).
+        $requested = collect([...(array) $request->input('statuses', []), ...(array) $request->input('status', [])])
+            ->filter(fn ($s) => is_string($s))
+            ->flatMap(fn (string $s) => explode(',', $s))
+            ->map(fn (string $s) => trim($s))->filter()->unique()->values();
+        $statuses = $requested->filter(fn ($s) => array_key_exists($s, Student::STATUSES))->values()->all();
+        if ($requested->isNotEmpty()) {
             $query->whereIn('status', $statuses);
         }
 
@@ -129,7 +131,7 @@ class StudentProfileController extends Controller
             ]),
             'branches' => Ui::options($branches, 'name'),
             'classes' => Ui::options($classes, 'name'),
-            'status' => count($statuses) === 1 ? $statuses[0] : null,
+            'statuses' => $statuses,
             'statusTabs' => collect(Student::STATUSES)->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label, 'count' => $statusCounts->get($key, 0)])->values()->all(),
             'tenureOptions' => collect(Student::TENURE_FILTERS)->map(fn (int $y) => ['value' => $y, 'label' => "Từ {$y} năm trở lên"])->all(),
             'sort' => $sort,

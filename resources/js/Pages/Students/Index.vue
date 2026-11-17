@@ -9,6 +9,7 @@ import { Link } from '@inertiajs/vue3';
 import { openRemoteModal } from '@/lib/remoteModal';
 import { route } from '@/lib/route';
 import { urlWith } from '@/lib/url';
+import { toggleStatus } from '@/lib/statusFilter';
 
 defineOptions({ layout: { title: 'Học viên' } });
 
@@ -16,7 +17,7 @@ const props = defineProps({
     students: { type: Object, required: true },
     branches: { type: Array, default: () => [] },
     classes: { type: Array, default: () => [] },
-    status: { type: String, default: null },
+    statuses: { type: Array, default: () => [] },
     statusTabs: { type: Array, default: () => [] },
     tenureOptions: { type: Array, default: () => [] },
     sort: { type: String, default: null },
@@ -25,8 +26,8 @@ const props = defineProps({
     linkableClasses: { type: Array, default: () => [] },
 });
 
-/** Link tab trạng thái: giữ các bộ lọc khác, về trang 1. */
-const tabUrl = (status) => urlWith({ status, 'statuses[]': null, statuses: null, page: null });
+/** Link chip trạng thái (chọn nhiều): bật/tắt một trạng thái, giữ bộ lọc khác, về trang 1; null = bỏ chọn hết. */
+const tabUrl = (status) => urlWith({ status: status === null ? null : toggleStatus(props.statuses, status).join(','), 'status[]': null, 'statuses[]': null, statuses: null, page: null });
 const sortUrl = computed(() => urlWith({ sort: props.sort === 'tenure' ? null : 'tenure', page: null }));
 
 const linkStudent = ref(null);
@@ -57,8 +58,8 @@ const menuItem = 'flex w-full items-center gap-sm px-md py-sm text-left font-bod
 
     <!-- Tab trạng thái (bấm là lọc), số đếm theo các bộ lọc còn lại -->
     <UiTabs class="mb-md" data-testid="student-status-tabs">
-        <UiTab :href="tabUrl(null)" :active="!status" :count="formatNumber(totalStudents)" preserve-scroll>Tất cả</UiTab>
-        <UiTab v-for="tab in statusTabs" :key="tab.value" :href="tabUrl(tab.value)" :active="status === tab.value" :count="formatNumber(tab.count)" preserve-scroll>
+        <UiTab :href="tabUrl(null)" :active="!statuses.length" :count="formatNumber(totalStudents)" preserve-scroll>Tất cả</UiTab>
+        <UiTab v-for="tab in statusTabs" :key="tab.value" :href="tabUrl(tab.value)" :active="statuses.includes(tab.value)" :count="formatNumber(tab.count)" preserve-scroll>
             {{ tab.label }}
         </UiTab>
     </UiTabs>
