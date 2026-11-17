@@ -77,6 +77,18 @@ class RoomManagementTest extends TestCase
         return ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][$date->dayOfWeek];
     }
 
+    private function payload(ClassModel $class, array $overrides = []): array
+    {
+        return $overrides + [
+            'ten_lop' => $class->name,
+            'ma_lop' => $class->code,
+            'chi_nhanh' => $class->branch_id,
+            'chuong_trinh' => $class->program,
+            'cap_do' => $class->level,
+            'si_so_toi_da' => $class->max_capacity,
+        ];
+    }
+
     public function test_admin_creates_room_with_unique_name_per_branch_and_valid_capacity(): void
     {
         $payload = ['branch_id' => $this->branch->id, 'room_type_id' => $this->type->id, 'name' => 'Phòng 202', 'capacity' => 15, 'description' => 'Có máy chiếu'];
@@ -249,6 +261,57 @@ class RoomManagementTest extends TestCase
         $this->assertSame($room->id, $class->fresh()->room_id);
         $this->assertSame('Phòng 101', $class->fresh()->room);
         $this->assertSame(['Phòng 101'], $class->sessions()->pluck('room')->unique()->values()->all());
+    }
+
+    public function test_ending_class_via_edit_releases_room_and_preserves_generated_sessions(): void
+    {
+        $room = $this->room($this->branch, 'Phòng 101');
+        $class = $this->makeClass('RM-EDIT-END', ['room_id' => $room->id, 'room' => $room->name]);
+        $date = now()->addDays(3)->toDateString();
+        $past = ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => now()->subDays(2)->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => $room->name, 'status' => 'completed']);
+        $future = ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => $date,
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => $room->name, 'status' => 'scheduled']);
+
+        $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->payload($class, [
+            'status' => 'completed', 'room_id' => $room->id,
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('completed', $class->fresh()->status);
+        $this->assertNull($class->fresh()->room_id);
+        $this->assertNull($class->fresh()->room);
+        $this->assertSame(2, $class->sessions()->count());
+        $this->assertSame('Phòng 101', $past->fresh()->room);
+        $this->assertSame('Phòng 101', $future->fresh()->room);
+
+        $this->actingAs($this->admin)->get(route('rooms.availability', [
+            'branch_id' => $this->branch->id, 'date' => $date, 'start' => '18:00', 'end' => '19:30',
+        ]))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('result.rooms', 1)->where('result.rooms.0.name', 'Phòng 101'));
+
+        $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->payload($class, [
+            'status' => 'active',
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('active', $class->fresh()->status);
+        $this->assertNull($class->fresh()->room_id);
+        $this->assertNull($class->fresh()->room);
+    }
+
+    public function test_editing_class_without_ending_it_keeps_room(): void
+    {
+        $room = $this->room($this->branch, 'Phòng 101');
+        $class = $this->makeClass('RM-EDIT-KEEP', ['room_id' => $room->id, 'room' => $room->name]);
+
+        foreach (['active', 'upcoming', 'cancelled'] as $status) {
+            $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->payload($class, [
+                'status' => $status, 'ten_lop' => 'Updated class name',
+            ]))->assertRedirect()->assertSessionHasNoErrors();
+
+            $this->assertSame($status, $class->fresh()->status);
+            $this->assertSame('Updated class name', $class->fresh()->name);
+            $this->assertSame($room->id, $class->fresh()->room_id);
+            $this->assertSame('Phòng 101', $class->fresh()->room);
+        }
     }
 
     public function test_ending_class_releases_room(): void

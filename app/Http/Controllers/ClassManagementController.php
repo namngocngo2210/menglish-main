@@ -1055,6 +1055,11 @@ class ClassManagementController extends Controller
             (int) $class->branch_id !== $branchId => [null, null],
             default => [$class->room_id, $class->room],
         };
+        $isEnding = ($validated['status'] ?? null) === 'completed' && $class->status !== 'completed';
+        if ($isEnding) {
+            $newRoomId = null;
+            $newRoom = null;
+        }
 
         // Chỉ buổi chưa diễn ra, chưa điểm danh/check-in mới được đồng bộ nhân sự/phòng;
         // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
@@ -1074,7 +1079,7 @@ class ClassManagementController extends Controller
             'previous_room' => $previousRoom,
         ]);
 
-        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions, $newSlots) {
+        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions, $newSlots, $isEnding) {
             $class->update([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
@@ -1113,7 +1118,7 @@ class ClassManagementController extends Controller
                 // Buổi sắp tới theo chi nhánh mới: lịch/nghỉ lễ/chấm công lọc buổi theo branch_id của buổi.
                 $futureQuery()->update(['branch_id' => $class->branch_id]);
             }
-            if ($class->wasChanged('room')) {
+            if (! $isEnding && $class->wasChanged('room')) {
                 // Chỉ đụng phòng của buổi chưa có phòng riêng hoặc đang dùng phòng cũ của lớp.
                 $futureQuery()
                     ->where(fn ($query) => $query->whereNull('room')->orWhere('room', $previousRoom))

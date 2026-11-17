@@ -164,6 +164,7 @@ class RoomService
             ->where('branch_id', $branchId)
             ->whereDate('date', $day->toDateString())
             ->where('status', '!=', 'cancelled')
+            ->whereDoesntHave('classModel', fn ($query) => $query->whereIn('status', ClassModel::CLOSED_STATUSES))
             ->whereIn('room', $rooms->pluck('name'))
             ->get(['room', 'start_time', 'end_time'])
             ->filter(fn (ClassSession $session) => strcmp(substr((string) $session->getRawOriginal('start_time'), 0, 5), $end) < 0
