@@ -403,7 +403,9 @@ class StudentProfileController extends Controller
     {
         $user = $request->user();
         $student = $this->findVisibleStudent($user, $id);
-        $data = $this->profileData($student, $user, true);
+        $canViewClasses = $user->can('class.view');
+        $canViewAttendance = $user->can('attendance_student.view');
+        $data = $this->profileData($student, $user, $canViewClasses, $canViewAttendance);
 
         if ($request->query('export') === 'roadmap') {
             return $this->exportRoadmap($student, $data['sessions'], $data['attendanceBySession'], $data['lessons']);
@@ -412,7 +414,9 @@ class StudentProfileController extends Controller
         return Inertia::render('Students/Show', $this->profileProps($student, $user, $data, [
             'canEdit' => $user->can('student.update'),
             'canChangeStatus' => $user->can('student.change_status'),
-            'canViewAcademic' => true,
+            'canViewAcademic' => $canViewClasses || $canViewAttendance,
+            'canViewClasses' => $canViewClasses,
+            'canViewAttendance' => $canViewAttendance,
             'canViewContact' => true,
             'canViewTuition' => $user->can('tuition.view'),
             'scopedView' => false,
@@ -423,7 +427,7 @@ class StudentProfileController extends Controller
      * Dữ liệu hồ sơ dùng chung cho màn Chi tiết và Hồ sơ theo phân quyền: lớp đang học, lộ trình buổi học
      * thật (kèm nội dung bài theo giáo trình), điểm danh của học viên, lớp liên kết được, chăm sóc tháng đầu.
      */
-    private function profileData(Student $student, User $user, bool $withAcademic): array
+    private function profileData(Student $student, User $user, bool $withClasses, bool $withAttendance): array
     {
         $student->load(['branch', 'currentClass.course', 'currentClass.teacher', 'currentClass.branch', 'enrollments.classModel']);
         if ($user->can('tuition.view')) {
@@ -431,16 +435,16 @@ class StudentProfileController extends Controller
         }
 
         $empty = collect();
-        if (! $withAcademic) {
+        if (! $withClasses && ! $withAttendance) {
             return ['classes' => $empty, 'sessions' => $empty, 'attendances' => $empty, 'attendanceBySession' => $empty,
                 'attendanceStats' => null, 'linkableClasses' => $empty, 'care' => null, 'lessons' => []];
         }
 
         $classIds = $student->activeClassIds();
-        $classes = ClassModel::with(['teacher', 'branch'])->whereIn('id', $classIds)->get();
+        $classes = $withClasses ? ClassModel::with(['teacher', 'branch'])->whereIn('id', $classIds)->get() : $empty;
 
-        // Điểm danh thật của học viên (mới nhất trước).
-        $attendances = StudentAttendance::with(['classModel', 'classSession'])
+        // Điểm danh thật của học viên (mới nhất trước); chỉ nạp khi có quyền xem điểm danh.
+        $attendances = ! $withAttendance ? $empty : StudentAttendance::with(['classModel', 'classSession'])
             ->where('student_id', $student->id)
             ->orderByDesc('session_date')
             ->orderByDesc('id')
@@ -448,7 +452,7 @@ class StudentProfileController extends Controller
         $attendanceBySession = $attendances->whereNotNull('class_session_id')->keyBy('class_session_id');
 
         // Lộ trình = các buổi học thật của (các) lớp học viên đang theo, cùng buổi học viên có điểm danh.
-        $sessions = ClassSession::with(['classModel', 'teacher'])
+        $sessions = ! $withClasses ? $empty : ClassSession::with(['classModel', 'teacher'])
             ->where(function (Builder $q) use ($classIds, $attendanceBySession) {
                 $q->where(fn (Builder $q) => $q->whereIn('class_id', $classIds)->whereIn('type', self::ROADMAP_SESSION_TYPES))
                     ->orWhereIn('id', $attendanceBySession->keys()->all());
@@ -468,7 +472,7 @@ class StudentProfileController extends Controller
             : null;
 
         $linkableClasses = collect();
-        if ($user->can('student.assign_class') && $student->status !== Student::STATUS_DROPPED) {
+        if ($withClasses && $user->can('student.assign_class') && $student->status !== Student::STATUS_DROPPED) {
             $linkableClasses = $this->visibleClasses($user)
                 ->whereNotIn('id', $classIds)
                 ->when($student->branch_id, fn (Builder $q) => $q->where('branch_id', $student->branch_id))
@@ -483,7 +487,7 @@ class StudentProfileController extends Controller
             'sessions' => $sessions,
             'attendances' => $attendances,
             'attendanceBySession' => $attendanceBySession,
-            'attendanceStats' => $attendanceStats,
+            'attendanceStats' => $withAttendance ? $attendanceStats : null,
             'linkableClasses' => $linkableClasses,
             'care' => app(FirstMonthCareService::class)->checklist($student),
             'lessons' => app(SessionLessonService::class)->lessonsFor($sessions),
@@ -531,6 +535,8 @@ class StudentProfileController extends Controller
         $nextSessionId = $sessions->first(fn ($s) => $s->status !== 'cancelled' && $s->date && $startsAt($s)->gte($now))?->id;
         $contact = $flags['canViewContact'];
         $academic = $flags['canViewAcademic'];
+        $withClasses = $flags['canViewClasses'];
+        $withAttendance = $flags['canViewAttendance'];
 
         $props = $flags + [
             'viewerRoleLabel' => $roleName ? AclHelper::roleLabel($roleName) : 'Người dùng',
@@ -561,7 +567,7 @@ class StudentProfileController extends Controller
                 'school' => $student->school,
                 'notes' => $student->notes,
                 'target' => $student->target,
-                'current_class' => $student->currentClass?->name,
+                'current_class' => $flags['canViewClasses'] ? $student->currentClass?->name : null,
                 'created_at' => $student->created_at?->format('d/m/Y'),
                 'study_started_on' => $student->study_started_on?->format('d/m/Y'),
                 'study_started_on_value' => $student->study_started_on?->toDateString(),
@@ -577,7 +583,7 @@ class StudentProfileController extends Controller
             ],
         ];
 
-        if ($academic) {
+        if ($withClasses) {
             $lessons = $data['lessons'];
             $props['sessions'] = $sessions->map(function (ClassSession $session) use ($weekdays, $attendanceTones, $data, $lessons, $now, $startsAt, $nextSessionId) {
                 $att = $data['attendanceBySession']->get($session->id);
@@ -616,18 +622,6 @@ class StudentProfileController extends Controller
                 'period' => ($class->start_date?->format('d/m/y') ?? '—').' - '.($class->end_date?->format('d/m/y') ?? '—'),
                 'remaining' => $this->classRemainingLabel($class),
             ])->values()->all();
-            $props['attendanceStats'] = $data['attendanceStats'];
-            $props['attendances'] = $data['attendances']->map(fn (StudentAttendance $att) => [
-                'id' => $att->id,
-                'date' => $att->session_date?->format('d/m/Y') ?? '—',
-                'class_name' => $att->classModel?->name ?? '—',
-                'status_label' => $att->status_label,
-                'tone' => $attendanceTones[$att->status] ?? '',
-                'note' => $att->note,
-                // Không gắn buổi nào trong lộ trình (điểm danh cũ / nhập tay) → hiện riêng dưới bảng buổi học.
-                'off_schedule' => $att->class_session_id === null,
-            ])->values()->all();
-            // "Chuyển lớp": lớp chính hiện tại + ngày vào lớp (ngày chuyển sớm nhất chọn được).
             $props['mainClass'] = $student->currentClass ? [
                 'name' => $student->currentClass->name,
                 'joined_on' => $student->enrollments
@@ -645,6 +639,24 @@ class StudentProfileController extends Controller
                     'disabled' => $full,
                 ];
             })->values()->all();
+        }
+
+        if ($withAttendance) {
+            $props['attendanceStats'] = $data['attendanceStats'];
+            $props['attendances'] = $data['attendances']->map(fn (StudentAttendance $att) => [
+                'id' => $att->id,
+                'date' => $att->session_date?->format('d/m/Y') ?? '—',
+                'class_name' => $att->classModel?->name ?? '—',
+                'status_label' => $att->status_label,
+                'tone' => $attendanceTones[$att->status] ?? '',
+                'note' => $att->note,
+                // Không gắn buổi nào trong lộ trình (điểm danh cũ / nhập tay) → hiện riêng dưới bảng buổi học.
+                // Không có quyền xem lớp/buổi học thì không có bảng buổi học để gắn vào → liệt kê hết ở danh sách riêng.
+                'off_schedule' => $att->class_session_id === null || ! $withClasses,
+            ])->values()->all();
+        }
+
+        if ($academic) {
             $props['care'] = $data['care'] ? $this->careProps($data['care']) : null;
 
             // Tab "Kết quả học tập" + "Feedback"; feedback phụ huynh chỉ cho người xem được Feedback buổi học (GV không thấy).
@@ -862,13 +874,16 @@ class StudentProfileController extends Controller
         $student = $this->findVisibleStudent($user, $id);
 
         $canViewTuition = $user->can('tuition.view');
-        $canViewAcademic = $user->can('attendance_student.view') || $user->can('student.update');
+        $canViewClasses = $user->can('class.view');
+        $canViewAttendance = $user->can('attendance_student.view');
         $canViewContact = $user->can('student.update') || $canViewTuition;
 
-        return Inertia::render('Students/Scoped', $this->profileProps($student, $user, $this->profileData($student, $user, $canViewAcademic), [
+        return Inertia::render('Students/Scoped', $this->profileProps($student, $user, $this->profileData($student, $user, $canViewClasses, $canViewAttendance), [
             'canEdit' => $user->can('student.update'),
             'canChangeStatus' => $user->can('student.change_status'),
-            'canViewAcademic' => $canViewAcademic,
+            'canViewAcademic' => $canViewClasses || $canViewAttendance,
+            'canViewClasses' => $canViewClasses,
+            'canViewAttendance' => $canViewAttendance,
             'canViewContact' => $canViewContact,
             'canViewTuition' => $canViewTuition,
             'scopedView' => true,

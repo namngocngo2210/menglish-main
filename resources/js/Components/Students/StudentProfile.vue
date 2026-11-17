@@ -25,6 +25,8 @@ const props = defineProps({
     canEdit: { type: Boolean, default: false },
     canChangeStatus: { type: Boolean, default: false },
     canViewAcademic: { type: Boolean, default: false },
+    canViewClasses: { type: Boolean, default: false },
+    canViewAttendance: { type: Boolean, default: false },
     canViewContact: { type: Boolean, default: false },
     canViewTuition: { type: Boolean, default: false },
     canAssignClass: { type: Boolean, default: false },
@@ -74,7 +76,7 @@ const editOpen = ref(false);
 const linkOpen = ref(false);
 // "Chuyển lớp": đổi lớp chính từ ngày chuyển (được chọn ngày đã qua khi cập nhật trễ), buổi tồn giữ nguyên.
 const transferOpen = ref(false);
-const classActions = computed(() => !props.scopedView && props.canAssignClass && props.canViewAcademic && !props.student.dropped);
+const classActions = computed(() => !props.scopedView && props.canAssignClass && props.canViewClasses && !props.student.dropped);
 const canReceipt = computed(() => props.canViewTuition && can('tuition.create'));
 
 // ── Tab (giữ trên URL hash để tải lại / quay lại vẫn đúng tab) ──
@@ -99,7 +101,7 @@ onMounted(() => {
 // ── Số chính ──
 const mainClassCard = computed(() => props.classes.find((c) => c.is_main) ?? props.classes[0] ?? null);
 const linkedCount = computed(() => props.classes.filter((c) => !c.is_main).length);
-const statCols = computed(() => (props.canViewAcademic ? 2 : 0) + (props.canViewTuition && props.tuition ? 2 : 0));
+const statCols = computed(() => (props.canViewClasses ? 1 : 0) + (props.canViewAttendance ? 1 : 0) + (props.canViewTuition && props.tuition ? 2 : 0));
 
 // ── Buổi học ──
 const sessionFilter = ref('all');
@@ -222,7 +224,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
         <!-- 2. Số chính -->
         <section v-if="statCols" :class="['grid grid-cols-2 gap-sm', statCols === 4 ? 'lg:grid-cols-4' : '']" data-section="stats">
             <template v-if="canViewAcademic">
-                <div :class="[card, 'p-md']" data-section="classes">
+                <div v-if="canViewClasses" :class="[card, 'p-md']" data-section="classes">
                     <p class="font-body-small text-body-small text-on-surface-variant">Lớp chính</p>
                     <template v-if="mainClassCard">
                         <p class="truncate font-h3 text-h3 font-bold text-on-surface" :title="mainClassCard.name">{{ mainClassCard.name }}</p>
@@ -232,7 +234,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                     </template>
                     <p v-else class="font-h3 text-h3 font-bold text-on-surface-variant">Chưa xếp lớp</p>
                 </div>
-                <div :class="[card, 'p-md']" data-section="academic">
+                <div v-if="canViewAttendance" :class="[card, 'p-md']" data-section="academic">
                     <p class="font-body-small text-body-small text-on-surface-variant">Chuyên cần</p>
                     <template v-if="attendanceStats?.rate !== null && attendanceStats?.rate !== undefined">
                         <p :class="['font-h3 text-h3 font-bold', attendanceStats.rate >= 80 ? 'text-tertiary' : attendanceStats.rate >= 60 ? 'text-warning' : 'text-error']">{{ attendanceStats.rate }}%</p>
@@ -344,7 +346,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
             <!-- Tab Tổng quan -->
             <div v-show="tab === 'overview'" class="grid grid-cols-1 lg:grid-cols-3" data-tab="overview">
                 <div class="space-y-lg p-md lg:col-span-2 lg:border-r lg:border-surface-container lg:p-lg">
-                    <template v-if="canViewAcademic">
+                    <template v-if="canViewClasses">
                         <div class="space-y-sm">
                             <h3 :class="sectionTitle">Lớp đang học</h3>
                             <div
@@ -397,7 +399,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                     </template>
                     <div v-else class="flex items-center gap-md rounded-lg bg-surface-container-low p-md">
                         <span class="material-symbols-outlined text-on-surface-variant" aria-hidden="true">lock</span>
-                        <p class="font-body-small text-body-small text-on-surface-variant">Lớp học, buổi học và chuyên cần ẩn theo phân quyền (cần quyền xem điểm danh học viên).</p>
+                        <p class="font-body-small text-body-small text-on-surface-variant">Lớp học, buổi học và chuyên cần ẩn theo phân quyền (cần quyền xem lớp học hoặc điểm danh học viên).</p>
                     </div>
                 </div>
 
@@ -436,7 +438,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
 
             <!-- Tab Buổi học & điểm danh (gộp lộ trình buổi học + lịch sử điểm danh) -->
             <div v-if="canViewAcademic" v-show="tab === 'sessions'" id="roadmap" class="space-y-md p-md lg:p-lg" data-section="roadmap" data-tab="sessions">
-                <div class="flex flex-wrap items-center gap-sm">
+                <div v-if="canViewClasses" class="flex flex-wrap items-center gap-sm">
                     <button
                         v-for="f in sessionFilters"
                         :key="f.value"
@@ -468,12 +470,12 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                 </div>
 
                 <UiEmptyState
-                    v-if="!sessions.length"
+                    v-if="canViewClasses && !sessions.length"
                     icon="event_busy"
                     title="Chưa có buổi học nào"
                     :description="!classes.length ? 'Học viên chưa được xếp lớp nên chưa có lộ trình buổi học.' : 'Lớp của học viên chưa được sinh lịch buổi học.'"
                 />
-                <UiDataTable v-else min-width="820px">
+                <UiDataTable v-else-if="canViewClasses" min-width="820px">
                     <table class="font-body-small text-body-small">
                         <thead>
                             <tr>
@@ -525,7 +527,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                 </UiDataTable>
 
                 <div v-if="offScheduleAttendances.length" id="attendance-history" class="space-y-sm">
-                    <h3 :class="sectionTitle">Điểm danh ngoài lịch lớp</h3>
+                    <h3 :class="sectionTitle">{{ canViewClasses ? 'Điểm danh ngoài lịch lớp' : 'Lịch sử điểm danh' }}</h3>
                     <ul class="divide-y divide-surface-container rounded-lg border border-outline-variant font-body-small text-body-small">
                         <li v-for="att in offScheduleAttendances" :key="att.id" class="flex flex-wrap items-center gap-md px-md py-sm">
                             <span class="font-code">{{ att.date }}</span>
