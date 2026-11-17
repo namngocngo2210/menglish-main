@@ -36,12 +36,7 @@ return new class extends Migration
         foreach (self::DEFAULT_MAP as $code => $role) {
             DB::table('system_categories')->where('type', 'position')->where('code', $code)->whereNull('role_code')->update(['role_code' => $role]);
         }
-        // Hai vai trò chưa có chức vụ tương ứng trong danh mục seed cũ.
-        foreach (['POS_09' => ['Trưởng học thuật', Roles::ACADEMIC_LEAD, 9], 'POS_10' => ['Giáo viên bán thời gian', Roles::TEACHER_PARTTIME, 10]] as $code => [$name, $role, $order]) {
-            if (! DB::table('system_categories')->where('type', 'position')->where('code', $code)->exists()) {
-                DB::table('system_categories')->insert(['type' => 'position', 'code' => $code, 'name' => $name, 'role_code' => $role, 'sort_order' => $order, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-            }
-        }
+        // POS_09/POS_10 (Trưởng học thuật, GV bán thời gian) do SystemCategorySeeder thêm (migration không chèn dòng dữ liệu).
     }
 
     public function down(): void

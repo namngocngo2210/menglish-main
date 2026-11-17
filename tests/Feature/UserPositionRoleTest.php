@@ -137,6 +137,22 @@ class UserPositionRoleTest extends TestCase
         $this->assertArrayNotHasKey($this->position('POS_01')->id, $props['positionRoles'], 'Học vụ không thấy chức vụ Admin.');
     }
 
+    public function test_resave_with_unchanged_position_keeps_role_assigned_elsewhere(): void
+    {
+        $this->actingAs($this->admin)->post(route('users.store'), $this->payload($this->position('POS_08'), ['email' => 'keep@menglish.edu.vn']))->assertRedirect();
+        $user = User::where('email', 'keep@menglish.edu.vn')->firstOrFail();
+        $user->syncRoles([Roles::ACCOUNTANT]); // đổi ở màn "Gán vai trò"
+
+        $this->actingAs($this->admin)->put(route('users.update', $user), $this->payload($this->position('POS_08'), ['email' => 'keep@menglish.edu.vn', 'password' => null]))->assertRedirect();
+        $this->assertSame([Roles::ACCOUNTANT], $user->fresh()->getRoleNames()->all());
+
+        // Đổi chức vụ thì vai trò suy lại từ chức vụ mới.
+        $this->actingAs($this->admin)->put(route('users.update', $user), $this->payload($this->position('POS_05'), ['email' => 'keep@menglish.edu.vn', 'password' => null]))->assertRedirect();
+        $this->assertSame([Roles::ACCOUNTANT], $user->fresh()->getRoleNames()->all());
+        $this->actingAs($this->admin)->put(route('users.update', $user), $this->payload($this->position('POS_03'), ['email' => 'keep@menglish.edu.vn', 'password' => null]))->assertRedirect();
+        $this->assertSame([Roles::SALES_CONSULTANT], $user->fresh()->getRoleNames()->all());
+    }
+
     public function test_inactive_position_is_rejected(): void
     {
         $position = $this->position('POS_08');

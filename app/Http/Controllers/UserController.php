@@ -365,7 +365,7 @@ class UserController extends Controller
      */
     private function positionFormProps(User $user, array $assignable, ?string $currentRole): array
     {
-        $isSuper = (bool) auth()->user()?->isSuperAdmin();
+        $isSuper = Rbac::canAssignRole(auth()->user(), Rbac::SUPER_ADMIN);
         $positions = SystemCategory::query()->ofType(SystemCategory::TYPE_POSITION)
             ->where(fn ($q) => $q->where('is_active', true)->when($user->position_id, fn ($q) => $q->orWhere('id', $user->position_id)))
             ->orderBy('sort_order')->orderBy('id')->get()
@@ -399,7 +399,11 @@ class UserController extends Controller
     public function update(UserRequest $request, User $user): Response|RedirectResponse
     {
         $this->ensureCanManageTarget($user);
-        $this->ensureCanAssignRole($request->validated('role'));
+        // Giữ chức vụ cũ thì giữ vai trò chính hiện có (có thể đã đổi ở màn "Gán vai trò"), không suy lại từ chức vụ.
+        $currentRoles = $user->getRoleNames();
+        $keepRole = $request->filled('position_id') && (int) $request->input('position_id') === $user->position_id && $currentRoles->isNotEmpty();
+        $role = $keepRole ? $currentRoles->first() : $request->validated('role');
+        $this->ensureCanAssignRole($role);
         $this->ensureBranchInScope((int) $request->validated('branch_id'), $user);
         $extraBranchIds = $this->extraBranchIds($request, $user);
 
@@ -420,10 +424,9 @@ class UserController extends Controller
 
         // Form chỉ chọn vai trò CHÍNH: thay vai trò chính cũ bằng vai trò mới và
         // giữ nguyên các vai trò kiêm nhiệm (gán ở màn "Gán vai trò").
-        $currentRoles = $user->getRoleNames();
         $primaryRole = $currentRoles->first();
         $keptConcurrent = $currentRoles->reject(fn (string $role) => $role === $primaryRole)->values()->all();
-        $user->syncRoles($this->rolesWithConcurrent($request, $request->validated('role'), $keptConcurrent));
+        $user->syncRoles($this->rolesWithConcurrent($request, $role, $keptConcurrent));
         $user->branches()->sync($extraBranchIds);
         $user->unsetRelation('branches');
 
@@ -798,7 +801,7 @@ class UserController extends Controller
     private function ensureCanAssignRole(?string $role): void
     {
         // Chức vụ chưa ánh xạ vai trò (role null): chỉ Super Admin tạo, vì người không có vai trò nào sẽ không còn nằm trong cây cấp dưới của ai khác.
-        $allowed = $role === null ? (bool) auth()->user()?->isSuperAdmin() : Rbac::canAssignRole(auth()->user(), $role);
+        $allowed = Rbac::canAssignRole(auth()->user(), $role ?? Rbac::SUPER_ADMIN);
         if (! $allowed) {
             throw ValidationException::withMessages([
                 'role' => 'Bạn không được phép tạo/gán vai trò này.',
