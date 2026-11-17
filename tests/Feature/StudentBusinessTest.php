@@ -108,6 +108,10 @@ class StudentBusinessTest extends TestCase
         $student->refresh();
         $this->assertEquals('Nguyễn Thu Trang (Đã đổi tên)', $student->name);
         $this->assertEquals('IELTS 8.0 Overall', $student->target);
+        // Profile edit ignores `status` (TK-2026-0138); status changes only via the dedicated route.
+        $this->assertEquals('studying', $student->status);
+        $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => 'completed']);
+        $student->refresh();
         $this->assertEquals('completed', $student->status);
         $this->assertEquals('Hoàn thành khóa học', $student->status_label);
 
@@ -269,9 +273,9 @@ class StudentBusinessTest extends TestCase
             $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => $invalid])
                 ->assertSessionHasErrors('status');
         }
-        $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => 'summer_break'])
+        $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => 'studying'])
             ->assertRedirect();
-        $this->assertSame('summer_break', $student->fresh()->status);
+        $this->assertSame('studying', $student->fresh()->status);
 
         $this->actingAs($this->academicOfficer)->get(route('students.index'))
             ->assertOk()->assertSee('Chờ khai giảng')->assertSee('Hoàn thành khóa học')->assertDontSee('Học thử');
