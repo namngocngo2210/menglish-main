@@ -9,7 +9,6 @@ defineOptions({ layout: { title: 'Cấu hình nhắc nợ' } });
 
 const props = defineProps({
     rules: { type: Array, default: () => [] },
-    channels: { type: Array, default: () => [] },
     variables: { type: Array, default: () => [] },
     mustContactDays: { type: Number, required: true },
     firstDays: { type: Number, required: true },
@@ -74,7 +73,7 @@ function onNewSaved() {
                     <span class="material-symbols-outlined text-primary" aria-hidden="true">notifications</span>
                     <div>
                         <p class="font-body-medium text-body-medium">Kênh thông báo: Chuông thông báo in-app</p>
-                        <p class="font-caption text-caption text-on-surface-variant">Thông báo đẩy trực tiếp tới Cổng phụ huynh / học sinh MENGLISH (kênh từng mốc chỉnh ở danh sách mốc bên dưới).</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Thông báo đẩy trực tiếp tới Cổng phụ huynh / học sinh MENGLISH.</p>
                     </div>
                     <UiBadge color="success" pill>Hoạt động</UiBadge>
                 </div>
@@ -102,7 +101,6 @@ function onNewSaved() {
                     class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-md"
                 >
                     <input type="hidden" name="milestone_key" :value="rule.milestone_key" />
-                    <input type="hidden" name="channels_submitted" value="1" />
 
                     <div class="flex flex-wrap items-center justify-between gap-sm border-b border-surface-container pb-sm">
                         <div class="flex items-center gap-sm">
@@ -127,15 +125,6 @@ function onNewSaved() {
                             </UiField>
                         </div>
                     </div>
-
-                    <UiField label="Kênh thông báo" name="channels">
-                        <div class="flex flex-wrap gap-md">
-                            <label v-for="channel in channels" :key="channel.value" class="flex items-center gap-xs font-body-small text-body-small">
-                                <input type="checkbox" name="channels[]" :value="channel.value" :checked="rule.channels.includes(channel.value)" class="rounded text-primary focus:ring-primary-container" />
-                                {{ channel.label }}
-                            </label>
-                        </div>
-                    </UiField>
 
                     <UiField label="Mẫu tin nhắn" name="template_content" :for="`template_${rule.milestone_key}`" required>
                         <textarea :id="`template_${rule.milestone_key}`" name="template_content" rows="3" required :class="control" :value="rule.template_content"></textarea>
@@ -167,23 +156,13 @@ function onNewSaved() {
 
     <UiModal :show="newOpen" title="Thêm mốc nhắc" max-width="2xl" @close="newOpen = false">
         <UiForm id="new-reminder-form" :action="route('system-config.debt-reminders.store')" method="post" error-bag="newReminder" class="space-y-md" reset-on-success @success="onNewSaved">
-            <input type="hidden" name="channels_submitted" value="1" />
             <div class="grid grid-cols-1 gap-md md:grid-cols-3">
                 <UiInput name="title" id="title_new" label="Tên mốc" placeholder="Ví dụ: Nhắc trước hạn 7 ngày" required />
                 <UiSelect v-model="newTiming" label="Thời điểm gửi" name="timing" id="timing_new" :options="timingOptions" />
                 <div v-show="newTiming !== 'due'">
                     <UiInput name="days" id="days_new" type="number" min="1" max="60" label="Số ngày" placeholder="7" />
                 </div>
-            </div>
-            <UiField label="Kênh thông báo" name="channels">
-                <div class="flex flex-wrap gap-md">
-                    <label v-for="channel in channels" :key="channel.value" class="flex items-center gap-xs font-body-small text-body-small">
-                        <input type="checkbox" name="channels[]" :value="channel.value" checked class="rounded text-primary focus:ring-primary-container" />
-                        {{ channel.label }}
-                    </label>
-                </div>
-            </UiField>
-            <UiTextarea name="template_content" id="template_new" label="Mẫu tin nhắn" :rows="3" required placeholder="Chào {ten_hoc_vien}, học phí lớp {lop_hoc} ({so_tien}) sẽ đến hạn ngày {han_dong}..." />
+            </div>            <UiTextarea name="template_content" id="template_new" label="Mẫu tin nhắn" :rows="3" required placeholder="Chào {ten_hoc_vien}, học phí lớp {lop_hoc} ({so_tien}) sẽ đến hạn ngày {han_dong}..." />
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" @click="newOpen = false">Hủy</UiButton>

@@ -681,7 +681,7 @@ class Phase4FinanceTest extends TestCase
     // 9. Cấu hình nhắc nợ
     // ---------------------------------------------------------------------
 
-    public function test_debt_reminder_config_saves_schedule_channels_and_validates_variables(): void
+    public function test_debt_reminder_config_saves_schedule_and_validates_variables(): void
     {
         $this->actingAs($this->accountant)->get(route('system-config.debt-reminders'))
             ->assertOk()->assertSee('Cấu hình Nhắc nợ')->assertSee('{ten_hoc_vien}');
@@ -698,7 +698,8 @@ class Phase4FinanceTest extends TestCase
 
         $rule = DebtReminderRule::where('milestone_key', 'T-7')->firstOrFail();
         $this->assertSame(-7, $rule->offset_days);
-        $this->assertSame(['portal'], $rule->channels);
+        // TK-2026-0128: channels are fixed; input from the request is ignored, new rules get the defaults.
+        $this->assertSame(DebtReminderRule::DEFAULT_CHANNELS, $rule->channels);
 
         $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.settings'), ['must_contact_days' => 0])
             ->assertSessionHasErrors('must_contact_days');
@@ -713,6 +714,27 @@ class Phase4FinanceTest extends TestCase
         $this->assertSame('04_Cong_Phu_Huynh_Hoc_Sinh/05_danh_sach_thong_bao', $record->screen_key);
         $this->assertStringNotContainsString('{', $record->data['content']);
         $this->assertStringContainsString('Phạm Bốn', $record->data['content']);
+    }
+
+    public function test_debt_reminder_update_keeps_saved_channels_and_page_exposes_no_channel_option(): void
+    {
+        $rule = DebtReminderRule::create([
+            'milestone_key' => 'T-5', 'title' => 'Cũ', 'offset_days' => -5, 'channels' => ['email'],
+            'template_content' => 'Chào {ten_hoc_vien}', 'is_enabled' => true,
+        ]);
+
+        $this->actingAs($this->accountant)->post(route('system-config.debt-reminders.store'), [
+            'milestone_key' => 'T-5', 'title' => 'Mới', 'timing' => 'before', 'days' => 4,
+            'channels' => ['portal'], 'channels_submitted' => 1, 'template_content' => 'Chào {ten_hoc_vien}',
+        ])->assertSessionHasNoErrors();
+
+        $rule->refresh();
+        $this->assertSame(-4, $rule->offset_days);
+        $this->assertSame('Mới', $rule->title);
+        $this->assertSame(['email'], $rule->channels);
+
+        $this->actingAs($this->accountant)->get(route('system-config.debt-reminders'))
+            ->assertInertia(fn ($page) => $page->missing('channels')->missing('rules.0.channels'));
     }
 
     // ---------------------------------------------------------------------
