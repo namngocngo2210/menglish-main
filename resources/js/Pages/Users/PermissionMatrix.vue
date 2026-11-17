@@ -135,6 +135,7 @@ defineExpose({ reset });
                                     <span v-for="unit in unitLabels(module)" :key="unit" class="rounded bg-secondary-fixed/60 px-sm font-caption text-caption text-secondary">{{ unit }}</span>
                                 </div>
                                 <p class="mt-xs font-caption text-caption text-on-surface-variant">Cấp riêng Xem / Sửa / Xóa cho chi nhánh / lớp cụ thể. Giữ Ctrl/⌘ để chọn nhiều.</p>
+                                <p v-if="scopeType[module.module] !== 'all' && module.dataScope?.effectiveLevel === 'own'" class="mt-xs font-caption text-caption text-error" role="alert">Phạm vi dữ liệu hiện là "Của tôi": phạm vi này chỉ cấp thêm lớp, không giới hạn. Chọn "Chi nhánh" hoặc "Toàn hệ thống" ở cột Phạm vi dữ liệu để giới hạn.</p>
                             </template>
                             <span v-else-if="module.hasAccess" class="inline-flex items-center gap-xs font-body-small text-body-small text-on-surface-variant" title="Phân hệ này không cấp riêng theo chi nhánh/lớp cụ thể — dùng Phạm vi dữ liệu">
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">language</span>Toàn hệ thống (Mặc định)

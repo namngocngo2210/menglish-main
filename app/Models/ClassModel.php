@@ -82,6 +82,15 @@ class ClassModel extends Model
         // nhánh mình (Quản lý cơ sở); Của tôi → lớp mình dạy / trợ giảng / GVNN / dạy thay theo buổi.
         $level = DataScope::level($user, 'class');
 
+        // Phân quyền cá nhân "Theo lớp/chi nhánh" (TK-2026-0137): với mức Chi nhánh / Toàn hệ thống đây là GIỚI HẠN —
+        // chỉ thấy đúng các lớp/chi nhánh được chọn. Mức "Của tôi" giữ cách cũ (cấp thêm lớp ngoài lớp mình dạy).
+        $restriction = $level === DataScope::OWN ? null : $user->classScopeRestriction();
+        if ($restriction !== null) {
+            return $query->where(function (Builder $q) use ($restriction) {
+                $q->whereIn('id', $restriction['class'])->orWhereIn('branch_id', $restriction['branch']);
+            });
+        }
+
         if ($level === DataScope::ALL) {
             return $query;
         }

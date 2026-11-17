@@ -402,6 +402,25 @@ class User extends Authenticatable
     }
 
     /**
+     * Giới hạn phạm vi lớp riêng của người dùng (Phân quyền cá nhân, "Theo lớp" / "Theo chi nhánh"): mọi override
+     * class.* có scope_type khác "all". null = không bị giới hạn.
+     *
+     * @return array{branch: list<int>, class: list<int>}|null
+     */
+    public function classScopeRestriction(): ?array
+    {
+        $rows = ($this->relationLoaded('permissionOverrides') ? $this->getRelation('permissionOverrides') : $this->permissionOverrides()->get())
+            ->filter(fn (UserPermissionOverride $o) => $o->module === 'class' && $o->allow
+                && $o->scope_type !== UserPermissionOverride::SCOPE_ALL && $o->scope_id !== null);
+        if ($rows->isEmpty()) {
+            return null;
+        }
+        $ids = fn (string $type) => $rows->where('scope_type', $type)->map(fn ($o) => (int) $o->scope_id)->unique()->values()->all();
+
+        return ['branch' => $ids(UserPermissionOverride::SCOPE_BRANCH), 'class' => $ids(UserPermissionOverride::SCOPE_CLASS)];
+    }
+
+    /**
      * Kiểm tra quyền "module.action", có tính đến lớp override cá nhân
      * (bảng user_permission_overrides) theo đúng thiết kế màn "Phân quyền
      * chi tiết cá nhân":
