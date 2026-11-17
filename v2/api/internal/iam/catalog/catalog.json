@@ -424,9 +424,14 @@
                     "description": "Xóa phòng (bị chặn khi phòng đang có lớp học)."
                 },
                 {
+                    "key": "edit_types",
+                    "label": "Thêm / sửa loại phòng",
+                    "description": "Thêm / sửa loại phòng dùng chung toàn hệ thống."
+                },
+                {
                     "key": "manage_types",
-                    "label": "Quản lý loại phòng",
-                    "description": "Thêm / sửa / ngừng dùng / xóa danh mục loại phòng dùng chung toàn hệ thống."
+                    "label": "Ngừng dùng / dùng lại / xóa loại phòng",
+                    "description": "Ngừng dùng / dùng lại / xóa loại phòng dùng chung toàn hệ thống."
                 }
             ],
             "audience": [],
@@ -2002,6 +2007,7 @@
                 "payroll.scope_own",
                 "room.view",
                 "room.manage",
+                "room.edit_types",
                 "room.scope_branch",
                 "class_quality.view",
                 "class_quality.observe_operations",
