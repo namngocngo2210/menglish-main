@@ -263,10 +263,8 @@ class SystemConfigController extends Controller
                     'is_enabled' => (bool) $rule->is_enabled,
                     'timing' => $offset === null ? '' : ($offset < 0 ? 'before' : ($offset === 0 ? 'due' : 'after')),
                     'days' => $offset !== null && $offset !== 0 ? abs($offset) : null,
-                    'channels' => $rule->activeChannels(),
                 ];
             })->values()->all(),
-            'channels' => Ui::options(DebtReminderRule::CHANNELS),
             'variables' => Ui::options(DebtReminderRule::VARIABLES),
             'mustContactDays' => $mustContactDays,
             'firstDays' => $firstDays,
@@ -275,7 +273,7 @@ class SystemConfigController extends Controller
     }
 
     /**
-     * Lưu (thêm mới / cập nhật theo milestone_key) một mốc nhắc nợ: thời điểm so với hạn đóng, kênh gửi, mẫu tin.
+     * Lưu (thêm mới / cập nhật theo milestone_key) một mốc nhắc nợ: thời điểm so với hạn đóng, mẫu tin.
      * Mẫu tin chỉ được dùng các biến hệ thống thay được, để tin gửi đi không còn nguyên {BIEN}.
      */
     public function storeDebtReminder(Request $request)
@@ -286,13 +284,10 @@ class SystemConfigController extends Controller
             'template_content' => 'required|string|max:2000',
             'timing' => 'nullable|in:before,due,after',
             'days' => 'nullable|integer|min:1|max:60',
-            'channels' => 'nullable|array',
-            'channels.*' => 'in:'.implode(',', array_keys(DebtReminderRule::CHANNELS)),
             'is_enabled' => 'nullable|boolean',
         ], [
             'days.min' => 'Số ngày phải từ 1 đến 60.',
             'days.max' => 'Số ngày phải từ 1 đến 60.',
-            'channels.*.in' => 'Kênh gửi không hợp lệ.',
         ]);
 
         if ($unknown = DebtReminderRule::unknownVariables($validated['template_content'])) {
@@ -337,9 +332,8 @@ class SystemConfigController extends Controller
                 'title' => $validated['title'],
                 'template_content' => $validated['template_content'],
                 'offset_days' => $offset,
-                'channels' => $request->has('channels') || $request->boolean('channels_submitted')
-                    ? array_values($validated['channels'] ?? [])
-                    : ($existing?->channels ?? DebtReminderRule::DEFAULT_CHANNELS),
+                // Channels are fixed (CH R-04): never taken from the request; keep saved value, default for new rules.
+                'channels' => $existing?->channels ?? DebtReminderRule::DEFAULT_CHANNELS,
                 'is_enabled' => $request->has('is_enabled') ? $request->boolean('is_enabled') : ($existing?->is_enabled ?? true),
             ]
         );
