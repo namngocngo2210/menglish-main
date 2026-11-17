@@ -26,6 +26,7 @@ class SessionsCappedAtCoursePlanTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->makeLevelWithSyllabus();
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
 

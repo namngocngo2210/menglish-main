@@ -50,6 +50,7 @@ class Round2LeftoversTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->makeLevelWithSyllabus();
         $this->travelTo(Carbon::parse('2026-10-05 08:00:00'));
         $this->seed(PermissionSeeder::class);
         $this->seed(RoleSeeder::class);
