@@ -15,6 +15,7 @@ const props = defineProps({
     categories: { type: Object, required: true },
     type: { type: String, required: true },
     types: { type: Array, default: () => [] },
+    roleOptions: { type: Array, default: () => [] },
     editing: { type: Object, default: null },
     search: { type: String, default: '' },
     canManage: { type: Boolean, default: false },
@@ -108,7 +109,7 @@ function onSearch(event) {
     <!-- Sửa khi mở thẳng URL (?edit=): modal mở sẵn; đóng → bỏ edit khỏi thanh địa chỉ. -->
     <UiModal v-if="canManage && editing" :show="editOpen" title="Sửa giá trị danh mục" max-width="md" :dismiss-url="dismissUrl" @close="editOpen = false">
         <UiForm id="category-form" :action="route('system-categories.update', editing.id)" method="put" class="space-y-md" @success="editOpen = false">
-            <CategoryFields :category="editing" :type-labels="types" :type-select="false" />
+            <CategoryFields :category="editing" :type-labels="types" :type-select="false" :role-options="roleOptions" />
         </UiForm>
         <template #footer>
             <UiButton variant="secondary" @click="editOpen = false">Hủy</UiButton>

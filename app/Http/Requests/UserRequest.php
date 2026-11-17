@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\SystemCategory;
 use App\Support\Roles;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,9 +30,26 @@ class UserRequest extends FormRequest
             }
         }
         // "Kiêm nhiệm giảng dạy" chỉ có nghĩa với vai trò chính Học thuật: đổi sang vai trò khác thì tắt.
-        if ($this->filled('role') && $this->input('role') !== Roles::ACADEMIC_LEAD) {
+        // TK-2026-0134: vai trò suy ra từ Chức vụ đã chọn (role_code); ghi đè mọi "role" client gửi kèm. Chức vụ chưa
+        // ánh xạ -> không vai trò nào (không cấp quyền; UserController chỉ cho Super Admin tạo).
+        if ($this->filled('position_id')) {
+            $position = $this->selectablePositions()->find($this->input('position_id'));
+            if ($position) {
+                $this->merge(['role' => $position->role_code]);
+            }
+        }
+        if (($this->filled('role') || $this->filled('position_id')) && $this->input('role') !== Roles::ACADEMIC_LEAD) {
             $this->merge(['academic_teaching' => false]);
         }
+    }
+
+    /** Chức vụ chọn được: đang dùng, hoặc chức vụ hiện tại của người đang sửa (kể cả đã ngừng). */
+    private function selectablePositions(): Builder
+    {
+        $currentId = $this->route('user')?->position_id;
+
+        return SystemCategory::query()->ofType(SystemCategory::TYPE_POSITION)
+            ->where(fn ($q) => $q->where('is_active', true)->when($currentId, fn ($q) => $q->orWhere('id', $currentId)));
     }
 
     /** Vai trò Học viên bị chặn, trừ khi người đang sửa đã có sẵn vai trò đó. @return list<string> */
@@ -60,7 +79,9 @@ class UserRequest extends FormRequest
             'extra_branch_ids' => ['nullable', 'array'],
             'extra_branch_ids.*' => ['integer', 'distinct', 'exists:branches,id'],
             // TK-2026-0125: màn nhân sự không tạo tài khoản học viên; người đã là học viên vẫn sửa được (giữ nguyên vai trò).
-            'role' => ['required', 'string', 'exists:roles,name', Rule::notIn($this->blockedStudentRole())],
+            // Có position_id thì vai trò do chức vụ quyết định (có thể rỗng = chưa ánh xạ); không thì bắt buộc như cũ.
+            'position_id' => ['nullable', 'integer', Rule::exists('system_categories', 'id')->where(fn ($q) => $q->where('type', SystemCategory::TYPE_POSITION)->whereNull('deleted_at')->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $this->route('user')?->position_id ?? 0)))],
+            'role' => [Rule::requiredIf(! $this->filled('position_id')), 'nullable', 'string', 'exists:roles,name', Rule::notIn($this->blockedStudentRole())],
             'password' => [$userId ? 'nullable' : 'required', 'string', 'min:8'],
             'base_salary' => ['nullable', 'numeric', 'min:0'],
             // Phụ cấp theo hợp đồng (đ/tháng), trả theo ngày công như lương cơ bản (TK-0012).

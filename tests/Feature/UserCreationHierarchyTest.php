@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\SystemCategory;
 use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,6 +24,7 @@ class UserCreationHierarchyTest extends TestCase
 
         $this->seed(\Database\Seeders\PermissionSeeder::class);
         $this->seed(\Database\Seeders\RoleSeeder::class);
+        $this->seed(\Database\Seeders\SystemCategorySeeder::class);
 
         $this->branch = Branch::create(['name' => 'Chi nhánh Cầu Giấy', 'code' => 'CG', 'is_active' => true]);
 
@@ -177,11 +179,13 @@ class UserCreationHierarchyTest extends TestCase
 
     private function roleOptionValues(string $html): array
     {
-        preg_match('/<select[^>]*name="role"[^>]*>(.*?)<\/select>/s', $html, $m);
-        $this->assertNotEmpty($m, 'Không thấy ô chọn vai trò');
+        // TK-2026-0134: ô là Chức vụ (position_id); trả về vai trò của từng chức vụ trong ô.
+        preg_match('/<select[^>]*name="position_id"[^>]*>(.*?)<\/select>/s', $html, $m);
+        $this->assertNotEmpty($m, 'Không thấy ô chọn chức vụ');
         preg_match_all('/<option value="([^"]+)"/', $m[1], $values);
+        $roles = SystemCategory::query()->whereIn('id', $values[1])->pluck('role_code')->all();
 
-        return [$values[1], $m[1]];
+        return [$roles, $m[1]];
     }
 
     public function test_role_dropdown_lists_every_fixed_role_for_admin(): void
@@ -192,7 +196,6 @@ class UserCreationHierarchyTest extends TestCase
             $this->assertContains($role, $values, "Thiếu vai trò {$role} trong ô chọn");
         }
         $this->assertNotContains(Roles::STUDENT, $values);
-        $this->assertStringContainsString('Quản lý Cơ sở', $block);
         $this->assertStringContainsString('Học vụ', $block);
         $this->assertStringNotContainsString('Giám đốc', $block);
     }

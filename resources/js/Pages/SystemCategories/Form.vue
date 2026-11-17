@@ -11,6 +11,7 @@ const props = defineProps({
     category: { type: Object, required: true },
     typeLabels: { type: Array, default: () => [] },
     nextOrder: { type: Number, default: null },
+    roleOptions: { type: Array, default: () => [] },
 });
 const exists = computed(() => !!props.category.id);
 const action = computed(() => (exists.value ? route('system-categories.update', props.category.id) : route('system-categories.store')));
@@ -19,7 +20,7 @@ const method = computed(() => (exists.value ? 'put' : 'post'));
 
 <template>
     <UiModalFrame v-if="asModal" :title="exists ? 'Sửa giá trị danh mục' : 'Thêm danh mục mới'" description="Cấu hình các tham số nền tảng của hệ thống MENGLISH." :action="action" :method="method" submit-icon="save" :form-options="{ id: 'modal-category-form' }">
-        <CategoryFields :category="category" :type-labels="typeLabels" :next-order="nextOrder" show-type-label id-prefix="modal-category-" />
+        <CategoryFields :category="category" :type-labels="typeLabels" :next-order="nextOrder" :role-options="roleOptions" show-type-label id-prefix="modal-category-" />
     </UiModalFrame>
 
     <template v-else>
@@ -27,7 +28,7 @@ const method = computed(() => (exists.value ? 'put' : 'post'));
 
         <div class="max-w-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
             <UiForm id="category-form" :action="action" :method="method" class="space-y-md">
-                <CategoryFields :category="category" :type-labels="typeLabels" :next-order="nextOrder" />
+                <CategoryFields :category="category" :type-labels="typeLabels" :next-order="nextOrder" :role-options="roleOptions" />
                 <div class="flex gap-sm">
                     <UiButton type="submit" icon="save" class="flex-1">Lưu thông tin</UiButton>
                     <UiButton variant="secondary" :href="route('system-categories.index', { type: category.type })">Hủy bỏ</UiButton>

@@ -62,6 +62,7 @@ class SystemCategory extends Model
         'type',
         'code',
         'name',
+        'role_code',
         'sort_order',
         'is_active',
     ];
