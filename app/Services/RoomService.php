@@ -146,7 +146,7 @@ class RoomService
     /**
      * Phòng trống của chi nhánh trong khung giờ của một ngày: phòng không có buổi học (chưa hủy) chồng giờ.
      *
-     * @return array{rooms: Collection<int, Room>, total: int, holiday: bool}
+     * @return array{rooms: Collection<int, Room>, total: int, holiday: bool, no_schedule: bool}
      */
     public function available(int $branchId, string $date, string $start, string $end, ?int $typeId = null): array
     {
@@ -172,7 +172,11 @@ class RoomService
             ->pluck('room')
             ->unique();
 
+        // No session on/after this date means the schedule was not generated that far; free rooms would be misleading.
+        $noSchedule = ! ClassSession::query()->where('branch_id', $branchId)->whereDate('date', '>=', $day->toDateString())->exists();
+
         return [
+            'no_schedule' => $noSchedule,
             'rooms' => $rooms->reject(fn (Room $room) => $busy->contains($room->name))->values(),
             'total' => $rooms->count(),
             'holiday' => $holiday,
