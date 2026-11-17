@@ -105,7 +105,7 @@ class AuditOperationMiddleware
             if (str_starts_with($routeName, 'tuition.') || str_starts_with($routeName, 'receipts.')) return 'Học phí & Thu chi';
             if (str_starts_with($routeName, 'students.') || str_starts_with($routeName, 'student-classes.')) return 'Học viên & Lớp học';
             if (str_starts_with($routeName, 'placement-tests.') || str_starts_with($routeName, 'portal.test.')) return 'Khảo sát & Đề thi';
-            if (str_starts_with($routeName, 'syllabi.') || str_starts_with($routeName, 'units.')) return 'Giáo trình & Syllabus';
+            if (str_starts_with($routeName, 'syllabi.') || str_starts_with($routeName, 'teacher.orders.') || str_starts_with($routeName, 'units.')) return 'Giáo trình & Syllabus';
             if (str_starts_with($routeName, 'payroll.') || str_starts_with($routeName, 'timesheets.')) return 'Bảng lương & Chấm công';
             if (str_starts_with($routeName, 'tasks.') || str_starts_with($routeName, 'ta-tasks.')) return 'Quản lý công việc';
             if (str_starts_with($routeName, 'tickets.')) return 'Ticket hỗ trợ';

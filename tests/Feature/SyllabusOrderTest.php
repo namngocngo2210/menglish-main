@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Middleware\AuditOperationMiddleware;
 use App\Models\AdminNotification;
 use App\Models\BigTestOrder;
 use App\Models\ClassLessonProgress;
@@ -14,6 +16,7 @@ use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Concerns\BuildsSyllabusWorkflow;
 use Tests\TestCase;
 
@@ -108,6 +111,55 @@ class SyllabusOrderTest extends TestCase
         // Báo riêng người duyệt, không phát thông báo chung.
         $this->assertSame([$admin->id], AdminNotification::where('type', 'big_test_order')->whereNotNull('user_id')->pluck('user_id')->map(fn ($id) => (int) $id)->all());
         $this->assertSame(0, AdminNotification::where('type', 'big_test_order')->whereNull('user_id')->count());
+    }
+
+    public function test_print_order_is_audit_logged_under_syllabus_module_with_before_after(): void
+    {
+        Activity::query()->delete();
+        $this->actingAs($this->teacher)->post(route('teacher.orders.store', $this->class->id), ['lesson_id' => $this->lesson(1)->id, 'quantity' => 12, 'note' => 'In workbook'])
+            ->assertSessionHasNoErrors();
+
+        $order = MaterialOrder::sole();
+        $log = Activity::sole();
+        $this->assertSame('Giáo trình & Syllabus', $log->log_name);
+        $this->assertSame($this->teacher->id, $log->causer_id);
+        $this->assertStringContainsString($order->code, $log->description);
+        $this->assertNull($log->properties['before']);
+        $after = $log->properties['after'];
+        $this->assertSame([$order->code, $this->class->name], [$after['code'], $after['class']]);
+        $this->assertSame(12, $after['items'][0]['quantity']);
+        $this->assertSame('In workbook', $after['items'][0]['note']);
+        $this->assertNotEmpty(ActivityLogController::diff($log));
+    }
+
+    public function test_test_order_reject_is_audit_logged_with_before_after(): void
+    {
+        $this->markLessons(3);
+        Activity::query()->delete();
+        $this->actingAs($this->teacher)->post(route('teacher.orders.store', $this->class->id), ['lesson_id' => $this->lesson(4)->id, 'note' => 'Cần gấp'])->assertSessionHasNoErrors();
+        $order = BigTestOrder::sole();
+        $this->assertSame('Giáo trình & Syllabus', Activity::sole()->log_name);
+
+        $admin = $this->userWithRole(Roles::ADMIN, 'Admin duyệt đề');
+        Activity::query()->delete();
+        $this->actingAs($admin)->post(route('syllabus.big-tests.orders.reject', $order->id), ['rejection_reason' => 'Thiếu thông tin'])->assertSessionHasNoErrors();
+
+        $log = Activity::sole();
+        $this->assertSame(['Giáo trình & Syllabus', $admin->id], [$log->log_name, $log->causer_id]);
+        $this->assertStringContainsString($order->code, $log->description);
+        $this->assertSame(['pending', 'rejected'], [$log->properties['before']['status'], $log->properties['after']['status']]);
+        $this->assertSame('Cần gấp', $log->properties['after']['items'][0]['note']);
+    }
+
+    public function test_audit_middleware_module_mapping_unchanged_for_other_routes(): void
+    {
+        $resolve = fn (string $path, ?string $route) => (new \ReflectionMethod(AuditOperationMiddleware::class, 'resolveModule'))
+            ->invoke(new AuditOperationMiddleware, $path, $route);
+
+        $this->assertSame('Giáo trình & Syllabus', $resolve('teacher/orders/5', 'teacher.orders.store'));
+        $this->assertSame('CRM & Leads', $resolve('crm/leads', 'crm.store'));
+        $this->assertSame('Học phí & Thu chi', $resolve('tuition/receipts', 'tuition.receipts.store'));
+        $this->assertSame('Hệ thống chung', $resolve('foo', null));
     }
 
     public function test_due_alert_sent_once_per_milestone(): void
