@@ -2223,6 +2223,7 @@
         "refund_transfer.approve_transfer",
         "refund_transfer.reject",
         "staff_checkin.approve",
-        "lead.approve_transfer"
+        "lead.approve_transfer",
+        "class.import"
     ]
 }
