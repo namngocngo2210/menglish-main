@@ -608,8 +608,9 @@ class WorkTaskController extends Controller
         return Inertia::render('Tasks/ClassesDashboard', [
             'tab' => $tab,
             'branches' => Ui::options($branches, 'name'),
+            'canChooseBranch' => $scopeBranchIds === null,
             'branchId' => $branchId,
-            'branchName' => $selectedBranch?->name,
+            'branchName' => $selectedBranch?->name ?? ($scopeBranchIds !== null && $branches->count() === 1 ? $branches->first()->name : null),
             'date' => $date,
             'week' => $week,
             'isToday' => CarbonImmutable::parse($date)->isToday(),

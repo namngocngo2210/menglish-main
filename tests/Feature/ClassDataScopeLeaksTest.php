@@ -120,6 +120,12 @@ class ClassDataScopeLeaksTest extends TestCase
         $this->actingAs($this->managerA)->get(route('tasks.classes-dashboard'))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('branches', fn ($branches) => collect($branches)->pluck('value')->map(fn ($v) => (int) $v)->all() === [$this->branchA->id]));
 
+        // Chi nhánh cố định: không có dropdown chọn chi nhánh, vẫn bị ép về chi nhánh mình dù truyền branch_id khác.
+        $this->actingAs($this->managerA)->get(route('tasks.classes-dashboard', ['branch_id' => $this->branchB->id]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canChooseBranch', false)->where('branchName', 'Co so A'));
+        $this->actingAs($this->admin)->get(route('tasks.classes-dashboard'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canChooseBranch', true));
+
         $csv = $this->exportCsv($this->managerA);
         $this->assertStringContainsString('CLASS-ALPHA-ONE', $csv);
         $this->assertStringNotContainsString('CLASS-BRAVO-ONE', $csv);
