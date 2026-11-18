@@ -365,3 +365,13 @@ Bảng mới có dữ liệu theo chi nhánh / theo người: dùng lọc tự �
 TK-2026-0144: `room.edit_types` (Thêm / sửa loại phòng) is granted by default to Admin and Học vụ (`academic_staff`), not manager.
 `room.manage_types` controls deactivation, reactivation, and deletion. The migration also grants `room.edit_types` to existing
 roles holding `room.manage_types`, preserving custom type administrators. Super Admin retains all actions through `Gate::before`.
+
+TK-2026-0153 (Finance R-06): module `finance` có 3 quyền độc lập — `finance.view` (xem + xuất sổ khoản chi vận hành),
+`finance.manage` (thêm / sửa / xóa khoản chi; route `finance.expenses.store|update|destroy`, trước đây dùng `tuition.create`)
+và `finance.view_revenue_report` (báo cáo doanh thu tạm tính + xuất). Dòng / số tổng "Chi lương" (sổ khoản chi, báo cáo doanh
+thu, CSV; tổng chi và ma trận chi nhánh cũng bỏ lương) chỉ có trong payload khi người dùng có `payroll.view` (mặc định chỉ
+Admin; Quản lý cơ sở / Kế toán không có). Migration `2026_12_18_090000_split_finance_permissions` giữ nguyên quyền hiện có:
+vai trò / người có `finance.view` nhận `finance.view_revenue_report`; vai trò / người có `finance.view` + `tuition.create` nhận
+`finance.manage`; override cá nhân `finance.view` được sao chép sang `view_revenue_report` (và `manage` nếu người đó có
+`tuition.create`). Vai trò chỉ có `finance.view` thành chỉ-xem. Mặc định Quản lý cơ sở và Kế toán nhận cả hai quyền mới.
+Quyền `payroll.view` do Admin cấp riêng nếu muốn người khác thấy lương trong báo cáo thu chi.

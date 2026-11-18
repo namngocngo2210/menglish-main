@@ -18,6 +18,8 @@ const props = defineProps({
     branches: { type: Array, default: () => [] },
     manualExpenses: { type: Array, default: () => [] },
     autoSalaryRow: { type: Object, default: null },
+    canManage: { type: Boolean, default: false },
+    salaryHidden: { type: Boolean, default: false },
     grandTotalExpense: { type: Number, default: 0 },
     autoSalaryAmount: { type: Number, default: 0 },
     autoSalaryStaffCount: { type: Number, default: 0 },
@@ -84,13 +86,13 @@ function openModal(exp = null) {
                 Quyền thao tác: <span class="font-semibold text-on-surface">Quản trị nhân sự &amp; Tài chính</span>
             </div>
             <UiButton variant="secondary" icon="download" :href="exportUrl" native title="Xuất dữ liệu Excel (CSV)">Xuất Excel</UiButton>
-            <UiButton icon="add_circle" @click="openModal()">Thêm khoản chi mới</UiButton>
+            <UiButton v-if="canManage" icon="add_circle" @click="openModal()">Thêm khoản chi mới</UiButton>
         </template>
     </UiPageHeader>
 
     <div class="space-y-6">
         <!-- 4 thẻ KPI -->
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2" :class="salaryHidden ? 'lg:grid-cols-3' : 'lg:grid-cols-4'">
             <div class="relative overflow-hidden rounded-2xl border border-surface-container-highest/80 bg-surface-container-lowest p-5 shadow-xs">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle">Tổng chi kỳ này</span>
@@ -111,7 +113,7 @@ function openModal(exp = null) {
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-surface-container-highest/80 bg-surface-container-lowest p-5 shadow-xs">
+            <div v-if="!salaryHidden" class="rounded-2xl border border-surface-container-highest/80 bg-surface-container-lowest p-5 shadow-xs">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold uppercase tracking-wider text-on-surface-subtle">Chi lương tự động (bảng lương)</span>
                     <span class="material-symbols-outlined rounded-lg bg-secondary/10 p-2 text-[20px] text-secondary">badge</span>
@@ -196,7 +198,7 @@ function openModal(exp = null) {
                         <th class="text-center">Hình thức</th>
                         <th>Chi nhánh</th>
                         <th>Ghi chú &amp; Chứng từ</th>
-                        <th class="w-28 text-center">Thao tác</th>
+                        <th v-if="canManage" class="w-28 text-center">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -268,7 +270,7 @@ function openModal(exp = null) {
                         </td>
                         <td class="whitespace-nowrap text-on-surface-variant">{{ exp.branch_name ?? 'Toàn hệ thống' }}</td>
                         <td class="text-xs text-on-surface-variant">{{ exp.notes || '—' }}</td>
-                        <td class="text-center">
+                        <td v-if="canManage" class="text-center">
                             <div class="flex items-center justify-center gap-1">
                                 <UiButton variant="ghost" size="sm" icon="edit" title="Sửa khoản chi" aria-label="Sửa khoản chi" @click="openModal(exp)" />
                                 <UiForm :action="route('finance.expenses.destroy', exp.id)" method="delete" :confirm="`Xóa khoản chi “${exp.title}” khỏi sổ chi vận hành?`" confirm-label="Xóa" danger back class="inline">

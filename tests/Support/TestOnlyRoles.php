@@ -32,7 +32,7 @@ final class TestOnlyRoles
                 'bank_account.manage', 'invoice_range.manage', 'fee_reminder_config.manage',
                 'merchandise_stock.view', 'merchandise_stock.manage', 'merchandise_stock.scope_branch',
                 'staff_checkin.view', 'staff_checkin.scope_branch',
-                'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view',
+                'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.calculate', 'payroll.view_own', 'finance.view', 'finance.manage', 'finance.view_revenue_report',
                 'work_task.view', 'support_ticket.create', 'support_ticket.view', 'notification.view',
                 'portal.staff',
                 // Kế toán tổng (mọi chi nhánh) do Admin cấp "Phạm vi: Toàn hệ thống" theo người (BA 26/09/2026).

@@ -70,7 +70,9 @@ class FinanceController extends Controller
         $periodMonth = (int) $parsedDate->format('m');
         $periodYear = (int) $parsedDate->format('Y');
 
-        $period = PayrollPeriod::where('month', $periodMonth)
+        // Lương chỉ người có payroll.view (mặc định Admin) được xem: người khác không nhận dòng / số tổng lương trong payload.
+        $canSeeSalary = $this->canSeeSalary($request);
+        $period = ! $canSeeSalary ? null : PayrollPeriod::where('month', $periodMonth)
             ->where('year', $periodYear)
             ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
@@ -127,7 +129,7 @@ class FinanceController extends Controller
         }
         $prevManualSum = (float) $prevManual->sum('amount');
 
-        $prevPeriod = PayrollPeriod::where('month', (int) $prevParsed->format('m'))
+        $prevPeriod = ! $canSeeSalary ? null : PayrollPeriod::where('month', (int) $prevParsed->format('m'))
             ->where('year', (int) $prevParsed->format('Y'))
             ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
@@ -194,6 +196,8 @@ class FinanceController extends Controller
                 'creator_name' => $exp->creator?->name,
                 'created_at' => $exp->created_at?->format('d/m H:i'),
             ])->values(),
+            'canManage' => (bool) $request->user()->can('finance.manage'),
+            'salaryHidden' => ! $canSeeSalary,
             'autoSalaryRow' => $autoSalaryRow ? (array) $autoSalaryRow : null,
             'grandTotalExpense' => (float) $grandTotalExpense,
             'autoSalaryAmount' => (float) $autoSalaryAmount,
@@ -427,7 +431,7 @@ class FinanceController extends Controller
         $manualExpenseTotal = (float) $manualExpenses->sum('amount');
 
         // Nguồn 2: Chi lương tự động từ Epic 7
-        $period = PayrollPeriod::where('month', (int) $parsedDate->format('m'))
+        $period = ! $this->canSeeSalary($request) ? null : PayrollPeriod::where('month', (int) $parsedDate->format('m'))
             ->where('year', (int) $parsedDate->format('Y'))
             ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
@@ -537,11 +541,11 @@ class FinanceController extends Controller
             'totalExpense' => (float) $totalExpense,
             'expensePercentageOfRevenue' => (float) $expensePercentageOfRevenue,
             'totalExpenseItemsCount' => $totalExpenseItemsCount,
-            'salaryTotal' => (float) $salaryTotal,
+            'salaryHidden' => ! $this->canSeeSalary($request),
+            ...($this->canSeeSalary($request) ? ['salaryTotal' => (float) $salaryTotal, 'salaryPercentOfExpense' => (float) $salaryPercentOfExpense] : []),
             'rentUtilitiesExpense' => (float) $rentUtilitiesExpense,
             'curriculumOperationsExpense' => (float) $curriculumOperationsExpense,
             'otherExpense' => (float) $otherExpense,
-            'salaryPercentOfExpense' => (float) $salaryPercentOfExpense,
             'rentPercentOfExpense' => (float) $rentPercentOfExpense,
             'curriculumPercentOfExpense' => (float) $curriculumPercentOfExpense,
             'otherPercentOfExpense' => $totalExpense > 0 ? round($otherExpense / $totalExpense * 100, 1) : 0.0,
@@ -577,7 +581,7 @@ class FinanceController extends Controller
         $branches = $this->visibleBranches($request)
             ->when($branchId !== 'all' && is_numeric($branchId), fn ($c) => $c->where('id', (int) $branchId)->values());
         $scoped = $this->scopedBranchIds($request->user()) !== null || ($branchId !== 'all' && is_numeric($branchId));
-        $period = PayrollPeriod::where('month', (int) $parsedDate->format('m'))
+        $period = ! $this->canSeeSalary($request) ? null : PayrollPeriod::where('month', (int) $parsedDate->format('m'))
             ->where('year', (int) $parsedDate->format('Y'))
             ->whereIn('status', PayrollPeriod::LOCKED_STATUSES)
             ->first();
@@ -649,6 +653,12 @@ class FinanceController extends Controller
      * Chi nhánh ghi nhận theo hợp đồng (tuition.branch_id); chỉ fallback chi nhánh học viên khi phiếu không gắn hợp đồng
      * -> mỗi phiếu thuộc đúng 1 chi nhánh, không cộng trùng.
      */
+    /** Chi lương là dữ liệu bảng lương: chỉ người có payroll.view (mặc định Admin) được thấy. */
+    private function canSeeSalary(Request $request): bool
+    {
+        return (bool) $request->user()?->can('payroll.view');
+    }
+
     private function revenueReceiptQuery(string $startDate, string $endDate, int|string|null $branchId = null): Builder
     {
         $query = TuitionReceipt::query()
