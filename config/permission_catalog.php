@@ -140,6 +140,7 @@ return [
                 'view' => ['Xem lớp', 'Xem danh sách, hồ sơ lớp, lịch học (trong phạm vi dữ liệu).'],
                 'create' => ['Tạo lớp', 'Mở lớp mới, sinh lịch học.'],
                 'update' => ['Sửa lớp', 'Sửa lớp, lịch, đặt lịch học thử, dashboard đào tạo.'],
+                'edit' => ['Sửa thông tin lớp', 'Sửa thông tin lớp, đổi GV / GVNN, bật tắt trạng thái lớp. Chỉ Học vụ + Admin (TK-2026-0148); Học thuật chỉ xem lớp.'],
                 'delete' => ['Xóa lớp', 'Xóa / hủy lớp.'],
                 'import' => ['Nhập danh sách lớp', 'Nhập lớp + học viên từ Excel (xem trước, xác nhận, tải file mẫu). Chỉ Admin dùng được (TK-2026-0147), cấp cho vai trò khác không có tác dụng.'],
             ],

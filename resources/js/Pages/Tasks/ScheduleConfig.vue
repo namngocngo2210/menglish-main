@@ -96,7 +96,7 @@ function confirmTransfer() {
 }
 const conflictTitle = computed(() => (conflictError.value && (conflictError.value.includes('Xung đột') || conflictError.value.includes('trùng')) ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'));
 
-const canToggle = (c) => ['active', 'completed'].includes(c.status) && can('class.update');
+const canToggle = (c) => ['active', 'completed'].includes(c.status) && can('class.edit');
 const editable = (c) => !['cancelled', 'completed'].includes(c.status);
 const toggleConfirm = (c) =>
     c.status === 'active'

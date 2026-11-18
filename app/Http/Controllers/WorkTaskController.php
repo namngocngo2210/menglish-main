@@ -2189,7 +2189,7 @@ class WorkTaskController extends Controller
     {
         // Toggle class status or update schedule
         if ($request->has('toggle_class_id')) {
-            abort_unless($request->user()->can('class.update'), 403, 'Bạn không có quyền đổi trạng thái lớp học.');
+            abort_unless($request->user()->can('class.edit'), 403, 'Bạn không có quyền đổi trạng thái lớp học.');
             $cls = ClassModel::findOrFail($request->input('toggle_class_id'));
             abort_unless(ClassModel::visibleTo($request->user())->whereKey($cls->id)->exists(), 403, 'Bạn không phụ trách lớp này.');
             // Chỉ chuyển qua lại Đang học ↔ Đã kết thúc; lớp đã hủy/chưa xếp lịch không được "mở lại" từ đây.

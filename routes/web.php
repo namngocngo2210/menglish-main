@@ -357,9 +357,9 @@ Route::middleware('auth')->group(function () {
         Route::redirect('/checklist', '/class-quality/checklist')->name('checklist');
         Route::redirect('/evaluate-observation', '/class-quality/academic')->name('evaluate-observation');
         Route::get('/', [ClassManagementController::class, 'index'])->name('index');
-        Route::get('/{id}/edit', [ClassManagementController::class, 'edit'])->name('edit');
-        Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.update')->name('update');
-        Route::post('/{id}/foreign-teacher', [ClassManagementController::class, 'assignForeignTeacher'])->whereNumber('id')->middleware('can:class.update')->name('foreign-teacher');
+        Route::get('/{id}/edit', [ClassManagementController::class, 'edit'])->middleware('can:class.edit')->name('edit');
+        Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.edit')->name('update');
+        Route::post('/{id}/foreign-teacher', [ClassManagementController::class, 'assignForeignTeacher'])->whereNumber('id')->middleware('can:class.edit')->name('foreign-teacher');
         Route::delete('/{id}', [ClassManagementController::class, 'destroy'])->middleware('can:class.delete')->name('destroy');
         // Syllabus của lớp: Học thuật chỉnh sửa thủ công từng buổi (bản đè, docs/kho-syllabus.md §7.3).
         Route::put('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'override'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override');

@@ -598,7 +598,7 @@ class ClassManagementController extends Controller
         $tab = array_key_exists($requested, ClassLifecycle::TABS) ? $requested : 'overview';
 
         $seat = $class->seatSummary();
-        $canManage = $viewer->can('class.update') && $class->userCan($viewer, 'update');
+        $canManage = $viewer->can('class.edit') && $class->userCan($viewer, 'update');
         $today = CarbonImmutable::today();
 
         $activeSessions = $class->sessions()->where('status', '!=', 'cancelled')->where('type', '!=', ClassSession::TYPE_SUPPORT)
@@ -910,7 +910,7 @@ class ClassManagementController extends Controller
      */
     public function edit(Request $request, $id)
     {
-        abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
+        abort_if(! auth()->user()->can('class.edit'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
 
         $class = ClassModel::with(['branch', 'teacher', 'assistant', 'foreignTeacher', 'course', 'scheduleConfig'])->findOrFail($id);
         abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
@@ -979,7 +979,7 @@ class ClassManagementController extends Controller
      */
     public function update(Request $request, $id)
     {
-        abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
+        abort_if(! auth()->user()->can('class.edit'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
 
         $class = ClassModel::findOrFail($id);
         abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
@@ -1152,7 +1152,7 @@ class ClassManagementController extends Controller
      */
     public function assignForeignTeacher(Request $request, int $id)
     {
-        abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
+        abort_if(! auth()->user()->can('class.edit'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
         $class = ClassModel::findOrFail($id);
         abort_unless($class->userCan(auth()->user(), 'update'), 403, 'Lớp học này nằm ngoài phạm vi bạn được quản lý.');
 
@@ -1255,6 +1255,8 @@ class ClassManagementController extends Controller
 
     public function checkAvailability(Request $request)
     {
+        $user = $request->user();
+        abort_unless($user->can('class.create') || $user->can('class.edit'), 403);
         $validated = $request->validate([
             'branch_id' => ['nullable', 'integer'],
             'date' => ['required', 'date'],
@@ -1263,8 +1265,6 @@ class ClassManagementController extends Controller
             'exclude_class_id' => ['nullable', 'integer'],
         ]);
         // Chỉ người tạo / sửa lớp mới cần kiểm tra trùng lịch; phòng chỉ xem được ở chi nhánh trong phạm vi.
-        $user = $request->user();
-        abort_unless($user->can('class.create') || $user->can('class.update'), 403);
         abort_if(! empty($validated['branch_id']) && ! DataScope::coversBranch($user, 'class', (int) $validated['branch_id']), 403, 'Bạn chỉ được quản lý lớp thuộc chi nhánh của mình.');
         // Cột time lưu dạng H:i:s — so sánh chuỗi với H:i sẽ coi hai ca nối tiếp (kết thúc 18:00, bắt đầu 18:00) là trùng.
         $startTime = $validated['start_time'].':00';
