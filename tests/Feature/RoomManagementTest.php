@@ -280,6 +280,84 @@ class RoomManagementTest extends TestCase
         $this->assertSame(['Phòng 101'], $class->sessions()->pluck('room')->unique()->values()->all());
     }
 
+    public function test_class_edit_asks_to_transfer_pending_room_and_cancel_saves_nothing(): void
+    {
+        $date = now()->addDays(3);
+        $oldRoom = $this->room($this->branch, 'Phòng 102');
+        $room = $this->room($this->branch, 'Phòng 101');
+        $class = $this->withSlot($this->makeClass('RM-EDIT-ASK', ['room_id' => $oldRoom->id, 'room' => $oldRoom->name]), $this->weekdayName($date));
+        $pending = $this->withSlot($this->makeClass('RM-PENDING', [
+            'room_id' => $room->id, 'room' => $room->name, 'status' => 'upcoming', 'start_date' => $date->toDateString(),
+        ]), $this->weekdayName($date));
+        $session = ClassSession::create(['class_id' => $pending->id, 'branch_id' => $this->branch->id, 'date' => $date->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => $room->name, 'status' => 'scheduled']);
+        $editedSession = ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => $date->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => $oldRoom->name, 'status' => 'scheduled']);
+
+        $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->payload($class, [
+            'room_id' => $room->id, 'ten_lop' => 'Changed name',
+        ]))->assertSessionHasErrors('room_transfer');
+
+        // Cancel closes the popup without sending another request.
+        $this->assertSame($class->name, $class->fresh()->name);
+        $this->assertSame($oldRoom->id, $class->fresh()->room_id);
+        $this->assertSame($oldRoom->name, $class->fresh()->room);
+        $this->assertSame($oldRoom->name, $editedSession->fresh()->room);
+        $this->assertSame($room->id, $pending->fresh()->room_id);
+        $this->assertSame($room->name, $pending->fresh()->room);
+        $this->assertSame($room->name, $session->fresh()->room);
+    }
+
+    public function test_class_edit_confirmed_transfer_releases_pending_class_and_future_session_rooms(): void
+    {
+        $date = now()->addDays(3);
+        $oldRoom = $this->room($this->branch, 'Phòng 102');
+        $room = $this->room($this->branch, 'Phòng 101');
+        $class = $this->withSlot($this->makeClass('RM-EDIT-TRANSFER', ['room_id' => $oldRoom->id, 'room' => $oldRoom->name]), $this->weekdayName($date));
+        $pending = $this->withSlot($this->makeClass('RM-PENDING', [
+            'room_id' => $room->id, 'room' => $room->name, 'status' => 'upcoming', 'start_date' => $date->toDateString(),
+        ]), $this->weekdayName($date));
+        foreach ([$date, $date->copy()->addWeek()] as $sessionDate) {
+            ClassSession::create(['class_id' => $pending->id, 'branch_id' => $this->branch->id, 'date' => $sessionDate->toDateString(),
+                'start_time' => '18:00', 'end_time' => '19:30', 'room' => $room->name, 'status' => 'scheduled']);
+        }
+        $editedSession = ClassSession::create(['class_id' => $class->id, 'branch_id' => $this->branch->id, 'date' => $date->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => $oldRoom->name, 'status' => 'scheduled']);
+
+        $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->payload($class, [
+            'room_id' => $room->id, 'transfer_room' => 1,
+        ]))->assertSessionHasNoErrors()->assertRedirect(route('classes.show', $class->id));
+
+        $this->assertSame($room->id, $class->fresh()->room_id);
+        $this->assertSame($room->name, $class->fresh()->room);
+        $this->assertSame($room->name, $editedSession->fresh()->room);
+        $this->assertNull($pending->fresh()->room_id);
+        $this->assertNull($pending->fresh()->room);
+        $this->assertSame([null, null], $pending->sessions()->pluck('room')->all());
+    }
+
+    public function test_class_edit_blocks_studying_room_conflict_even_when_transfer_is_confirmed(): void
+    {
+        $date = now()->addDays(3);
+        $oldRoom = $this->room($this->branch, 'Phòng 102');
+        $room = $this->room($this->branch, 'Phòng 101');
+        $class = $this->withSlot($this->makeClass('RM-EDIT-BLOCK', ['room_id' => $oldRoom->id, 'room' => $oldRoom->name]), $this->weekdayName($date));
+        $studying = $this->withSlot($this->makeClass('RM-STUDY', ['room_id' => $room->id, 'room' => $room->name]), $this->weekdayName($date));
+        $session = ClassSession::create(['class_id' => $studying->id, 'branch_id' => $this->branch->id, 'date' => $date->toDateString(),
+            'start_time' => '18:00', 'end_time' => '19:30', 'room' => $room->name, 'status' => 'scheduled']);
+
+        $this->actingAs($this->admin)->put(route('classes.update', $class->id), $this->payload($class, [
+            'room_id' => $room->id, 'transfer_room' => 1, 'ten_lop' => 'Changed name',
+        ]))->assertSessionHasErrors(['room_id' => "{$room->name} đã có lớp {$studying->name} đang học vào {$this->weekdayName($date)} 18:00–19:30 — vui lòng chọn phòng khác."]);
+
+        $this->assertSame($class->name, $class->fresh()->name);
+        $this->assertSame($oldRoom->id, $class->fresh()->room_id);
+        $this->assertSame($oldRoom->name, $class->fresh()->room);
+        $this->assertSame($room->id, $studying->fresh()->room_id);
+        $this->assertSame($room->name, $studying->fresh()->room);
+        $this->assertSame($room->name, $session->fresh()->room);
+    }
+
     public function test_ending_class_via_edit_releases_room_and_preserves_generated_sessions(): void
     {
         $room = $this->room($this->branch, 'Phòng 101');

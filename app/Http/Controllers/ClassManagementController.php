@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Models\WorkTask;
 use App\Services\ClassDashboardService;
 use App\Services\ClassRescheduleService;
+use App\Services\RoomService;
 use App\Services\SessionScheduleService;
 use App\Services\Syllabus\ClassSyllabusTab;
 use App\Services\TeachingShifts\TeachingShiftRules;
@@ -977,7 +978,7 @@ class ClassManagementController extends Controller
     /**
      * Handle edit form submission
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, RoomService $rooms)
     {
         abort_if(! auth()->user()->can('class.update'), 403, 'Bạn không có quyền chỉnh sửa lớp học.');
 
@@ -994,6 +995,7 @@ class ClassManagementController extends Controller
             // Ngưỡng khai giảng (số học viên tối thiểu để mở lớp) không được vượt sĩ số tối đa.
             'min_students' => 'nullable|integer|min:1|max:100|lte:si_so_toi_da',
             'room_id' => 'nullable|integer',
+            'transfer_room' => 'nullable|boolean',
             'giao_vien_chinh' => 'nullable|integer|exists:users,id',
             'tro_giang' => 'nullable|integer|exists:users,id',
             'giao_vien_nn' => 'nullable|integer|exists:users,id',
@@ -1061,6 +1063,17 @@ class ClassManagementController extends Controller
             $newRoom = null;
         }
 
+        $room = null;
+        $transfer = collect();
+        if (! $isEnding && $newRoomId !== null && $newRoomId !== $class->room_id) {
+            $class->loadMissing('scheduleConfig');
+            $slots = $newSlots ?? $this->reschedule->currentSlots($class);
+            if ($slots !== []) {
+                $room = Room::findOrFail($newRoomId);
+                $transfer = $rooms->guardRoomTransfer($room, $slots, $class->id, $request->boolean('transfer_room'));
+            }
+        }
+
         // Chỉ buổi chưa diễn ra, chưa điểm danh/check-in mới được đồng bộ nhân sự/phòng;
         // buổi quá khứ là dữ liệu lịch sử (bảng công, điểm danh khớp theo buổi).
         // Gồm cả buổi học bù (type makeup) xếp khi thêm ngày nghỉ.
@@ -1068,18 +1081,23 @@ class ClassManagementController extends Controller
         // GVNN không cố định: buổi đã được gán GVNN riêng (khác GVNN mặc định cũ của lớp) giữ nguyên khi đổi GVNN của lớp.
         $foreignSyncSessions = $futureSessions->filter(fn (ClassSession $s) => $s->foreign_teacher_id === null
             || (int) $s->foreign_teacher_id === (int) $class->foreign_teacher_id)->values();
-        $this->assertStaffChangeHasNoConflicts($class, $futureSessions, $branchId, [
-            'foreign_sessions' => $foreignSyncSessions,
-            // Lớp không có GV chính: người đứng lớp của buổi là GVNN của buổi, đã kiểm tra ở nhánh 'foreign'.
-            'teacher' => $newTeacherId,
-            'teacher_field' => 'giao_vien_chinh',
-            'assistant' => $newAssistantId,
-            'foreign' => $newForeignTeacherId,
-            'room' => $newRoom,
-            'previous_room' => $previousRoom,
-        ]);
 
-        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions, $newSlots, $isEnding) {
+        DB::transaction(function () use ($class, $validated, $code, $branchId, $course, $newTeacherId, $newAssistantId, $newForeignTeacherId, $newRoomId, $newRoom, $previousRoom, $futureSessions, $foreignSyncSessions, $newSlots, $isEnding, $rooms, $room, $transfer) {
+            if ($room && $transfer->isNotEmpty()) {
+                $rooms->detach($room, $transfer);
+            }
+
+            $this->assertStaffChangeHasNoConflicts($class, $futureSessions, $branchId, [
+                'foreign_sessions' => $foreignSyncSessions,
+                // Without a primary teacher, the session teacher is checked through the foreign teacher branch.
+                'teacher' => $newTeacherId,
+                'teacher_field' => 'giao_vien_chinh',
+                'assistant' => $newAssistantId,
+                'foreign' => $newForeignTeacherId,
+                'room' => $newRoom,
+                'previous_room' => $previousRoom,
+            ]);
+
             $class->update([
                 'code' => $code,
                 'name' => $validated['ten_lop'],
