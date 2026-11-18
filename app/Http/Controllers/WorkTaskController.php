@@ -2146,6 +2146,7 @@ class WorkTaskController extends Controller
         return Inertia::render('Tasks/ScheduleConfig', [
             'view' => $view,
             'canSchedule' => $viewer->can('work_task.assign') && $viewer->can('class.edit'),
+            'canHrDemand' => $viewer->can('work_task.assign'),
             // Ô "Chọn phòng học": phòng của chi nhánh lớp đang chọn (lọc phía Vue), kèm lớp đang dùng phòng.
             'rooms' => RoomController::classFormOptions($schedulable->pluck('branch_id')->filter()->unique()),
             'newClasses' => Ui::options($schedulable->filter(fn (ClassModel $c) => ! $c->scheduleConfig), fn (ClassModel $c) => "{$c->name} ({$c->code})"),

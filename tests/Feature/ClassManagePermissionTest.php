@@ -136,4 +136,18 @@ class ClassManagePermissionTest extends TestCase
             $this->assertDatabaseCount('class_sessions', 0);
         }
     }
+
+    public function test_academic_lead_keeps_hr_demand_form_and_save(): void
+    {
+        $user = $this->as('academic_lead');
+
+        $this->actingAs($user)->get(route('tasks.schedule-config', ['view' => 'report']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canSchedule', false)->where('canHrDemand', true));
+
+        $this->actingAs($user)->post(route('tasks.hr-demand.save'), [
+            'branch_id' => $this->branch->id,
+            'demands' => ['2026-12-21' => 3],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertDatabaseCount('hr_daily_demands', 1);
+    }
 }

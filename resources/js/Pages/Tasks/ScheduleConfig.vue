@@ -15,6 +15,7 @@ defineOptions({ layout: (props) => ({ title: props.view === 'report' ? 'Báo cá
 const props = defineProps({
     view: { type: String, default: 'config' },
     canSchedule: { type: Boolean, default: false },
+    canHrDemand: { type: Boolean, default: false },
     rooms: { type: Array, default: () => [] },
     newClasses: { type: Array, default: () => [] },
     scheduledClasses: { type: Array, default: () => [] },
@@ -377,7 +378,7 @@ function searchClasses(event) {
                                                 :value="row.staff_needed"
                                                 min="0"
                                                 max="50"
-                                                :disabled="!canEditSchedule"
+                                                :disabled="!canHrDemand"
                                                 :aria-label="`Nhân sự cần ${row.day}`"
                                                 :class="['w-16 rounded-lg border px-xs py-xs text-center font-code', row.saved ? 'border-outline-variant' : 'border-dashed border-outline-variant text-on-surface-variant']"
                                             />
@@ -389,7 +390,7 @@ function searchClasses(event) {
                         </table>
                     </UiDataTable>
                     <p class="font-caption text-caption text-on-surface-variant">Số ca, phòng và TA tính từ buổi học thực tế của chi nhánh. Ô viền nét đứt là gợi ý (chưa lưu).</p>
-                    <UiButton v-if="canEditSchedule" type="submit" variant="secondary" icon="save" class="w-full">Lưu báo cáo nhân sự</UiButton>
+                    <UiButton v-if="canHrDemand" type="submit" variant="secondary" icon="save" class="w-full">Lưu báo cáo nhân sự</UiButton>
                 </UiForm>
             </div>
         </section>
