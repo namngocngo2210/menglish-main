@@ -13,6 +13,7 @@ defineOptions({ layout: { title: 'Lịch học các lớp' } });
 const props = defineProps({
     tab: { type: String, default: 'day' },
     branches: { type: Array, default: () => [] },
+    canChooseBranch: { type: Boolean, default: true },
     branchId: { type: Number, default: null },
     branchName: { type: String, default: null },
     date: { type: String, required: true },
@@ -58,7 +59,7 @@ const tabUrl = (tab) => route('tasks.classes-dashboard', tab === 'day' ? { tab, 
         <!-- ─── THEO NGÀY ─── -->
         <UiFilterBar :search="false" :action="route('tasks.classes-dashboard')">
             <input type="hidden" name="tab" value="day" />
-            <UiSelect name="branch_id" label="Chi nhánh" :options="branches" :value="branchId" placeholder="Tất cả chi nhánh" />
+            <UiSelect v-if="canChooseBranch" name="branch_id" label="Chi nhánh" :options="branches" :value="branchId" placeholder="Tất cả chi nhánh" />
             <UiDate name="date" label="Chọn ngày" :value="date" />
             <div><UiButton variant="ghost" icon="tune" :aria-expanded="more ? 'true' : 'false'" @click="more = !more">Lọc thêm</UiButton></div>
             <div v-show="more" class="contents">
@@ -171,7 +172,7 @@ const tabUrl = (tab) => route('tasks.classes-dashboard', tab === 'day' ? { tab, 
         <!-- ─── THEO TUẦN (ma trận khung giờ) ─── -->
         <UiFilterBar :search="false" :action="route('tasks.classes-dashboard')">
             <input type="hidden" name="tab" value="week" />
-            <UiSelect name="branch_id" label="Chi nhánh" :options="branches" :value="branchId" placeholder="Tất cả chi nhánh" />
+            <UiSelect v-if="canChooseBranch" name="branch_id" label="Chi nhánh" :options="branches" :value="branchId" placeholder="Tất cả chi nhánh" />
             <UiInput type="week" name="week" label="Chọn tuần" :value="week" />
         </UiFilterBar>
 
