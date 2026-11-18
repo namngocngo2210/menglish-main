@@ -4,7 +4,8 @@
  * Đổi lịch học thì các buổi sắp tới chưa có dữ liệu được xếp lại (giống Lịch & TKB lớp); cần quyền xếp lịch (work_task.assign).
  * Trợ giảng cố định chỉ còn ở lớp cũ (dữ liệu cũ) → hiện ô để gỡ; lớp mới nhận trợ giảng theo ca qua "Giao việc trợ giảng".
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import ScheduleSlotPicker from '@/Components/Classes/ScheduleSlotPicker.vue';
 
 defineOptions({ layout: { title: 'Chỉnh sửa lớp học' } });
@@ -51,6 +52,23 @@ const slotSummary = computed(() =>
         .join(' · '),
 );
 
+const classForm = ref(null);
+const transferRoom = ref('');
+const transferDismissed = ref(false);
+const page = usePage();
+const transferLines = computed(() => (page.props.errors?.room_transfer ?? '').split('\n').filter(Boolean));
+const showTransfer = computed(() => transferLines.value.length > 0 && !transferDismissed.value);
+watch(transferLines, () => {
+    transferDismissed.value = false;
+    transferRoom.value = '';
+});
+async function confirmTransfer() {
+    transferRoom.value = '1';
+    transferDismissed.value = true;
+    await nextTick();
+    classForm.value?.submit();
+}
+
 const section = 'space-y-6 p-6 md:p-8';
 const dot = 'h-2.5 w-2.5 rounded-full';
 const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
@@ -67,7 +85,8 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
     </UiPageHeader>
 
     <div class="space-y-6">
-        <UiForm v-slot="{ errors }" :action="route('classes.update', klass.id)" method="put" class="divide-y divide-surface-container-highest overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
+        <UiForm ref="classForm" v-slot="{ errors }" :action="route('classes.update', klass.id)" method="put" class="divide-y divide-surface-container-highest overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest shadow-sm">
+            <input type="hidden" name="transfer_room" :value="transferRoom" />
             <!-- Khối 1: Thông tin cơ bản & Phân loại lớp -->
             <div :class="section">
                 <div class="flex items-center justify-between">
@@ -144,7 +163,7 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
 
                 <div class="grid grid-cols-1 gap-5 md:grid-cols-12">
                     <div class="md:col-span-6">
-                        <UiSelect id="room_id" v-model="roomId" name="room_id" label="Phòng học" :placeholder="branchRooms.length ? '-- Chưa gán phòng --' : '-- Chi nhánh chưa có phòng học --'" :options="branchRooms" hint="Phòng của chi nhánh lớp; đổi phòng áp cho các buổi sắp tới đang dùng phòng cũ." />
+                        <UiSelect id="room_id" v-model="roomId" name="room_id" label="Phòng học" :error="errors.room_id" :placeholder="branchRooms.length ? '-- Chưa gán phòng --' : '-- Chi nhánh chưa có phòng học --'" :options="branchRooms" hint="Phòng của chi nhánh lớp; đổi phòng áp cho các buổi sắp tới đang dùng phòng cũ." />
                         <p v-if="overCapacity" class="mt-xs flex items-start gap-xs rounded-lg border border-warning/30 bg-warning-container p-sm font-body-small text-body-small text-on-warning-container" role="status">
                             <span class="material-symbols-outlined text-[16px] text-warning" aria-hidden="true">warning</span>
                             <span><strong>Cảnh báo sức chứa:</strong> Sĩ số tối đa ({{ capacity }}) vượt sức chứa phòng ({{ room.capacity }}). Vẫn được phép lưu.</span>
@@ -212,4 +231,20 @@ const heading = 'text-base font-bold uppercase tracking-wide text-on-surface';
             </div>
         </UiForm>
     </div>
+    <UiModal :show="showTransfer" title="Phòng đang được gán cho lớp khác" max-width="md" @close="transferDismissed = true">
+        <p class="text-on-surface" data-testid="room-transfer-question">{{ transferLines[0] }}</p>
+        <div v-if="transferLines.length > 1" class="mt-md rounded-lg border border-outline-variant bg-surface-container-low p-sm">
+            <p class="mb-xs font-label text-label uppercase tracking-wider text-on-surface-variant">Danh sách lớp bị ảnh hưởng</p>
+            <ul class="space-y-xs font-body-small text-body-small">
+                <li v-for="line in transferLines.slice(1)" :key="line" class="flex items-start gap-xs">
+                    <span class="material-symbols-outlined text-[16px] text-warning" aria-hidden="true">swap_horiz</span>{{ line }}
+                </li>
+            </ul>
+        </div>
+        <p class="mt-sm font-body-small text-body-small text-on-surface-variant">Sau khi xác nhận, các lớp trên chuyển về trạng thái chưa có phòng.</p>
+        <template #footer>
+            <UiButton variant="secondary" @click="transferDismissed = true">Hủy</UiButton>
+            <UiButton icon="swap_horiz" @click="confirmTransfer">Chuyển phòng</UiButton>
+        </template>
+    </UiModal>
 </template>

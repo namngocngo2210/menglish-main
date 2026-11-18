@@ -2247,26 +2247,7 @@ class WorkTaskController extends Controller
         [$roomId, $roomName] = $changeRoom ? [$room?->id, $room?->name] : [$class->room_id, $class->room];
         $previousRoom = $class->room;
 
-        // Ca học tuần trùng với lớp khác đang gắn phòng: lớp đang học → chặn; lớp chưa bắt đầu học → hỏi chuyển phòng
-        // (xác nhận thì gỡ phòng khỏi các lớp đó).
-        $transfer = collect();
-        if ($room) {
-            $conflicts = $rooms->slotConflicts($room, $slots, $class->id);
-            $blocking = $conflicts->first(fn (array $c) => $c['class']->isStudying());
-            if ($blocking) {
-                throw ValidationException::withMessages([
-                    'room_id' => "{$room->name} đã có lớp {$blocking['class']->name} đang học vào {$blocking['slot']} — vui lòng chọn phòng khác.",
-                ]);
-            }
-            $transfer = $conflicts->pluck('class');
-            if ($transfer->isNotEmpty() && ! ($payload['transfer_room'] ?? false)) {
-                throw ValidationException::withMessages([
-                    'room_transfer' => collect(["{$room->name} đang được gán cho lớp {$transfer->pluck('name')->implode(', ')} (chưa bắt đầu học). Chuyển phòng sang lớp này?"])
-                        ->merge($conflicts->map(fn (array $c) => "{$c['class']->name} — dự kiến {$c['slot']}: sẽ bị hủy gán phòng"))
-                        ->implode("\n"),
-                ]);
-            }
-        }
+        $transfer = $room ? $rooms->guardRoomTransfer($room, $slots, $class->id, $request->boolean('transfer_room')) : collect();
 
         // Lớp chưa xếp lịch được kích hoạt khi có TKB; lớp "sắp khai giảng" chỉ kích hoạt khi người dùng
         // chọn rõ; lớp đã kết thúc/đã hủy giữ nguyên trạng thái.
