@@ -309,6 +309,11 @@
                     "description": "Sửa lớp, lịch, đặt lịch học thử, dashboard đào tạo."
                 },
                 {
+                    "key": "edit",
+                    "label": "Sửa thông tin lớp",
+                    "description": "Sửa thông tin lớp, đổi GV / GVNN, bật tắt trạng thái lớp. Chỉ Học vụ + Admin (TK-2026-0148); Học thuật chỉ xem lớp."
+                },
+                {
                     "key": "delete",
                     "label": "Xóa lớp",
                     "description": "Xóa / hủy lớp."
@@ -1892,7 +1897,8 @@
                 "lead.view",
                 "student.view",
                 "student.manage_account",
-                "class.*",
+                "class.view",
+                "class.update",
                 "class.teach",
                 "attendance_student.*",
                 "level.*",

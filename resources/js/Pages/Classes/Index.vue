@@ -151,7 +151,7 @@ const seatNote = (seat) => {
                         <th>Lịch học</th>
                         <th>{{ filters.mine ? 'Vai trò của bạn' : 'Giáo viên' }}</th>
                         <th>Sĩ số</th>
-                        <th v-if="can('class.update')" class="w-12"><span class="sr-only">Thao tác</span></th>
+                        <th v-if="can('class.edit')" class="w-12"><span class="sr-only">Thao tác</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -186,7 +186,7 @@ const seatNote = (seat) => {
                             <span class="font-bold">{{ c.seat.occupied }}</span><span class="text-on-surface-subtle">/{{ c.seat.capacity || '∞' }}</span>
                             <div :class="['text-xs font-semibold', seatTone(c.seat)]" :title="c.seat.needed > 0 ? `Ngưỡng khai giảng ${c.seat.min} học viên` : null">{{ seatNote(c.seat) }}</div>
                         </td>
-                        <td v-if="can('class.update')" class="text-right">
+                        <td v-if="can('class.edit')" class="text-right">
                             <UiDropdown align="right" width="48">
                                 <template #trigger><UiButton variant="ghost" size="sm" icon="more_vert" :aria-label="`Thao tác lớp ${c.code}`" /></template>
                                 <template #content>

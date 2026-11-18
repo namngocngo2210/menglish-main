@@ -15,6 +15,7 @@ defineOptions({ layout: (props) => ({ title: props.view === 'report' ? 'Báo cá
 const props = defineProps({
     view: { type: String, default: 'config' },
     canSchedule: { type: Boolean, default: false },
+    canHrDemand: { type: Boolean, default: false },
     rooms: { type: Array, default: () => [] },
     newClasses: { type: Array, default: () => [] },
     scheduledClasses: { type: Array, default: () => [] },
@@ -96,7 +97,8 @@ function confirmTransfer() {
 }
 const conflictTitle = computed(() => (conflictError.value && (conflictError.value.includes('Xung đột') || conflictError.value.includes('trùng')) ? 'Cảnh báo xung đột lịch' : 'Không lưu được lịch lớp'));
 
-const canToggle = (c) => ['active', 'completed'].includes(c.status) && can('class.update');
+const canToggle = (c) => ['active', 'completed'].includes(c.status) && can('class.edit');
+const canEditSchedule = computed(() => props.canSchedule && can('class.edit'));
 const editable = (c) => !['cancelled', 'completed'].includes(c.status);
 const toggleConfirm = (c) =>
     c.status === 'active'
@@ -135,7 +137,7 @@ function searchClasses(event) {
                     <h2 class="font-h3 text-h3 text-on-surface">Cấu hình lịch lớp</h2>
                 </div>
 
-                <UiForm v-if="canSchedule" ref="scheduleForm" :action="route('tasks.schedule-config.update')" method="post" class="space-y-md">
+                <UiForm v-if="canEditSchedule" ref="scheduleForm" :action="route('tasks.schedule-config.update')" method="post" class="space-y-md">
                     <input type="hidden" name="transfer_room" :value="transferRoom" />
                     <UiSelect
                         id="tkb_class_id"
@@ -205,7 +207,7 @@ function searchClasses(event) {
                     <li v-for="c in offScheduleClasses" :key="c.class_id" class="flex flex-wrap items-center gap-x-sm gap-y-xs">
                         <span class="font-semibold">{{ c.class_name }}</span>
                         <span class="font-code text-caption">{{ c.class_code }} · {{ c.slots.join(', ') }} ({{ c.sessions }} buổi)</span>
-                        <UiButton v-if="canSchedule" size="sm" variant="ghost" icon="edit_calendar" :href="route('tasks.schedule-config', { class_id: c.class_id })">Sửa lịch</UiButton>
+                        <UiButton v-if="canEditSchedule" size="sm" variant="ghost" icon="edit_calendar" :href="route('tasks.schedule-config', { class_id: c.class_id })">Sửa lịch</UiButton>
                     </li>
                 </ul>
             </UiAlert>
@@ -283,7 +285,7 @@ function searchClasses(event) {
                                     <UiBadge v-else>Đã kết thúc</UiBadge>
                                 </td>
                                 <td class="whitespace-nowrap text-right">
-                                    <UiButton v-if="canSchedule && editable(c)" size="sm" variant="ghost" icon="edit_calendar" :href="route('tasks.schedule-config', { class_id: c.id })">{{ c.has_config ? 'Sửa lịch' : 'Xếp lịch' }}</UiButton>
+                                    <UiButton v-if="canEditSchedule && editable(c)" size="sm" variant="ghost" icon="edit_calendar" :href="route('tasks.schedule-config', { class_id: c.id })">{{ c.has_config ? 'Sửa lịch' : 'Xếp lịch' }}</UiButton>
                                     <!-- Kết thúc / mở lại lớp là thao tác hiếm: để trong menu "⋯" và hỏi xác nhận. -->
                                     <div v-if="canToggle(c)" class="inline-block text-left">
                                         <UiDropdown align="right" width="48">
@@ -376,7 +378,7 @@ function searchClasses(event) {
                                                 :value="row.staff_needed"
                                                 min="0"
                                                 max="50"
-                                                :disabled="!canSchedule"
+                                                :disabled="!canHrDemand"
                                                 :aria-label="`Nhân sự cần ${row.day}`"
                                                 :class="['w-16 rounded-lg border px-xs py-xs text-center font-code', row.saved ? 'border-outline-variant' : 'border-dashed border-outline-variant text-on-surface-variant']"
                                             />
@@ -388,7 +390,7 @@ function searchClasses(event) {
                         </table>
                     </UiDataTable>
                     <p class="font-caption text-caption text-on-surface-variant">Số ca, phòng và TA tính từ buổi học thực tế của chi nhánh. Ô viền nét đứt là gợi ý (chưa lưu).</p>
-                    <UiButton v-if="canSchedule" type="submit" variant="secondary" icon="save" class="w-full">Lưu báo cáo nhân sự</UiButton>
+                    <UiButton v-if="canHrDemand" type="submit" variant="secondary" icon="save" class="w-full">Lưu báo cáo nhân sự</UiButton>
                 </UiForm>
             </div>
         </section>

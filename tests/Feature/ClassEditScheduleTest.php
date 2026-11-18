@@ -209,7 +209,7 @@ class ClassEditScheduleTest extends TestCase
     {
         $this->configure('Thứ 3');
         $user = User::factory()->create(['is_active' => true, 'branch_id' => $this->branch->id]);
-        $user->givePermissionTo(['class.view', 'class.update', 'class.scope_all']);
+        $user->givePermissionTo(['class.view', 'class.update', 'class.edit', 'class.scope_all']);
 
         $this->actingAs($user)->get(route('classes.edit', $this->classModel->id))->assertOk()
             ->assertSee('Thứ 3 18:00–19:30')->assertDontSee('name="slot1_day"', false)

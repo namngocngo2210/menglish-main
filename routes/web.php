@@ -357,9 +357,9 @@ Route::middleware('auth')->group(function () {
         Route::redirect('/checklist', '/class-quality/checklist')->name('checklist');
         Route::redirect('/evaluate-observation', '/class-quality/academic')->name('evaluate-observation');
         Route::get('/', [ClassManagementController::class, 'index'])->name('index');
-        Route::get('/{id}/edit', [ClassManagementController::class, 'edit'])->name('edit');
-        Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.update')->name('update');
-        Route::post('/{id}/foreign-teacher', [ClassManagementController::class, 'assignForeignTeacher'])->whereNumber('id')->middleware('can:class.update')->name('foreign-teacher');
+        Route::get('/{id}/edit', [ClassManagementController::class, 'edit'])->middleware('can:class.edit')->name('edit');
+        Route::put('/{id}', [ClassManagementController::class, 'update'])->middleware('can:class.edit')->name('update');
+        Route::post('/{id}/foreign-teacher', [ClassManagementController::class, 'assignForeignTeacher'])->whereNumber('id')->middleware('can:class.edit')->name('foreign-teacher');
         Route::delete('/{id}', [ClassManagementController::class, 'destroy'])->middleware('can:class.delete')->name('destroy');
         // Syllabus của lớp: Học thuật chỉnh sửa thủ công từng buổi (bản đè, docs/kho-syllabus.md §7.3).
         Route::put('/{class}/syllabus/lessons/{lesson}', [SyllabusClassController::class, 'override'])->whereNumber(['class', 'lesson'])->middleware('can:syllabus.class_edit')->name('syllabus.override');
@@ -839,7 +839,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/class-reports/{id}/approve', [WorkTaskController::class, 'approveClassReport'])->name('class-reports.approve');
         Route::post('/class-reports/{id}/reject', [WorkTaskController::class, 'rejectClassReport'])->name('class-reports.reject');
         Route::get('/schedule-config', [WorkTaskController::class, 'scheduleConfig'])->name('schedule-config');
-        Route::post('/schedule-config', [WorkTaskController::class, 'updateScheduleConfig'])->middleware('can:work_task.assign')->name('schedule-config.update');
+        Route::post('/schedule-config', [WorkTaskController::class, 'updateScheduleConfig'])->middleware(['can:work_task.assign', 'can:class.edit'])->name('schedule-config.update');
         Route::get('/support-sessions', [WorkTaskController::class, 'supportSessions'])->name('support-sessions');
         Route::post('/support-sessions', [WorkTaskController::class, 'storeSupportSession'])->middleware('can:work_task.assign')->name('support-sessions.store');
         Route::post('/support-sessions/{id}/complete', [WorkTaskController::class, 'completeSupportSession'])->name('support-sessions.complete');
