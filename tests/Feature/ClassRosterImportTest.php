@@ -12,18 +12,21 @@ use App\Models\Room;
 use App\Models\Student;
 use App\Models\StudentTuition;
 use App\Models\User;
+use App\Services\ClassRosterImportService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
- * Nhập danh sách lớp học viên từ hệ thống cũ: tạo lớp + lịch + buổi học, tạo học viên (giữ mã cũ), xếp lớp;
- * xem trước báo lỗi / cảnh báo từng dòng; chạy lại không nhân đôi.
+ * Nhập danh sách lớp học viên từ hệ thống cũ: tạo lớp + lịch + buổi học, khớp học viên có sẵn theo họ tên + ngày sinh
+ * (không tạo / sửa hồ sơ), xếp lớp; xem trước báo lỗi / cảnh báo từng dòng; chạy lại không nhân đôi.
  */
 class ClassRosterImportTest extends TestCase
 {
@@ -48,6 +51,20 @@ class ClassRosterImportTest extends TestCase
         $this->admin->assignRole('admin');
         $this->teacher = User::factory()->create(['name' => 'Nguyễn Thanh Mai', 'branch_id' => $this->branch->id, 'is_active' => true]);
         $this->teacher->assignRole('teacher_fulltime');
+    }
+
+    private function makeStudent(string $name, string $dob, array $extra = []): Student
+    {
+        return Student::create($extra + ['code' => 'HS-'.Str::upper(Str::random(8)), 'name' => $name, 'dob' => $dob, 'phone' => '0911000000',
+            'branch_id' => $this->branch->id, 'status' => 'studying']);
+    }
+
+    private function seedRosterStudents(): void
+    {
+        $this->makeStudent('Trịnh Đức Quang', '2018-10-06', ['phone' => '0385294492']);
+        $this->makeStudent('Nguyễn Minh Châu', '2017-05-07');
+        $this->makeStudent('Không Có Số', '2016-02-01', ['phone' => '']);
+        $this->makeStudent('Học Viên 5M2', '2015-04-03');
     }
 
     /** @param  array<string, list<list<mixed>>>  $sheets  tên sheet => các dòng (dòng đầu là tiêu đề) */
@@ -76,13 +93,13 @@ class ClassRosterImportTest extends TestCase
                 ['Hoàng Hoa Thám', 'KINDY07', 'KINDY07', 'Trà', 'Thứ 2', '18:00', '19:30', 'P201', 'Thứ 6', '18:00', '19:30', 'P302', ''],
             ],
             'Học viên' => [
-                ['Cơ sở', 'Mã lớp', 'Mã học viên', 'Họ tên', 'SĐT học viên', 'Ngày sinh', 'Giới tính', 'CCCD', 'Trường', 'Phụ huynh', 'SĐT phụ huynh', 'Email phụ huynh', 'Địa chỉ', 'Ngày nhập học', 'Số buổi', 'Đã học', 'Ghi chú'],
-                ['Đội Cấn', 'CAM37', 'HS001521', 'Trịnh Đức Quang', '385294492', '06/10/2018', 'Nam', '1192008455', 'TH Ba Đình', 'Nguyễn Kim Ngân', '0385294492', 'ngan@example.com', 'Hoàng Hoa Thám', '19/06/2026', '43', '33', ''],
-                ['Đội Cấn', 'CAM37', 'HS002425', 'Nguyễn Minh Châu', '0944251948', '07/05/2017', 'Nữ', '', 'TH Ngọc Hà', 'Trần Thị Mỹ Hạnh / Nguyễn Minh Quang', '0982369386 (bố) / 0944251948 (mẹ)', '', '', '24/06/2025', '0', '38', 'Chuyển từ lớp khác'],
-                ['Đội Cấn', '5M2', 'HS003000', 'Không Có Số', '', '', '', '', '', 'Phụ huynh', '', '', '', '01/09/2026', '24', '6', ''],
-                ['Đội Cấn', 'XYZ9', 'HS003001', 'Lớp Không Có', '0911000001', '', '', '', '', '', '', '', '', '', '', '', ''],
-                ['Đội Cấn', '5M2', 'HS003002', 'Học Viên 5M2', '0911000002', '', 'Nữ', '', '', '', '', '', '', '01/09/2026', '24', '6', ''],
-                ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Dòng chỉ có ghi chú chuyển lớp'],
+                ['Cơ sở', 'Mã lớp', 'Họ tên', 'Ngày sinh', 'Ngày nhập học'],
+                ['Đội Cấn', 'CAM37', 'Trịnh Đức Quang', '06/10/2018', '19/06/2026'],
+                ['Đội Cấn', 'CAM37', '  NGUYEN  minh chau ', '07/05/2017', '24/06/2025'],
+                ['Đội Cấn', '5M2', 'Không Có Số', '01/02/2016', '01/09/2026'],
+                ['Đội Cấn', 'XYZ9', 'Lớp Không Có', '01/02/2016', ''],
+                ['Đội Cấn', '5M2', 'Học Viên 5M2', '03/04/2015', '01/09/2026'],
+                ['', '', '', '', 'Dòng chỉ có ghi chú chuyển lớp'],
             ],
         ]);
     }
@@ -105,6 +122,7 @@ class ClassRosterImportTest extends TestCase
     {
         // Trợ giảng trùng đuôi tên với giáo viên: lớp vẫn gán đúng giáo viên.
         User::factory()->create(['name' => 'Hoàng Thanh Mai', 'branch_id' => $this->branch->id, 'is_active' => true])->assignRole('assistant');
+        $this->seedRosterStudents();
         $p201 = $this->makeRoom($this->branch->id, 'p201'); // phòng đã có (khác hoa thường) → dùng lại; P401 chưa có → tạo
         $token = $this->previewToken($this->normalizedFile());
 
@@ -117,8 +135,10 @@ class ClassRosterImportTest extends TestCase
                 ->where('preview.classes.0.student_count', 2)
                 ->where('preview.classes.2.errors.0', 'Chưa có cơ sở "Hoàng Hoa Thám" trong hệ thống — tạo cơ sở trước khi nhập.')
                 ->where('preview.students.2.errors', [])
-                ->where('preview.students.2.warnings.0', 'Không có SĐT (cả học viên lẫn phụ huynh): vẫn nhập, bổ sung SĐT trên hồ sơ sau.')
+                ->where('preview.students.0.action', 'enroll')
+                ->where('preview.students.1.name', 'Nguyễn Minh Châu') // khớp không phân biệt hoa thường / dấu / khoảng trắng
                 ->where('preview.students.3.errors.0', 'Không có lớp XYZ9: thêm lớp vào sheet Lớp hoặc tạo lớp trước.')
+                ->where('preview.students.3.errors.1', 'Không tìm thấy học sinh khớp trong hệ thống')
                 ->has('preview.students', 5)); // dòng chỉ có ghi chú bị bỏ
 
         $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token])->assertRedirect(route('classes.import', ['task' => BackgroundTask::query()->max('id')]));
@@ -146,27 +166,19 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame(0, ClassSession::where('class_id', $fiveM2->id)->count());
         $this->assertFalse(ClassModel::where('code', 'KINDY07')->exists());
 
-        $quang = Student::where('code', 'HS001521')->firstOrFail();
-        $this->assertSame('0385294492', $quang->phone);
-        $this->assertSame('001192008455', $quang->id_card_number);
-        $this->assertSame('ngan@example.com', $quang->parent_email);
-        $this->assertSame(43, $quang->total_lessons);
-        $this->assertSame(33, $quang->attended_lessons);
-        $this->assertSame('studying', $quang->status);
+        $quang = Student::where('name', 'Trịnh Đức Quang')->firstOrFail();
+        $this->assertSame('0385294492', $quang->phone); // hồ sơ không bị sửa
         $this->assertSame($cam->id, $quang->current_class_id);
-        $this->assertSame('2026-06-19', $quang->study_started_on->toDateString());
 
-        $chau = Student::where('code', 'HS002425')->firstOrFail();
-        $this->assertSame(['Trần Thị Mỹ Hạnh', '0982369386', 'Nguyễn Minh Quang', '0944251948'], [$chau->parent_name, $chau->parent_phone, $chau->parent2_name, $chau->parent2_phone]);
-        $this->assertSame(24, $chau->total_lessons); // Số buổi 0 → giữ mặc định
-
+        $chau = Student::where('name', 'Nguyễn Minh Châu')->firstOrFail();
         $enrollment = ClassEnrollment::where('student_id', $quang->id)->firstOrFail();
         $this->assertSame(['completed', '2026-06-19'], [$enrollment->status, $enrollment->enrolled_at->toDateString()]);
         $this->assertNotNull($enrollment->confirmed_at);
+        $this->assertSame($cam->id, $chau->current_class_id);
 
-        $this->assertSame('', Student::where('code', 'HS003000')->value('phone'));
-        $this->assertFalse(Student::where('code', 'HS003001')->exists());
-        $this->assertTrue(Student::where('code', 'HS003002')->where('current_class_id', $fiveM2->id)->exists());
+        $this->assertSame('', Student::where('name', 'Không Có Số')->value('phone'));
+        $this->assertTrue(Student::where('name', 'Học Viên 5M2')->where('current_class_id', $fiveM2->id)->exists());
+        $this->assertFalse(Student::where('name', 'Lớp Không Có')->exists());
 
         // Chạy lại cùng file: không tạo trùng lớp / học viên / lượt xếp lớp / phòng; lớp đã có mà chưa có phòng / giáo viên thì được gắn.
         $cam->update(['room_id' => null, 'teacher_id' => null]);
@@ -178,7 +190,7 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame(1, ClassModel::where('code', 'CAM37')->count());
         $this->assertSame(1, ClassScheduleConfig::where('class_id', $cam->id)->count());
         $this->assertSame($sessions->count(), ClassSession::where('class_id', $cam->id)->count());
-        $this->assertSame(4, Student::count());
+        $this->assertSame(4, Student::count()); // không tạo thêm học viên
         $this->assertSame(4, ClassEnrollment::count());
         $this->assertSame(2, Room::count());
         $this->assertSame($p201->id, $cam->fresh()->room_id);
@@ -191,8 +203,7 @@ class ClassRosterImportTest extends TestCase
     {
         $kindy8 = ClassModel::create(['code' => 'KINDY8', 'name' => 'Kindy 8', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
         $kindy10 = ClassModel::create(['code' => 'KINDY10', 'name' => 'Kindy 10', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
-        $minhAnh = Student::create(['code' => 'HS009001', 'name' => 'Nguyễn Minh Anh', 'phone' => '0911000009',
-            'branch_id' => $this->branch->id, 'current_class_id' => $kindy8->id, 'status' => 'studying']);
+        $minhAnh = $this->makeStudent('Nguyễn Minh Anh', '2018-03-09', ['current_class_id' => $kindy8->id]);
         ClassEnrollment::create(['student_id' => $minhAnh->id, 'class_id' => $kindy8->id, 'enrolled_at' => '2026-06-01', 'status' => 'completed']);
         $transferredOn = today()->subDays(2)->format('d/m/Y');
         ClassSession::create([
@@ -217,8 +228,8 @@ class ClassRosterImportTest extends TestCase
         $token = $this->previewToken($this->workbook([
             'Lớp' => [['Cơ sở', 'Mã lớp', 'Tên lớp'], ['Đội Cấn', 'KINDY10', 'Kindy 10']],
             'Học viên' => [
-                ['Cơ sở', 'Mã lớp', 'Mã học viên', 'Họ tên', 'Ngày nhập học'],
-                ['Đội Cấn', 'KINDY10', 'HS009001', 'Nguyễn Minh Anh', $transferredOn],
+                ['Cơ sở', 'Mã lớp', 'Họ tên', 'Ngày sinh', 'Ngày nhập học'],
+                ['Đội Cấn', 'KINDY10', 'Nguyễn Minh Anh', '09/03/2018', $transferredOn],
             ],
         ]));
         $row = session()->get('class_roster_import.'.$token)['students'][0];
@@ -241,6 +252,8 @@ class ClassRosterImportTest extends TestCase
     public function test_accepts_original_export_sheets_with_default_branch(): void
     {
         // Bảng "DS lớp - lịch" gốc (dòng tên bảng, ô LỊCH HỌC nhiều dòng) + file xuất gốc một lớp.
+        $this->makeStudent('Quách Cẩm Đan', '2021-06-03');
+        $this->makeStudent('Lê Huyền An', '2020-01-02');
         $file = $this->workbook([
             'Trang tính1' => [
                 ['DANH SÁCH LỚP – ĐỘI CẤN'],
@@ -251,7 +264,7 @@ class ClassRosterImportTest extends TestCase
             'Học viên' => [
                 ['Mã học viên', 'Họ tên', 'Điện thoại', 'Lớp', 'Ngày nhập học', 'Số buổi', 'Đã học', 'Còn lại', 'Ngày sinh', 'Giới tính', 'Email', 'Facebook', 'CCCD', 'Trường', 'Phụ huynh', 'Điện thoại PH', 'Email PH', 'Facebook PH', 'Địa chỉ', 'Ghi chú'],
                 ['HS002495', 'Quách Cẩm Đan', '0963775999', 'KINDY8-THỨ 2 6 19H30-21H', '11/08/2025', '120', '111', '9', '03/06/2021', 'Nữ', '', '', '', 'Mầm non số 6', 'Hoàng Thúy Hằng', '0963775999', '', 'https://facebook.com/x', '', ''],
-                ['HS000001', 'Lê Huyền An', '0911222333', '4m3-CAM6 (KID6)T2T5: 18-19h30 NEW 26.5.', '26/05/2026', '0', '38', '-38', '', 'Nữ', '', '', '', '', '', '', '', '', '', ''],
+                ['HS000001', 'Lê Huyền An', '0911222333', '4m3-CAM6 (KID6)T2T5: 18-19h30 NEW 26.5.', '26/05/2026', '0', '38', '-38', '02/01/2020', 'Nữ', '', '', '', '', '', '', '', '', '', ''],
             ],
         ]);
 
@@ -262,16 +275,93 @@ class ClassRosterImportTest extends TestCase
                 ->where('preview.classes.0.schedule.0', 'Thứ 2 19:30–21:00 · P202')
                 ->where('preview.classes.1.code', '4M3')
                 ->where('preview.students.0.class_code', 'KINDY08')
-                ->where('preview.students.1.warnings.0', 'Đã học 38 buổi, nhiều hơn số buổi đã đóng (0): kiểm tra học phí.'));
+                ->where('preview.students.1.errors', []));
 
         $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token]);
 
         $kindy = ClassModel::where('code', 'KINDY08')->firstOrFail();
         $this->assertSame($this->branch->id, $kindy->branch_id);
-        $dan = Student::where('code', 'HS002495')->firstOrFail();
+        $dan = Student::where('name', 'Quách Cẩm Đan')->firstOrFail();
         $this->assertSame($kindy->id, $dan->current_class_id);
-        $this->assertSame('https://facebook.com/x', $dan->parent_facebook);
         $this->assertSame('Chủ nhật', ClassScheduleConfig::where('class_id', ClassModel::where('code', '4M3')->value('id'))->value('slot2_day'));
+    }
+
+    /** TK-2026-0150: 0 khớp → lỗi dòng, không ghi gì; không tạo học viên. */
+    public function test_row_without_matching_student_is_hard_error_and_creates_nothing(): void
+    {
+        $this->makeStudent('Trần Văn An', '2015-01-01');
+        $kindy = ClassModel::create(['code' => 'KINDY1', 'name' => 'Kindy 1', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
+
+        $token = $this->previewToken($this->workbook(['Học viên' => [
+            ['Cơ sở', 'Mã lớp', 'Họ tên', 'Ngày sinh'],
+            ['Đội Cấn', 'KINDY1', 'Trần Văn An', '02/01/2015'], // sai ngày sinh
+            ['Đội Cấn', 'KINDY1', 'Trần Văn Bình', '01/01/2015'], // sai tên
+            ['Đội Cấn', 'KINDY1', 'Trần Văn An', ''], // thiếu ngày sinh
+        ]]));
+        $rows = session()->get('class_roster_import.'.$token)['students'];
+        $this->assertSame(['Không tìm thấy học sinh khớp trong hệ thống'], $rows[0]['errors']);
+        $this->assertSame(['Không tìm thấy học sinh khớp trong hệ thống'], $rows[1]['errors']);
+        $this->assertSame(['Thiếu ngày sinh hoặc ngày sinh không đọc được.'], $rows[2]['errors']);
+
+        $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token]);
+
+        $this->assertSame(1, Student::count());
+        $this->assertSame(0, ClassEnrollment::count());
+        $this->assertNull(Student::first()->current_class_id);
+    }
+
+    /** TK-2026-0150: ≥2 khớp → lỗi dòng, không ghi gì. */
+    public function test_row_matching_several_students_is_hard_error_and_writes_nothing(): void
+    {
+        $this->makeStudent('Lê Hoa', '2016-05-05');
+        $this->makeStudent('LE HOA', '2016-05-05');
+        $kindy = ClassModel::create(['code' => 'KINDY1', 'name' => 'Kindy 1', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
+
+        $token = $this->previewToken($this->workbook(['Học viên' => [
+            ['Cơ sở', 'Mã lớp', 'Họ tên', 'Ngày sinh'],
+            ['Đội Cấn', 'KINDY1', 'Lê Hoa', '05/05/2016'],
+        ]]));
+        $this->assertSame(['Nhiều học sinh khớp cùng lúc — cần xử lý thủ công'], session()->get('class_roster_import.'.$token)['students'][0]['errors']);
+
+        $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token]);
+
+        $this->assertSame(2, Student::count());
+        $this->assertSame(0, ClassEnrollment::count());
+        $this->assertSame(0, Student::whereNotNull('current_class_id')->count());
+    }
+
+    /** TK-2026-0150: file cũ còn cột "Mã học viên" bị bỏ qua; khớp theo tên + ngày sinh, hồ sơ giữ nguyên. */
+    public function test_matched_student_is_only_enrolled_profile_untouched_and_code_column_ignored(): void
+    {
+        $student = $this->makeStudent('Phạm Gia Bảo', '2014-09-09', ['phone' => '0911222333', 'email' => 'bao@example.com', 'school' => 'TH A']);
+        $kindy = ClassModel::create(['code' => 'KINDY1', 'name' => 'Kindy 1', 'branch_id' => $this->branch->id, 'status' => 'active', 'max_capacity' => 0]);
+        $before = $student->fresh()->getAttributes();
+
+        $token = $this->previewToken($this->workbook(['Học viên' => [
+            ['Cơ sở', 'Mã lớp', 'Mã học viên', 'Họ tên', 'SĐT học viên', 'Ngày sinh', 'Email', 'Trường'],
+            ['Đội Cấn', 'KINDY1', 'HS999999', 'pham gia bao', '0999999999', '09/09/2014', 'khac@example.com', 'TH B'],
+        ]]));
+        $this->actingAs($this->admin)->get(route('classes.import', ['token' => $token]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('preview.students.0.action', 'enroll')->where('preview.students.0.errors', []));
+
+        $this->actingAs($this->admin)->post(route('classes.import.confirm'), ['token' => $token]);
+
+        $this->assertSame([], $this->importReport()['failed']);
+        $this->assertSame(1, Student::count()); // không tạo mới
+        $this->assertSame($kindy->id, $student->fresh()->current_class_id);
+        $this->assertSame(1, ClassEnrollment::where('student_id', $student->id)->where('class_id', $kindy->id)->count());
+        $fresh = $student->fresh()->getAttributes();
+        unset($before['current_class_id'], $fresh['current_class_id']);
+        foreach (['updated_at'] as $k) {
+            unset($before[$k], $fresh[$k]);
+        }
+        $this->assertSame($before, $fresh); // không sửa hồ sơ
+    }
+
+    public function test_template_has_no_student_code_column(): void
+    {
+        $this->assertNotContains('Mã học viên', ClassRosterImportService::STUDENT_HEADINGS);
+        $this->assertContains('Ngày sinh', ClassRosterImportService::STUDENT_HEADINGS);
     }
 
     /** TK-2026-0147: chỉ Admin nhập danh sách lớp; 403 trước validation, kể cả khi vai trò/override được cấp quyền. */
@@ -279,7 +369,7 @@ class ClassRosterImportTest extends TestCase
     {
         $this->actingAs($this->admin)->get(route('classes.import'))->assertOk();
 
-        foreach (array_diff(\App\Support\Roles::ALL, [\App\Support\Roles::ADMIN]) as $role) {
+        foreach (array_diff(Roles::ALL, [Roles::ADMIN]) as $role) {
             $user = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
             $user->assignRole($role);
             // Dù được cấp thẳng các quyền liên quan, vẫn bị chặn.

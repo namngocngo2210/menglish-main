@@ -53,7 +53,7 @@ class ClassRosterImportController extends Controller
                 'students' => collect($preview['students'])->map(fn (array $s) => [
                     'line' => $s['line'],
                     'action' => $s['action'],
-                    'code' => $s['code'],
+                    'dob' => $s['dob'],
                     'name' => $s['name'],
                     'class_code' => $s['class_code'],
                     'phone' => $s['phone'],

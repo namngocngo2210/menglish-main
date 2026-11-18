@@ -9,7 +9,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-/** File mẫu nhập danh sách lớp: sheet "Lớp" + sheet "Học viên", mỗi sheet một dòng ví dụ. */
+/** File mẫu nhập danh sách lớp: sheet "Lớp" + sheet "Học viên", mỗi sheet một dòng ví dụ (học viên khớp theo họ tên + ngày sinh). */
 class ClassRosterTemplateExport implements WithMultipleSheets
 {
     public function sheets(): array
@@ -39,8 +39,7 @@ class ClassRosterTemplateExport implements WithMultipleSheets
                 'Đội Cấn', 'CAM37', 'CAM37', 'Thanh Mai', 'Thứ 3', '19:30', '21:00', 'P201', 'Thứ 6', '19:30', '21:00', 'P401', '', '', '', '',
             ]),
             $sheet('Học viên', array_values(ClassRosterImportService::STUDENT_HEADINGS), [
-                'Đội Cấn', 'CAM37', 'HS001521', 'Trịnh Đức Quang', '0385294492', '06/10/2018', 'Nam', '', '', '001192008455', 'TH Ba Đình',
-                'Nguyễn Kim Ngân', '0385294492', '', '', '', '', 'Hoàng Hoa Thám, Ngọc Hà, Hà Nội', '19/06/2026', 43, 33, '',
+                'Đội Cấn', 'CAM37', 'Trịnh Đức Quang', '06/10/2018', '19/06/2026',
             ]),
         ];
     }

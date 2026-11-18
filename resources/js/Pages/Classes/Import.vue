@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Nhập danh sách lớp học viên từ hệ thống cũ — 3 bước: Tải file → Xem trước (lớp + học viên) → Kết quả.
- * File gồm sheet "Lớp" (tạo lớp, lịch học, sinh buổi học) và sheet "Học viên" (tạo hồ sơ, xếp lớp).
+ * File gồm sheet "Lớp" (tạo lớp, lịch học, sinh buổi học) và sheet "Học viên" (khớp hồ sơ, xếp lớp).
  */
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
@@ -29,7 +29,7 @@ const steps = [
     [2, 'Xem trước'],
     [3, 'Kết quả'],
 ];
-const actionLabels = { create: ['Tạo mới', 'info'], enroll: ['Xếp lớp', 'primary'], skip: ['Đã có', 'neutral'] };
+const actionLabels = { enroll: ['Xếp lớp', 'primary'], skip: ['Đã có', 'neutral'] };
 
 const newClasses = computed(() => (props.preview ? props.preview.classes.filter((c) => !c.errors.length && !c.exists).length : 0));
 const classErrors = computed(() => (props.preview ? props.preview.classes.filter((c) => c.errors.length).length : 0));
@@ -57,7 +57,7 @@ function submit(event) {
 
 <template>
     <div>
-        <UiPageHeader title="Nhập danh sách lớp" icon="upload_file" description="Tạo lớp (giáo viên, phòng, lịch học, buổi học) và hồ sơ học viên từ danh sách lớp của hệ thống cũ. Chạy lại không tạo trùng.">
+        <UiPageHeader title="Nhập danh sách lớp" icon="upload_file" description="Tạo lớp (giáo viên, phòng, lịch học, buổi học) và xếp học viên (đã có hồ sơ) vào lớp từ danh sách lớp của hệ thống cũ. Chạy lại không tạo trùng.">
             <template #actions>
                 <UiButton variant="secondary" icon="download" :href="route('classes.import.template')" native>Tải file mẫu (.xlsx)</UiButton>
             </template>
@@ -108,7 +108,7 @@ function submit(event) {
                     <ul class="list-disc space-y-0.5 pl-md">
                         <li><b>Lớp</b> (tùy chọn nếu lớp đã có): {{ classHeadings }}.</li>
                         <li><b>Học viên</b>: {{ studentHeadings }}.</li>
-                        <li>Lớp đã có (trùng mã) giữ nguyên; học viên đã có (trùng mã) chỉ được xếp thêm vào lớp, không sửa hồ sơ.</li>
+                        <li>Lớp đã có (trùng mã) giữ nguyên; học viên được khớp theo họ tên + ngày sinh với hồ sơ đã có, chỉ xếp vào lớp (không tạo mới, không sửa hồ sơ); không khớp hoặc khớp nhiều hồ sơ thì dòng bị lỗi.</li>
                         <li>Nhận cả file xuất gốc từng lớp của hệ thống cũ (cột "Lớp", "Điện thoại PH" ghi nhiều số).</li>
                     </ul>
                 </UiAlert>
@@ -203,7 +203,7 @@ function submit(event) {
                                 <td class="font-code">{{ s.line }}</td>
                                 <td>
                                     <div class="font-body-medium">{{ s.name || '—' }}</div>
-                                    <div class="font-caption text-caption text-on-surface-variant">{{ s.code ?? 'Mã mới' }}</div>
+                                    <div class="font-caption text-caption text-on-surface-variant">{{ s.dob ?? '' }}</div>
                                     <UiBadge v-if="!s.errors.length" :color="actionLabels[s.action][1]">{{ actionLabels[s.action][0] }}</UiBadge>
                                 </td>
                                 <td>{{ s.class_code }}</td>
@@ -239,11 +239,10 @@ function submit(event) {
             <!-- Bước 3: kết quả -->
             <div v-else class="space-y-md rounded-xl border border-outline-variant bg-surface-container-lowest p-lg">
                 <h2 class="font-h3 text-h3">Kết quả nhập file {{ result.file_name }}</h2>
-                <div class="grid grid-cols-2 gap-md lg:grid-cols-6">
+                <div class="grid grid-cols-2 gap-md lg:grid-cols-5">
                     <UiStatCard label="Lớp tạo mới" :value="result.classes" tone="success" />
                     <UiStatCard label="Buổi học đã sinh" :value="result.sessions" tone="primary" />
                     <UiStatCard label="Phòng học tạo mới" :value="result.rooms ?? 0" tone="primary" />
-                    <UiStatCard label="Học viên tạo mới" :value="result.students" tone="success" />
                     <UiStatCard label="Lượt xếp lớp" :value="result.enrollments" tone="primary" />
                     <UiStatCard label="Dòng bỏ qua" :value="result.skipped" tone="warning" />
                 </div>
