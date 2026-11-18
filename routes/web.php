@@ -301,15 +301,23 @@ Route::middleware('auth')->group(function () {
     // ─────────────────────────────────────────────
     // 2.1. Tài chính & Báo cáo Thu Chi (Epic 13)
     // ─────────────────────────────────────────────
-    Route::prefix('finance')->name('finance.')->middleware('can:finance.view')->group(function () {
-        Route::get('/expenses', [FinanceController::class, 'expenses'])->name('expenses.index');
-        Route::post('/expenses', [FinanceController::class, 'storeExpense'])->middleware('can:tuition.create')->name('expenses.store');
-        Route::put('/expenses/{id}', [FinanceController::class, 'updateExpense'])->middleware('can:tuition.create')->name('expenses.update');
-        Route::delete('/expenses/{id}', [FinanceController::class, 'destroyExpense'])->middleware('can:tuition.create')->name('expenses.destroy');
-        Route::get('/expenses/export', [FinanceController::class, 'exportExpenses'])->name('expenses.export');
+    Route::prefix('finance')->name('finance.')->group(function () {
+        // Sổ khoản chi vận hành (finance.view = xem; finance.manage = thêm / sửa / xóa) và báo cáo doanh thu tạm tính
+        // (finance.view_revenue_report) là hai quyền độc lập (TK-2026-0153).
+        Route::middleware('can:finance.view')->group(function () {
+            Route::get('/expenses', [FinanceController::class, 'expenses'])->name('expenses.index');
+            Route::get('/expenses/export', [FinanceController::class, 'exportExpenses'])->name('expenses.export');
+        });
+        Route::middleware('can:finance.manage')->group(function () {
+            Route::post('/expenses', [FinanceController::class, 'storeExpense'])->name('expenses.store');
+            Route::put('/expenses/{id}', [FinanceController::class, 'updateExpense'])->name('expenses.update');
+            Route::delete('/expenses/{id}', [FinanceController::class, 'destroyExpense'])->name('expenses.destroy');
+        });
 
-        Route::get('/reports/provisional-revenue', [FinanceController::class, 'provisionalRevenue'])->name('reports.revenue');
-        Route::get('/reports/provisional-revenue/export', [FinanceController::class, 'exportRevenueReport'])->name('reports.revenue.export');
+        Route::middleware('can:finance.view_revenue_report')->group(function () {
+            Route::get('/reports/provisional-revenue', [FinanceController::class, 'provisionalRevenue'])->name('reports.revenue');
+            Route::get('/reports/provisional-revenue/export', [FinanceController::class, 'exportRevenueReport'])->name('reports.revenue.export');
+        });
     });
 
     // ─────────────────────────────────────────────

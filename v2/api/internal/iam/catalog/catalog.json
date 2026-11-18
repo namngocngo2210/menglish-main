@@ -892,14 +892,24 @@
         },
         {
             "key": "finance",
-            "label": "Báo cáo thu chi & sổ khoản chi",
+            "label": "Sổ khoản chi & báo cáo doanh thu",
             "group": "finance",
             "icon": "query_stats",
             "actions": [
                 {
                     "key": "view",
-                    "label": "Xem báo cáo thu chi",
-                    "description": "Xem doanh thu tạm tính, sổ khoản chi vận hành, xuất Excel."
+                    "label": "Xem sổ khoản chi vận hành",
+                    "description": "Xem và xuất Excel sổ khoản chi vận hành (chỉ xem, không thêm / sửa / xóa)."
+                },
+                {
+                    "key": "manage",
+                    "label": "Quản lý khoản chi vận hành",
+                    "description": "Thêm / sửa / xóa khoản chi vận hành (cần kèm quyền xem sổ khoản chi)."
+                },
+                {
+                    "key": "view_revenue_report",
+                    "label": "Xem báo cáo doanh thu tạm tính",
+                    "description": "Xem và xuất Excel báo cáo doanh thu tạm tính — độc lập với quyền xem sổ khoản chi. Dòng “Chi lương” chỉ hiện cho người có quyền xem bảng lương (mặc định Admin)."
                 }
             ],
             "audience": [],
@@ -1815,6 +1825,8 @@
                 "media.*",
                 "activity_log.view",
                 "finance.view",
+                "finance.manage",
+                "finance.view_revenue_report",
                 "promotion.manage",
                 "staff_report.submit",
                 "staff_report.view_all",
@@ -1868,6 +1880,8 @@
                 "refund_transfer.approve_transfer",
                 "refund_transfer.reject",
                 "finance.view",
+                "finance.manage",
+                "finance.view_revenue_report",
                 "work_task.view",
                 "support_ticket.create",
                 "support_ticket.view",

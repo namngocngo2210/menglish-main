@@ -388,11 +388,13 @@ return [
             ],
         ],
         'finance' => [
-            'label' => 'Báo cáo thu chi & sổ khoản chi',
+            'label' => 'Sổ khoản chi & báo cáo doanh thu',
             'group' => 'finance',
             'icon' => 'query_stats',
             'actions' => [
-                'view' => ['Xem báo cáo thu chi', 'Xem doanh thu tạm tính, sổ khoản chi vận hành, xuất Excel.'],
+                'view' => ['Xem sổ khoản chi vận hành', 'Xem và xuất Excel sổ khoản chi vận hành (chỉ xem, không thêm / sửa / xóa).'],
+                'manage' => ['Quản lý khoản chi vận hành', 'Thêm / sửa / xóa khoản chi vận hành (cần kèm quyền xem sổ khoản chi).'],
+                'view_revenue_report' => ['Xem báo cáo doanh thu tạm tính', 'Xem và xuất Excel báo cáo doanh thu tạm tính — độc lập với quyền xem sổ khoản chi. Dòng “Chi lương” chỉ hiện cho người có quyền xem bảng lương (mặc định Admin).'],
             ],
             'scope' => [
                 'levels' => ['branch', 'all'],

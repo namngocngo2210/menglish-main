@@ -30,6 +30,7 @@ const props = defineProps({
     expensePercentageOfRevenue: { type: Number, default: 0 },
     totalExpenseItemsCount: { type: Number, default: 0 },
     salaryTotal: { type: Number, default: 0 },
+    salaryHidden: { type: Boolean, default: false },
     rentUtilitiesExpense: { type: Number, default: 0 },
     curriculumOperationsExpense: { type: Number, default: 0 },
     otherExpense: { type: Number, default: 0 },
@@ -239,14 +240,14 @@ const autoSubmit = (event) => event.target.form?.requestSubmit();
                         </div>
                         <div>
                             <h3 class="text-base font-bold text-on-surface">Cơ cấu Chi Vận Hành</h3>
-                            <p class="text-xs text-on-surface-variant">Khoản chi tự nhập thực tế + Chi lương tự động từ bảng lương đã chốt</p>
+                            <p class="text-xs text-on-surface-variant">{{ salaryHidden ? 'Khoản chi tự nhập thực tế' : 'Khoản chi tự nhập thực tế + Chi lương tự động từ bảng lương đã chốt' }}</p>
                         </div>
                     </div>
                     <UiMoney :value="totalExpense" tone="error" class="font-bold" />
                 </div>
 
                 <div class="space-y-3 pt-1">
-                    <div class="flex items-center justify-between rounded-xl border border-secondary/20 bg-secondary/5 p-3.5">
+                    <div v-if="!salaryHidden" class="flex items-center justify-between rounded-xl border border-secondary/20 bg-secondary/5 p-3.5">
                         <div class="flex items-center gap-3">
                             <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
                                 <span class="material-symbols-outlined text-base">lock</span>
@@ -308,7 +309,7 @@ const autoSubmit = (event) => event.target.form?.requestSubmit();
                     </div>
                 </div>
 
-                <UiAlert type="info" title="Quy tắc chuẩn hóa kỳ lương:" class="text-xs">
+                <UiAlert v-if="!salaryHidden" type="info" title="Quy tắc chuẩn hóa kỳ lương:" class="text-xs">
                     <p>Chi lương tự động tính theo <strong class="underline">kỳ lương khớp tháng đã chọn</strong>, kể cả khi ngày thanh toán thực tế lệch sang tháng dương lịch tiếp theo.</p>
                 </UiAlert>
             </div>
