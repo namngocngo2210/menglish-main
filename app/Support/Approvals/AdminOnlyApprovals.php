@@ -34,6 +34,8 @@ final class AdminOnlyApprovals
         'refund_transfer.reject',
         'staff_checkin.approve',
         'lead.approve_transfer',
+        // TK-2026-0147: nhập danh sách lớp chỉ Admin (không phải quyền duyệt, dùng chung cơ chế thu hồi ở Gate::before).
+        'class.import',
     ];
 
     /**

@@ -17,7 +17,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Nhập danh sách lớp học viên từ hệ thống cũ — 3 bước: Tải file → Xem trước (lớp + học viên, lỗi / cảnh báo) → Kết quả.
- * Cần quyền tạo lớp (route) và xếp lớp học viên.
+ * Chỉ Admin (quyền class.import, TK-2026-0147).
  */
 class ClassRosterImportController extends Controller
 {
@@ -143,7 +143,7 @@ class ClassRosterImportController extends Controller
 
     private function authorizeImport(Request $request): void
     {
-        abort_unless($request->user()->can('student.assign_class'), 403, 'Bạn không có quyền xếp lớp học viên.');
+        abort_unless($request->user()->can('class.import'), 403, 'Chỉ Admin được nhập danh sách lớp.');
     }
 
     private function branches(Request $request)

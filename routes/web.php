@@ -343,10 +343,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/trial-booking', [ClassManagementController::class, 'trialBooking'])->name('trial-booking');
         Route::get('/create', [ClassManagementController::class, 'create'])->middleware('can:class.create')->name('create');
         Route::post('/', [ClassManagementController::class, 'store'])->middleware('can:class.create')->name('store');
-        Route::get('/import', [ClassRosterImportController::class, 'index'])->middleware('can:class.create')->name('import');
-        Route::post('/import', [ClassRosterImportController::class, 'preview'])->middleware('can:class.create')->name('import.store');
-        Route::post('/import/confirm', [ClassRosterImportController::class, 'confirm'])->middleware('can:class.create')->name('import.confirm');
-        Route::get('/import/template', [ClassRosterImportController::class, 'template'])->middleware('can:class.create')->name('import.template');
+        Route::get('/import', [ClassRosterImportController::class, 'index'])->middleware('can:class.import')->name('import');
+        Route::post('/import', [ClassRosterImportController::class, 'preview'])->middleware('can:class.import')->name('import.store');
+        Route::post('/import/confirm', [ClassRosterImportController::class, 'confirm'])->middleware('can:class.import')->name('import.confirm');
+        Route::get('/import/template', [ClassRosterImportController::class, 'template'])->middleware('can:class.import')->name('import.template');
         Route::get('/profile/{id?}', [ClassManagementController::class, 'profile'])->name('profile');
         Route::post('/check-availability', [ClassManagementController::class, 'checkAvailability'])->name('check-availability');
         Route::get('/academic-overview', [ClassManagementController::class, 'academicOverview'])->name('academic-overview');
