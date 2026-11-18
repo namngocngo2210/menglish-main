@@ -752,60 +752,14 @@ class StudentProfileController extends Controller
     public function updateStudent(Request $request, $id)
     {
         $student = $this->findVisibleStudent($request->user(), $id);
+        // TK-2026-0139: hồ sơ chỉ cho sửa địa chỉ / trường học / ghi chú; mọi trường khác (tên, SĐT, ngày sinh, phụ huynh, trạng thái...) bị bỏ qua im lặng.
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'parent_name' => 'nullable|string|max:255',
-            'parent_phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\s().-]{8,20}$/'],
-            'parent_email' => 'nullable|email|max:255',
-            'parent_facebook' => 'nullable|string|max:255',
-            'parent2_name' => 'nullable|string|max:255',
-            'parent2_phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\s().-]{8,20}$/'],
-            'email' => 'nullable|email|max:255',
-            'facebook' => 'nullable|string|max:255',
-            'id_card_number' => ['nullable', 'string', 'max:30', 'regex:/^[0-9A-Za-z]{6,30}$/'],
-            'dob' => 'nullable|date|before:today|after:1940-01-01',
-            'gender' => 'nullable|string|max:20',
-            'target' => 'nullable|string|max:100',
             'address' => 'nullable|string|max:255',
             'school' => 'nullable|string|max:255',
-            'study_started_on' => 'nullable|date|before_or_equal:today|after:1990-01-01',
             'notes' => 'nullable|string|max:500',
-            'school_grade' => 'nullable|integer|between:1,12',
-        ], [
-            'parent_phone.regex' => 'Số điện thoại phụ huynh không hợp lệ.',
-            'parent2_phone.regex' => 'Số điện thoại phụ huynh 2 không hợp lệ.',
-            'id_card_number.regex' => 'Số CCCD / mã định danh chỉ gồm chữ và số.',
-            'study_started_on.before_or_equal' => 'Ngày bắt đầu học không được sau hôm nay.',
-        ], ['study_started_on' => 'ngày bắt đầu học', 'dob' => 'ngày sinh', 'gender' => 'giới tính']);
-
-        // Trạng thái chỉ đổi qua students.status.update (có kiểm tra ma trận); sửa hồ sơ luôn bỏ qua `status`.
-        unset($validated['status']);
-
-        // Khối hiện tại: form luôn gửi lại khối đang hiển thị, nên chỉ coi là ghi đè khi khác khối hiển thị (theo dob + chênh lệch cũ).
-        // Ghi đè được tính theo ngày sinh mới của cùng request, lưu dưới dạng chênh lệch so với khối theo năm sinh.
-        $schoolGrade = $validated['school_grade'] ?? null;
-        unset($validated['school_grade']);
-
-        if ($schoolGrade !== null && (int) $schoolGrade !== SchoolGrade::forStudent($student)) {
-            $effectiveDob = array_key_exists('dob', $validated) ? $validated['dob'] : $student->dob;
-            if (empty($effectiveDob)) {
-                throw ValidationException::withMessages(['school_grade' => 'Cần ngày sinh để đặt khối.']);
-            }
-            $probe = $student->replicate();
-            $probe->dob = Carbon::parse($effectiveDob);
-            $validated['grade_adjust'] = SchoolGrade::adjustFor($probe, (int) $schoolGrade);
-        }
+        ]);
 
         $student->update($validated);
-
-        // Xóa ngày bắt đầu học → lấy lại theo buổi có mặt / đi muộn đầu tiên.
-        if (array_key_exists('study_started_on', $validated) && $validated['study_started_on'] === null) {
-            $firstAttended = StudentAttendance::where('student_id', $student->id)->whereIn('status', ['present', 'late'])->min('session_date');
-            if ($firstAttended) {
-                Student::recordStudyStart($student->id, $firstAttended);
-            }
-        }
 
         return redirect()->route('students.show', $student->id)
             ->with('status', "Cập nhật hồ sơ học viên {$student->name} thành công!");

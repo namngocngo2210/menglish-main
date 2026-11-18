@@ -394,23 +394,20 @@ class ClassRosterImportTest extends TestCase
         $this->actingAs($this->admin)->get(route('classes.import.template'))->assertOk()->assertDownload('mau-nhap-danh-sach-lop.xlsx');
     }
 
-    public function test_student_profile_saves_new_contact_fields(): void
+    public function test_student_profile_update_ignores_contact_fields(): void
     {
         $student = Student::create(['code' => 'HS-1', 'name' => 'Học Viên', 'phone' => '0911000009', 'branch_id' => $this->branch->id, 'status' => 'studying']);
 
         $this->actingAs($this->admin)->put(route('students.update', $student->id), [
-            'name' => 'Học Viên', 'phone' => '0911000009',
+            'name' => 'Tên khác', 'phone' => '0900000000',
             'parent2_name' => 'Bố Học Viên', 'parent2_phone' => '0988000111', 'parent_email' => 'me@example.com',
             'parent_facebook' => 'fb.com/me', 'facebook' => 'fb.com/hv', 'id_card_number' => '001192008455',
         ])->assertSessionHasNoErrors();
 
         $student->refresh();
-        $this->assertSame(['Bố Học Viên', '0988000111', 'me@example.com', 'fb.com/me', 'fb.com/hv', '001192008455'], [
-            $student->parent2_name, $student->parent2_phone, $student->parent_email, $student->parent_facebook, $student->facebook, $student->id_card_number,
-        ]);
-
-        $this->actingAs($this->admin)->get(route('students.show', $student->id))
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('student.parent2_name', 'Bố Học Viên')->where('student.id_card_number', '001192008455'));
+        $this->assertSame(['Học Viên', '0911000009'], [$student->name, $student->phone]);
+        $this->assertNull($student->parent2_name);
+        $this->assertNull($student->id_card_number);
     }
 
     /** Báo cáo của lần nhập chạy nền gần nhất (queue sync trong test: chạy xong ngay khi xác nhận). */

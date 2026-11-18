@@ -141,18 +141,16 @@ class Phase2FinalGapsTest extends TestCase
 
     // ── 2. SĐT phụ huynh trên hồ sơ học viên ─────────────────────────────────
 
-    public function test_parent_contact_is_editable_and_copied_from_crm_on_conversion_backfill(): void
+    public function test_parent_contact_not_editable_on_profile_and_copied_from_crm_on_conversion_backfill(): void
     {
         $student = $this->student('HV-P2F-1', null);
-        $this->actingAs($this->staff)->get(route('students.show', $student->id))->assertOk()->assertSee('SĐT phụ huynh');
+        $this->actingAs($this->staff)->get(route('students.show', $student->id))->assertOk()->assertSee('SĐT PH');
+        // TK-2026-0139: SĐT/tên phụ huynh không còn sửa qua form hồ sơ.
         $this->actingAs($this->staff)->put(route('students.update', $student->id), [
-            'name' => $student->name, 'phone' => $student->phone, 'parent_name' => 'Nguyễn Thị Hoa', 'parent_phone' => 'abc',
-        ])->assertSessionHasErrors('parent_phone');
-        $this->actingAs($this->staff)->put(route('students.update', $student->id), [
-            'name' => $student->name, 'phone' => $student->phone, 'parent_name' => 'Nguyễn Thị Hoa', 'parent_phone' => '0987 654 321',
+            'parent_name' => 'Nguyễn Thị Hoa', 'parent_phone' => '0987 654 321',
         ])->assertSessionHasNoErrors();
-        $this->assertSame('Nguyễn Thị Hoa', $student->fresh()->parent_name);
-        $this->assertSame('0987 654 321', $student->fresh()->parent_phone);
+        $this->assertNull($student->fresh()->parent_name);
+        $this->assertNull($student->fresh()->parent_phone);
 
         // Backfill: migration chép SĐT phụ huynh của khách CRM đã chốt sang hồ sơ học viên.
         $other = $this->student('HV-P2F-2', null);
