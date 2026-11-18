@@ -127,7 +127,7 @@ class SessionScheduleService
 
         $dates = array_column($sessions, 'date');
         $candidates = ClassSession::query()
-            ->with('classModel:id,name,code')
+            ->with(['classModel:id,name,code', 'teacher:id,name', 'foreignTeacher:id,name', 'assistant:id,name'])
             ->where('status', '!=', 'cancelled')
             ->when($excludeClassId, fn ($query) => $query->where('class_id', '!=', $excludeClassId))
             ->whereDate('date', '>=', min($dates))
@@ -164,6 +164,23 @@ class SessionScheduleService
         }
 
         return null;
+    }
+
+    /**
+     * Mô tả lớp đang chiếm kèm tên nhân sự bị trùng (khi trùng nhân sự chứ không chỉ trùng phòng).
+     */
+    public function describeConflict(ClassSession $existing, array $resourceIds): string
+    {
+        $resourceIds = array_map('intval', array_filter($resourceIds));
+        $text = "lớp {$existing->classModel?->name} ({$existing->classModel?->code})";
+        $staff = [];
+        foreach ([['teacher_id', 'teacher', 'GV chính'], ['foreign_teacher_id', 'foreignTeacher', 'GVNN'], ['assistant_id', 'assistant', 'trợ giảng']] as [$column, $relation, $label]) {
+            if ($existing->{$column} && in_array((int) $existing->{$column}, $resourceIds, true)) {
+                $staff[] = "{$label} {$existing->{$relation}?->name}";
+            }
+        }
+
+        return $staff ? $text.' — '.implode(', ', $staff).' đã có lịch dạy' : $text;
     }
 
     private static function hm(?string $time): string

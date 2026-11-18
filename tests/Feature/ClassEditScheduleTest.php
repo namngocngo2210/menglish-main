@@ -266,9 +266,39 @@ class ClassEditScheduleTest extends TestCase
             'slot1_day' => $this->weekdayName($day), 'slot1_start' => '18:00', 'slot1_end' => '19:30',
         ]))->assertSessionHasErrors('class_id');
 
+        $message = session('errors')->first('class_id');
+        $this->assertStringContainsString('Lớp khác (EDS-02)', $message);
+        $this->assertStringContainsString("GV chính {$this->teacher->name}", $message);
+
         $this->assertSame('Lớp EDS', $this->classModel->fresh()->name);
         $this->assertNull($this->classModel->scheduleConfig()->first());
         $this->assertSame(0, ClassSession::where('class_id', $this->classModel->id)->count());
+    }
+
+    public function test_conflict_message_names_class_and_staff_for_each_role(): void
+    {
+        $day = $this->nextWeekday()->toDateString();
+        $service = app(\App\Services\SessionScheduleService::class);
+        $other = ClassModel::create([
+            'name' => 'Lớp khác', 'code' => 'EDS-02', 'program' => 'IELTS EDS', 'level' => 'B1',
+            'branch_id' => $this->branch->id, 'status' => 'active',
+        ]);
+        $foreign = User::factory()->create(['name' => 'Foreign Fiona', 'is_active' => true]);
+        $assistant = User::factory()->create(['name' => 'Tro Giang Tam', 'is_active' => true]);
+        ClassSession::create([
+            'class_id' => $other->id, 'branch_id' => $this->branch->id, 'date' => $day,
+            'shift_name' => 'Ca 1', 'type' => 'regular', 'start_time' => '18:00', 'end_time' => '19:30',
+            'teacher_id' => $this->teacher->id, 'foreign_teacher_id' => $foreign->id,
+            'assistant_id' => $assistant->id, 'status' => 'scheduled',
+        ]);
+        $slot = [['date' => $day, 'start' => '18:00', 'end' => '19:30']];
+
+        foreach ([[$this->teacher, 'GV chính'], [$foreign, 'GVNN'], [$assistant, 'trợ giảng']] as [$user, $label]) {
+            [, $existing] = $service->findConflict($slot, $this->branch->id, [$user->id]);
+            $message = $service->describeConflict($existing, [$user->id]);
+            $this->assertStringContainsString('Lớp khác (EDS-02)', $message);
+            $this->assertStringContainsString("{$label} {$user->name}", $message);
+        }
     }
 
     public function test_clearing_all_slots_of_scheduled_class_is_rejected(): void

@@ -72,7 +72,7 @@ class ScheduleExtensionService
         if ($conflict) {
             [$session, $existing] = $conflict;
             throw ValidationException::withMessages([
-                'extra_sessions' => "Buổi thêm {$session['date']} {$session['start']}-{$session['end']} trùng lịch với lớp {$existing->classModel?->name} ({$existing->classModel?->code}). Hãy xếp tay trên TKB.",
+                'extra_sessions' => "Buổi thêm {$session['date']} {$session['start']}-{$session['end']} trùng lịch với {$this->schedule->describeConflict($existing, [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id])}. Hãy xếp tay trên TKB.",
             ]);
         }
 

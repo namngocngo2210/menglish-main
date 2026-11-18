@@ -431,7 +431,7 @@ class ClassManagementController extends Controller
         if ($conflict) {
             [$session, $existing] = $conflict;
             throw ValidationException::withMessages([
-                'schedule_sessions_json' => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+                'schedule_sessions_json' => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với {$this->schedule->describeConflict($existing, $resourceIds)}.",
             ]);
         }
     }
@@ -479,7 +479,7 @@ class ClassManagementController extends Controller
             if ($conflict) {
                 [$session, $existing] = $conflict;
                 throw ValidationException::withMessages([
-                    $field => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+                    $field => "Xung đột lịch {$session['date']} {$session['start']}-{$session['end']} với {$this->schedule->describeConflict($existing, $resourceIds)}.",
                 ]);
             }
         }
@@ -1206,7 +1206,7 @@ class ClassManagementController extends Controller
             if ($conflict) {
                 [$session, $existing] = $conflict;
                 throw ValidationException::withMessages([
-                    'giao_vien_nn' => "GVNN bị trùng lịch {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+                    'giao_vien_nn' => "GVNN bị trùng lịch {$session['date']} {$session['start']}-{$session['end']} với {$this->schedule->describeConflict($existing, [$foreignId])}.",
                 ]);
             }
         }
