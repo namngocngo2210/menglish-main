@@ -183,7 +183,7 @@ class ClassRescheduleService
         if ($conflict) {
             [$session, $existing] = $conflict;
             throw ValidationException::withMessages([
-                'class_id' => "Xung đột {$session['date']} {$session['start']}-{$session['end']} với lớp {$existing->classModel?->name} ({$existing->classModel?->code}).",
+                'class_id' => "Xung đột {$session['date']} {$session['start']}-{$session['end']} với {$this->schedule->describeConflict($existing, [$class->teacher_id, $class->assistant_id, $class->foreign_teacher_id])}.",
             ]);
         }
 
