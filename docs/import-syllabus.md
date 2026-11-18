@@ -20,7 +20,7 @@ Hiện trạng:
 - `SyllabusCurriculum::booted()` tự tạo **Chặng 1** khi tạo giáo trình.
 - `syllabus_curriculums.code` có unique index.
 - Máy chủ giới hạn 100 MB mỗi request (`PHP_POST_MAX_SIZE` / `PHP_UPLOAD_MAX_FILE_SIZE` trong `docker-compose.yml`).
-- Mẫu import có sẵn trong repo: Nhập danh sách lớp (`ClassRosterImportController`, `ClassRosterImportService`,
+- Mẫu import có sẵn trong repo: Nhập danh sách lớp (TK-2026-0150: sheet Học viên **không có cột Mã học viên**; khớp hồ sơ có sẵn theo họ tên + ngày sinh, 0 / ≥2 khớp → lỗi dòng, không tạo / sửa học viên) (`ClassRosterImportController`, `ClassRosterImportService`,
   `ClassRosterTemplateExport`) — upload → xem trước (lưu trong session theo token) → xác nhận.
 
 ## 2. Quyết định

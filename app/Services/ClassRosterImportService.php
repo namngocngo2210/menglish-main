@@ -26,9 +26,10 @@ use Illuminate\Support\Str;
 /**
  * Nhập danh sách lớp học viên từ hệ thống cũ (Excel):
  * - sheet Lớp (tùy chọn): tạo lớp mới kèm giáo viên, phòng, lịch 2 buổi/tuần và sinh buổi học theo lịch;
- * - sheet Học viên: tạo hồ sơ học viên (giữ mã cũ), xếp vào lớp (lớp trong sheet Lớp hoặc lớp đã có).
+ * - sheet Học viên: khớp hồ sơ học viên có sẵn theo họ tên + ngày sinh rồi xếp vào lớp (lớp trong sheet Lớp hoặc lớp đã có);
+ *   không bao giờ tạo hoặc sửa hồ sơ học viên (0 hoặc nhiều hồ sơ khớp → lỗi dòng).
  * Nhận cả file đã chuẩn hóa (tiêu đề như TEMPLATE_*) lẫn file xuất gốc của hệ thống cũ (cột "Lớp" ghi kèm lịch,
- * "Điện thoại PH" ghi nhiều số "a / b"). Chạy lại không nhân đôi: lớp khớp theo mã, học viên theo mã học viên.
+ * "Điện thoại PH" ghi nhiều số "a / b"). Chạy lại không nhân đôi: lớp khớp theo mã.
  *
  * 1. parse(): đọc + kiểm tra → bản xem trước (lỗi chặn dòng, cảnh báo chỉ để biết).
  * 2. import(): ghi các dòng hợp lệ, mỗi lớp / mỗi học viên một transaction.
@@ -69,26 +70,9 @@ class ClassRosterImportService
     public const STUDENT_HEADINGS = [
         'branch' => 'Cơ sở',
         'class_code' => 'Mã lớp',
-        'code' => 'Mã học viên',
         'name' => 'Họ tên',
-        'phone' => 'SĐT học viên',
         'dob' => 'Ngày sinh',
-        'gender' => 'Giới tính',
-        'email' => 'Email',
-        'facebook' => 'Facebook',
-        'id_card' => 'CCCD',
-        'school' => 'Trường',
-        'parent_name' => 'Phụ huynh',
-        'parent_phone' => 'SĐT phụ huynh',
-        'parent_email' => 'Email phụ huynh',
-        'parent_facebook' => 'Facebook phụ huynh',
-        'parent2_name' => 'Phụ huynh 2',
-        'parent2_phone' => 'SĐT phụ huynh 2',
-        'address' => 'Địa chỉ',
         'enrolled_at' => 'Ngày nhập học',
-        'total_lessons' => 'Số buổi',
-        'attended_lessons' => 'Đã học',
-        'notes' => 'Ghi chú',
     ];
 
     /** Tiêu đề (đã slug) của sheet Lớp => key; gồm cả bảng "DS lớp - lịch" gốc (LỚP, LỊCH HỌC nhiều dòng). */
@@ -110,20 +94,8 @@ class ClassRosterImportService
     private const STUDENT_ALIASES = [
         'co_so' => 'branch', 'chi_nhanh' => 'branch',
         'ma_lop' => 'class_code', 'lop' => 'class_text', 'lop_goc' => 'class_text',
-        'ma_hoc_vien' => 'code', 'ma_hv' => 'code', 'ma_hoc_sinh' => 'code',
         'ho_ten' => 'name', 'ho_va_ten' => 'name', 'ten_hoc_vien' => 'name',
-        'sdt_hoc_vien' => 'phone', 'dien_thoai' => 'phone', 'so_dien_thoai' => 'phone', 'sdt' => 'phone',
-        'ngay_sinh' => 'dob', 'gioi_tinh' => 'gender', 'email' => 'email', 'facebook' => 'facebook',
-        'cccd' => 'id_card', 'so_cccd' => 'id_card', 'cccd_ma_dinh_danh' => 'id_card',
-        'truong' => 'school', 'truong_hoc' => 'school',
-        'phu_huynh' => 'parent_name', 'ten_phu_huynh' => 'parent_name',
-        'sdt_phu_huynh' => 'parent_phone', 'dien_thoai_ph' => 'parent_phone', 'sdt_ph' => 'parent_phone',
-        'email_phu_huynh' => 'parent_email', 'email_ph' => 'parent_email',
-        'facebook_phu_huynh' => 'parent_facebook', 'facebook_ph' => 'parent_facebook',
-        'phu_huynh_2' => 'parent2_name', 'sdt_phu_huynh_2' => 'parent2_phone',
-        'dia_chi' => 'address', 'ngay_nhap_hoc' => 'enrolled_at',
-        'so_buoi' => 'total_lessons', 'da_hoc' => 'attended_lessons',
-        'ghi_chu' => 'notes',
+        'ngay_sinh' => 'dob', 'ngay_nhap_hoc' => 'enrolled_at',
     ];
 
     /** Thứ trong tuần (đã bỏ dấu, khoảng trắng) => tên ngày dùng trong TKB. */
@@ -147,7 +119,7 @@ class ClassRosterImportService
         $classSheet = null;
         $studentSheet = null;
         foreach (RawRowsImport::allSheets($file) as $rows) {
-            if ($studentSheet === null && ($sheet = $this->locate($rows, self::STUDENT_ALIASES, ['name'])) && isset(array_flip($sheet['columns'])['code'])) {
+            if ($studentSheet === null && ($sheet = $this->locate($rows, self::STUDENT_ALIASES, ['name', 'dob']))) {
                 $studentSheet = $sheet;
             } elseif ($classSheet === null && ($sheet = $this->locate($rows, self::CLASS_ALIASES, ['class_code'])) && array_intersect($sheet['columns'], ['teacher', 'slot1_day', 'schedule_text'])) {
                 $classSheet = $sheet;
@@ -155,7 +127,7 @@ class ClassRosterImportService
         }
 
         if ($studentSheet === null) {
-            return ['classes' => [], 'students' => [], 'missing' => 'Không tìm thấy sheet học viên (cần các cột "Mã học viên" và "Họ tên").'];
+            return ['classes' => [], 'students' => [], 'missing' => 'Không tìm thấy sheet học viên (cần các cột "Họ tên" và "Ngày sinh").'];
         }
 
         $branches = Branch::query()->get(['id', 'code', 'name']);
@@ -258,12 +230,13 @@ class ClassRosterImportService
             ];
         }
 
-        // ── Học viên ──
-        $codes = collect($studentSheet['rows'])->map(fn ($r) => mb_strtoupper(trim((string) ($r['code'] ?? ''))))->filter()->unique()->values();
-        $existingStudents = Student::withTrashed()->with('currentClass:id,name')->whereIn('code', $codes)
-            ->get(['id', 'code', 'name', 'branch_id', 'current_class_id', 'deleted_at'])
-            ->keyBy(fn (Student $s) => mb_strtoupper($s->code));
-        $enrolled = ClassEnrollment::query()->whereIn('student_id', $existingStudents->pluck('id'))
+        // ── Học viên: chỉ khớp hồ sơ có sẵn theo họ tên + ngày sinh, không tạo / sửa hồ sơ ──
+        $ignored = [];
+        $dobs = collect($studentSheet['rows'])->map(fn ($r) => $this->date($r['dob'] ?? null, 'Ngày sinh', $ignored))->filter()->unique()->values();
+        $byIdentity = Student::query()->with('currentClass:id,name')->whereDate('dob', '>=', $dobs->min())->whereDate('dob', '<=', $dobs->max())
+            ->get(['id', 'name', 'dob', 'phone', 'parent_name', 'parent_phone', 'branch_id', 'current_class_id'])
+            ->groupBy(fn (Student $s) => self::studentKey($s->name, $s->dob->toDateString()));
+        $enrolled = ClassEnrollment::query()->whereIn('student_id', $byIdentity->flatten()->pluck('id'))
             ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->get(['student_id', 'class_id'])
             ->map(fn ($e) => $e->student_id.':'.$e->class_id)->flip();
 
@@ -273,12 +246,15 @@ class ClassRosterImportService
             $errors = [];
             $warnings = [];
             $name = trim((string) ($data['name'] ?? ''));
-            $code = mb_strtoupper(trim((string) ($data['code'] ?? '')));
-            if ($name === '' && $code === '') {
+            if ($name === '' && ! filled($data['dob'] ?? null)) {
                 continue; // dòng chỉ có ghi chú chuyển lớp của file gốc
             }
             if ($name === '') {
                 $errors[] = 'Thiếu họ tên.';
+            }
+            $dob = $this->date($data['dob'] ?? null, 'Ngày sinh', $warnings);
+            if ($dob === null) {
+                $errors[] = 'Thiếu ngày sinh hoặc ngày sinh không đọc được.';
             }
 
             $branch = $resolveBranch($data['branch'] ?? null, $errors);
@@ -300,13 +276,21 @@ class ClassRosterImportService
                 $errors[] = "Lớp {$classCode} thuộc cơ sở khác.";
             }
 
-            $student = $code !== '' ? $existingStudents->get($code) : null;
+            $student = null;
             $classId = $class['class_id'] ?? $existingClass?->id;
-            $action = $student ? 'enroll' : 'create';
-            if ($student?->trashed()) {
-                $errors[] = "Mã học viên {$code} thuộc hồ sơ đã xóa.";
-            } elseif ($student && $branch && (int) $student->branch_id !== $branch->id) {
-                $errors[] = "Học viên {$code} đã có ở cơ sở khác.";
+            $action = 'enroll';
+            if ($name !== '' && $dob !== null) {
+                $matches = $byIdentity->get(self::studentKey($name, $dob), collect());
+                if ($matches->count() === 0) {
+                    $errors[] = 'Không tìm thấy học sinh khớp trong hệ thống';
+                } elseif ($matches->count() > 1) {
+                    $errors[] = 'Nhiều học sinh khớp cùng lúc — cần xử lý thủ công';
+                } else {
+                    $student = $matches->first();
+                }
+            }
+            if ($student && $branch && (int) $student->branch_id !== $branch->id) {
+                $errors[] = 'Học viên đã có ở cơ sở khác.';
             } elseif ($student && $classId && isset($enrolled[$student->id.':'.$classId])) {
                 $action = 'skip';
                 $warnings[] = 'Học viên đã có trong lớp này: bỏ qua.';
@@ -316,45 +300,10 @@ class ClassRosterImportService
                     $warnings[] = "Học viên đang học lớp {$student->currentClass?->name}: nhập sẽ chuyển lớp chính sang lớp này, lớp {$student->currentClass?->name} ngừng trừ buổi và bỏ học viên khỏi danh sách (học song song thì thêm cả lớp {$student->currentClass?->name} vào file).";
                 }
             }
-            if ($code !== '' && isset($seen[$code][$classKey])) {
-                $errors[] = "Mã học viên {$code} lặp lại trong cùng lớp (dòng {$seen[$code][$classKey]}).";
-            } elseif ($code !== '' && isset($seen[$code]) && $action === 'create') {
-                $action = 'enroll'; // cùng học viên, lớp thứ hai: tạo hồ sơ một lần
-            }
-            if ($code === '') {
-                $warnings[] = 'Không có mã học viên: hệ thống sinh mã mới.';
+            if ($student && isset($seen[$student->id][$classKey])) {
+                $errors[] = "Học viên lặp lại trong cùng lớp (dòng {$seen[$student->id][$classKey]}).";
             }
 
-            $studentPhones = self::phones($data['phone'] ?? null);
-            $parentPhones = self::phones($data['parent_phone'] ?? null);
-            $parentNames = self::splitNames($data['parent_name'] ?? null);
-            $phone = $studentPhones[0] ?? $parentPhones[0] ?? null;
-            if ($action === 'create' && ! $phone) {
-                $warnings[] = 'Không có SĐT (cả học viên lẫn phụ huynh): vẫn nhập, bổ sung SĐT trên hồ sơ sau.';
-            } elseif ($action === 'create' && ! $studentPhones) {
-                $warnings[] = 'Không có SĐT học viên: dùng SĐT phụ huynh.';
-            }
-
-            $total = $this->count($data['total_lessons'] ?? null);
-            $attended = $this->count($data['attended_lessons'] ?? null);
-            if ($total !== null && $attended !== null && $attended > $total) {
-                $warnings[] = "Đã học {$attended} buổi, nhiều hơn số buổi đã đóng ({$total}): kiểm tra học phí.";
-            }
-
-            $email = trim((string) ($data['email'] ?? ''));
-            if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                $warnings[] = "Email \"{$email}\" không hợp lệ: bỏ qua.";
-                $email = '';
-            }
-            $parentEmail = trim((string) ($data['parent_email'] ?? ''));
-            if ($parentEmail !== '' && ! filter_var($parentEmail, FILTER_VALIDATE_EMAIL)) {
-                $parentEmail = '';
-            }
-            $parent2Phone = self::phones($data['parent2_phone'] ?? null)[0] ?? $parentPhones[1] ?? null;
-            $extraNotes = array_filter([
-                count($parentPhones) > 2 ? 'SĐT phụ huynh khác: '.implode(', ', array_slice($parentPhones, 2)) : null,
-                count($studentPhones) > 1 ? 'SĐT học viên khác: '.implode(', ', array_slice($studentPhones, 1)) : null,
-            ]);
             $enrolledAt = $this->date($data['enrolled_at'] ?? null, 'Ngày nhập học', $warnings);
 
             if ($class && $errors === [] && $action !== 'skip') {
@@ -363,38 +312,24 @@ class ClassRosterImportService
                     $classes[$classKey]['first_enrolled'] = $enrolledAt;
                 }
             }
-            if ($code !== '' && $errors === []) {
-                $seen[$code][$classKey] = $line;
+            if ($student && $errors === []) {
+                $seen[$student->id][$classKey] = $line;
             }
 
             $students[] = [
                 'line' => $line,
                 'action' => $action,
                 'student_id' => $student?->id,
-                'code' => $code !== '' ? mb_substr($code, 0, 50) : null,
                 'name' => $student?->name ?? mb_substr($name, 0, 255),
+                'dob' => $dob,
                 'branch_id' => $branch?->id,
                 'class_key' => $classKey,
                 'class_code' => $class['code'] ?? $existingClass?->code ?? $classCode,
                 'class_id' => $existingClass?->id,
-                'phone' => $phone,
-                'dob' => $this->date($data['dob'] ?? null, 'Ngày sinh', $warnings),
-                'gender' => self::gender($data['gender'] ?? null),
-                'email' => $email ?: null,
-                'facebook' => self::text($data['facebook'] ?? null),
-                'id_card_number' => self::idCard($data['id_card'] ?? null),
-                'school' => self::text($data['school'] ?? null),
-                'parent_name' => $parentNames[0] ?? null,
-                'parent_phone' => $parentPhones[0] ?? null,
-                'parent_email' => $parentEmail ?: null,
-                'parent_facebook' => self::text($data['parent_facebook'] ?? null),
-                'parent2_name' => self::text($data['parent2_name'] ?? null) ?? ($parentNames[1] ?? null),
-                'parent2_phone' => $parent2Phone,
-                'address' => self::text($data['address'] ?? null),
+                'phone' => $student?->phone ?: null,
+                'parent_name' => $student?->parent_name,
+                'parent_phone' => $student?->parent_phone,
                 'enrolled_at' => $enrolledAt,
-                'total_lessons' => $total,
-                'attended_lessons' => $attended,
-                'notes' => ($notes = trim(implode("\n", array_filter([trim((string) ($data['notes'] ?? '')), ...$extraNotes])))) !== '' ? mb_substr($notes, 0, 2000) : null,
                 'errors' => $errors,
                 'warnings' => $warnings,
             ];
@@ -407,11 +342,11 @@ class ClassRosterImportService
      * Ghi lớp rồi học viên (chỉ các dòng không lỗi). Buổi học sinh từ $sessionsFrom (không trước hôm nay)
      * đến ngày kết thúc khóa của lớp, hoặc $sessionsTo nếu lớp không ghi ngày kết thúc.
      *
-     * @return array{classes: int, sessions: int, rooms: int, teachers: int, students: int, enrollments: int, failed: list<array{line: string, error: string}>}
+     * @return array{classes: int, sessions: int, rooms: int, teachers: int, enrollments: int, failed: list<array{line: string, error: string}>}
      */
     public function import(array $preview, User $user, Carbon $sessionsFrom, Carbon $sessionsTo): array
     {
-        $result = ['classes' => 0, 'sessions' => 0, 'rooms' => 0, 'teachers' => 0, 'students' => 0, 'enrollments' => 0, 'failed' => []];
+        $result = ['classes' => 0, 'sessions' => 0, 'rooms' => 0, 'teachers' => 0, 'enrollments' => 0, 'failed' => []];
         $classIds = [];
         $this->roomCache = [];
         $roomsBefore = Room::query()->count();
@@ -484,7 +419,6 @@ class ClassRosterImportService
             }
         }
 
-        $createdByCode = [];
         foreach ($preview['students'] as $row) {
             if ($row['errors'] !== [] || $row['action'] === 'skip') {
                 continue;
@@ -497,43 +431,9 @@ class ClassRosterImportService
             }
 
             try {
-                DB::transaction(function () use ($row, $classId, $user, $fileClassIds, &$createdByCode, &$result) {
-                    $studentId = $row['student_id'] ?? ($row['code'] ? ($createdByCode[$row['code']] ?? null) : null);
-                    $student = $studentId ? Student::query()->lockForUpdate()->findOrFail($studentId) : null;
-                    if (! $student) {
-                        if ($row['code'] && Student::withTrashed()->where('code', $row['code'])->exists()) {
-                            throw new \RuntimeException("Mã học viên {$row['code']} vừa được tạo ở nơi khác.");
-                        }
-                        $student = Student::create([
-                            'code' => $row['code'] ?? 'HV-'.Str::upper((string) Str::ulid()),
-                            'name' => $row['name'],
-                            'phone' => $row['phone'] ?? '', // cột bắt buộc: để trống, bổ sung trên hồ sơ
-                            'parent_name' => $row['parent_name'],
-                            'parent_phone' => $row['parent_phone'],
-                            'parent_email' => $row['parent_email'],
-                            'parent_facebook' => $row['parent_facebook'],
-                            'parent2_name' => $row['parent2_name'],
-                            'parent2_phone' => $row['parent2_phone'],
-                            'email' => $row['email'],
-                            'facebook' => $row['facebook'],
-                            'id_card_number' => $row['id_card_number'],
-                            'dob' => $row['dob'],
-                            'gender' => $row['gender'],
-                            'address' => $row['address'],
-                            'school' => $row['school'],
-                            'branch_id' => $row['branch_id'],
-                            'status' => 'studying',
-                            'study_started_on' => $row['enrolled_at'] && $row['enrolled_at'] <= today()->toDateString() ? $row['enrolled_at'] : null,
-                            'notes' => $row['notes'],
-                        ] + array_filter([
-                            'total_lessons' => $row['total_lessons'] ?: null,
-                            'attended_lessons' => $row['attended_lessons'],
-                        ], fn ($v) => $v !== null));
-                        $result['students']++;
-                    }
-                    if ($row['code']) {
-                        $createdByCode[$row['code']] = $student->id;
-                    }
+                DB::transaction(function () use ($row, $classId, $user, $fileClassIds, &$result) {
+                    // Chỉ xếp lớp cho hồ sơ đã có: không tạo học viên, không sửa hồ sơ.
+                    $student = Student::query()->lockForUpdate()->findOrFail($row['student_id']);
 
                     $alreadyIn = ClassEnrollment::query()->where('student_id', $student->id)->where('class_id', $classId)
                         ->whereIn('status', Student::ACTIVE_ENROLLMENT_STATUSES)->exists();
@@ -754,6 +654,12 @@ class ClassRosterImportService
     public static function classKey(string $code): string
     {
         return preg_replace('/(?<!\d)0+(?=\d)/', '', str_replace(' ', '', mb_strtoupper($code)));
+    }
+
+    /** Khóa khớp học viên: họ tên không phân biệt hoa thường / dấu / khoảng trắng thừa + ngày sinh (Y-m-d). */
+    private static function studentKey(string $name, string $dob): string
+    {
+        return self::fold($name).'|'.$dob;
     }
 
     private static function cleanCode(string $code): string

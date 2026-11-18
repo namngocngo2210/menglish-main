@@ -25,7 +25,7 @@ class ImportClassRoster extends BackgroundTaskJob
 
         return [
             'ok' => true,
-            'message' => "Đã tạo {$result['classes']} lớp, {$result['rooms']} phòng học, gán giáo viên cho {$result['teachers']} lớp, {$result['students']} học viên và xếp {$result['enrollments']} lượt vào lớp.",
+            'message' => "Đã tạo {$result['classes']} lớp, {$result['rooms']} phòng học, gán giáo viên cho {$result['teachers']} lớp và xếp {$result['enrollments']} lượt vào lớp.",
             'report' => $result,
         ];
     }
