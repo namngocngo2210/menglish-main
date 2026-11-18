@@ -74,7 +74,7 @@ const seatNote = (seat) => {
 <template>
     <UiPageHeader :title="filters.mine ? 'Lớp của tôi' : 'Danh sách lớp'" icon="co_present" :description="filters.mine ? 'Các lớp bạn đang dạy hoặc trợ giảng. Bấm vào lớp để điểm danh, nộp báo cáo, giao bài.' : 'Bấm vào một lớp để xem lịch, học viên, điểm danh và báo cáo buổi.'">
         <template v-if="can('class.create') && !filters.mine" #actions>
-            <UiButton v-if="can('student.assign_class')" variant="secondary" icon="upload_file" :href="route('classes.import')">Nhập danh sách lớp</UiButton>
+            <UiButton v-if="can('class.import')" variant="secondary" icon="upload_file" :href="route('classes.import')">Nhập danh sách lớp</UiButton>
             <UiButton icon="add" :href="route('classes.create')">Tạo lớp</UiButton>
         </template>
     </UiPageHeader>

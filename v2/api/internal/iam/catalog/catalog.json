@@ -312,6 +312,11 @@
                     "key": "delete",
                     "label": "Xóa lớp",
                     "description": "Xóa / hủy lớp."
+                },
+                {
+                    "key": "import",
+                    "label": "Nhập danh sách lớp",
+                    "description": "Nhập lớp + học viên từ Excel (xem trước, xác nhận, tải file mẫu). Chỉ Admin dùng được (TK-2026-0147), cấp cho vai trò khác không có tác dụng."
                 }
             ],
             "audience": [

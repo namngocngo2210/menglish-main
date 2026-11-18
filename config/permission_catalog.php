@@ -141,6 +141,7 @@ return [
                 'create' => ['Tạo lớp', 'Mở lớp mới, sinh lịch học.'],
                 'update' => ['Sửa lớp', 'Sửa lớp, lịch, đặt lịch học thử, dashboard đào tạo.'],
                 'delete' => ['Xóa lớp', 'Xóa / hủy lớp.'],
+                'import' => ['Nhập danh sách lớp', 'Nhập lớp + học viên từ Excel (xem trước, xác nhận, tải file mẫu). Chỉ Admin dùng được (TK-2026-0147), cấp cho vai trò khác không có tác dụng.'],
             ],
             'audience' => [
                 'teach' => ['Được xếp dạy lớp (GV chính / GVNN)', 'Có tên trong danh sách giáo viên chính / GVNN khi tạo, sửa lớp.'],

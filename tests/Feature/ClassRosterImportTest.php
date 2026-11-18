@@ -274,15 +274,29 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame('Chủ nhật', ClassScheduleConfig::where('class_id', ClassModel::where('code', '4M3')->value('id'))->value('slot2_day'));
     }
 
-    public function test_requires_class_create_and_assign_permissions(): void
+    /** TK-2026-0147: chỉ Admin nhập danh sách lớp; 403 trước validation, kể cả khi vai trò/override được cấp quyền. */
+    public function test_import_is_admin_only_for_every_endpoint_and_role(): void
     {
-        $viewer = User::factory()->create(['is_active' => true]);
-        $viewer->givePermissionTo('class.view');
-        $this->actingAs($viewer)->get(route('classes.import'))->assertForbidden();
+        $this->actingAs($this->admin)->get(route('classes.import'))->assertOk();
 
-        $creator = User::factory()->create(['is_active' => true]);
-        $creator->givePermissionTo(['class.view', 'class.create']);
-        $this->actingAs($creator)->get(route('classes.import'))->assertForbidden();
+        foreach (array_diff(\App\Support\Roles::ALL, [\App\Support\Roles::ADMIN]) as $role) {
+            $user = User::factory()->create(['branch_id' => $this->branch->id, 'is_active' => true]);
+            $user->assignRole($role);
+            // Dù được cấp thẳng các quyền liên quan, vẫn bị chặn.
+            $user->givePermissionTo(['class.view', 'class.create', 'student.assign_class', 'class.import']);
+
+            $this->actingAs($user)->get(route('classes.import'))->assertForbidden();
+            $this->actingAs($user)->get(route('classes.import.template'))->assertForbidden();
+            $this->actingAs($user)->post(route('classes.import.store'), [])->assertForbidden();
+            $this->actingAs($user)->post(route('classes.import.confirm'), [])->assertForbidden();
+            $this->actingAs($user)->get(route('classes.index'))->assertDontSee('Nhập danh sách lớp');
+        }
+    }
+
+    public function test_guest_is_redirected_from_import(): void
+    {
+        $this->get(route('classes.import'))->assertRedirect(route('login'));
+        $this->post(route('classes.import.store'), [])->assertRedirect(route('login'));
     }
 
     public function test_template_downloads(): void
