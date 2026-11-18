@@ -105,4 +105,35 @@ class ClassManagePermissionTest extends TestCase
     {
         return ['academic_staff' => ['academic_staff'], 'admin' => ['admin']];
     }
+
+    /** @return array<string, array{0: string, 1: bool}> */
+    public static function scheduleConfigRoles(): array
+    {
+        return [
+            'academic_lead' => ['academic_lead', false],
+            'teacher_fulltime' => ['teacher_fulltime', false],
+            'academic_staff' => ['academic_staff', true],
+            'admin' => ['admin', true],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('scheduleConfigRoles')]
+    public function test_schedule_config_update_requires_class_edit(string $role, bool $allowed): void
+    {
+        $user = $this->as($role);
+        $payload = [
+            'class_id' => $this->class->id,
+            'start_date' => '2026-12-21', 'end_date' => '2026-12-28',
+            'slot1_day' => 'Thứ 2', 'slot1_start' => '18:00', 'slot1_end' => '19:30',
+        ];
+
+        $response = $this->actingAs($user)->post(route('tasks.schedule-config.update'), $payload);
+
+        if ($allowed) {
+            $this->assertNotEquals(403, $response->getStatusCode());
+        } else {
+            $response->assertForbidden();
+            $this->assertDatabaseCount('class_sessions', 0);
+        }
+    }
 }
