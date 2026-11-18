@@ -780,60 +780,13 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
             </div>
         </section>
 
-        <!-- Popup "Sửa thông tin": form chia 3 nhóm Học viên / Phụ huynh / Học tập -->
-        <UiModal v-if="canEdit" :show="editOpen" title="Sửa thông tin học viên" max-width="4xl" @close="editOpen = false">
-            <UiForm id="student-edit-form" :action="route('students.update', student.id)" method="put" class="space-y-lg" data-testid="student-edit-form" @success="editOpen = false">
-                <fieldset class="space-y-sm">
-                    <legend class="mb-sm font-label-caps text-label-caps uppercase text-on-surface-variant">1. Học viên</legend>
-                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-                        <UiInput name="name" label="Họ và tên" required :value="student.name" />
-                        <UiInput name="phone" type="tel" label="Số điện thoại" required :value="student.phone" />
-                        <UiDate name="dob" label="Ngày sinh" :value="student.dob_value" :max="student.today" />
-                        <UiSelect name="gender" label="Giới tính" placeholder="-- Chọn --" :value="student.gender" :options="genderOptions" />
-                        <UiInput name="email" type="email" label="Email liên hệ" :value="student.email" placeholder="hocvien@menglish.edu.vn" />
-                        <UiInput name="facebook" label="Facebook học viên" :value="student.facebook" placeholder="Link hoặc tên Facebook" />
-                    </div>
-                </fieldset>
-                <fieldset class="space-y-sm">
-                    <legend class="mb-sm font-label-caps text-label-caps uppercase text-on-surface-variant">2. Phụ huynh</legend>
-                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
-                        <UiInput name="parent_name" label="Họ tên phụ huynh" :value="student.parent_name" placeholder="VD: Nguyễn Thị Hoa" />
-                        <UiInput name="parent_phone" type="tel" label="SĐT phụ huynh" :value="student.parent_phone" placeholder="VD: 0987 654 321" />
-                        <UiInput name="parent_email" type="email" label="Email phụ huynh" :value="student.parent_email" />
-                        <UiInput name="parent_facebook" label="Facebook phụ huynh" :value="student.parent_facebook" placeholder="Link hoặc tên Facebook" />
-                        <UiInput name="parent2_name" label="Họ tên phụ huynh 2" :value="student.parent2_name" />
-                        <UiInput name="parent2_phone" type="tel" label="SĐT phụ huynh 2" :value="student.parent2_phone" />
-                        <div class="sm:col-span-2">
-                            <UiInput name="address" label="Địa chỉ liên hệ" :value="student.address" placeholder="Nhập địa chỉ của học viên..." />
-                        </div>
-                    </div>
-                </fieldset>
-                <fieldset class="space-y-sm">
-                    <legend class="mb-sm font-label-caps text-label-caps uppercase text-on-surface-variant">3. Học tập</legend>
-                    <div class="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-3">
-                        <UiInput name="school" label="Trường học" :value="student.school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
-                        <UiInput
-                            name="school_grade"
-                            type="number"
-                            min="1"
-                            max="12"
-                            label="Khối hiện tại"
-                            :value="student.school_grade"
-                            :hint="`Tự tính từ ngày sinh (năm học ${student.school_year}); chỉ sửa khi học sớm / muộn.`"
-                        />
-                        <UiInput name="target" label="Mục tiêu học tập" :value="student.target" placeholder="VD: IELTS 6.5, Cambridge Starters..." />
-                        <UiInput
-                            name="study_started_on"
-                            type="date"
-                            label="Ngày bắt đầu học"
-                            :value="student.study_started_on_value"
-                            :max="student.today"
-                            hint="Tự điền theo buổi có mặt đầu tiên; sửa tay nếu học viên học từ trước khi dùng hệ thống."
-                        />
-                        <UiInput name="id_card_number" label="Số CCCD / mã định danh" :value="student.id_card_number" />
-                    </div>
-                    <UiTextarea name="notes" label="Ghi chú đặc biệt" rows="2" :value="student.notes" placeholder="Nhập ghi chú về học sinh (ví dụ: dị ứng, sở thích, mục tiêu học tập...)" />
-                </fieldset>
+        <!-- Popup "Sửa thông tin" (TK-2026-0139): chỉ sửa Địa chỉ / Trường học / Ghi chú; các thông tin khác chỉ xem ở trang hồ sơ -->
+        <UiModal v-if="canEdit" :show="editOpen" title="Sửa thông tin học viên" max-width="lg" @close="editOpen = false">
+            <UiForm id="student-edit-form" :action="route('students.update', student.id)" method="put" class="space-y-md" data-testid="student-edit-form" @success="editOpen = false">
+                <p class="font-body-small text-body-small text-on-surface-variant">Chỉ sửa được địa chỉ, trường học và ghi chú. Họ tên, số điện thoại, ngày sinh, phụ huynh và trạng thái không sửa tại đây.</p>
+                <UiInput name="address" label="Địa chỉ liên hệ" :value="student.address" placeholder="Nhập địa chỉ của học viên..." />
+                <UiInput name="school" label="Trường học" :value="student.school" placeholder="VD: Trường THCS Đoàn Thị Điểm" />
+                <UiTextarea name="notes" label="Ghi chú đặc biệt" rows="2" :value="student.notes" placeholder="Nhập ghi chú về học sinh (ví dụ: dị ứng, sở thích, mục tiêu học tập...)" />
             </UiForm>
             <template #footer>
                 <UiButton variant="secondary" @click="editOpen = false">Hủy</UiButton>

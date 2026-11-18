@@ -106,8 +106,10 @@ class StudentBusinessTest extends TestCase
         $responseUpdate->assertRedirect(route('students.show', $student->id));
 
         $student->refresh();
-        $this->assertEquals('Nguyễn Thu Trang (Đã đổi tên)', $student->name);
-        $this->assertEquals('IELTS 8.0 Overall', $student->target);
+        // TK-2026-0139: only address/school/notes are editable; name/target changes are ignored.
+        $this->assertEquals('Nguyễn Thu Trang', $student->name);
+        $this->assertNull($student->target);
+        $this->assertEquals('Đã hoàn thành khóa học và đạt chứng chỉ IELTS 8.0', $student->notes);
         // Profile edit ignores `status` (TK-2026-0138); status changes only via the dedicated route.
         $this->assertEquals('studying', $student->status);
         $this->actingAs($this->academicOfficer)->put(route('students.status.update', $student->id), ['status' => 'completed']);
@@ -119,6 +121,23 @@ class StudentBusinessTest extends TestCase
         $responseDelete = $this->actingAs($this->academicOfficer)->delete(route('students.destroy', $student->id));
         $responseDelete->assertRedirect(route('students.index'));
         $this->assertSoftDeleted('students', ['id' => $student->id]);
+    }
+
+    public function test_profile_update_only_changes_address_school_notes(): void
+    {
+        $student = Student::create([
+            'code' => 'HV-00051', 'name' => 'Lê Văn A', 'phone' => '0945678124', 'dob' => '2012-01-01',
+            'parent_phone' => '0987654321', 'branch_id' => $this->branchHanoi->id, 'status' => 'studying',
+        ]);
+
+        $this->actingAs($this->academicOfficer)->put(route('students.update', $student->id), [
+            'name' => 'Tên mới', 'phone' => '0900000000', 'dob' => '2010-01-01', 'parent_phone' => '0911111111',
+            'address' => '1 Cầu Giấy', 'school' => 'THCS A', 'notes' => 'Ghi chú mới',
+        ])->assertRedirect(route('students.show', $student->id));
+
+        $student->refresh();
+        $this->assertSame(['1 Cầu Giấy', 'THCS A', 'Ghi chú mới'], [$student->address, $student->school, $student->notes]);
+        $this->assertSame(['Lê Văn A', '0945678124', '2012-01-01', '0987654321'], [$student->name, $student->phone, $student->dob->toDateString(), $student->parent_phone]);
     }
 
     public function test_attendance_rate_and_homework_rate_computations_and_badges(): void

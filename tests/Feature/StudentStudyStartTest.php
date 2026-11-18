@@ -139,61 +139,31 @@ class StudentStudyStartTest extends TestCase
                 ->where('students.data', fn ($rows) => collect($rows)->pluck('code')->all() === ['HV-LEFT', 'HV-FIVE', 'HV-THREE', 'HV-NEW', 'HV-NONE']));
     }
 
-    public function test_academic_staff_can_set_and_clear_the_start_date_on_the_profile(): void
+    public function test_profile_update_ignores_start_date(): void
     {
+        // TK-2026-0139: ngày bắt đầu học không sửa tay qua hồ sơ.
         $student = $this->student('HV-EDIT');
         $this->attend($student, '2026-09-12');
-        $staff = $this->staff();
-        $payload = ['name' => $student->name, 'phone' => $student->phone];
+        $before = $student->fresh()->study_started_on?->toDateString();
 
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['study_started_on' => '2022-08-15'])
+        $this->actingAs($this->staff())->put(route('students.update', $student->id), ['study_started_on' => '2022-08-15', 'name' => 'X'])
             ->assertSessionHasNoErrors();
-        $this->assertSame('2022-08-15', $student->fresh()->study_started_on->toDateString());
-
-        $this->actingAs($staff)->get(route('students.show', $student->id))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('student.study_started_on', '15/08/2022')
-                ->where('student.study_started_on_value', '2022-08-15')
-                ->where('student.tenure_label', '4 năm 1 tháng')
-                ->where('student.long_term', true));
-
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['study_started_on' => '2026-12-01'])
-            ->assertSessionHasErrors('study_started_on');
-
-        // Xóa trống → lấy lại theo buổi có mặt đầu tiên.
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['study_started_on' => ''])
-            ->assertSessionHasNoErrors();
-        $this->assertSame('2026-09-12', $student->fresh()->study_started_on->toDateString());
-
-        // Form không gửi ô này thì giữ nguyên.
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload)->assertSessionHasNoErrors();
-        $this->assertSame('2026-09-12', $student->fresh()->study_started_on->toDateString());
+        $this->assertSame($before, $student->fresh()->study_started_on?->toDateString());
     }
 
-    public function test_profile_edits_birthday_and_gender_and_shows_entrance_score(): void
+    public function test_profile_ignores_birthday_and_gender_but_shows_entrance_score(): void
     {
         $student = $this->student('HV-INFO', null, ['entrance_score' => '7.5 (Movers)', 'gender' => 'Nam']);
         $staff = $this->staff();
-        $payload = ['name' => $student->name, 'phone' => $student->phone];
 
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['dob' => '2014-05-20', 'gender' => 'Nữ'])
+        $this->actingAs($staff)->put(route('students.update', $student->id), ['dob' => '2014-05-20', 'gender' => 'Nữ'])
             ->assertSessionHasNoErrors();
         $fresh = $student->fresh();
-        $this->assertSame('2014-05-20', $fresh->dob->toDateString());
-        $this->assertSame('Nữ', $fresh->gender);
+        $this->assertNull($fresh->dob);
+        $this->assertSame('Nam', $fresh->gender);
 
         $this->actingAs($staff)->get(route('students.show', $student->id))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('student.dob_value', '2014-05-20')
-                ->where('student.dob_label', '20/05/2014 (12 tuổi)')
-                ->where('student.gender', 'Nữ')
-                ->where('student.entrance_score', '7.5 (Movers)'));
-
-        // Ngày sinh tương lai bị chặn; form không gửi ô ngày sinh thì giữ nguyên.
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload + ['dob' => '2026-12-01'])
-            ->assertSessionHasErrors('dob');
-        $this->actingAs($staff)->put(route('students.update', $student->id), $payload)->assertSessionHasNoErrors();
-        $this->assertSame('2014-05-20', $student->fresh()->dob->toDateString());
+            ->assertInertia(fn (Assert $page) => $page->where('student.entrance_score', '7.5 (Movers)'));
     }
 
     public function test_student_portal_home_shows_start_date_and_tenure(): void

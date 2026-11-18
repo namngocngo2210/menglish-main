@@ -80,7 +80,7 @@ class StudentStatusTransitionTest extends TestCase
             ])->assertSessionHasNoErrors();
             $student->refresh();
             $this->assertSame($from, $student->status, "$from -> $to via profile edit");
-            $this->assertSame('Tên mới '.$i, $student->name);
+            $this->assertSame('HV PU'.$i, $student->name); // TK-2026-0139: name ignored
         }
     }
 }
