@@ -141,6 +141,20 @@ class TeacherMeetingReportController extends Controller
         $data['week_start'] = Carbon::parse($data['week_start'])->startOfWeek()->toDateString();
         $data['class_id'] = $data['class_id'] ?? null;
 
+        $duplicate = TeacherMeetingReport::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->when($data['class_id'] === null,
+                fn ($query) => $query->whereNull('class_id'),
+                fn ($query) => $query->where('class_id', $data['class_id']))
+            ->where('teacher_id', $data['teacher_id'])
+            ->whereDate('week_start', $data['week_start'])
+            ->when($current, fn ($query) => $query->where('id', '!=', $current->id))
+            ->exists();
+
+        if ($duplicate) {
+            throw ValidationException::withMessages(['week_start' => 'Đã có báo cáo họp cho lớp, giáo viên, tuần này; chỉ được sửa báo cáo hiện có']);
+        }
+
         return $data;
     }
 }

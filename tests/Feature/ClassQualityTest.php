@@ -252,8 +252,96 @@ class ClassQualityTest extends TestCase
         $this->actingAs($lead)->put(route('class-quality.teacher-meetings.update', $report->id), ['status' => 'handled'] + $payload)
             ->assertSessionHasNoErrors();
         $this->assertSame('handled', $report->fresh()->status);
+        $this->assertSame(1, TeacherMeetingReport::count());
 
         $this->actingAs($lead)->delete(route('class-quality.teacher-meetings.destroy', $report->id))->assertSessionHasNoErrors();
+        $this->assertSoftDeleted($report);
+    }
+
+    public function test_teacher_meeting_rejects_duplicate_for_the_normalized_week(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $payload = [
+            'week_start' => '2026-11-16', 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Original report', 'status' => 'in_progress',
+        ];
+
+        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), $payload)->assertSessionHasNoErrors();
+        $this->post(route('class-quality.teacher-meetings.store'), ['week_start' => '2026-11-22'] + $payload)
+            ->assertSessionHasErrors(['week_start' => 'Đã có báo cáo họp cho lớp, giáo viên, tuần này; chỉ được sửa báo cáo hiện có']);
+
+        $this->assertSame(1, TeacherMeetingReport::count());
+    }
+
+    public function test_teacher_meeting_rejects_update_colliding_with_another_report(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $payload = [
+            'week_start' => '2026-11-16', 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Original report', 'status' => 'in_progress',
+        ];
+        TeacherMeetingReport::create($payload + ['author_id' => $lead->id]);
+        $report = TeacherMeetingReport::create(['week_start' => '2026-11-23'] + $payload + ['author_id' => $lead->id]);
+
+        $this->actingAs($lead)->put(route('class-quality.teacher-meetings.update', $report->id), ['week_start' => '2026-11-18'] + $payload)
+            ->assertSessionHasErrors(['week_start' => 'Đã có báo cáo họp cho lớp, giáo viên, tuần này; chỉ được sửa báo cáo hiện có']);
+
+        $this->assertSame('2026-11-23', $report->fresh()->week_start->toDateString());
+        $this->assertSame(2, TeacherMeetingReport::count());
+    }
+
+    public function test_teacher_meeting_rejects_hidden_duplicate_without_a_class(): void
+    {
+        $staff = $this->makeUser('academic_staff', $this->branch);
+        $staff->givePermissionTo('class_quality.teacher_meeting');
+        $author = $this->makeUser('academic_lead', $this->otherBranch);
+        $payload = [
+            'week_start' => '2026-11-16', 'teacher_id' => $this->otherClass->teacher_id,
+            'class_id' => null, 'class_note' => 'Hidden report', 'status' => 'in_progress',
+        ];
+        $report = TeacherMeetingReport::create($payload + ['author_id' => $author->id]);
+
+        $this->assertFalse(TeacherMeetingReport::visibleTo($staff)->whereKey($report->id)->exists());
+        $this->actingAs($staff)->post(route('class-quality.teacher-meetings.store'), ['week_start' => '2026-11-18'] + $payload)
+            ->assertSessionHasErrors(['week_start' => 'Đã có báo cáo họp cho lớp, giáo viên, tuần này; chỉ được sửa báo cáo hiện có']);
+
+        $this->assertSame(1, TeacherMeetingReport::withoutGlobalScopes()->count());
+    }
+
+    public function test_teacher_meeting_allows_different_weeks_teachers_and_classes(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $otherTeacher = $this->makeUser('teacher', $this->branch);
+        $this->class->update(['foreign_teacher_id' => $otherTeacher->id]);
+        $otherClass = $this->makeClass($this->branch, ['teacher_id' => $this->teacher->id]);
+        $payload = [
+            'week_start' => '2026-11-16', 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Class report', 'status' => 'in_progress',
+        ];
+        TeacherMeetingReport::create($payload + ['author_id' => $lead->id]);
+
+        $this->actingAs($lead);
+        foreach ([['week_start' => '2026-11-23'], ['teacher_id' => $otherTeacher->id], ['class_id' => $otherClass->id], ['class_id' => null]] as $change) {
+            $this->post(route('class-quality.teacher-meetings.store'), $change + $payload)->assertSessionHasNoErrors();
+        }
+
+        $this->assertSame(5, TeacherMeetingReport::count());
+    }
+
+    public function test_teacher_meeting_ignores_soft_deleted_duplicates(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $payload = [
+            'week_start' => '2026-11-16', 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Replacement report', 'status' => 'in_progress',
+        ];
+        $report = TeacherMeetingReport::create($payload + ['author_id' => $lead->id]);
+        $report->delete();
+
+        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), $payload)->assertSessionHasNoErrors();
+
+        $this->assertSame(1, TeacherMeetingReport::count());
+        $this->assertSame(2, TeacherMeetingReport::withTrashed()->count());
         $this->assertSoftDeleted($report);
     }
 
