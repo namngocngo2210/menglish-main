@@ -74,6 +74,7 @@ final class Overview
         $kind = $this->kind();
         $operations = in_array($kind, ['admin', 'manager'], true);
         $branchIds = $kind === 'manager' ? $this->user->branchIds() : null;
+        $widgets = new BusinessWidgets($this->user, $this->canOpen);
 
         return [
             'kind' => $kind,
@@ -84,6 +85,8 @@ final class Overview
             'branches' => $kind === 'admin' ? $this->branches() : null,
             'revenueWeeks' => $operations ? $this->revenueWeeks($branchIds) : null,
             'todaySessions' => $this->seesBranchSessions($kind) ? $this->todaySessions($branchIds) : null,
+            'widgets' => $widgets->build($kind),
+            'aggregate' => $widgets->aggregate($kind),
             'funnel' => $kind === 'sales' && $this->seesLeads() ? $this->funnel() : null,
             'shifts' => $kind === 'teaching' ? $this->shifts() : null,
         ];

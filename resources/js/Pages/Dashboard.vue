@@ -26,6 +26,7 @@ import TeachingQuality from './Dashboard/TeachingQuality.vue';
 import TeachingSide from './Dashboard/TeachingSide.vue';
 import TodaySessions from './Dashboard/TodaySessions.vue';
 import TodoCard from './Dashboard/TodoCard.vue';
+import WidgetsCard from './Dashboard/WidgetsCard.vue';
 
 defineOptions({ layout: { title: 'Tổng quan' } });
 
@@ -122,6 +123,8 @@ const missingReports = computed(() => {
         <div v-if="stats.length && !['academic', 'teaching'].includes(kind)" :class="['grid grid-cols-1 gap-md sm:grid-cols-2', stats.length >= 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3']" data-overview-month-stats>
             <UiStatCard v-for="stat in stats.slice(0, 4)" :key="stat.label" :label="stat.label" :value="stat.value" :tone="stat.tone" :hint="stat.hint" />
         </div>
+
+        <WidgetsCard v-if="overview.widgets?.length || overview.aggregate" :widgets="overview.widgets ?? []" :aggregate="overview.aggregate" />
 
         <TeachingQuality v-if="teaching" :teaching="teaching" />
     </div>
