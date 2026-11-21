@@ -38,7 +38,7 @@ const props = defineProps({
 });
 
 const viewing = ref(null);
-const placeholders = { overall: 'Nhận xét tổng quan về hoạt động học thuật trong tháng, việc cần ưu tiên tháng tới...' };
+const placeholders = { overall: 'Nhận xét tổng quan về hoạt động học thuật trong tháng, việc cần ưu tiên tháng tới...', teacher_notes: 'Nhận xét riêng theo từng giáo viên (nếu có)...' };
 const pickMonth = (value) => value && value !== props.month && router.get(route('reports.periodic.academic-monthly'), { month: value });
 </script>
 
