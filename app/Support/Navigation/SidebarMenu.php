@@ -419,7 +419,8 @@ final class SidebarMenu
                 'label' => 'Doanh thu',
                 'icon' => 'query_stats',
                 'items' => [
-                    ['label' => 'Doanh thu tạm tính', 'route' => 'finance.reports.revenue', 'active' => ['finance.reports.*']],
+                    ['label' => 'Doanh thu tạm tính', 'route' => 'finance.reports.revenue', 'active' => ['finance.reports.revenue', 'finance.reports.revenue.*']],
+                    ['label' => 'Doanh thu chính thức', 'route' => 'finance.reports.official-revenue', 'active' => ['finance.reports.official-revenue*']],
                 ],
             ],
             [
