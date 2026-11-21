@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -191,7 +192,7 @@ func TestWiringTeacherCheckin(t *testing.T) {
 	shifts := iamtest.List(t, r, "shifts")
 	wd := r.Body["widgets"].(map[string]any)
 	if r.Body["can_checkin"] != true || len(shifts) != 1 || shifts[0]["checked_in"] != true || wd["timesheets_total"] != 1.0 ||
-		wd["timesheets_pending"] != 1.0 || wd["estimate"] != hours*200000 || wd["work_pending"] != "" {
+		wd["timesheets_pending"] != 1.0 || wd["estimate"] != math.Round(hours*200000) || wd["work_pending"] != "" {
 		t.Fatalf("trang chủ GV (giờ %v): %s", hours, r.Raw)
 	}
 	// Đã check-in → bỏ qua kèm giờ check-in
