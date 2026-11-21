@@ -12,9 +12,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Đổi trạng thái công việc phải báo đúng người: Bị chặn (SOS) → người giao + mọi Admin;
- * gỡ chặn → người giao; chờ xác nhận → người xác nhận (R-13); hoàn thành / trả về → người làm;
- * hủy → người làm + người giao.
+ * Blocking hands work back to its creator (R-14); self-assigned work keeps SOS notifications.
+ * Other status changes notify the confirmer, creator or assignee as appropriate (R-13).
  */
 class WorkTaskStatusNotificationTest extends TestCase
 {
@@ -76,10 +75,10 @@ class WorkTaskStatusNotificationTest extends TestCase
         return AdminNotification::where('type', $type)->where('data->task_id', $task->id)->pluck('title', 'user_id')->all();
     }
 
-    public function test_blocked_sos_notifies_creator_and_every_admin_with_reason(): void
+    public function test_self_assigned_blocked_task_notifies_active_admins_with_reason(): void
     {
         $inactiveAdmin = $this->makeUser('Admin Nghỉ', 'admin', active: false);
-        $task = $this->task();
+        $task = $this->task(creator: $this->assignee);
 
         $this->actingAs($this->assignee)
             ->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'SOS'])
@@ -87,7 +86,7 @@ class WorkTaskStatusNotificationTest extends TestCase
 
         $this->assertSame('blocked', $task->fresh()->status);
         $sent = AdminNotification::where('type', 'task_blocked')->get()->keyBy('user_id');
-        $this->assertEqualsCanonicalizing([$this->creator->id, $this->admin->id, $this->otherAdmin->id], $sent->keys()->all());
+        $this->assertEqualsCanonicalizing([$this->admin->id, $this->otherAdmin->id], $sent->keys()->all());
         $this->assertArrayNotHasKey($inactiveAdmin->id, $sent);
         $this->assertArrayNotHasKey($this->assignee->id, $sent);
 
@@ -110,8 +109,10 @@ class WorkTaskStatusNotificationTest extends TestCase
         $this->actingAs($this->assignee)
             ->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'SOS']);
 
-        $this->assertSame(1, AdminNotification::where('type', 'task_blocked')->where('user_id', $this->admin->id)->count());
-        $this->assertSame(2, AdminNotification::where('type', 'task_blocked')->count());
+        $notification = AdminNotification::where('data->task_id', $task->id)->sole();
+        $this->assertSame($this->admin->id, $notification->user_id);
+        $this->assertSame('task_assigned', $notification->type);
+        $this->assertStringContainsString('SOS', $notification->message);
     }
 
     public function test_unblocking_notifies_creator(): void

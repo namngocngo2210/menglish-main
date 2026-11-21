@@ -169,12 +169,13 @@ class LargeModalFlowsTest extends TestCase
             ->assertRedirect(route('tasks.index'))->assertSessionHasErrors(['reason' => 'Vui lòng nhập lý do khiến công việc bị chặn.']);
         $this->assertSame('new', $task->fresh()->status);
         $this->actingAs($assignee)->from(route('tasks.index'))->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Thiếu chìa khóa kho'], self::MODAL)
-            ->assertRedirect(route('tasks.index'))->assertSessionHas('success', 'Đã cập nhật trạng thái công việc thành công!');
-        $this->assertSame('blocked', $task->fresh()->status);
+            ->assertRedirect(route('tasks.index'))->assertSessionHas('success', 'Đã báo bị chặn và chuyển công việc lại cho người giao.');
+        $this->assertSame('new', $task->fresh()->status);
+        $this->assertSame($task->creator_id, $task->fresh()->assignee_id);
 
-        // Request thường giữ redirect back + lỗi session.
+        // The former assignee can no longer change the task.
         $this->actingAs($assignee)->from(route('tasks.index'))->post(route('tasks.status.update', $task->id), ['status' => 'canceled'])
-            ->assertRedirect(route('tasks.index'))->assertSessionHasErrors('status');
+            ->assertForbidden();
     }
 
     public function test_class_report_modal_flow(): void

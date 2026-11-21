@@ -67,6 +67,75 @@ class WorkTaskHandBackTest extends TestCase
         ]);
     }
 
+    public function test_blocking_hands_back_to_creator_in_one_step_from_each_open_status(): void
+    {
+        foreach (['new', 'in_progress'] as $status) {
+            $task = $this->task($status);
+
+            $this->actingAs($this->assignee)
+                ->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Missing phone number'])
+                ->assertSessionHasNoErrors()
+                ->assertSessionHas('success', 'Đã báo bị chặn và chuyển công việc lại cho người giao.');
+
+            $task->refresh();
+            $this->assertSame($this->creator->id, $task->assignee_id);
+            $this->assertSame('new', $task->status);
+            $this->assertSame('Missing phone number', $task->blocked_reason);
+            $this->assertSame($this->assignee->id, $task->handed_back_from_id);
+            $this->assertNotNull($task->handed_back_at);
+
+            $notification = AdminNotification::where('data->task_id', $task->id)->sole();
+            $this->assertSame($this->creator->id, $notification->user_id);
+            $this->assertSame('task_assigned', $notification->type);
+            $this->assertStringContainsString('Missing phone number', $notification->message);
+        }
+    }
+
+    public function test_blocking_without_reason_is_rejected_without_changes(): void
+    {
+        foreach (['new', 'in_progress'] as $status) {
+            $task = $this->task($status);
+            $before = $task->fresh()->getRawOriginal();
+
+            $this->actingAs($this->assignee)
+                ->post(route('tasks.status.update', $task->id), ['status' => 'blocked'])
+                ->assertSessionHasErrors('reason');
+
+            $this->assertSame($before, $task->fresh()->getRawOriginal());
+        }
+        $this->assertDatabaseCount('admin_notifications', 0);
+    }
+
+    public function test_self_assigned_task_stays_blocked(): void
+    {
+        $task = $this->task('in_progress', creator: $this->assignee);
+
+        $this->actingAs($this->assignee)
+            ->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Missing documents'])
+            ->assertSessionHasNoErrors();
+
+        $task->refresh();
+        $this->assertSame('blocked', $task->status);
+        $this->assertSame($this->assignee->id, $task->assignee_id);
+        $this->assertSame('Missing documents', $task->blocked_reason);
+        $this->assertNull($task->handed_back_from_id);
+        $this->assertNull($task->handed_back_at);
+    }
+
+    public function test_unrelated_staff_cannot_block_task(): void
+    {
+        $outsider = $this->makeUser('Other staff', 'assistant');
+        $task = $this->task('in_progress');
+        $before = $task->fresh()->getRawOriginal();
+
+        $this->actingAs($outsider)
+            ->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Missing documents'])
+            ->assertForbidden();
+
+        $this->assertSame($before, $task->fresh()->getRawOriginal());
+        $this->assertDatabaseCount('admin_notifications', 0);
+    }
+
     public function test_cancel_is_only_for_creator_and_admin(): void
     {
         $task = $this->task('in_progress');

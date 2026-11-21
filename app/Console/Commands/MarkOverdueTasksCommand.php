@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Mark new, in-progress and blocked tasks past their deadline as overdue and notify the assignee once.
- * Blocked tasks never generate task-overdue penalties. Pending confirmation and TA daily tasks without deadlines are excluded.
+ * Blocked tasks and tasks handed back from blocked never generate task-overdue penalties for either assignee.
+ * Pending confirmation and TA daily tasks without deadlines are excluded.
  * First-month care SLA penalties are handled separately by FirstMonthCareService::enforceSla.
  * Idempotent: rerunning does not create additional penalties or notifications.
  */
@@ -42,7 +43,7 @@ class MarkOverdueTasksCommand extends Command
                     $originalStatus = $task->status;
                     $task->update(['status' => 'overdue']);
                     $count++;
-                    if ($originalStatus !== 'blocked') {
+                    if ($originalStatus !== 'blocked' && $task->handed_back_at === null) {
                         $this->penalize($task);
                     }
 
