@@ -1836,6 +1836,7 @@
                 "room.view",
                 "room.manage",
                 "class_quality.*",
+                "class_quality.teacher_meeting",
                 "academic_project.view",
                 "academic_project.view_all",
                 "merchandise_stock.view",

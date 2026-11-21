@@ -63,6 +63,8 @@ return [
             'staff_report.submit', 'staff_report.view_all', 'dashboard.operations', 'portal.staff',
             'room.view', 'room.manage',
             'class_quality.*',
+            // Quyền đối tượng (TK-2026-0161): Quản lý cơ sở vẫn ghi báo cáo họp GV; Admin chỉ xem.
+            'class_quality.teacher_meeting',
             'academic_project.view', 'academic_project.view_all',
             'merchandise_stock.view', 'merchandise_stock.manage',
             // Phạm vi dữ liệu (A6 Q7: Quản lý cơ sở chỉ thấy chi nhánh mình — kể cả Big Test, KPI, ticket, nhật ký).
