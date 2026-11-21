@@ -34,7 +34,7 @@ Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt kh
 
 ## Job quá hạn (`tasks:mark-overdue`, mỗi 15 phút)
 - Việc Mới / Đang thực hiện / Bị chặn đã qua hạn → Quá hạn, báo người được giao một lần.
-  Việc Bị chặn **không bao giờ lập phạt**; Chờ xác nhận, Đã hoàn thành, Đã hủy và nhiệm vụ TA hằng ngày không có hạn vẫn bỏ qua.
+  Việc Bị chặn hoặc đã chuyển lại cho người giao (`handed_back_at` khác null) **không bao giờ lập phạt**; Chờ xác nhận, Đã hoàn thành, Đã hủy và nhiệm vụ TA hằng ngày không có hạn vẫn bỏ qua.
 - Việc giao tay, phạt **tắt** → chỉ đổi trạng thái "Quá hạn", không biên bản (AC-S15).
 - Việc giao tay, phạt **bật** → tạo biên bản `fined` ("Đã chốt phạt", `auto_source = task_overdue`) đúng số tiền; bảng lương trừ qua
   `Penalty::scopeDeductibleFor` theo ngày vi phạm (AC-S14), **không có hạn nộp**.
@@ -48,3 +48,7 @@ Dành cho việc **Phát sinh**: dưới "Hạn hoàn thành" có ô **Phạt kh
 ## Câu hỏi BA mở: việc giao tay có bậc phạt (Lần 1/2/3)?
 Đề xuất: **không** — mỗi việc giao tay một mức cố định do người giao nhập. Bậc phạt chỉ áp cho việc SLA (đếm theo `Sla::ladderResetMonths`).
 Nếu BA muốn bậc cho việc giao tay: đếm theo (người nhận, tháng) số biên bản `task_overdue` không hủy và cấu hình bậc ở Cấu hình SLA; chưa làm.
+
+## R-14 — Báo bị chặn và chuyển lại trong một bước (TK-2026-0158)
+
+Người thực hiện báo **Bị chặn** phải ghi lý do. Nếu người giao khác người thực hiện, việc tự chuyển về người giao với trạng thái **Mới**, giữ lý do, người làm cũ và thời điểm chuyển; chỉ người giao nhận thông báo, người thao tác không nhận trùng. Không có người giao hoặc tự giao cho mình thì việc giữ trạng thái **Bị chặn**. Việc đã chuyển lại vẫn thành **Quá hạn** khi đến hạn nhưng không lập phạt cho người làm cũ hay người giao. Thao tác chuyển lại thủ công vẫn dùng được cho việc Bị chặn cũ.

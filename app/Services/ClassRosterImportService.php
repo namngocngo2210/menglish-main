@@ -452,14 +452,15 @@ class ClassRosterImportService
                             $student->leaveMainClass($leftOn);
                             $enrolledAt = $leftOn; // lớp mới trừ buổi từ ngày chuyển, không trùng thời gian ở lớp cũ
                         }
-                        // Học viên đang học từ hệ thống cũ: lượt xếp lớp đã xác nhận (không chờ bàn giao).
+                        // Học viên đang học từ hệ thống cũ: chỉ xếp vào lớp (đang học, còn chiếm chỗ); 'completed' chỉ do người dùng
+                        // đổi tay. confirmed_at đã set nên không rơi vào hàng chờ duyệt bàn giao.
                         ClassEnrollment::create([
                             'student_id' => $student->id,
                             'class_id' => $classId,
                             'enrolled_at' => $enrolledAt,
                             'curriculum_delivered' => false,
                             'account_sent' => false,
-                            'status' => 'completed',
+                            'status' => 'pending',
                             'confirmed_at' => now(),
                             'confirmed_by' => $user->id,
                         ]);

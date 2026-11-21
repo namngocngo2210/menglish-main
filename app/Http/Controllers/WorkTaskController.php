@@ -407,6 +407,13 @@ class WorkTaskController extends Controller
         $updateData = ['status' => $status];
 
         if ($status === 'blocked') {
+            if ($task->creator_id && (int) $task->creator_id !== (int) $task->assignee_id) {
+                $task->blocked_reason = $reason ?? $note;
+                $this->handBackToCreator($task, $user, null);
+
+                return $this->modalSaved('Đã báo bị chặn và chuyển công việc lại cho người giao.', url()->previous(), 'success');
+            }
+
             $updateData['blocked_reason'] = $reason ?? $note;
         } elseif ($status === 'completed') {
             $updateData['completed_at'] = now();
