@@ -114,6 +114,26 @@ class TaskOverduePenaltyTest extends TestCase
             ->assertDontSee('Phạt khi quá hạn')->assertDontSee('muc_phat_qua_han');
     }
 
+    // ───────── TK-2026-0157: only Admin configures penalties (R-10) ─────────
+
+    public function test_non_admin_forged_penalty_payload_is_ignored_without_errors(): void
+    {
+        $hocVu = $this->makeUser('academic_staff');
+        foreach ([
+            ['phat_khi_qua_han' => '1', 'muc_phat_qua_han' => '50000'],
+            ['phat_khi_qua_han' => '1'],
+            ['phat_khi_qua_han' => '1', 'muc_phat_qua_han' => '0'],
+        ] as $extra) {
+            $this->actingAs($hocVu)->post(route('tasks.store'), $this->payload($extra))->assertSessionHasNoErrors();
+        }
+
+        $this->assertSame(3, WorkTask::count());
+        foreach (WorkTask::all() as $task) {
+            $this->assertFalse($task->phat_khi_qua_han);
+            $this->assertNull($task->muc_phat_qua_han);
+        }
+    }
+
     // ───────── AC-S14 / AC-S15 ─────────
 
     public function test_ac_s14_manual_task_penalty_on_creates_fined_violation_and_payroll_deduction(): void
