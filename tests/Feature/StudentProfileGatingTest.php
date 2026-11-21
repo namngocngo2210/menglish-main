@@ -133,6 +133,42 @@ class StudentProfileGatingTest extends TestCase
         $this->assertArrayNotHasKey('mainClass', $props);
     }
 
+    /** Revoke qua đúng endpoint "Phân quyền chi tiết cá nhân" (như UI), không tạo override trực tiếp. */
+    private function revokeViaEndpoint(array $overrides): void
+    {
+        $admin = User::factory()->create(['is_active' => true]);
+        $admin->assignRole('admin');
+        $this->actingAs($admin)
+            ->put(route('users.permissions.update', $this->viewer->id), ['overrides' => $overrides])
+            ->assertRedirect();
+        $this->viewer = User::findOrFail($this->viewer->id);
+    }
+
+    #[DataProvider('pages')]
+    public function test_view_revoked_through_permissions_endpoint_hides_sections_and_classes_route(string $routeName): void
+    {
+        $this->revokeViaEndpoint(['class' => ['view' => 'deny'], 'attendance_student' => ['view' => 'deny']]);
+        // Trước props(): props() gắn header Inertia vào các request sau, khi đó 403 bị đổi thành 409.
+        $this->actingAs($this->viewer)->get(route('classes.index'))->assertForbidden();
+        $props = $this->props($routeName);
+
+        foreach (array_merge(self::CLASS_KEYS, self::ATTENDANCE_KEYS) as $key) {
+            $this->assertArrayNotHasKey($key, $props, $key);
+        }
+        $this->assertFalse($props['canViewAcademic']);
+    }
+
+    /** TK-2026-0140 (mở lại): thu hồi hành động khác "Xem" (class.edit, attendance_student.record) không ẩn mục hồ sơ. */
+    public function test_revoking_non_view_actions_keeps_sections(): void
+    {
+        $this->revokeViaEndpoint(['class' => ['edit' => 'deny'], 'attendance_student' => ['record' => 'deny']]);
+        $props = $this->props('students.show');
+
+        $this->assertTrue($props['canViewClasses']);
+        $this->assertTrue($props['canViewAttendance']);
+        $this->assertArrayHasKey('attendances', $props);
+    }
+
     public function test_tuition_gating_unchanged(): void
     {
         $this->revoke('class');
