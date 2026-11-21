@@ -80,42 +80,38 @@ class TaskOverduePenaltyTest extends TestCase
 
     // ───────── Form / validation ─────────
 
-    public function test_penalty_on_without_amount_is_rejected(): void
+    // TK-2026-0155: the form no longer carries penalty fields; amounts come from KPI config.
+    public function test_create_without_penalty_fields_succeeds(): void
     {
-        foreach ([null, '', '0', '-5'] as $amount) {
-            $this->actingAs($this->admin)->post(route('tasks.store'), $this->payload(['phat_khi_qua_han' => '1', 'muc_phat_qua_han' => $amount]))
-                ->assertSessionHasErrors('muc_phat_qua_han');
+        $this->actingAs($this->admin)->post(route('tasks.store'), $this->payload())->assertSessionHasNoErrors();
+
+        $task = WorkTask::sole();
+        $this->assertFalse($task->phat_khi_qua_han);
+        $this->assertNull($task->muc_phat_qua_han);
+    }
+
+    public function test_legacy_penalty_payloads_neither_fail_nor_store_amounts(): void
+    {
+        foreach ([
+            ['phat_khi_qua_han' => '1'],
+            ['phat_khi_qua_han' => '1', 'muc_phat_qua_han' => '0'],
+            ['phat_khi_qua_han' => '1', 'muc_phat_qua_han' => '50000'],
+            ['phat_khi_qua_han' => ['x'], 'muc_phat_qua_han' => ['x']],
+        ] as $extra) {
+            $this->actingAs($this->admin)->post(route('tasks.store'), $this->payload($extra))->assertSessionHasNoErrors();
         }
-        $this->assertSame(0, WorkTask::count());
-    }
 
-    public function test_penalty_on_with_amount_is_stored(): void
-    {
-        $this->actingAs($this->admin)->post(route('tasks.store'), $this->payload(['phat_khi_qua_han' => '1', 'muc_phat_qua_han' => '50000']))
-            ->assertSessionHasNoErrors();
-
-        $task = WorkTask::firstOrFail();
-        $this->assertTrue($task->phat_khi_qua_han);
-        $this->assertEquals(50000, $task->muc_phat_qua_han);
-        $this->assertNull($task->sla_rule_key);
-    }
-
-    public function test_penalty_off_ignores_amount_and_defaults_to_off(): void
-    {
-        $this->actingAs($this->admin)->post(route('tasks.store'), $this->payload(['phat_khi_qua_han' => '0', 'muc_phat_qua_han' => '70000']))
-            ->assertSessionHasNoErrors();
-        $this->actingAs($this->admin)->post(route('tasks.store'), $this->payload(['taskTitle' => 'Không gửi cờ']))
-            ->assertSessionHasNoErrors();
-
+        $this->assertSame(4, WorkTask::count());
         foreach (WorkTask::all() as $task) {
             $this->assertFalse($task->phat_khi_qua_han);
             $this->assertNull($task->muc_phat_qua_han);
         }
     }
 
-    public function test_create_form_shows_penalty_toggle(): void
+    public function test_create_form_has_no_penalty_fields(): void
     {
-        $this->actingAs($this->admin)->get(route('tasks.create'))->assertOk()->assertSee('Phạt khi quá hạn');
+        $this->actingAs($this->admin)->get(route('tasks.create'))->assertOk()
+            ->assertDontSee('Phạt khi quá hạn')->assertDontSee('muc_phat_qua_han');
     }
 
     // ───────── AC-S14 / AC-S15 ─────────

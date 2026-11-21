@@ -182,8 +182,9 @@ class RecurringTaskPenaltySeriesTest extends TestCase
             'phat_khi_qua_han' => '1', 'muc_phat_qua_han' => 50000,
         ])->assertSessionHasNoErrors();
         $oneOff = WorkTask::where('task_type', 'one_time')->sole();
-        $this->assertTrue($oneOff->phat_khi_qua_han);
-        $this->assertEquals(50000, $oneOff->muc_phat_qua_han);
+        // TK-2026-0155: form penalty input is ignored for one-off tasks too.
+        $this->assertFalse($oneOff->phat_khi_qua_han);
+        $this->assertNull($oneOff->muc_phat_qua_han);
         $this->assertNull($oneOff->series_id);
     }
 
