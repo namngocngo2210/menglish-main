@@ -172,6 +172,36 @@ class TaskOverduePenaltyTest extends TestCase
         ]);
     }
 
+    public function test_handed_back_tasks_become_overdue_without_penalties_for_either_assignee(): void
+    {
+        $tasks = [];
+        foreach ([$this->admin, $this->makeUser('academic_staff')] as $creator) {
+            $tasks[] = $this->overdueTask([
+                'creator_id' => $creator->id,
+                'assignee_id' => $creator->id,
+                'handed_back_from_id' => $this->staff->id,
+                'handed_back_at' => now()->subDays(2),
+                'blocked_reason' => 'Missing documents',
+                'phat_khi_qua_han' => true,
+                'muc_phat_qua_han' => 80000,
+            ]);
+        }
+
+        for ($run = 0; $run < 2; $run++) {
+            $this->artisan('tasks:mark-overdue')->assertSuccessful();
+
+            foreach ($tasks as $task) {
+                $this->assertSame('overdue', $task->fresh()->status);
+                $this->assertDatabaseHas('admin_notifications', [
+                    'user_id' => $task->creator_id,
+                    'title' => 'Công việc quá hạn: '.$task->title,
+                ]);
+            }
+            $this->assertSame(0, Penalty::withoutViewerScope()->count());
+            $this->assertDatabaseCount('admin_notifications', 2);
+        }
+    }
+
     public function test_cancelling_auto_penalty_removes_the_stored_payroll_deduction(): void
     {
         $task = $this->overdueTask(['phat_khi_qua_han' => true, 'muc_phat_qua_han' => 80000]);

@@ -296,12 +296,16 @@ class Phase4PlatformParityTest extends TestCase
             'due_date' => today(), 'task_type' => 'recurring', 'frequency' => 'monthly', 'status' => 'in_progress']);
         $task->series->update(['penalty_amount' => 0, 'configured_by' => $this->admin->id, 'configured_at' => now()]);
 
-        // Bị chặn bắt buộc lý do.
-        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'blocked'])->assertSessionHasErrors('reason');
-        $this->assertSame('in_progress', $task->fresh()->status);
-        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'blocked', 'reason' => 'Thiếu đề bài từ GV'])->assertSessionHasNoErrors();
-        $this->assertSame('Thiếu đề bài từ GV', $task->fresh()->blocked_reason);
-        $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'in_progress']);
+        // Keep the blocked handoff separate from the recurring approval flow below.
+        $blockedTask = $task->replicate(['series_id']);
+        $blockedTask->title = 'Blocked inventory task';
+        $blockedTask->save();
+        $this->actingAs($teacher)->post(route('tasks.status.update', $blockedTask->id), ['status' => 'blocked'])->assertSessionHasErrors('reason');
+        $this->assertSame('in_progress', $blockedTask->fresh()->status);
+        $this->actingAs($teacher)->post(route('tasks.status.update', $blockedTask->id), ['status' => 'blocked', 'reason' => 'Thiếu đề bài từ GV'])->assertSessionHasNoErrors();
+        $this->assertSame('Thiếu đề bài từ GV', $blockedTask->fresh()->blocked_reason);
+        $this->assertSame('new', $blockedTask->fresh()->status);
+        $this->assertSame($academic->id, $blockedTask->fresh()->assignee_id);
 
         // Gửi chờ xác nhận → báo người giao (R-13, việc không gắn lớp); xác nhận → việc lặp sinh lượt tháng sau.
         $this->actingAs($teacher)->post(route('tasks.status.update', $task->id), ['status' => 'pending_confirmation', 'reason' => 'Đã kiểm kê']);
