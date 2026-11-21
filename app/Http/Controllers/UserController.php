@@ -194,7 +194,7 @@ class UserController extends Controller
         $canViewSensitive = self::canViewSensitive($request->user());
         $primaryRole = $user->roles->first()?->name;
         $contractState = $user->contractExpiryStatus();
-        // Hồ sơ nhân sự (CCCD, liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng) theo quyền nhân sự user.view; chỉ lương/thù lao cần canViewSensitive.
+        // Profile fields follow user.view; bank accounts and salary have additional restrictions.
         $canViewProfile = self::canViewProfile($request->user());
         $sensitive = fn ($value) => $canViewProfile ? $value : false;
 
@@ -230,7 +230,7 @@ class UserController extends Controller
                     ['Chứng chỉ', $user->certificates, false],
                     ['Level giảng dạy / Chuyên môn', $user->teaching_level, false],
                     ['Ngày bắt đầu làm việc', $user->joined_on?->format('d/m/Y'), false],
-                    ['TK ngân hàng nhận lương', $sensitive($user->bank_account), true],
+                    ['TK ngân hàng nhận lương', self::canViewBankAccount($request->user()) ? $user->bank_account : false, true],
                     ['Ghi chú', $user->staff_note, false],
                 ],
                 'contract_type' => $user->contract_type,
@@ -284,6 +284,7 @@ class UserController extends Controller
                 'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
                 'weekly_days_off', 'weekly_days_off_present',
                 ...(self::canViewSensitive(auth()->user()) ? [] : self::SALARY_FIELDS),
+                ...(self::canViewBankAccount($request->user()) ? [] : ['bank_account']),
             ]),
             'weekly_days_off' => $this->weeklyDaysOff($request, null),
             'password' => Hash::make($request->validated('password')),
@@ -319,8 +320,9 @@ class UserController extends Controller
             $assignable = array_values(array_diff($assignable, [Roles::STUDENT]));
         }
         $tabs = ['account', 'profile', 'salary'];
-        // Chỉ lương cơ bản, phụ cấp, thù lao giờ cần quyền lương (Admin); hồ sơ nhân sự (CCCD, TK ngân hàng...) sửa theo user.update của route.
+        // Profile fields follow the route permissions; bank accounts and salary have additional restrictions.
         $canEditSensitive = self::canViewSensitive(auth()->user());
+        $canEditBankAccount = self::canViewBankAccount($request->user());
 
         return $this->modalPage('Users/Form', [
             'user' => $user->exists ? [
@@ -335,7 +337,8 @@ class UserController extends Controller
                 'weekly_days_off' => array_map('intval', (array) $user->weekly_days_off),
                 'date_of_birth' => $user->date_of_birth?->format('Y-m-d'),
                 'joined_on' => $user->joined_on?->format('Y-m-d'),
-                ...$user->only(['id_card_number', 'bank_account']),
+                ...$user->only(['id_card_number']),
+                ...($canEditBankAccount ? $user->only(['bank_account']) : []),
                 ...($canEditSensitive ? $user->only(self::SALARY_FIELDS) : []),
                 'id_card_issued_on' => $user->id_card_issued_on?->format('Y-m-d'),
                 'contract_start_date' => $user->contract_start_date?->format('Y-m-d'),
@@ -351,6 +354,7 @@ class UserController extends Controller
             'concurrentOptions' => Ui::options(collect($assignable)->mapWithKeys(fn (string $role) => [$role => AclHelper::shortRoleLabel($role)])),
             'initialTab' => in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : 'account',
             'canEditSensitive' => $canEditSensitive,
+            'canEditBankAccount' => $canEditBankAccount,
             'branchOptionalRoles' => Roles::BRANCH_OPTIONAL,
         ]);
     }
@@ -413,6 +417,7 @@ class UserController extends Controller
             'role', 'password', 'contract_file', 'concurrent_roles', 'concurrent_roles_present', 'extra_branch_ids', 'extra_branch_ids_present',
             'weekly_days_off', 'weekly_days_off_present',
             ...(self::canViewSensitive(auth()->user()) ? [] : self::SALARY_FIELDS),
+            ...(self::canViewBankAccount($request->user()) ? [] : ['bank_account']),
         ]));
         $user->weekly_days_off = $this->weeklyDaysOff($request, $user->weekly_days_off);
 
@@ -770,8 +775,11 @@ class UserController extends Controller
         ];
 
         if (self::canViewProfile($viewer)) {
-            $payload += $user->only(['id_card_number', 'hometown', 'current_address', 'emergency_contact', 'bank_account'])
+            $payload += $user->only(['id_card_number', 'hometown', 'current_address', 'emergency_contact'])
                 + ['id_card_issued_on' => $user->id_card_issued_on?->format('d/m/Y')];
+        }
+        if (self::canViewBankAccount($viewer)) {
+            $payload += $user->only(['bank_account']);
         }
         if (self::canViewSensitive($viewer)) {
             $payload += $user->only(['base_salary', 'monthly_allowance', 'hourly_rate']);
@@ -780,10 +788,16 @@ class UserController extends Controller
         return $payload;
     }
 
-    /** Hồ sơ nhân sự nhạy cảm (CCCD, liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng): theo quyền nhân sự user.view (phạm vi do route/ensureCanManageTarget giữ). */
+    /** Profile access follows user.view; routes and ensureCanManageTarget enforce scope. */
     public static function canViewProfile(?User $actor): bool
     {
         return (bool) $actor && $actor->can('user.view');
+    }
+
+    /** R-05b / EP5-NS-06: academic leads must not see salary or bank accounts. */
+    public static function canViewBankAccount(?User $actor): bool
+    {
+        return self::canViewProfile($actor) && ! $actor->hasRole(Roles::ACADEMIC_LEAD);
     }
 
     /**

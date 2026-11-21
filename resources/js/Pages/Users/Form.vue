@@ -25,6 +25,7 @@ const props = defineProps({
     concurrentOptions: { type: Array, default: () => [] },
     initialTab: { type: String, default: 'account' },
     canEditSensitive: { type: Boolean, default: true },
+    canEditBankAccount: { type: Boolean, default: false },
     branchOptionalRoles: { type: Array, default: () => [] },
 });
 const title = computed(() => (props.user ? 'Sửa thông tin người dùng' : 'Thêm người dùng mới'));
@@ -42,6 +43,7 @@ const fields = computed(() => ({
     concurrentOptions: props.concurrentOptions,
     initialTab: props.initialTab,
     canEditSensitive: props.canEditSensitive,
+    canEditBankAccount: props.canEditBankAccount,
     branchOptionalRoles: props.branchOptionalRoles,
 }));
 </script>

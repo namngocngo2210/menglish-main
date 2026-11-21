@@ -20,6 +20,7 @@ const props = defineProps({
     initialTab: { type: String, default: 'account' },
     idPrefix: { type: String, default: '' },
     canEditSensitive: { type: Boolean, default: true },
+    canEditBankAccount: { type: Boolean, default: false },
     // Giáo viên, trợ giảng: không bắt buộc cơ sở chính (dạy ở mọi cơ sở).
     branchOptionalRoles: { type: Array, default: () => [] },
 });
@@ -216,7 +217,7 @@ onMounted(() => {
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiDate name="joined_on" :id="fid('joined_on')" label="Ngày bắt đầu làm việc" :value="user?.joined_on" />
-                <UiInput name="bank_account" :id="fid('bank_account')" label="TK ngân hàng nhận lương" :value="user?.bank_account" placeholder="Số TK - Ngân hàng" class="font-code" />
+                <UiInput v-if="canEditBankAccount" name="bank_account" :id="fid('bank_account')" label="TK ngân hàng nhận lương" :value="user?.bank_account" placeholder="Số TK - Ngân hàng" class="font-code" />
             </div>
             <div class="grid grid-cols-1 gap-md sm:grid-cols-2">
                 <UiDate name="contract_start_date" :id="fid('contract_start_date')" label="Ngày bắt đầu hợp đồng" :value="user?.contract_start_date" />

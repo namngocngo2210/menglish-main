@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\BackgroundTask;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\StaffImportService;
+use App\Support\Roles;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -148,6 +150,53 @@ class StaffImportTest extends TestCase
         $this->assertSame(0, $this->importReport()['created']);
         $this->assertSame(0, $this->importReport()['updated']);
         $this->assertSame($count, User::count());
+    }
+
+    public function test_academic_lead_import_ignores_bank_accounts_for_new_and_existing_staff(): void
+    {
+        $lead = User::factory()->create(['branch_id' => $this->branch->id]);
+        $lead->assignRole(Roles::ACADEMIC_LEAD);
+        $existing = User::factory()->create(['email' => 'existing.bank@example.test', 'bank_account' => null, 'hometown' => null, 'branch_id' => $this->branch->id]);
+        $existing->assignRole(Roles::TEACHER_FULLTIME);
+        $file = $this->file([
+            ['Họ tên', 'Vai trò', 'Email công việc', 'TK ngân hàng', 'Quê quán'],
+            ['New teacher', 'teacher_fulltime', 'new.bank@example.test', 'HACK', 'Huế'],
+            ['Existing teacher', 'teacher_fulltime', 'existing.bank@example.test', 'HACK', 'Hà Nội'],
+        ]);
+        $this->actingAs($lead)->post(route('users.import.store'), [
+            'branch_id' => $this->branch->id, 'password' => 'staff@123', 'excel_file' => $file,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+        $token = array_key_first(session('staff_import'));
+        $preview = session('staff_import.'.$token);
+        foreach ($preview['rows'] as $row) {
+            $this->assertSame([], $row['errors']);
+            $this->assertArrayNotHasKey('bank_account', $row['profile']);
+        }
+        $this->post(route('users.import.confirm'), ['token' => $token])->assertSessionHasNoErrors()->assertRedirect();
+        $created = User::where('email', 'new.bank@example.test')->firstOrFail();
+        $this->assertNull($created->bank_account);
+        $this->assertSame('Huế', $created->hometown);
+        $this->assertNull($existing->fresh()->bank_account);
+        $this->assertSame('Hà Nội', $existing->fresh()->hometown);
+    }
+
+    public function test_import_rechecks_bank_account_access_after_actor_becomes_academic_lead(): void
+    {
+        $existing = User::factory()->create(['email' => 'stale.bank@example.test', 'bank_account' => null, 'branch_id' => $this->branch->id]);
+        $existing->assignRole(Roles::TEACHER_FULLTIME);
+        $importer = app(StaffImportService::class);
+        $preview = $importer->parse($this->file([
+            ['Họ tên', 'Vai trò', 'Email công việc', 'TK ngân hàng'],
+            ['New teacher', 'teacher_fulltime', 'stale.new@example.test', 'HACK'],
+            ['Existing teacher', 'teacher_fulltime', 'stale.bank@example.test', 'HACK'],
+        ]), $this->branch->id, null, $this->admin);
+        $this->assertSame('HACK', $preview['rows'][0]['profile']['bank_account']);
+        $this->admin->syncRoles([Roles::ACADEMIC_LEAD]);
+        $result = $importer->import($preview, Hash::make('staff@123'), $this->admin);
+        $this->assertSame([], $result['failed']);
+        $this->assertSame(1, $result['created']);
+        $this->assertNull(User::where('email', 'stale.new@example.test')->firstOrFail()->bank_account);
+        $this->assertNull($existing->fresh()->bank_account);
     }
 
     public function test_accepts_original_assistant_form_sheet_with_defaults(): void

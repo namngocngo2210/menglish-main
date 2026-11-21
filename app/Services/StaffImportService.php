@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Helpers\AclHelper;
+use App\Http\Controllers\UserController;
 use App\Imports\RawRowsImport;
 use App\Models\Branch;
 use App\Models\User;
@@ -201,6 +202,10 @@ class StaffImportService
                 'staff_note' => filled($data['staff_note'] ?? null) ? mb_substr(trim((string) $data['staff_note']), 0, 2000) : null,
             ];
 
+            if (! UserController::canViewBankAccount($actor)) {
+                unset($profile['bank_account']);
+            }
+
             $out[] = [
                 'line' => $line,
                 'action' => $match ? 'update' : 'create',
@@ -231,6 +236,9 @@ class StaffImportService
         foreach ($preview['rows'] as $row) {
             if ($row['errors'] !== []) {
                 continue;
+            }
+            if (! UserController::canViewBankAccount($actor)) {
+                unset($row['profile']['bank_account']);
             }
             try {
                 DB::transaction(function () use ($row, $passwordHash, $actor, &$result) {
