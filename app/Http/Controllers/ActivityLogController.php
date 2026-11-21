@@ -298,6 +298,10 @@ class ActivityLogController extends Controller
         $old = (array) ($props['old'] ?? $props['before'] ?? []);
         $new = (array) ($props['attributes'] ?? $props['after'] ?? []);
 
+        if ($log->subject_type === (new User)->getMorphClass() && ! UserController::canViewBankAccount(auth()->user())) {
+            unset($old['bank_account'], $new['bank_account']);
+        }
+
         if (empty($old) && empty($new)) {
             return [];
         }

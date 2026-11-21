@@ -350,6 +350,7 @@ Bảng mới có dữ liệu theo chi nhánh / theo người: dùng lọc tự �
 ## Hồ sơ nhân sự nhạy cảm (TK-2026-0122)
 
 - CCCD (số, ngày cấp), liên lạc khẩn cấp, quê quán, nơi ở, TK ngân hàng nhận lương: xem theo `user.view`, sửa theo `user.update` (trong phạm vi chi nhánh/cây vai trò của `UserController::ensureCanManageTarget`).
+- TK-2026-0163 (R-05b / EP5-NS-06): Học thuật (`Roles::ACADEMIC_LEAD`) cannot view or write staff bank accounts, including imports and audit-log diffs/exports; Học vụ, Admin and Manager retain access under the existing permissions; other profile fields remain available to Học thuật.
 - Lương cơ bản, phụ cấp, thù lao giờ dạy: chỉ Admin (`payroll.view` + phạm vi mọi chi nhánh) xem/ghi; trang hồ sơ, drawer, form, `store`/`update` đều lọc phía server.
 
 ## Chức vụ ở form nhân sự (TK-2026-0134)
