@@ -381,17 +381,18 @@
                     "description": "Đánh dấu Có / Không / N-A việc nhắc, thu học phí và feedback Big Test theo lớp, theo tháng."
                 },
                 {
-                    "key": "teacher_meeting",
-                    "label": "Ghi báo cáo họp giáo viên",
-                    "description": "Ghi / sửa / xóa báo cáo họp giáo viên theo tuần."
-                },
-                {
                     "key": "parent_feedback",
                     "label": "Mở / đóng thu thập feedback phụ huynh",
                     "description": "Bật / tắt thu thập feedback phụ huynh theo chặng của lớp (xem danh sách chỉ cần quyền Xem dự giờ & checklist lớp)."
                 }
             ],
-            "audience": []
+            "audience": [
+                {
+                    "key": "teacher_meeting",
+                    "label": "Ghi báo cáo họp giáo viên",
+                    "description": "Ghi / sửa / xóa báo cáo họp giáo viên theo tuần (Học thuật; Admin chỉ xem, không tự có)."
+                }
+            ]
         },
         {
             "key": "academic_project",
@@ -1840,6 +1841,7 @@
                 "room.view",
                 "room.manage",
                 "class_quality.*",
+                "class_quality.teacher_meeting",
                 "academic_project.view",
                 "academic_project.view_all",
                 "merchandise_stock.view",

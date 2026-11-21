@@ -18,6 +18,8 @@ use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -256,6 +258,71 @@ class ClassQualityTest extends TestCase
 
         $this->actingAs($lead)->delete(route('class-quality.teacher-meetings.destroy', $report->id))->assertSessionHasNoErrors();
         $this->assertSoftDeleted($report);
+    }
+
+    public function test_admin_is_read_only_on_teacher_meeting_reports(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $admin = $this->makeUser('admin');
+        $staff = $this->makeUser('academic_staff', $this->branch);
+        $payload = [
+            'week_start' => now()->startOfWeek()->toDateString(), 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Lớp ổn định', 'status' => 'in_progress',
+        ];
+        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), $payload)->assertSessionHasNoErrors();
+        $report = TeacherMeetingReport::sole();
+
+        foreach ([$admin, $staff] as $viewer) {
+            $this->actingAs($viewer)->get(route('class-quality.teacher-meetings'))->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->component('ClassQuality/TeacherMeetings')->where('canManage', false));
+            $this->actingAs($viewer)->post(route('class-quality.teacher-meetings.store'), $payload)->assertForbidden();
+            $this->actingAs($viewer)->put(route('class-quality.teacher-meetings.update', $report->id), ['status' => 'handled'] + $payload)->assertForbidden();
+            $this->actingAs($viewer)->delete(route('class-quality.teacher-meetings.destroy', $report->id))->assertForbidden();
+        }
+        $this->assertSame('in_progress', $report->fresh()->status);
+        $this->assertNull($report->fresh()->deleted_at);
+
+        // Học thuật vẫn ghi được.
+        $this->actingAs($lead)->get(route('class-quality.teacher-meetings'))->assertInertia(fn (AssertableInertia $page) => $page->where('canManage', true));
+        $this->actingAs($lead)->put(route('class-quality.teacher-meetings.update', $report->id), ['status' => 'handled'] + $payload)->assertSessionHasNoErrors();
+        $this->assertSame('handled', $report->fresh()->status);
+
+        // Guard: quyền ghi là quyền "đối tượng" nên Super Admin không tự có.
+        $this->assertTrue(\App\Support\PermissionCatalog::isAudience('class_quality.teacher_meeting'));
+        $this->assertFalse($admin->can('class_quality.teacher_meeting'));
+        $this->assertTrue($lead->can('class_quality.teacher_meeting'));
+    }
+
+    public function test_admin_with_legacy_teacher_meeting_grant_is_detached_by_migration(): void
+    {
+        $admin = $this->makeUser('admin');
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $manager = $this->makeUser('manager', $this->branch);
+        $payload = [
+            'week_start' => now()->startOfWeek()->toDateString(), 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Lớp ổn định', 'status' => 'in_progress',
+        ];
+        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), $payload)->assertSessionHasNoErrors();
+        $report = TeacherMeetingReport::sole();
+
+        // Staging/production state before the fix: admin role still holds the row.
+        Role::findByName('admin', 'web')->givePermissionTo('class_quality.teacher_meeting');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->assertTrue($admin->fresh()->can('class_quality.teacher_meeting'));
+
+        (require database_path('migrations/2026_12_19_090000_detach_teacher_meeting_from_admin.php'))->up();
+
+        $admin = $admin->fresh();
+        $this->assertFalse($admin->can('class_quality.teacher_meeting'));
+        $this->actingAs($admin)->get(route('class-quality.teacher-meetings'))->assertOk();
+        $this->actingAs($admin)->post(route('class-quality.teacher-meetings.store'), $payload)->assertForbidden();
+        $this->actingAs($admin)->put(route('class-quality.teacher-meetings.update', $report->id), ['status' => 'handled'] + $payload)->assertForbidden();
+        $this->actingAs($admin)->delete(route('class-quality.teacher-meetings.destroy', $report->id))->assertForbidden();
+        $this->assertNull($report->fresh()->deleted_at);
+
+        // Only admin is detached; manager (seeded from config) and academic lead keep write access.
+        $this->assertTrue($manager->can('class_quality.teacher_meeting'));
+        $this->assertTrue($lead->can('class_quality.teacher_meeting'));
     }
 
     public function test_teacher_meeting_rejects_duplicate_for_the_normalized_week(): void

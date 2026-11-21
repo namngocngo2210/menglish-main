@@ -165,8 +165,11 @@ return [
                 'observe_operations' => ['Ghi nhận dự giờ vận hành', 'Ghi nhận / sửa / xóa lượt dự giờ QA của đội vận hành.'],
                 'observe_academic' => ['Đánh giá dự giờ học thuật', 'Ghi đánh giá dự giờ theo lớp và tháng (6 tiêu chí, % chuyên cần, % đạt yêu cầu).'],
                 'checklist' => ['Cập nhật checklist học phí & feedback', 'Đánh dấu Có / Không / N-A việc nhắc, thu học phí và feedback Big Test theo lớp, theo tháng.'],
-                'teacher_meeting' => ['Ghi báo cáo họp giáo viên', 'Ghi / sửa / xóa báo cáo họp giáo viên theo tuần.'],
                 'parent_feedback' => ['Mở / đóng thu thập feedback phụ huynh', 'Bật / tắt thu thập feedback phụ huynh theo chặng của lớp (xem danh sách chỉ cần quyền Xem dự giờ & checklist lớp).'],
+            ],
+            // TK-2026-0161: chỉ Học thuật ghi báo cáo họp GV; Admin chỉ xem (Super Admin không tự có quyền này).
+            'audience' => [
+                'teacher_meeting' => ['Ghi báo cáo họp giáo viên', 'Ghi / sửa / xóa báo cáo họp giáo viên theo tuần (Học thuật; Admin chỉ xem, không tự có).'],
             ],
         ],
         'academic_project' => [
