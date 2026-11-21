@@ -570,6 +570,28 @@ class Phase4FinanceParityTest extends TestCase
         $this->assertStringNotContainsString('CN Đống Đa', $csv);
     }
 
+    public function test_bao_cao_doanh_thu_thu_gom_phieu_da_duyet_va_tam_thu(): void
+    {
+        // setUp: 3tr đã duyệt (CG, tháng này). Thêm: tạm thu 2tr (tính), nháp/từ chối/hủy (loại), tạm thu tháng trước (loại), tạm thu ĐĐ (chi nhánh khác).
+        $month = now()->startOfMonth();
+        $this->approvedReceipt($this->tuition, 2000000, ['status' => 'pending', 'approver_id' => null, 'approved_at' => null]);
+        foreach (['draft' => 700000, 'rejected' => 800000, 'cancelled' => 900000] as $status => $amount) {
+            $this->approvedReceipt($this->tuition, $amount, ['status' => $status, 'approver_id' => null, 'approved_at' => null]);
+        }
+        $this->approvedReceipt($this->tuition, 4000000, ['status' => 'pending', 'approver_id' => null, 'approved_at' => null, 'payment_date' => $month->copy()->subDays(10)->toDateString()]);
+        $other = $this->makeStudent('HV-PAR-DD2', 'Học Viên ĐĐ 2', $this->branch2);
+        $otherTuition = $this->makeTuition($other, 5000000);
+        $this->approvedReceipt($otherTuition, 1500000, ['status' => 'pending', 'approver_id' => null, 'approved_at' => null]);
+
+        $this->actingAs($this->accountant)->get(route('finance.reports.revenue'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('totalRevenue', fn ($t) => (float) $t === 5000000.0));
+        $this->actingAs($this->admin)->get(route('finance.reports.revenue'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('totalRevenue', fn ($t) => (float) $t === 6500000.0));
+        // Tháng trước: chỉ tạm thu 4tr giữa tháng trước.
+        $this->actingAs($this->admin)->get(route('finance.reports.revenue', ['month' => $month->copy()->subDays(10)->format('Y-m')]))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('totalRevenue', fn ($t) => (float) $t === 4000000.0));
+    }
+
     public function test_khoan_chi_scoped_for_branch_accountant_and_export_uses_search(): void
     {
         OperatingExpense::create(['expense_date' => now()->toDateString(), 'title' => 'Tiền điện CG', 'amount' => 1500000, 'payment_method' => 'chuyen_khoan', 'branch_id' => $this->branch->id, 'category' => 'mat_bang_tien_ich', 'creator_id' => $this->admin->id]);

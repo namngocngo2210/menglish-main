@@ -663,7 +663,8 @@ class FinanceController extends Controller
     {
         $query = TuitionReceipt::query()
             ->whereBetween('payment_date', [$startDate, $endDate])
-            ->where('status', TuitionReceipt::STATUS_APPROVED);
+            // Thu = đã duyệt + Tạm thu (BA EP13-DT-04); nháp / từ chối / hủy hóa đơn bị loại.
+            ->whereIn('status', TuitionReceipt::REFERENCE_HOLDING_STATUSES);
 
         if ($branchId !== null && $branchId !== 'all' && is_numeric($branchId)) {
             // Chi nhánh của phiếu = chi nhánh hợp đồng; hợp đồng chưa gán chi nhánh thì theo học viên (như màn Học phí).
