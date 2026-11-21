@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcademicClassOverviewController;
 use App\Http\Controllers\AcademicDashboardController;
 use App\Http\Controllers\AcademicProjectController;
 use App\Http\Controllers\AcademicSystemController;
@@ -125,6 +126,9 @@ Route::get('/teacher-portal/{screen?}', [AcademicSystemController::class, 'teach
 Route::get('/parent-portal/{screen?}', [AcademicSystemController::class, 'parentPortal'])->middleware(['auth'])->name('parent-portal.shortcut');
 
 // Dashboard Báo cáo & Nhật ký sự vụ Admin
+Route::get('/academic/class-overview', AcademicClassOverviewController::class)
+    ->middleware(['auth', 'can:class.overview'])->name('academic.class-overview');
+
 Route::prefix('academic/dashboards')->name('academic.dashboards.')->middleware(['auth', 'can:class.update'])->group(function () {
     Route::get('/reports', [AcademicDashboardController::class, 'reports'])->name('reports');
     Route::get('/incidents', [AcademicDashboardController::class, 'incidents'])->name('incidents');

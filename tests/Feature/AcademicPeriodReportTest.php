@@ -128,7 +128,7 @@ class AcademicPeriodReportTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $report = StaffReport::where('kind', 'academic_monthly')->sole();
-        $this->assertSame(['test_syllabus_review' => 'Đã rà soát đề Starters', 'overall' => 'Tháng ổn định, cần kèm GV mới'], $report->data['narrative']);
+        $this->assertSame(['test_syllabus_review' => 'Đã rà soát đề Starters', 'overall' => 'Tháng ổn định, cần kèm GV mới', 'teacher_notes' => null], $report->data['narrative']);
         $this->assertSame(['parents' => 'Một phụ huynh phản ánh ngữ pháp'], $report->data['notes']);
         $this->assertArrayHasKey('quality', $report->data['auto']['sections']);
         $this->assertStringContainsString('Feedback phụ huynh:', $report->content);
@@ -146,13 +146,36 @@ class AcademicPeriodReportTest extends TestCase
         $this->actingAs($admin)->get(route('reports.detail', $report->id))->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Reports/Detail')->where('view', 'academic_period')
                 ->has('auto.sections.quality')->has('sectionTasks.parents', 1)->where('notes.parents', 'Một phụ huynh phản ánh ngữ pháp')
-                ->where('narrative', [['label' => 'Đánh giá chung tháng', 'value' => 'Tháng ổn định, cần kèm GV mới'], ['label' => 'Rà soát test & syllabus', 'value' => 'Đã rà soát đề Starters']]));
+                ->where('narrative', [['label' => 'Đánh giá chung tháng', 'value' => 'Tháng ổn định, cần kèm GV mới'], ['label' => 'Nhận xét riêng theo từng giáo viên', 'value' => null], ['label' => 'Rà soát test & syllabus', 'value' => 'Đã rà soát đề Starters']]));
 
         // Tháng sau: việc chưa xong hiện lại ở khối "Feedback phụ huynh".
         $this->travelTo(now()->addMonthNoOverflow()->startOfMonth()->addDays(2));
         $this->actingAs($this->lead)->get(route('reports.periodic.academic-monthly'))
             ->assertInertia(fn (AssertableInertia $page) => $page->where('month', ReportPeriod::currentMonth())->has('sectionTasks.parents', 1)
                 ->whereNot('sectionTasks.parents.0.carried', null)->where('values', [])->where('legacyFields', []));
+    }
+
+    public function test_monthly_report_saves_optional_per_teacher_comments(): void
+    {
+        $month = ReportPeriod::currentMonth();
+        $url = route('reports.periodic.academic-monthly.store');
+
+        // Để trống vẫn lưu được (ô tùy chọn).
+        $this->actingAs($this->lead)->post($url, ['month' => $month, 'narrative' => ['overall' => 'Ổn', 'teacher_notes' => '']])->assertSessionHasNoErrors();
+        $report = StaffReport::where('kind', 'academic_monthly')->sole();
+        $this->assertNull($report->data['narrative']['teacher_notes']);
+
+        // Có nội dung: lưu, tải lại màn hình thấy giá trị, màn chi tiết của Admin hiện nhãn + nội dung.
+        $this->actingAs($this->lead)->post($url, ['month' => $month, 'narrative' => ['overall' => 'Ổn', 'teacher_notes' => 'Cô Lan: cần dự giờ']])->assertSessionHasNoErrors();
+        $this->assertSame('Cô Lan: cần dự giờ', $report->refresh()->data['narrative']['teacher_notes']);
+        $this->actingAs($this->lead)->get(route('reports.periodic.academic-monthly'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('fields.teacher_notes', 'Nhận xét riêng theo từng giáo viên')->where('values.teacher_notes', 'Cô Lan: cần dự giờ'));
+        $this->actingAs($this->makeUser('admin'))->get(route('reports.detail', $report->id))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('narrative.1', ['label' => 'Nhận xét riêng theo từng giáo viên', 'value' => 'Cô Lan: cần dự giờ']));
+
+        // Quá dài bị từ chối; quyền ghi không đổi (Học vụ vẫn 403).
+        $this->actingAs($this->lead)->post($url, ['month' => $month, 'narrative' => ['overall' => 'Ổn', 'teacher_notes' => str_repeat('a', 10001)]])->assertSessionHasErrors('narrative.teacher_notes');
+        $this->actingAs($this->makeUser('academic_staff'))->post($url, ['month' => $month, 'narrative' => ['overall' => 'x']])->assertForbidden();
     }
 
     public function test_quarterly_report_keeps_overall_fields_and_section_tasks(): void

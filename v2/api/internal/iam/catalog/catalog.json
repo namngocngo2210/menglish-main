@@ -299,6 +299,11 @@
                     "description": "Xem danh sách, hồ sơ lớp, lịch học (trong phạm vi dữ liệu)."
                 },
                 {
+                    "key": "overview",
+                    "label": "Xem tổng quan lớp",
+                    "description": "Xem tổng quan lớp, tiến độ, lịch Big Test và dự giờ (trong phạm vi dữ liệu)."
+                },
+                {
                     "key": "create",
                     "label": "Tạo lớp",
                     "description": "Mở lớp mới, sinh lịch học."
@@ -1914,6 +1919,7 @@
                 "student.view",
                 "student.manage_account",
                 "class.view",
+                "class.overview",
                 "class.update",
                 "class.teach",
                 "attendance_student.*",

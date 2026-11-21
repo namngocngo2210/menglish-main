@@ -197,12 +197,12 @@ class StaffReportController extends Controller
      */
     public const MONTHLY_FIELDS = [
         'overall' => 'Đánh giá chung tháng',
+        'teacher_notes' => 'Nhận xét riêng theo từng giáo viên',
     ];
 
     public const MONTHLY_LEGACY_FIELDS = [
         'test_syllabus_review' => 'Rà soát test & syllabus',
         'materials_transfers' => 'Chuẩn bị giáo trình & chuyển lớp',
-        'teacher_notes' => 'Nhận xét riêng theo từng giáo viên',
     ];
 
     /** Báo cáo quý Học thuật: số liệu từng khối tự động, phần tự viết là "Đánh giá chung" và kế hoạch kỳ sau. */

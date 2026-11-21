@@ -138,6 +138,7 @@ return [
             'icon' => 'groups',
             'actions' => [
                 'view' => ['Xem lớp', 'Xem danh sách, hồ sơ lớp, lịch học (trong phạm vi dữ liệu).'],
+                'overview' => ['Xem tổng quan lớp', 'Xem tổng quan lớp, tiến độ, lịch Big Test và dự giờ (trong phạm vi dữ liệu).'],
                 'create' => ['Tạo lớp', 'Mở lớp mới, sinh lịch học.'],
                 'update' => ['Sửa lớp', 'Sửa lớp, lịch, đặt lịch học thử, dashboard đào tạo.'],
                 'edit' => ['Sửa thông tin lớp', 'Sửa thông tin lớp, đổi GV / GVNN, bật tắt trạng thái lớp. Chỉ Học vụ + Admin (TK-2026-0148); Học thuật chỉ xem lớp.'],
