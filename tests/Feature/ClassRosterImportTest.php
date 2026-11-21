@@ -172,7 +172,7 @@ class ClassRosterImportTest extends TestCase
 
         $chau = Student::where('name', 'Nguyễn Minh Châu')->firstOrFail();
         $enrollment = ClassEnrollment::where('student_id', $quang->id)->firstOrFail();
-        $this->assertSame(['completed', '2026-06-19'], [$enrollment->status, $enrollment->enrolled_at->toDateString()]);
+        $this->assertSame(['pending', '2026-06-19'], [$enrollment->status, $enrollment->enrolled_at->toDateString()]);
         $this->assertNotNull($enrollment->confirmed_at);
         $this->assertSame($cam->id, $chau->current_class_id);
 
@@ -241,6 +241,10 @@ class ClassRosterImportTest extends TestCase
         $this->assertSame($kindy10->id, $minhAnh->fresh()->current_class_id);
         $old = ClassEnrollment::where('class_id', $kindy8->id)->firstOrFail();
         $this->assertSame([Student::ENROLLMENT_TRANSFERRED, today()->subDays(2)->toDateString()], [$old->status, $old->left_at->toDateString()]);
+        $new = ClassEnrollment::where('class_id', $kindy10->id)->firstOrFail();
+        $this->assertSame('pending', $new->status); // import chỉ xếp lớp, không gán 'completed'
+        $this->assertNull($new->left_at);
+        $this->assertContains($new->status, Student::ACTIVE_ENROLLMENT_STATUSES);
         $this->assertFalse($kindy8->hasOnRoster($minhAnh->id));
         $this->assertTrue($kindy10->hasOnRoster($minhAnh->id));
         $this->assertSame($kindy8->id, $usedTuition->fresh()->class_id);

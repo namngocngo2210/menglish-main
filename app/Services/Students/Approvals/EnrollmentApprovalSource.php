@@ -46,7 +46,7 @@ class EnrollmentApprovalSource extends QueryApprovalSource
     {
         return ClassEnrollment::query()
             ->whereIn('student_id', Student::visibleTo($user)->select('id'))
-            ->where('status', 'pending')
+            ->where('status', 'pending')->whereNull('confirmed_at')
             ->when($user->can('lead.view'), fn (Builder $q) => $q->whereNull('customer_id'));
     }
 
