@@ -191,7 +191,7 @@ const autoSubmit = (event) => event.target.form?.requestSubmit();
                             <div class="h-2.5 w-2.5 rounded-full bg-tertiary"></div>
                             <div>
                                 <p class="text-sm font-semibold text-on-surface">Học phí các khóa học</p>
-                                <p class="text-xs text-on-surface-variant">Phần học phí của các phiếu thu đã duyệt trong tháng</p>
+                                <p class="text-xs text-on-surface-variant">Phần học phí của các phiếu thu đã duyệt / tạm thu trong tháng</p>
                             </div>
                         </div>
                         <div class="text-right">
@@ -227,7 +227,7 @@ const autoSubmit = (event) => event.target.form?.requestSubmit();
                 </div>
 
                 <UiAlert type="success" title="Nguyên tắc ghi nhận doanh thu:" class="text-xs">
-                    <p>Chỉ cộng phiếu thu <strong>đã duyệt</strong> theo ngày thu (phiếu nháp / chờ duyệt / bị từ chối chưa là doanh thu). Phiếu bị <strong class="underline">Hủy hóa đơn</strong> tự động bị loại trừ; phiếu hoàn phí / chuyển nhượng (số âm) được trừ vào tổng thu.</p>
+                    <p>Cộng phiếu thu <strong>đã duyệt</strong> và <strong>Tạm thu</strong> theo ngày thu (phiếu nháp / bị từ chối chưa là doanh thu). Phiếu bị <strong class="underline">Hủy hóa đơn</strong> tự động bị loại trừ; phiếu hoàn phí / chuyển nhượng (số âm) được trừ vào tổng thu.</p>
                 </UiAlert>
             </div>
 
