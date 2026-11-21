@@ -321,6 +321,8 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:finance.view_revenue_report')->group(function () {
             Route::get('/reports/provisional-revenue', [FinanceController::class, 'provisionalRevenue'])->name('reports.revenue');
             Route::get('/reports/provisional-revenue/export', [FinanceController::class, 'exportRevenueReport'])->name('reports.revenue.export');
+            Route::get('/reports/official-revenue', [FinanceController::class, 'officialRevenue'])->name('reports.official-revenue');
+            Route::get('/reports/official-revenue/export', [FinanceController::class, 'exportOfficialRevenue'])->name('reports.official-revenue.export');
         });
     });
 

@@ -8,6 +8,7 @@ use App\Models\PayrollPeriod;
 use App\Models\PayrollRecord;
 use App\Models\TuitionReceipt;
 use App\Models\User;
+use App\Services\Finance\OfficialRevenueQuery;
 use App\Support\ReportPeriod;
 use App\Support\SpreadsheetCell;
 use App\Support\TuitionBranchScope;
@@ -563,6 +564,89 @@ class FinanceController extends Controller
             'totalMatrixStatus' => $totalMatrixStatus,
             'monthOptions' => collect($monthOptions)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
         ]);
+    }
+
+    /**
+     * Màn hình: Báo cáo Doanh thu chính thức (TK-2026-0169) — quy tắc tính ở OfficialRevenueQuery.
+     */
+    public function officialRevenue(Request $request)
+    {
+        [$month, $branchId, $startDate, $endDate] = $this->officialRevenueFilters($request);
+
+        $receipts = OfficialRevenueQuery::receipts($startDate, $endDate, $branchId)->get();
+        $total = (float) $receipts->sum('amount');
+        $cash = (float) $receipts->whereIn('payment_method', OfficialRevenueQuery::CASH_METHODS)->sum('amount');
+        $surcharge = (float) $receipts->sum('surcharge_amount');
+
+        $branches = $this->visibleBranches($request);
+        $rows = $branches->map(fn ($b) => [
+            'id' => $b->id,
+            'name' => $b->name,
+            'revenue' => (float) OfficialRevenueQuery::receipts($startDate, $endDate, $b->id)->sum('amount'),
+        ])->values();
+
+        $monthOptions = [];
+        for ($i = 0; $i < 6; $i++) {
+            $dt = Carbon::now()->startOfMonth()->subMonths($i);
+            $monthOptions[] = ['value' => $dt->format('Y-m'), 'label' => "Tháng {$dt->format('m/Y')}".($i === 0 ? ' (Hiện tại)' : '')];
+        }
+
+        return Inertia::render('Finance/Reports/OfficialRevenue', [
+            'branchScoped' => $this->scopedBranchIds($request->user()) !== null,
+            'month' => $month,
+            'branchId' => (string) $branchId,
+            'branches' => $branches->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])->values(),
+            'monthOptions' => $monthOptions,
+            'totalRevenue' => $total,
+            'receiptsCount' => $receipts->count(),
+            'transferRevenue' => $total - $cash,
+            'cashRevenue' => $cash,
+            'surchargeRevenue' => $surcharge,
+            'tuitionRevenue' => $total - $surcharge,
+            'branchRows' => $rows,
+        ]);
+    }
+
+    /** Xuất Báo cáo Doanh thu chính thức (CSV) theo bộ lọc tháng / chi nhánh đang xem. */
+    public function exportOfficialRevenue(Request $request)
+    {
+        [$month, $branchId, $startDate, $endDate] = $this->officialRevenueFilters($request);
+        $branches = $this->visibleBranches($request)
+            ->when($branchId !== 'all' && is_numeric($branchId), fn ($c) => $c->where('id', (int) $branchId)->values());
+
+        return new StreamedResponse(function () use ($branches, $startDate, $endDate, $month) {
+            $handle = fopen('php://output', 'w');
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($handle, ['BÁO CÁO DOANH THU CHÍNH THỨC - MENGLISH ADMIN']);
+            fputcsv($handle, ['Kỳ tháng: '.ReportPeriod::parseMonth($month)->format('m/Y')]);
+            fputcsv($handle, []);
+            fputcsv($handle, ['Chi nhánh / Cơ sở', 'Doanh thu chính thức (VNĐ)']);
+
+            $sum = 0;
+            foreach ($branches as $b) {
+                $rev = (float) OfficialRevenueQuery::receipts($startDate, $endDate, $b->id)->sum('amount');
+                fputcsv($handle, SpreadsheetCell::safeRow([$b->name, number_format($rev, 0, ',', '.')]));
+                $sum += $rev;
+            }
+            fputcsv($handle, ['TỔNG CỘNG', number_format($sum, 0, ',', '.')]);
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"Bao_Cao_Doanh_Thu_Chinh_Thuc_{$month}.csv\"",
+        ]);
+    }
+
+    /** @return array{0: string, 1: int|string, 2: string, 3: string} */
+    private function officialRevenueFilters(Request $request): array
+    {
+        $parsed = ReportPeriod::parseMonth($request->input('month', Carbon::now()->format('Y-m')));
+
+        return [
+            $parsed->format('Y-m'),
+            $this->resolveBranchFilter($request, $request->input('branch_id', 'all')),
+            $parsed->copy()->startOfMonth()->toDateString(),
+            $parsed->copy()->endOfMonth()->toDateString(),
+        ];
     }
 
     /**
