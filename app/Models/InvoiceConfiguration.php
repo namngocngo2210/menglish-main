@@ -133,6 +133,7 @@ class InvoiceConfiguration extends Model
     {
         return static::query()
             ->where('series_code', $seriesCode)
+            ->where('is_active', true) // dải đã ngừng dùng không chặn việc tạo lại cùng ký hiệu + khoảng số
             ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
             ->get()
             ->first(function (self $other) use ($start, $end) {

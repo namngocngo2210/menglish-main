@@ -216,6 +216,56 @@ class Phase4FinanceTest extends TestCase
             ->assertSee('Đang hiệu lực');
     }
 
+    private function makeRange(array $o = []): InvoiceConfiguration
+    {
+        return InvoiceConfiguration::create($o + [
+            'branch_id' => $this->branch->id, 'template_code' => '1/001', 'series_code' => 'C26MQ7',
+            'start_number' => 1, 'end_number' => 500, 'current_number' => 1, 'provider' => 'vnpt', 'auto_issue' => true,
+        ]);
+    }
+
+    public function test_inactive_range_does_not_block_recreating_same_series_and_span(): void
+    {
+        $payload = ['branch_id' => $this->branch->id, 'template_code' => '1/001', 'series_code' => 'C26MQ7', 'start_number' => 1, 'end_number' => 500];
+
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.store'), $payload)->assertSessionHasNoErrors();
+        $first = InvoiceConfiguration::where('series_code', 'C26MQ7')->firstOrFail();
+
+        // Còn đang dùng -> chặn.
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.store'), $payload)->assertSessionHasErrors('start_number');
+
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.toggle', $first->id))->assertSessionHasNoErrors();
+        $this->assertFalse($first->fresh()->is_active);
+
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.store'), $payload)->assertSessionHasNoErrors();
+        $this->assertSame(2, InvoiceConfiguration::where('series_code', 'C26MQ7')->count());
+    }
+
+    public function test_active_range_can_still_be_extended(): void
+    {
+        $range = $this->makeRange();
+        $this->makeRange(['is_active' => false, 'start_number' => 501, 'end_number' => 600]);
+
+        $this->actingAs($this->admin)->post(route('tuition.config.update'), [
+            'config_id' => $range->id, 'template_code' => '1/001', 'series_code' => 'C26MQ7',
+            'start_number' => 1, 'end_number' => 800, 'current_number' => 1,
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(800, $range->fresh()->end_number);
+    }
+
+    public function test_reactivating_range_overlapping_active_range_is_refused(): void
+    {
+        $inactive = $this->makeRange(['is_active' => false]);
+        $active = $this->makeRange(['start_number' => 100, 'end_number' => 700]);
+
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.toggle', $inactive->id))->assertSessionHasErrors('start_number');
+        $this->assertFalse($inactive->fresh()->is_active);
+
+        $active->update(['is_active' => false]);
+        $this->actingAs($this->admin)->post(route('tuition.config.ranges.toggle', $inactive->id))->assertSessionHasNoErrors();
+        $this->assertTrue($inactive->fresh()->is_active);
+    }
+
     // ---------------------------------------------------------------------
     // 4. Quyền báo cáo thu chi
     // ---------------------------------------------------------------------
