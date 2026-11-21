@@ -431,6 +431,7 @@ final class SidebarMenu
                     ...self::anchored(self::CLASS_MANAGER, [
                         ['label' => 'Báo cáo & sự vụ lớp', 'route' => 'academic.dashboards.reports', 'active' => ['academic.dashboards.*']],
                     ]),
+                    ['label' => 'Tổng quan lớp', 'route' => 'academic.class-overview'],
                     // Dự giờ & chất lượng lớp (mockup Học vụ / Học thuật): quyền class_quality.view đọc từ middleware route.
                     ['label' => 'Dự giờ vận hành', 'route' => 'class-quality.operations'],
                     ['label' => 'Đánh giá dự giờ', 'route' => 'class-quality.academic'],

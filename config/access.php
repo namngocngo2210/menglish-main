@@ -139,7 +139,7 @@ return [
             'user.view', 'user.create', 'user.update', 'user.assign_role',
             'user.assign_role.teacher_fulltime', 'user.assign_role.teacher_parttime', 'user.assign_role.foreign_teacher',
             'lead.view',
-            'student.view', 'student.manage_account', 'class.view', 'class.update', 'class.teach', 'attendance_student.*',
+            'student.view', 'student.manage_account', 'class.view', 'class.overview', 'class.update', 'class.teach', 'attendance_student.*',
             'level.*', 'syllabus.*', 'big_test.*',
             'question_bank.*', 'practice.view_results',
             'entrance_test.*', 'entrance_test.examine', 'placement_test.*',
