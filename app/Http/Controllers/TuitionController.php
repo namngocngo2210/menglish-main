@@ -3485,6 +3485,11 @@ class TuitionController extends Controller
         abort_unless(Auth::user()?->can('invoice_range.manage'), 403);
         $range = InvoiceConfiguration::findOrFail($id);
         abort_unless($this->canManageRange($range->branch_id), 403, 'Bạn chỉ được cấu hình dải số hóa đơn của chi nhánh mình.');
+        // Dùng lại dải đã ngừng: không được chồng lấn dải đang dùng khác (tránh trùng số hóa đơn).
+        if (! $range->is_active && ($overlap = InvoiceConfiguration::overlapping($range->series_code, (int) ($range->start_number ?? 1), $range->end_number, $range->id))) {
+            return redirect()->route('tuition.config')->withErrors(['start_number' => 'Không thể dùng lại: dải số chồng lấn với dải đang dùng '.$overlap->series_code.' '
+                .($overlap->start_number ?? 1).' – '.($overlap->end_number ?? '∞').' ('.($overlap->branch?->name ?? 'dải mặc định').'). Hãy ngừng dải kia trước.']);
+        }
         $range->update(['is_active' => ! $range->is_active]);
         $this->notifyInvoiceRangeChange($range, (Auth::user()?->name ?? 'Hệ thống').($range->is_active ? ' đã kích hoạt lại' : ' đã ngừng dùng')
             ." dải số {$range->series_code} (".($range->branch?->name ?? 'dải mặc định').').');
@@ -3508,7 +3513,7 @@ class TuitionController extends Controller
         if ($overlap = InvoiceConfiguration::overlapping($series, $start, $end, $ignoreId)) {
             return ['start_number' => 'Dải số chồng lấn với dải '.$overlap->series_code.' '
                 .($overlap->start_number ?? 1).' – '.($overlap->end_number ?? '∞')
-                .' ('.($overlap->branch?->name ?? 'dải mặc định').'). Mỗi dải phải duy nhất trên toàn hệ thống.'];
+                .' ('.($overlap->branch?->name ?? 'dải mặc định').'). Mỗi dải đang dùng phải duy nhất trên toàn hệ thống (dải đã ngừng dùng không bị tính).'];
         }
 
         if ($current < $start) {
