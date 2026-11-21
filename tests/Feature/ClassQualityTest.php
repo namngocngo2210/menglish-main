@@ -257,6 +257,39 @@ class ClassQualityTest extends TestCase
         $this->assertSoftDeleted($report);
     }
 
+    public function test_admin_is_read_only_on_teacher_meeting_reports(): void
+    {
+        $lead = $this->makeUser('academic_lead', $this->branch);
+        $admin = $this->makeUser('admin');
+        $staff = $this->makeUser('academic_staff', $this->branch);
+        $payload = [
+            'week_start' => now()->startOfWeek()->toDateString(), 'teacher_id' => $this->teacher->id,
+            'class_id' => $this->class->id, 'class_note' => 'Lớp ổn định', 'status' => 'in_progress',
+        ];
+        $this->actingAs($lead)->post(route('class-quality.teacher-meetings.store'), $payload)->assertSessionHasNoErrors();
+        $report = TeacherMeetingReport::sole();
+
+        foreach ([$admin, $staff] as $viewer) {
+            $this->actingAs($viewer)->get(route('class-quality.teacher-meetings'))->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page->component('ClassQuality/TeacherMeetings')->where('canManage', false));
+            $this->actingAs($viewer)->post(route('class-quality.teacher-meetings.store'), $payload)->assertForbidden();
+            $this->actingAs($viewer)->put(route('class-quality.teacher-meetings.update', $report->id), ['status' => 'handled'] + $payload)->assertForbidden();
+            $this->actingAs($viewer)->delete(route('class-quality.teacher-meetings.destroy', $report->id))->assertForbidden();
+        }
+        $this->assertSame('in_progress', $report->fresh()->status);
+        $this->assertNull($report->fresh()->deleted_at);
+
+        // Học thuật vẫn ghi được.
+        $this->actingAs($lead)->get(route('class-quality.teacher-meetings'))->assertInertia(fn (AssertableInertia $page) => $page->where('canManage', true));
+        $this->actingAs($lead)->put(route('class-quality.teacher-meetings.update', $report->id), ['status' => 'handled'] + $payload)->assertSessionHasNoErrors();
+        $this->assertSame('handled', $report->fresh()->status);
+
+        // Guard: quyền ghi là quyền "đối tượng" nên Super Admin không tự có.
+        $this->assertTrue(\App\Support\PermissionCatalog::isAudience('class_quality.teacher_meeting'));
+        $this->assertFalse($admin->can('class_quality.teacher_meeting'));
+        $this->assertTrue($lead->can('class_quality.teacher_meeting'));
+    }
+
     public function test_weekly_kpi_report_for_academic_staff(): void
     {
         $staff = $this->makeUser('academic_staff', $this->branch);
