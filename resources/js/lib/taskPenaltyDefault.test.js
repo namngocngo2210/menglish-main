@@ -4,14 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../Pages/Tasks/Create.vue', import.meta.url), 'utf8');
 
-test('penalty switch defaults to ON for new tasks', () => {
-    assert.match(src, /const penalize = ref\(true\);/);
-});
-
-test('penalty block is hidden for recurring tasks and keeps amount required (min 1)', () => {
-    assert.match(src, /<div v-if="!isRecurring"[^>]*>[\s\S]*name="phat_khi_qua_han"[\s\S]*<UiInput v-if="penalize"[^>]*name="muc_phat_qua_han"[^>]*required min="1"/);
-});
-
-test('hidden fallback input still submits 0 when the switch is unticked', () => {
-    assert.match(src, /<input type="hidden" name="phat_khi_qua_han" value="0" \/>/);
+// TK-2026-0155: penalty amounts are configured in the KPI screen, never on the task form.
+test('task create form has no penalty toggle or amount field', () => {
+    assert.doesNotMatch(src, /phat_khi_qua_han|muc_phat_qua_han|Phạt khi quá hạn|Số tiền phạt/);
 });
