@@ -615,7 +615,7 @@ class TuitionP0FixesTest extends TestCase
     // 6. Revenue report
     // ---------------------------------------------------------------------
 
-    public function test_revenue_report_counts_only_approved_and_attributes_branch_once(): void
+    public function test_revenue_report_counts_pending_and_approved_and_attributes_branch_once(): void
     {
         $branchB = Branch::create(['name' => 'CN B', 'code' => 'CNB', 'is_active' => true]);
         // Học viên thuộc CN B nhưng hợp đồng thuộc CN A -> doanh thu ghi cho CN A
@@ -638,11 +638,11 @@ class TuitionP0FixesTest extends TestCase
         $response->assertOk();
         $props = $this->inertiaProps($response);
 
-        $this->assertEquals(3150000, (float) $props['totalRevenue']);
+        $this->assertEquals(5150000, (float) $props['totalRevenue']);
         $matrix = collect($props['branchMatrix'])->keyBy(fn ($row) => $row['branch']['id']);
-        $this->assertEquals(3000000, (float) $matrix[$this->branch->id]['revenue']);
+        $this->assertEquals(5000000, (float) $matrix[$this->branch->id]['revenue']);
         $this->assertEquals(150000, (float) $matrix[$branchB->id]['revenue']);
-        $this->assertEquals(3150000, (float) $props['totalMatrixRevenue']);
+        $this->assertEquals(5150000, (float) $props['totalMatrixRevenue']);
 
         $responseB = $this->actingAs($this->admin)->get(route('finance.reports.revenue', [
             'month' => now()->format('Y-m'), 'branch_id' => $branchB->id,
