@@ -6,7 +6,6 @@ use App\Models\AttendanceMonthlyReport;
 use App\Models\Branch;
 use App\Models\StaffAttendance;
 use App\Models\User;
-use App\Support\MonthlyReportDue;
 use Carbon\Carbon;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
@@ -142,18 +141,26 @@ class AttendanceMonthlyReportTest extends TestCase
         }
     }
 
-    public function test_current_month_is_pending_from_three_days_before_last_sunday_onwards(): void
+    public function test_current_month_is_pending_from_seven_days_before_the_last_day_of_month(): void
     {
-        AttendanceMonthlyReport::create(['user_id' => $this->teacher->id, 'month' => '2026-09', 'submitted_at' => now()]);
-        $threshold = MonthlyReportDue::dueDate(now())->subDays(3);
-        foreach ([$threshold->copy()->subSecond(), $threshold, $threshold->copy()->addDays(3), now()->endOfMonth()] as $date) {
-            Carbon::setTestNow($date);
-            $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
-                ->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_pending', $date->lt($threshold) ? null : '2026-10'));
+        // [month, first reminded day]: 30-day, 31-day, Feb 28 and Feb 29 (leap) months.
+        foreach ([['2026-11', '2026-11-23'], ['2026-10', '2026-10-24'], ['2027-02', '2027-02-21'], ['2028-02', '2028-02-22']] as [$month, $first]) {
+            AttendanceMonthlyReport::query()->delete();
+            AttendanceMonthlyReport::create(['user_id' => $this->teacher->id, 'month' => Carbon::parse($month.'-01')->subMonth()->format('Y-m'), 'submitted_at' => now()]);
+            $threshold = Carbon::parse($first)->startOfDay();
+            foreach ([$threshold->copy()->subSecond(), $threshold, $threshold->copy()->addDay(), Carbon::parse($month.'-01')->endOfMonth()] as $date) {
+                Carbon::setTestNow($date);
+                $this->actingAs($this->teacher)->get(route('teacher.home'))->assertOk()
+                    ->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_pending', $date->lt($threshold) ? null : $month));
+            }
         }
-        $this->post(route('my-attendance.monthly-report.store'), ['month' => '2026-10'])->assertSessionHasNoErrors();
+        Carbon::setTestNow(Carbon::parse('2026-11-25 10:00:00'));
+        AttendanceMonthlyReport::query()->delete();
+        AttendanceMonthlyReport::create(['user_id' => $this->teacher->id, 'month' => '2026-10', 'submitted_at' => now()]);
+        $this->get(route('teacher.home'))->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_pending', '2026-11'));
+        $this->post(route('my-attendance.monthly-report.store'), ['month' => '2026-11'])->assertSessionHasNoErrors();
         $this->get(route('teacher.home'))->assertInertia(fn (Assert $page) => $page->where('todo.attendance_report_pending', null));
-        $this->get(route('my-attendance.monthly-report'))->assertInertia(fn (Assert $page) => $page->where('month', '2026-10'));
+        $this->get(route('my-attendance.monthly-report'))->assertInertia(fn (Assert $page) => $page->where('month', '2026-11'));
     }
 
     public function test_previous_month_takes_priority_when_both_months_are_due(): void

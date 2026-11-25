@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Support\MonthlyReportDue;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 
@@ -23,9 +22,9 @@ class AttendanceMonthlyReport extends Model
 
     public static function pendingMonth(int $userId, CarbonInterface $today): ?string
     {
-        // Temporary pending rule until BA confirms the attendance report deadline.
+        // BA 09/11: current month is reminded from (last day of month - 7 days); an earlier month stays pending.
         foreach (self::unsubmittedMonths($userId, $today) as $month) {
-            if ($month !== $today->format('Y-m') || $today->gte(MonthlyReportDue::dueDate($today)->subDays(3))) {
+            if ($month !== $today->format('Y-m') || $today->gte($today->copy()->endOfMonth()->startOfDay()->subDays(7))) {
                 return $month;
             }
         }
