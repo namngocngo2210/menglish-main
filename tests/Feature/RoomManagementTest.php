@@ -154,12 +154,12 @@ class RoomManagementTest extends TestCase
     {
         $busy = $this->room($this->branch, 'Phòng bận');
         $this->makeClass('RM-STUDY', ['room_id' => $busy->id, 'room' => 'Phòng bận']);
-        $this->actingAs($this->admin)->delete(route('rooms.destroy', $busy->id))->assertSessionHas('error');
+        $this->actingAs($this->admin)->delete(route('rooms.destroy', $busy->id), ['class_ids' => [ClassModel::where('room_id', $busy->id)->value('id')]])->assertSessionHas('error');
         $this->assertNotSoftDeleted($busy);
 
         $pendingRoom = $this->room($this->branch, 'Phòng dự kiến');
         $pending = $this->makeClass('RM-PEND', ['room_id' => $pendingRoom->id, 'room' => 'Phòng dự kiến', 'status' => 'upcoming', 'start_date' => now()->addWeek()->toDateString()]);
-        $this->actingAs($this->admin)->delete(route('rooms.destroy', $pendingRoom->id))->assertSessionHas('success');
+        $this->actingAs($this->admin)->delete(route('rooms.destroy', $pendingRoom->id), ['class_ids' => [$pending->id]])->assertSessionHas('success');
         $this->assertSoftDeleted($pendingRoom);
         $this->assertNull($pending->fresh()->room_id);
         $this->assertNull($pending->fresh()->room);
@@ -168,6 +168,36 @@ class RoomManagementTest extends TestCase
         $this->actingAs($this->academic)->delete(route('rooms.destroy', $free->id))->assertForbidden();
         $this->actingAs($this->admin)->delete(route('rooms.destroy', $free->id))->assertSessionHas('success');
         $this->assertSoftDeleted($free);
+    }
+
+    public function test_delete_room_rejected_when_class_added_after_dialog_opened(): void
+    {
+        $room = $this->room($this->branch, 'Phòng đổi');
+        $seen = $this->makeClass('RM-SEEN', ['room_id' => $room->id, 'room' => 'Phòng đổi', 'status' => 'upcoming', 'start_date' => now()->addWeek()->toDateString()]);
+        $late = $this->makeClass('RM-LATE', ['room_id' => $room->id, 'room' => 'Phòng đổi', 'status' => 'upcoming', 'start_date' => now()->addWeek()->toDateString()]);
+
+        $this->actingAs($this->admin)->delete(route('rooms.destroy', $room->id), ['class_ids' => [$seen->id]])
+            ->assertSessionHas('error', 'Danh sách lớp gắn phòng đã thay đổi, vui lòng xem lại');
+        $this->assertNotSoftDeleted($room);
+        $this->assertSame($room->id, $seen->fresh()->room_id);
+        $this->assertSame($room->id, $late->fresh()->room_id);
+
+        // Xác nhận lại với danh sách mới đầy đủ thì xóa được.
+        $this->actingAs($this->admin)->delete(route('rooms.destroy', $room->id), ['class_ids' => [$late->id, $seen->id]])->assertSessionHas('success');
+        $this->assertSoftDeleted($room);
+        $this->assertNull($late->fresh()->room_id);
+    }
+
+    public function test_delete_room_rejected_when_class_removed_after_dialog_opened(): void
+    {
+        $room = $this->room($this->branch, 'Phòng bớt');
+        $stay = $this->makeClass('RM-STAY', ['room_id' => $room->id, 'room' => 'Phòng bớt', 'status' => 'upcoming', 'start_date' => now()->addWeek()->toDateString()]);
+        $gone = $this->makeClass('RM-GONE', ['room_id' => null, 'room' => null, 'status' => 'upcoming', 'start_date' => now()->addWeek()->toDateString()]);
+
+        $this->actingAs($this->admin)->delete(route('rooms.destroy', $room->id), ['class_ids' => [$stay->id, $gone->id]])
+            ->assertSessionHas('error', 'Danh sách lớp gắn phòng đã thay đổi, vui lòng xem lại');
+        $this->assertNotSoftDeleted($room);
+        $this->assertSame($room->id, $stay->fresh()->room_id);
     }
 
     public function test_room_types_toggle_and_cannot_delete_type_in_use(): void
