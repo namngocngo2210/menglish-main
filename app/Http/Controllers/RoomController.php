@@ -111,19 +111,31 @@ class RoomController extends Controller
     public function destroy(Request $request, Room $room): RedirectResponse
     {
         $this->authorizeRoom($request->user(), $room);
-        $classes = $room->openClasses()->orderBy('name')->get();
-        $studying = $classes->filter(fn (ClassModel $class) => $class->isStudying());
-        if ($studying->isNotEmpty()) {
-            return back()->with('error', "Không thể xóa: {$room->name} đang được lớp {$studying->pluck('name')->implode(', ')} sử dụng.");
-        }
+        $seen = collect($request->input('class_ids', []))->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
 
-        DB::transaction(function () use ($room, $classes) {
+        // Khóa phòng + lớp đang gắn trong cùng giao dịch với việc xóa để so khớp danh sách người dùng đã thấy.
+        $result = DB::transaction(function () use ($room, $seen) {
+            Room::whereKey($room->id)->lockForUpdate()->first();
+            $classes = $room->openClasses()->orderBy('name')->lockForUpdate()->get();
+            if ($classes->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all() !== $seen) {
+                return 'Danh sách lớp gắn phòng đã thay đổi, vui lòng xem lại';
+            }
+            $studying = $classes->filter(fn (ClassModel $class) => $class->isStudying());
+            if ($studying->isNotEmpty()) {
+                return "Không thể xóa: {$room->name} đang được lớp {$studying->pluck('name')->implode(', ')} sử dụng.";
+            }
             $this->rooms->detach($room, $classes);
             $room->delete();
+
+            return $classes;
         });
 
+        if (is_string($result)) {
+            return back()->with('error', $result);
+        }
+
         return back()->with('success', "Đã xóa {$room->name}."
-            .($classes->isNotEmpty() ? " Đã bỏ liên kết phòng khỏi lớp {$classes->pluck('name')->implode(', ')}." : ''));
+            .($result->isNotEmpty() ? " Đã bỏ liên kết phòng khỏi lớp {$result->pluck('name')->implode(', ')}." : ''));
     }
 
     /**

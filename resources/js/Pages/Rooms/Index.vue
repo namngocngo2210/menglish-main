@@ -10,7 +10,7 @@ import RoomTabs from './RoomTabs.vue';
 
 defineOptions({ layout: { title: 'Quản lý phòng học' } });
 
-defineProps({
+const props = defineProps({
     blocked: { type: Boolean, default: false },
     rooms: { type: Object, default: null },
     branches: { type: Array, default: () => [] },
@@ -21,7 +21,9 @@ defineProps({
     canDelete: { type: Boolean, default: false },
 });
 
-const deleting = ref(null);
+const deletingId = ref(null);
+// Tra lại phòng từ props để dialog tự cập nhật danh sách lớp khi server từ chối vì danh sách đã đổi.
+const deleting = computed(() => props.rooms?.data?.find((r) => r.id === deletingId.value) ?? null);
 const studyingClasses = computed(() => (deleting.value?.classes ?? []).filter((c) => c.studying));
 const pendingClasses = computed(() => (deleting.value?.classes ?? []).filter((c) => !c.studying));
 const deleteCase = computed(() => (studyingClasses.value.length ? 'blocked' : pendingClasses.value.length ? 'pending' : 'free'));
@@ -94,7 +96,7 @@ const names = (list) => list.map((c) => c.name).join(', ');
                         <td v-if="canManage || canDelete" class="whitespace-nowrap text-right">
                             <div class="inline-flex items-center gap-xs">
                                 <UiButton v-if="canManage" variant="ghost" size="sm" icon="edit" :href="route('rooms.edit', room.id)" modal="md" :aria-label="`Sửa ${room.name}`">Sửa</UiButton>
-                                <UiButton v-if="canDelete" variant="danger-text" size="sm" icon="delete" :aria-label="`Xóa ${room.name}`" @click="deleting = room" />
+                                <UiButton v-if="canDelete" variant="danger-text" size="sm" icon="delete" :aria-label="`Xóa ${room.name}`" @click="deletingId = room.id" />
                             </div>
                         </td>
                     </tr>
@@ -110,7 +112,7 @@ const names = (list) => list.map((c) => c.name).join(', ');
     </template>
 
     <!-- Xác nhận xóa phòng: 3 trường hợp -->
-    <UiModal :show="!!deleting" :title="deleteCase === 'blocked' ? 'Không thể xóa phòng học' : deleteCase === 'pending' ? 'Xóa phòng học đang phân bổ' : 'Xóa phòng học'" max-width="md" @close="deleting = null">
+    <UiModal :show="!!deleting" :title="deleteCase === 'blocked' ? 'Không thể xóa phòng học' : deleteCase === 'pending' ? 'Xóa phòng học đang phân bổ' : 'Xóa phòng học'" max-width="md" @close="deletingId = null">
         <template v-if="deleting">
             <p v-if="deleteCase === 'blocked'" data-testid="room-delete-blocked">
                 Không thể xóa: <strong>{{ deleting.name }}</strong> đang được lớp <strong>{{ names(studyingClasses) }}</strong> sử dụng.
@@ -121,8 +123,8 @@ const names = (list) => list.map((c) => c.name).join(', ');
             <p v-else>Xóa <strong>{{ deleting.name }}</strong>? Thao tác không hoàn tác được.</p>
         </template>
         <template #footer>
-            <UiButton variant="secondary" @click="deleting = null">{{ deleteCase === 'blocked' ? 'Đóng' : 'Hủy' }}</UiButton>
-            <UiForm v-if="deleting && deleteCase !== 'blocked'" :action="route('rooms.destroy', deleting.id)" method="delete" back @success="deleting = null">
+            <UiButton variant="secondary" @click="deletingId = null">{{ deleteCase === 'blocked' ? 'Đóng' : 'Hủy' }}</UiButton>
+            <UiForm v-if="deleting && deleteCase !== 'blocked'" :action="route('rooms.destroy', deleting.id)" method="delete" back :transform="(data) => ({ ...data, class_ids: deleting.classes.map((c) => c.id) })" @success="(page) => { if (!(page.props.flash ?? []).some((f) => f.type === 'error')) deletingId = null; }">
                 <UiButton type="submit" variant="danger" icon="delete">Xóa</UiButton>
             </UiForm>
         </template>
