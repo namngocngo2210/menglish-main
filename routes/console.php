@@ -78,3 +78,8 @@ Schedule::command('practice:close-expired')->everyFiveMinutes()->withoutOverlapp
 
 // Create adjacent-shift attendance and remove draft rows whose triggering session is no longer eligible.
 Schedule::command('attendance:auto-adjacent-shifts')->everyFiveMinutes()->withoutOverlapping();
+
+// Lớp đang học: đảm bảo đã có buổi chính khóa 28 ngày tới theo TKB lặp tuần, bỏ ngày nghỉ lễ, không trùng (idempotent). Thủ công: php artisan classes:generate-sessions [--dry-run].
+Schedule::command('classes:generate-sessions')->dailyAt('05:30')->withoutOverlapping();
+// Việc lặp đã cấu hình phạt mà chưa có kỳ nào đang mở → sinh kỳ kế tiếp (idempotent). Thủ công: php artisan tasks:spawn-recurring [--dry-run].
+Schedule::command('tasks:spawn-recurring')->dailyAt('05:45')->withoutOverlapping();
