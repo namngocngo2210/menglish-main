@@ -29,6 +29,8 @@ class TuitionImportTemplateExport implements FromArray, ShouldAutoSize, WithHead
             'FT26100012345',
             now()->format('d/m/Y'),
             'Đóng đợt 1',
+            null,
+            null,
         ]];
     }
 }

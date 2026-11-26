@@ -15,17 +15,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Sổ buổi học viên và số buổi cần thu khi lập phiếu (logic tính học phí mới, 04/10/2026):
- *
- * Sổ buổi (theo học viên, không theo lớp nên chuyển lớp / chi nhánh / sau hè mang nguyên số buổi tồn):
- *  + số buổi đã đóng: theo các khoản học phí, tính từ tiền đã gạch nợ khi phiếu thu được DUYỆT
- *    (đơn giá buổi = học phí sau ưu đãi khi chốt / số buổi của khoản; tiền "Thu khác" lúc chốt được tính trước).
- *  − 1 cho mỗi buổi lớp diễn ra trong thời gian học viên thuộc lớp (vắng vẫn trừ). Buổi đã hủy (nghỉ lễ, nghỉ hè)
- *    không trừ; thời gian bảo lưu đã duyệt không trừ.
- *
- * Lập phiếu thu:
- *  Buổi còn lại của khóa = số buổi của khóa (mặc định 24) − số buổi lớp hiện tại đã diễn ra.
- *  Buổi cần thu = MAX(Buổi còn lại − Buổi tồn, 0). Tồn nhiều hơn → thu 0, phần dư tự trừ vào khóa kế tiếp.
+ * Per-student session ledger, preserved across class and branch transfers.
+ * Balance = imported opening sessions + paid sessions - held sessions during membership (approved deferrals excluded).
+ * Quotes deduct unheld summer sessions, capped at course remaining; summer never increases carry-over.
+ * A surplus balance produces zero charged sessions and carries forward as sessions, never as money.
  */
 class SessionLedger
 {
@@ -107,7 +100,7 @@ class SessionLedger
     }
 
     /**
-     * @return array{paid: int, used: int, balance: int}
+     * @return array{opening: int, paid: int, used: int, balance: int}
      */
     public function forStudent(Student|int $student, ?CarbonInterface $now = null): array
     {
@@ -120,7 +113,7 @@ class SessionLedger
      * Sổ buổi của nhiều học viên (gộp truy vấn).
      *
      * @param  iterable<int>  $studentIds
-     * @return array<int, array{paid: int, used: int, balance: int}>
+     * @return array<int, array{opening: int, paid: int, used: int, balance: int}>
      */
     public function forStudents(iterable $studentIds, ?CarbonInterface $now = null): array
     {
@@ -134,12 +127,13 @@ class SessionLedger
             ->map(fn (Collection $tuitions) => (int) $tuitions->sum(fn (StudentTuition $t) => $t->paidSessions()));
 
         $used = $this->usedSessions($ids, $now);
+        $opening = Student::query()->whereIn('id', $ids)->pluck('opening_sessions', 'id');
 
-        return $ids->mapWithKeys(function (int $id) use ($paid, $used) {
+        return $ids->mapWithKeys(function (int $id) use ($paid, $used, $opening) {
             $p = (int) ($paid[$id] ?? 0);
             $u = (int) ($used[$id] ?? 0);
 
-            return [$id => ['paid' => $p, 'used' => $u, 'balance' => $p - $u]];
+            return [$id => ['opening' => (int) ($opening[$id] ?? 0), 'paid' => $p, 'used' => $u, 'balance' => (int) ($opening[$id] ?? 0) + $p - $u]];
         })->all();
     }
 
@@ -281,27 +275,57 @@ class SessionLedger
     }
 
     /**
+     * Count unheld, non-cancelled regular/makeup sessions in each student's current class and summer range.
+     *
+     * @param  iterable<Student>  $students
+     * @return array<int, int>
+     */
+    public function summerCounts(iterable $students, ?CarbonInterface $now = null): array
+    {
+        $students = collect($students)->filter(fn (Student $s) => $s->current_class_id && $s->summer_break_from && $s->summer_break_to);
+        if ($students->isEmpty()) {
+            return [];
+        }
+        $now = Carbon::instance($now ?? now());
+        $sessions = ClassSession::query()
+            ->whereIn('class_id', $students->pluck('current_class_id')->unique())
+            ->whereIn('type', self::COUNTED_TYPES)
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('date', '>=', max($now->toDateString(), $students->min(fn (Student $s) => $s->summer_break_from->toDateString())))
+            ->whereDate('date', '<=', $students->max(fn (Student $s) => $s->summer_break_to->toDateString()))
+            ->get(['id', 'class_id', 'date', 'start_time'])
+            ->filter(fn (ClassSession $s) => $s->startsAt()->gt($now))
+            ->groupBy('class_id');
+
+        return $students->mapWithKeys(fn (Student $student) => [$student->id => $sessions->get($student->current_class_id, collect())
+            ->filter(fn (ClassSession $s) => $s->date->betweenIncluded($student->summer_break_from, $student->summer_break_to))->count()])->all();
+    }
+
+    /**
      * Gợi ý lập phiếu thu cho học viên theo sổ buổi.
      * mode: contract = thu tiếp khoản học phí đang mở (đơn giá theo khoản đó); new = khoản học phí mới cho lớp đang học
      * (khóa kế tiếp, đơn giá niêm yết, tạo khi phiếu được duyệt); none = chưa có lớp và chưa có khoản học phí.
      *
-     * @param  array{paid: int, used: int, balance: int}|null  $ledger
+     * @param  array{opening: int, paid: int, used: int, balance: int}|null  $ledger
      * @return array<string, mixed>
      */
-    public function quote(Student $student, ?StudentTuition $openTuition = null, ?array $ledger = null, ?array $progress = null): array
+    public function quote(Student $student, ?StudentTuition $openTuition = null, ?array $ledger = null, ?array $progress = null, ?int $summerSessions = null, ?CarbonInterface $now = null): array
     {
-        $ledger ??= $this->forStudent($student);
+        $now ??= now();
+        $ledger ??= $this->forStudent($student, $now);
         $class = $student->currentClass ?? $openTuition?->classModel;
 
         if ($class) {
-            $progress ??= $this->classProgress($class);
+            $progress ??= $this->classProgress($class, $now);
         } else {
             // Chưa xếp lớp: chưa có buổi nào diễn ra, khóa = số buổi của khoản học phí.
             $size = (int) ($openTuition?->session_count ?: self::DEFAULT_COURSE_SESSIONS);
             $progress = ['size' => $size, 'held' => 0, 'remaining' => $size];
         }
 
-        $needed = max(0, $progress['remaining'] - $ledger['balance']);
+        // Summer never creates a surplus; held sessions already reduce remaining and are excluded above.
+        $summerSessions = min($progress['remaining'], max(0, $summerSessions ?? ($this->summerCounts([$student], $now)[$student->id] ?? 0)));
+        $needed = max(0, $progress['remaining'] - $ledger['balance'] - $summerSessions);
         $carryOver = max(0, $ledger['balance'] - $progress['remaining']);
 
         if ($openTuition && (float) $openTuition->debt_amount > 0) {
@@ -325,6 +349,9 @@ class SessionLedger
         }
 
         return [
+            'opening' => $ledger['opening'] ?? 0,
+            'carry' => max(0, $ledger['balance']),
+            'summer_sessions' => $summerSessions,
             'paid' => $ledger['paid'],
             'used' => $ledger['used'],
             'balance' => $ledger['balance'],
@@ -353,17 +380,21 @@ class SessionLedger
      */
     public function quoteMany(array $pairs, ?CarbonInterface $now = null): array
     {
+        $now ??= now();
         $pairs = collect($pairs);
         if ($pairs->isEmpty()) {
             return [];
         }
 
+        (new \Illuminate\Database\Eloquent\Collection($pairs->map(fn (array $pair) => $pair[0])->all()))->loadMissing('currentClass.course');
+        (new \Illuminate\Database\Eloquent\Collection($pairs->map(fn (array $pair) => $pair[1])->filter()->all()))->loadMissing('classModel.course');
+        $summer = $this->summerCounts($pairs->map(fn (array $pair) => $pair[0]), $now);
         $ledgers = $this->forStudents($pairs->map(fn (array $pair) => $pair[0]->id), $now);
         $classOf = fn (array $pair) => $pair[0]->currentClass ?? $pair[1]?->classModel;
         $classes = $pairs->map($classOf)->filter()->unique('id');
         $held = $this->countedSessions($classes->pluck('id')->all(), $now)->countBy('class_id');
 
-        return $pairs->map(function (array $pair) use ($ledgers, $held, $classOf) {
+        return $pairs->map(function (array $pair) use ($ledgers, $held, $classOf, $summer, $now) {
             [$student, $tuition] = $pair;
             $class = $classOf($pair);
             $progress = null;
@@ -373,7 +404,7 @@ class SessionLedger
                 $progress = ['size' => $size, 'held' => $h, 'remaining' => max(0, $size - $h)];
             }
 
-            return $this->quote($student, $tuition, $ledgers[$student->id], $progress);
+            return $this->quote($student, $tuition, $ledgers[$student->id], $progress, $summer[$student->id] ?? 0, $now);
         })->all();
     }
 

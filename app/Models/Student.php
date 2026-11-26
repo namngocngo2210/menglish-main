@@ -91,6 +91,10 @@ class Student extends Model
         'school',
         'branch_id',
         'current_class_id',
+        'opening_sessions',
+        'opening_sessions_set_at',
+        'summer_break_from',
+        'summer_break_to',
         'target',
         'entrance_score',
         'midterm_score',
@@ -106,6 +110,10 @@ class Student extends Model
 
     protected $casts = [
         'dob' => 'date',
+        'opening_sessions' => 'integer',
+        'opening_sessions_set_at' => 'datetime',
+        'summer_break_from' => 'date',
+        'summer_break_to' => 'date',
         'study_started_on' => 'date',
         'grade_adjust' => 'integer',
         'attended_lessons' => 'integer',

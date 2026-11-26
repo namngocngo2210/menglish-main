@@ -222,6 +222,20 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
             </div>
         </section>
 
+        <section v-if="can('student.summer_break')" :class="[card, 'space-y-md p-md']" aria-labelledby="summer-break-heading">
+            <h2 id="summer-break-heading" :class="sectionTitle">Khoảng nghỉ hè</h2>
+            <p class="font-body-small text-body-small text-on-surface-variant">Chỉ trừ buổi chính khóa / học bù chưa diễn ra, chưa hủy trong lớp hiện tại. Lưu lại sẽ thay thế khoảng cũ.</p>
+            <UiForm :key="`${student.summer_break_from}-${student.summer_break_to}`" :action="route('students.summer-break', student.id)" method="post" class="grid grid-cols-1 items-end gap-md sm:grid-cols-3">
+                <UiInput id="summer-break-from" name="from" type="date" label="Từ ngày" :value="student.summer_break_from" required />
+                <UiInput id="summer-break-to" name="to" type="date" label="Đến ngày" :value="student.summer_break_to" required />
+                <UiButton type="submit" icon="save">Lưu nghỉ hè</UiButton>
+            </UiForm>
+            <UiForm v-if="student.summer_break_from || student.summer_break_to" :action="route('students.summer-break', student.id)" method="post">
+                <input type="hidden" name="clear" value="1" />
+                <UiButton type="submit" variant="secondary">Xóa khoảng nghỉ hè</UiButton>
+            </UiForm>
+        </section>
+
         <!-- 2. Số chính -->
         <section v-if="statCols" :class="['grid grid-cols-2 gap-sm', statCols === 4 ? 'lg:grid-cols-4' : '']" data-section="stats">
             <template v-if="canViewAcademic">

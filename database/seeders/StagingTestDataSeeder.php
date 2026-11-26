@@ -84,6 +84,9 @@ class StagingTestDataSeeder extends Seeder
 
             // 1 + 6: dưới 10 tuổi, đăng nhập dùng được ngay, có đề luyện thi (khối 6 qua grade_adjust vì kho đề chỉ có khối 6–9).
             $young = $this->student('TS-HS-01', 'hs-tk-02.test@test.menglish', 'HS Dưới 10 (test)', now()->subYears(8)->toDateString(), $base, $base, 'studying', true);
+            if ($young->opening_sessions_set_at === null) {
+                $young->update(['opening_sessions' => 3, 'opening_sessions_set_at' => now()]);
+            }
             $young->update(['grade_adjust' => SchoolGrade::adjustFor($young, 6)]);
             $this->seedPracticeExam();
 

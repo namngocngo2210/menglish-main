@@ -326,6 +326,14 @@ const inputClass =
                 <div v-show="calc.actionType === 'transfer'" class="mb-lg space-y-sm">
                     <span class="block font-label text-label uppercase text-on-surface-variant">Học viên nhận chuyển nhượng <span class="text-error">*</span></span>
                     <input type="hidden" name="target_student_id" :value="calc.actionType === 'transfer' ? calc.targetId : ''" />
+                    <div v-if="basis.classmate_suggestions?.length" class="space-y-sm">
+                        <p class="font-body-small text-body-small text-on-surface-variant">Gợi ý học viên cùng lớp còn công nợ</p>
+                        <div class="flex flex-wrap gap-sm">
+                            <UiButton v-for="mate in basis.classmate_suggestions" :key="mate.id" type="button" :variant="calc.targetId === String(mate.id) ? 'success' : 'secondary'" class="max-w-full !whitespace-normal" :aria-pressed="calc.targetId === String(mate.id)" @click="calc.targetId = String(mate.id)">
+                                {{ mate.name }} · {{ mate.code }}
+                            </UiButton>
+                        </div>
+                    </div>
                     <div class="relative">
                         <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant" aria-hidden="true">search</span>
                         <input

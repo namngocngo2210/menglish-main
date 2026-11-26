@@ -80,7 +80,7 @@ class SessionLedgerTest extends TestCase
         $ledger = app(SessionLedger::class)->forStudent($student);
 
         // 2.000.000 / 200.000 = 10 buổi đã đóng; 5 buổi đã diễn ra (vắng hay có mặt đều trừ).
-        $this->assertSame(['paid' => 10, 'used' => 5, 'balance' => 5], $ledger);
+        $this->assertSame(['opening' => 0, 'paid' => 10, 'used' => 5, 'balance' => 5], $ledger);
 
         Carbon::setTestNow('2026-10-04 18:30:00');
         $this->assertSame(6, app(SessionLedger::class)->forStudent($student)['used']);
@@ -109,7 +109,7 @@ class SessionLedgerTest extends TestCase
         $ledger = app(SessionLedger::class)->forStudent($student->fresh());
 
         // Lớp A: 2 buổi trước khi chuyển; lớp B: chỉ buổi 05/10 (buổi 10/09 trước ngày vào lớp). Tồn 24 − 3 mang sang.
-        $this->assertSame(['paid' => 24, 'used' => 3, 'balance' => 21], $ledger);
+        $this->assertSame(['opening' => 0, 'paid' => 24, 'used' => 3, 'balance' => 21], $ledger);
     }
 
     public function test_transfer_class_from_profile_with_backdated_date(): void
@@ -141,7 +141,7 @@ class SessionLedgerTest extends TestCase
         $this->assertSame([$classB->id], $student->activeClassIds());
 
         // Lớp A: 07/09, 14/09 (buổi 03/10 đã chuyển); lớp B: 03/10 (buổi 26/09 trước khi vào lớp). Tồn 14 − 3.
-        $this->assertSame(['paid' => 14, 'used' => 3, 'balance' => 11], app(SessionLedger::class)->forStudent($student));
+        $this->assertSame(['opening' => 0, 'paid' => 14, 'used' => 3, 'balance' => 11], app(SessionLedger::class)->forStudent($student));
     }
 
     public function test_transfer_class_rejects_future_date_and_date_before_joining_old_class(): void
@@ -267,7 +267,7 @@ class SessionLedgerTest extends TestCase
         $this->actingAs($this->admin)->post(route('tuition.receipts.approve.action', $receipt->id))->assertSessionHasNoErrors();
 
         $this->assertEquals(0, (float) $tuition->fresh()->debt_amount);
-        $this->assertSame(['paid' => 24, 'used' => 8, 'balance' => 16], app(SessionLedger::class)->forStudent($student));
+        $this->assertSame(['opening' => 0, 'paid' => 24, 'used' => 8, 'balance' => 16], app(SessionLedger::class)->forStudent($student));
     }
 
     /** TK-2026-0079: phiếu chỉ thu phụ thu không gắn khoản học phí và không làm đổi công nợ khi duyệt. */

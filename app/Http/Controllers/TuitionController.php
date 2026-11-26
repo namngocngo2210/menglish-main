@@ -1013,8 +1013,8 @@ class TuitionController extends Controller
         }
         if ($sessions > $quote['max_sessions']) {
             return ['error' => ['session_count' => $quote['mode'] === 'contract'
-                ? "Khoản học phí đang thu chỉ còn {$quote['max_sessions']} buổi chưa đóng. Thu hết khoản này rồi lập phiếu mới cho khóa kế tiếp."
-                : "Theo sổ buổi chỉ cần thu tối đa {$quote['needed']} buổi (còn {$quote['remaining']} buổi của khóa, tồn {$quote['balance']} buổi)."]];
+                ? "Chỉ được thu tối đa {$quote['max_sessions']} buổi sau khi tính buổi dư và trừ nghỉ hè {$quote['summer_sessions']} buổi."
+                : "Theo sổ buổi chỉ cần thu tối đa {$quote['needed']} buổi (còn {$quote['remaining']} buổi của khóa, tồn {$quote['balance']} buổi, trừ nghỉ hè {$quote['summer_sessions']} buổi)."]];
         }
 
         $examFee = (float) ($validated['exam_fee'] ?? 0);
@@ -2521,7 +2521,18 @@ class TuitionController extends Controller
         // Số liệu thật cho bảng tính hoàn phí / chuyển nhượng / bảo lưu (không còn số ghi cứng).
         $students->each(fn (Student $student) => $student->tuition?->setRelation('student', $student));
         StudentTuition::preloadSessionStats($students->pluck('tuition'));
-        $studentFinance = $students->mapWithKeys(fn (Student $student) => [$student->id => $this->refundBasis($student)]);
+        $classmates = TuitionBranchScope::students(Student::query(), $scope)
+            ->whereIn('current_class_id', $students->pluck('current_class_id')->filter()->unique())
+            ->whereIn('status', ['studying', 'waiting_start'])
+            ->whereHas('tuition', fn ($q) => $q->where('debt_amount', '>', 0))
+            ->orderBy('name')->orderBy('id')->get(['id', 'code', 'name', 'current_class_id'])->groupBy('current_class_id');
+        $studentFinance = $students->mapWithKeys(fn (Student $student) => [
+            $student->id => $this->refundBasis(
+                $student,
+                $classmates->get($student->current_class_id, collect())->reject(fn (Student $s) => $s->id === $student->id)->take(10)
+                    ->map(fn (Student $s) => ['id' => $s->id, 'code' => $s->code, 'name' => $s->name])->values()->all(),
+            ),
+        ]);
 
         $canRejectAny = (bool) Auth::user()?->can(TuitionRefundRequest::REJECT_PERMISSION);
         $studentLabel = fn (Student $st) => $st->name.' · '.DisplayCode::short($st->code);
@@ -2592,7 +2603,7 @@ class TuitionController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function refundBasis(Student $student): array
+    private function refundBasis(Student $student, array $classmateSuggestions = []): array
     {
         $tuition = $student->tuition;
         $stats = $tuition?->sessionStats();
@@ -2606,6 +2617,7 @@ class TuitionController extends Controller
         $remainingValue = max(0.0, round($paid - $used, 2));
 
         return [
+            'classmate_suggestions' => $classmateSuggestions,
             'has_tuition' => (bool) $tuition,
             'paid' => $paid,
             'contract' => $contract,
@@ -2672,6 +2684,10 @@ class TuitionController extends Controller
 
         if ($type === TuitionRefundRequest::TYPE_TRANSFER) {
             $transfer = $student?->tuition?->transferValue() ?? ['sessions' => 0, 'amount' => 0.0];
+            $balance = max(0, app(SessionLedger::class)->forStudent($student)['balance']);
+            if ($transfer['sessions'] > $balance) {
+                throw ValidationException::withMessages(['student_id' => "Số buổi chuyển nhượng vượt số buổi còn lại thực tế của học viên ({$balance} buổi)."]);
+            }
             if ($transfer['amount'] <= 0) {
                 throw ValidationException::withMessages(['student_id' => 'Học viên không còn buổi/số tiền đã thu để chuyển nhượng.']);
             }

@@ -203,6 +203,8 @@ class TuitionTransferR07Test extends TestCase
     {
         // TK-2026-0100: HV 41 (36 buổi, đã học 3) → HV 39: nguồn 36 → 3, nhận 36 → 69.
         Course::query()->update(['total_lessons' => 36]);
+        // The 33-session transfer requires three genuine opening sessions beyond the 30 paid sessions.
+        $this->source->update(['opening_sessions' => 3, 'opening_sessions_set_at' => now()]);
         $this->sourceTuition->update(['session_count' => 36]);
         $this->targetTuition->update(['session_count' => 36]);
         StudentAttendance::where('student_id', $this->source->id)->whereDate('session_date', '2026-09-04')->delete();

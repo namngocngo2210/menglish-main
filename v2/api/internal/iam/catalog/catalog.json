@@ -258,6 +258,11 @@
                     "description": "Xóa hồ sơ học viên."
                 },
                 {
+                    "key": "summer_break",
+                    "label": "Khai báo nghỉ hè",
+                    "description": "Lưu hoặc xóa khoảng nghỉ hè của học viên để trừ số buổi cần thu."
+                },
+                {
                     "key": "change_status",
                     "label": "Đổi trạng thái học tập",
                     "description": "Đổi trạng thái (bảo lưu, nghỉ hè, thôi học…), kết thúc bảo lưu."
@@ -1784,7 +1789,12 @@
                 "lead.trial_feedback",
                 "entrance_test.*",
                 "entrance_test.examine",
-                "student.*",
+                "student.view",
+                "student.update",
+                "student.delete",
+                "student.change_status",
+                "student.assign_class",
+                "student.manage_account",
                 "class.*",
                 "class.teach",
                 "attendance_student.*",
@@ -1995,6 +2005,7 @@
                 "lead.be_assigned",
                 "promotion.manage",
                 "student.*",
+                "student.summer_break",
                 "class.*",
                 "class.assist",
                 "attendance_student.*",
