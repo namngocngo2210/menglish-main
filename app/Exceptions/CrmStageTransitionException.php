@@ -10,7 +10,7 @@ use RuntimeException;
  */
 class CrmStageTransitionException extends RuntimeException
 {
-    public function __construct(string $message, public readonly bool $forbidden = false)
+    public function __construct(string $message, public readonly bool $forbidden = false, public readonly bool $conflict = false)
     {
         parent::__construct($message);
     }
@@ -20,8 +20,14 @@ class CrmStageTransitionException extends RuntimeException
         return new self($message, true);
     }
 
+    /** Khách Thất bại là trạng thái cuối: mọi đổi giai đoạn bị từ chối 409. */
+    public static function terminal(): self
+    {
+        return new self('Khách đã Thất bại, không thể đổi giai đoạn. Khách quay lại hãy tạo hồ sơ tuyển sinh mới.', false, true);
+    }
+
     public function status(): int
     {
-        return $this->forbidden ? 403 : 422;
+        return $this->conflict ? 409 : ($this->forbidden ? 403 : 422);
     }
 }

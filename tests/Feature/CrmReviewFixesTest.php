@@ -75,18 +75,19 @@ class CrmReviewFixesTest extends TestCase
         ])->assertSessionHasErrors('next_follow_up_at');
     }
 
-    public function test_duplicate_phone_of_lost_lead_points_to_reopen(): void
+    public function test_duplicate_phone_of_lost_lead_is_rejected_and_lost_stays_terminal(): void
     {
         $lost = $this->lead('lost', ['phone' => '0904777888', 'lost_reason' => 'Chưa có nhu cầu', 'lost_at' => now()->subMonth()]);
 
         $this->actingAs($this->sales)->post(route('crm.customers.store'), [
             'name' => 'Khách quay lại', 'phone' => '0904 777 888', 'source' => 'Facebook', 'branch_id' => $this->branch->id,
         ])->assertSessionHasErrors('phone');
-        $this->assertStringContainsString('Mở lại khách', session('errors')->first('phone'));
+        $this->assertStringContainsString('đang Thất bại', session('errors')->first('phone'));
+        $this->assertStringNotContainsString('Mở lại khách', session('errors')->first('phone'));
 
-        $this->actingAs($this->academic)->post(route('crm.customers.stage', $lost), ['stage' => 'consulting', 'reason' => 'Phụ huynh gọi lại'])
-            ->assertSessionHasNoErrors();
-        $this->assertSame('consulting', $lost->fresh()->stage);
+        $this->actingAs($this->academic)->postJson(route('crm.customers.stage', $lost), ['stage' => 'consulting', 'reason' => 'Phụ huynh gọi lại'])
+            ->assertStatus(409);
+        $this->assertSame('lost', $lost->fresh()->stage);
     }
 
     public function test_test_no_show_is_logged_and_appointment_can_be_rebooked(): void

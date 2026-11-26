@@ -123,7 +123,7 @@ class CrmController extends Controller
             throw ValidationException::withMessages([
                 'phone' => "Số điện thoại này đã tồn tại trong CRM (khách {$duplicate->short_code}"
                     .($duplicate->stage === CrmCustomer::STAGE_LOST
-                        ? ', đang Thất bại). Khách quay lại: mở hồ sơ khách đó và bấm "Mở lại khách", không tạo mới.'
+                        ? ', đang Thất bại). Khách Thất bại không mở lại được; liên hệ Admin nếu cần xử lý SĐT này.'
                         : ', '.CrmCustomer::stageLabel($duplicate->stage).').'),
             ]);
         }
@@ -729,7 +729,7 @@ class CrmController extends Controller
             'next' => $stages->manualNextStage($customer, $user),
             'backward' => $stages->backwardTargets($customer, $user),
             'canLose' => $user->can('lead.mark_lost') && ! $customer->isClosed() && $customer->stage !== CrmCustomer::STAGE_LOST,
-            'canReopen' => $customer->stage === CrmCustomer::STAGE_LOST && $stages->canReopen($user),
+            'canReopen' => false, // Thất bại là trạng thái cuối, không có luồng mở lại
             'canCancelClosing' => $stages->canCancelClosing($customer, $user),
             // Hủy buổi học thử đang chờ được ở mọi giai đoạn (kể cả sau khi chốt / thất bại).
             'canCancelTrial' => $stages->canMoveForward($user),
@@ -1834,9 +1834,12 @@ class CrmController extends Controller
     public function nextStage(Request $request, CrmStageService $stages, $id)
     {
         $customer = $this->findScopedCustomer($id);
+        if ($customer->stage === CrmCustomer::STAGE_LOST) {
+            return $this->stageError($request, CrmStageTransitionException::terminal()->getMessage(), 409);
+        }
         $next = $stages->nextStage($customer->stage);
         if (! $next) {
-            return $this->stageError($request, 'Lead đã ở giai đoạn cuối hoặc đã thất bại.');
+            return $this->stageError($request, 'Lead đã ở giai đoạn cuối.');
         }
 
         $request->merge(['stage' => $next]);

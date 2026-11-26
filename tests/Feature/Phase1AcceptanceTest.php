@@ -409,10 +409,12 @@ class Phase1AcceptanceTest extends TestCase
         $this->assertSame('Học phí vượt ngân sách', $lead->lost_reason);
         $this->assertNotNull($lead->lost_at);
 
-        // Khách Thất bại chỉ mở lại về Đang tư vấn (cần lý do); không về Mới, không "Sang bước".
+        // Khách Thất bại là trạng thái cuối (TK-2026-0175): không về Mới / Đang tư vấn, không "Sang bước" — 409.
         $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead->id), ['stage' => 'new', 'reason' => 'Khách quay lại'])
-            ->assertStatus(422)->assertJsonFragment(['success' => false]);
-        $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead->id))->assertStatus(422);
+            ->assertStatus(409)->assertJsonFragment(['success' => false]);
+        $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead->id), ['stage' => 'consulting', 'reason' => 'Khách quay lại'])
+            ->assertStatus(409);
+        $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead->id))->assertStatus(409);
         $this->actingAs($this->academic)->post(route('crm.customers.trial-bookings.store', $lead->id), [
             'class_session_id' => ClassSession::where('class_id', $this->activeClass->id)->whereDate('date', '>=', today())->value('id'),
         ])->assertSessionHasErrors('class_session_id');
