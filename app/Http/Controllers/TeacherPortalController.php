@@ -1554,6 +1554,12 @@ class TeacherPortalController extends Controller
                 'data' => $remarks,
             ]
         );
+
+        // Nhận xét đầu tiên của buổi (có nội dung): ghi GV + giờ một lần, điều kiện IS NULL chống đua; lưu lại/sửa không ghi đè.
+        if (collect($remarks)->flatten()->filter(fn ($v) => filled($v))->isNotEmpty()) {
+            ClassSession::whereKey($session->id)->whereNull('nhan_xet_boi')
+                ->update(['nhan_xet_boi' => $userId, 'nhan_xet_gui_luc' => now()]);
+        }
     }
 
     /** @return Collection<int|string, array<string, mixed>> nhận xét đã lưu của buổi theo mã học sinh */
