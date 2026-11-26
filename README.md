@@ -125,6 +125,15 @@ Có gì trong dữ liệu:
 
 Kiểm thử nghiệm thu Phase 4: `php artisan test --filter='Phase4AcceptanceTest|DemoPhase4SeederTest|FullBpmnSmokeTest'`.
 
+## Job tự động sinh buổi học / việc lặp
+
+| Lệnh | Giờ tự chạy | Việc làm |
+|---|---|---|
+| `classes:generate-sessions` | 05:30 hằng ngày | Lớp đang học có TKB lặp tuần: bổ sung buổi chính khóa tới 28 ngày tới (`SESSION_GENERATE_HORIZON_DAYS`), bỏ ngày nghỉ lễ, không trùng, không vượt ngày kết thúc lớp |
+| `tasks:spawn-recurring` | 05:45 hằng ngày | Việc lặp đã cấu hình phạt mà chưa có kỳ đang mở → sinh kỳ kế tiếp |
+
+Chạy tay: `php artisan <lệnh> --dry-run` (chỉ báo cáo) rồi bỏ `--dry-run` để ghi.
+
 ## Kiểm tra nhanh toàn hệ thống
 
 ```bash
