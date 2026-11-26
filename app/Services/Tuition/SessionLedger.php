@@ -192,10 +192,13 @@ class SessionLedger
             ->whereNotNull('defer_from')->whereNotNull('defer_to')
             ->get(['student_id', 'defer_from', 'defer_to'])
             ->groupBy('student_id');
+        $summer = Student::query()->whereIn('id', $ids)->whereNotNull('summer_break_from')->whereNotNull('summer_break_to')
+            ->get(['id', 'summer_break_from', 'summer_break_to', 'summer_break_set_at'])->keyBy('id');
 
         $result = [];
         foreach ($periods->groupBy('student_id') as $studentId => $studentPeriods) {
             $paused = $deferrals->get($studentId, collect());
+            $sb = $summer->get($studentId);
             $counted = [];
             foreach ($studentPeriods as $period) {
                 foreach ($sessions->get($period['class_id'], collect()) as $session) {
@@ -204,6 +207,11 @@ class SessionLedger
                         continue;
                     }
                     if ($paused->contains(fn ($d) => $day >= $d->defer_from->toDateString() && $day <= $d->defer_to->toDateString())) {
+                        continue;
+                    }
+                    // Sessions not yet held when the range was saved stay excluded after their dates pass (null set_at: legacy, nothing excluded).
+                    if ($sb?->summer_break_set_at && $day >= $sb->summer_break_from->toDateString() && $day <= $sb->summer_break_to->toDateString()
+                        && $session->startsAt()->gt($sb->summer_break_set_at)) {
                         continue;
                     }
                     $counted[$session->id] = true;

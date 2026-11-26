@@ -20,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class CarryOverSummerBreakTest extends TestCase
@@ -87,6 +88,41 @@ class CarryOverSummerBreakTest extends TestCase
             $this->assertSame(0, $quote['carry_over']);
             $this->assertEquals($needed * 200000, SessionLedger::calculate($quote, $needed, 0, 0, 0, 0, 0)['session_value']);
         }
+    }
+
+    public function test_summer_deduction_survives_the_dates_passing_unpaid_and_paid(): void
+    {
+        $this->sessions($this->classA, ['2026-10-05', '2026-10-07', '2026-10-09', '2026-10-11']);
+        $unpaid = $this->makeStudent($this->classA);
+        $paid = $this->makeStudent($this->classA);
+        $this->tuition($paid, 4000000); // 20 sessions at 200,000.
+        foreach ([$unpaid, $paid] as $student) {
+            $this->actingAs($this->academic)->post(route('students.summer-break', $student->id), ['from' => '2026-10-05', 'to' => '2026-10-11'])->assertSessionHasNoErrors();
+        }
+        $ledger = app(SessionLedger::class);
+        $before = [$ledger->quote($unpaid->fresh()), $ledger->quote($paid->fresh())];
+        $this->assertSame([20, 4, 0], [$before[0]['needed'], $before[0]['summer_sessions'], $before[0]['used']]);
+        $this->assertSame([0, 4, 0], [$before[1]['needed'], $before[1]['summer_sessions'], $before[1]['used']]);
+
+        Carbon::setTestNow('2026-10-12 10:00:00');
+        $after = [$ledger->quote($unpaid->fresh()), $ledger->quote($paid->fresh())];
+        $this->assertSame([20, 0, 0, 0], [$after[0]['needed'], $after[0]['summer_sessions'], $after[0]['used'], $after[0]['balance']]);
+        $this->assertSame([0, 0, 0, 20], [$after[1]['needed'], $after[1]['summer_sessions'], $after[1]['used'], $after[1]['balance']]);
+        $this->assertEquals(20 * 200000, SessionLedger::calculate($after[0], 20, 0, 0, 0, 0, 0)['session_value']);
+
+        // Class transfer after the dates pass keeps the already-excluded sessions out of the ledger.
+        $next = $this->makeClass('COS-AFTER');
+        $this->actingAs($this->academic)->post(route('students.transfer-class', $unpaid->id), ['class_id' => $next->id, 'transferred_on' => '2026-10-12'])->assertSessionHasNoErrors();
+        $this->assertSame(0, $ledger->forStudent($unpaid->fresh())['used']);
+    }
+
+    public function test_summer_range_saved_after_sessions_were_held_does_not_refund_them(): void
+    {
+        $this->sessions($this->classA, ['2026-10-01', '2026-10-05']);
+        $student = $this->makeStudent($this->classA);
+        $this->actingAs($this->academic)->post(route('students.summer-break', $student->id), ['from' => '2026-10-01', 'to' => '2026-10-11'])->assertSessionHasNoErrors();
+        Carbon::setTestNow('2026-10-12 10:00:00');
+        $this->assertSame(1, app(SessionLedger::class)->forStudent($student->fresh())['used']);
     }
 
     public function test_no_carry_and_surplus_carry_never_create_negative_charges(): void
@@ -212,7 +248,7 @@ class CarryOverSummerBreakTest extends TestCase
         $this->assertDatabaseMissing('permissions', ['name' => 'student.summer_break', 'guard_name' => 'web']);
         $migration->up();
         $migration->up();
-        $permission = \Spatie\Permission\Models\Permission::findByName('student.summer_break', 'web');
+        $permission = Permission::findByName('student.summer_break', 'web');
         $this->assertSame([Roles::ACADEMIC_STAFF], $permission->roles()->pluck('name')->all());
     }
 

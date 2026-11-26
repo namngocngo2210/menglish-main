@@ -13,13 +13,14 @@ return new class extends Migration
             $table->timestamp('opening_sessions_set_at')->nullable();
             $table->date('summer_break_from')->nullable();
             $table->date('summer_break_to')->nullable();
+            $table->timestamp('summer_break_set_at')->nullable();
         });
     }
 
     public function down(): void
     {
         Schema::table('students', function (Blueprint $table) {
-            $table->dropColumn(['opening_sessions', 'opening_sessions_set_at', 'summer_break_from', 'summer_break_to']);
+            $table->dropColumn(['opening_sessions', 'opening_sessions_set_at', 'summer_break_from', 'summer_break_to', 'summer_break_set_at']);
         });
     }
 };

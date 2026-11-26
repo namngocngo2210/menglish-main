@@ -70,7 +70,8 @@ class Phase4FinanceParityTest extends TestCase
         // Chuyển nhượng R-07 cần số buổi: lớp 6 buổi, chưa học buổi nào → chuyển toàn bộ 6 buổi = 3.000.000.
         $course = Course::create(['code' => 'PAR-C', 'name' => 'PAR', 'tuition_fee' => 6000000, 'total_lessons' => 6, 'is_active' => true]);
         $class = ClassModel::create(['code' => 'PAR-A', 'name' => 'Lớp PAR', 'course_id' => $course->id, 'branch_id' => $this->branch->id, 'max_capacity' => 10, 'tuition_fee' => 6000000, 'status' => 'active']);
-        $this->student->update(['current_class_id' => $class->id]);
+        // Transfer of all 6 sessions needs 3 genuine opening sessions beyond the 3 paid ones (transfer cannot exceed ledger balance).
+        $this->student->update(['current_class_id' => $class->id, 'opening_sessions' => 3, 'opening_sessions_set_at' => now()]);
         $this->tuition->update(['class_id' => $class->id, 'session_count' => 6]);
     }
 

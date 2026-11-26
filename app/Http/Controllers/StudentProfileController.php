@@ -290,6 +290,7 @@ class StudentProfileController extends Controller
         $student->update([
             'summer_break_from' => $clear ? null : $data['from'],
             'summer_break_to' => $clear ? null : $data['to'],
+            'summer_break_set_at' => $clear ? null : now(),
         ]);
 
         return back()->with('success', $clear ? 'Đã xóa khoảng nghỉ hè.' : 'Đã lưu khoảng nghỉ hè.');
