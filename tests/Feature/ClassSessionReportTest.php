@@ -201,6 +201,48 @@ class ClassSessionReportTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->where('remarkStudents.0.remark.comment', 'Con tiến bộ'));
     }
 
+    public function test_first_remark_stamps_session_and_later_saves_never_overwrite(): void
+    {
+        $session = $this->makeSession(0);
+        $url = $this->url($session, 'classes.session-report.store');
+        $other = Student::create(['code' => 'HV-2', 'name' => 'Phạm Dũng', 'phone' => '0900000002', 'branch_id' => $this->branch->id,
+            'status' => 'studying', 'current_class_id' => $this->class->id]);
+
+        // Gửi trống không tính là nhận xét.
+        $this->actingAs($this->teacher)->post($url, ['remarks_only' => 1, 'remarks' => [$this->student->id => ['comment' => '']]]);
+        $this->assertNull($session->fresh()->nhan_xet_boi);
+
+        $this->travelTo(today()->setTime(10, 5));
+        $this->actingAs($this->teacher)->post($url, ['remarks_only' => 1, 'remarks' => [$this->student->id => ['comment' => 'Tốt']]])->assertSessionHasNoErrors();
+        $first = $session->fresh();
+        $this->assertSame($this->teacher->id, $first->nhan_xet_boi);
+        $this->assertSame('10:05', $first->nhan_xet_gui_luc->format('H:i'));
+
+        // Học sinh khác + sửa nhận xét cũ, muộn hơn: giữ nguyên GV và giờ đầu.
+        $this->travelTo(today()->setTime(11, 0));
+        $this->actingAs($this->teacher)->post($url, ['remarks_only' => 1, 'remarks' => [
+            $this->student->id => ['comment' => 'Sửa lại'], $other->id => ['comment' => 'Ổn'],
+        ]])->assertSessionHasNoErrors();
+        $after = $session->fresh();
+        $this->assertSame($this->teacher->id, $after->nhan_xet_boi);
+        $this->assertSame('10:05', $after->nhan_xet_gui_luc->format('H:i'));
+    }
+
+    public function test_first_remark_guard_ignores_stale_session_and_existing_value(): void
+    {
+        $session = $this->makeSession(0);
+        $stale = ClassSession::find($session->id); // đọc trước khi người khác ghi → nhan_xet_boi vẫn null trong bộ nhớ
+        $stamp = today()->setTime(8, 0);
+        ClassSession::whereKey($session->id)->update(['nhan_xet_boi' => $this->foreign->id, 'nhan_xet_gui_luc' => $stamp]);
+
+        TeacherPortalController::saveSessionRemarks($this->class, $stale, $this->teacher->id,
+            [$this->student->id => ['comment' => 'Đến sau']], collect([$this->student->id]), false);
+
+        $row = $session->fresh();
+        $this->assertSame($this->foreign->id, $row->nhan_xet_boi);
+        $this->assertTrue($row->nhan_xet_gui_luc->equalTo($stamp));
+    }
+
     public function test_remarks_only_save_is_forbidden_for_non_main_teacher(): void
     {
         $session = $this->makeSession(0);

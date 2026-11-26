@@ -42,6 +42,8 @@ class ClassSession extends Model
         'rescheduled_from_id',
         'lesson_done_at',
         'lesson_done_by',
+        'nhan_xet_boi',
+        'nhan_xet_gui_luc',
     ];
 
     protected $casts = [
@@ -49,6 +51,7 @@ class ClassSession extends Model
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
         'lesson_done_at' => 'datetime',
+        'nhan_xet_gui_luc' => 'datetime',
     ];
 
     /**
