@@ -170,18 +170,18 @@ class CrmPipelineTest extends TestCase
             ->assertOk();
         $this->assertSame('lost', $lead->fresh()->stage);
 
-        // Khách quay lại (chủ dự án 16/10/2026): mở lại về Đang tư vấn, bắt buộc lý do; Sales không mở lại được.
-        $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting'])
-            ->assertUnprocessable();
-        $this->actingAs($this->sales)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting', 'reason' => 'Khách quay lại'])
-            ->assertForbidden();
-        $this->actingAs($this->academic)->postJson(route('crm.customers.stage', $lead), ['stage' => 'consulting', 'reason' => 'Phụ huynh gọi lại'])
-            ->assertOk();
+        // TK-2026-0175: Thất bại là trạng thái cuối — mọi vai trò (kể cả Admin) bị 409, giai đoạn giữ nguyên.
+        foreach ([$this->admin, $this->academic, $this->sales] as $user) {
+            foreach (['consulting', 'new'] as $target) {
+                $this->actingAs($user)->postJson(route('crm.customers.stage', $lead), ['stage' => $target, 'reason' => 'Khách quay lại'])
+                    ->assertStatus(409)->assertJsonFragment(['success' => false]);
+            }
+            $this->actingAs($user)->postJson(route('crm.customers.next-stage', $lead))->assertStatus(409);
+        }
         $fresh = $lead->fresh();
-        $this->assertSame('consulting', $fresh->stage);
-        $this->assertNull($fresh->lost_at);
-        $this->assertNull($fresh->lost_reason);
-        $this->assertDatabaseHas('crm_customer_histories', ['customer_id' => $lead->id, 'type' => 'stage_change', 'from_stage' => 'lost', 'to_stage' => 'consulting', 'reason' => 'Phụ huynh gọi lại']);
+        $this->assertSame('lost', $fresh->stage);
+        $this->assertNotNull($fresh->lost_at);
+        $this->assertDatabaseMissing('crm_customer_histories', ['customer_id' => $lead->id, 'from_stage' => 'lost']);
     }
 
     public function test_opening_signed_test_link_moves_lead_to_testing(): void
@@ -451,15 +451,16 @@ class CrmPipelineTest extends TestCase
         $this->actingAs($this->manager)->postJson(route('crm.customers.stage', $lead), ['stage' => 'lost', 'lost_reason' => 'Không liên hệ được'])
             ->assertOk();
 
-        // Hồ sơ chỉ có nút "Mở lại khách" (về Đang tư vấn); mọi đường chuyển giai đoạn khác bị server từ chối.
+        // TK-2026-0175: không có nút mở lại; mọi đường chuyển giai đoạn bị server từ chối 409.
         $this->actingAs($this->admin)->get(route('crm.customers.show', $lead))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false && $c['canReopen'] === true))
-            ->assertSee('Mở lại khách');
-        $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead))->assertUnprocessable();
-        foreach (['new', 'tested'] as $target) {
+            ->assertInertia(fn (Assert $page) => $page->where('stageControls', fn ($c) => $c['next'] === null && $c['backward'] === [] && $c['canLose'] === false && $c['canReopen'] === false))
+            ->assertDontSee('Mở lại khách');
+        $this->actingAs($this->admin)->postJson(route('crm.customers.next-stage', $lead))->assertStatus(409);
+        foreach (['new', 'consulting', 'tested'] as $target) {
             $this->actingAs($this->admin)->postJson(route('crm.customers.stage', $lead), ['stage' => $target, 'reason' => 'Mở lại'])
-                ->assertUnprocessable();
+                ->assertStatus(409);
         }
+        $this->assertSame('lost', $lead->fresh()->stage);
         $this->assertFalse(app(CrmStageService::class)->advanceTo($lead->fresh(), 'consulting', $this->admin, 'Tự động'));
 
         // Không đặt học thử / không xóa (giữ để audit), vẫn nằm trong danh sách khách không chốt.

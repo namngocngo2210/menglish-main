@@ -1,5 +1,5 @@
 <script setup>
-/** Khách thất bại (mockup crm-ui-mockup/khach-khong-chot-lost-deals). Khách quay lại: mở hồ sơ, bấm "Mở lại khách" (16/10/2026). */
+/** Khách thất bại (mockup crm-ui-mockup/khach-khong-chot-lost-deals). Thất bại là trạng thái cuối, không mở lại. */
 import { Link } from '@inertiajs/vue3';
 import CrmHeader from '@/Components/Crm/CrmHeader.vue';
 import ListFilters from '@/Components/Crm/ListFilters.vue';

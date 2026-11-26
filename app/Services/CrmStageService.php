@@ -27,9 +27,6 @@ use Illuminate\Support\Facades\DB;
  */
 class CrmStageService
 {
-    /** Khách Thất bại được mở lại về bước này. */
-    public const REOPEN_STAGE = 'consulting';
-
     /**
      * Nguồn hợp lệ cho các bước chuyển tự động: stage đích => stage nguồn.
      * testing/tested chấp nhận nguồn sớm hơn vì thí sinh có thể làm bài khi chưa hẹn (link / offline).
@@ -86,19 +83,8 @@ class CrmStageService
             return;
         }
         if ($from === CrmCustomer::STAGE_LOST) {
-            // Chủ dự án 16/10/2026: khách Thất bại quay lại thì Học vụ / Quản lý / Admin "Mở lại" về Đang tư vấn (bắt buộc lý do).
-            if ($stage !== self::REOPEN_STAGE) {
-                throw new CrmStageTransitionException('Khách Thất bại chỉ mở lại được về bước '.CrmCustomer::stageLabel(self::REOPEN_STAGE).'.');
-            }
-            if (! $this->canReopen($user)) {
-                throw CrmStageTransitionException::forbidden('Chỉ Học vụ / Quản lý cơ sở / Admin được mở lại khách Thất bại.');
-            }
-            if (! $reason) {
-                throw new CrmStageTransitionException('Vui lòng nhập lý do mở lại khách.');
-            }
-            $this->apply($customer, $stage, $user, $reason, ['lost_at' => null, 'lost_reason' => null]);
-
-            return;
+            // Thất bại là trạng thái cuối (US tong-quan-danh-sach-khach R-08): không mở lại, kể cả Admin.
+            throw CrmStageTransitionException::terminal();
         }
         // Đánh dấu Thất bại theo quyền riêng lead.mark_lost (có cả Sales — chủ dự án chốt 27/09/2026);
         // các bước pipeline khác vẫn chỉ Học vụ / Quản lý / Admin.
@@ -215,12 +201,6 @@ class CrmStageService
         $index = $this->indexOf($customer->stage) ?? 0;
 
         return array_slice(array_keys(CrmCustomer::PIPELINE_STAGES), 0, $index);
-    }
-
-    /** Mở lại khách Thất bại (cùng quyền chuyển tiến giai đoạn). */
-    public function canReopen(User $user): bool
-    {
-        return $this->canMoveForward($user);
     }
 
     /** CM chuyển tiến từng bước (lead.stage_forward — mặc định Admin, Quản lý cơ sở, Học vụ). */

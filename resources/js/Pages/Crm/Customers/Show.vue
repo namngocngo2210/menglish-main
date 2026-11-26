@@ -69,7 +69,7 @@ const initials = computed(() => {
 });
 
 // Modal dựng sẵn: mở / đóng theo tên.
-const modals = reactive({ reassign: false, lost: false, reopen: false, cancelClosing: false, backward: false, trial: false, scheduleTest: false, score: false });
+const modals = reactive({ reassign: false, lost: false, cancelClosing: false, backward: false, trial: false, scheduleTest: false, score: false });
 const open = (name) => {
     if (name === 'reassign') resetReassign();
     modals[name] = true;
@@ -235,19 +235,6 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
         </template>
     </UiModal>
 
-    <!-- Mở lại khách Thất bại quay lại (chủ dự án 16/10/2026): về Đang tư vấn, bắt buộc lý do -->
-    <UiModal v-if="stageControls.canReopen" :show="modals.reopen" title="Mở lại khách" max-width="md" @close="close('reopen')">
-        <p class="mb-3 text-xs text-on-surface-variant">Khách quay về bước Đang tư vấn, giữ nguyên lịch sử chăm sóc trước đây. Lý do được lưu vào lịch sử.</p>
-        <UiForm id="reopen-form" :action="route('crm.customers.stage', customer.id)" method="post" class="space-y-3 text-xs" @success="close('reopen')">
-            <input type="hidden" name="stage" value="consulting" />
-            <UiTextarea id="reopen_reason" name="reason" :rows="3" required maxlength="1000" placeholder="Ví dụ: phụ huynh liên hệ lại, muốn học lớp cuối tuần" aria-label="Lý do mở lại" />
-        </UiForm>
-        <template #footer>
-            <UiButton variant="secondary" @click="close('reopen')">Hủy</UiButton>
-            <UiButton type="submit" form="reopen-form" icon="restart_alt">Mở lại khách</UiButton>
-        </template>
-    </UiModal>
-
     <!-- Lùi giai đoạn (chỉ Admin, bắt buộc lý do) -->
     <UiModal v-if="stageControls.backward.length" :show="modals.backward" title="Lùi giai đoạn khách" max-width="md" @close="close('backward')">
         <p class="mb-3 text-xs text-on-surface-variant">Chỉ Admin được lùi giai đoạn; lý do được lưu vào lịch sử.</p>
@@ -359,7 +346,6 @@ const trialTitle = computed(() => (props.trial.pending ? 'Xếp học thử' : `
                 <div class="font-semibold">Khách Thất bại{{ customer.lost_at ? ' từ ' + customer.lost_at : '' }}</div>
                 <div v-if="customer.lost_reason">Lý do: {{ customer.lost_reason }}</div>
             </div>
-            <UiButton v-if="stageControls.canReopen" size="sm" icon="restart_alt" data-reopen-button @click="open('reopen')">Mở lại khách</UiButton>
         </div>
     </UiAlert>
 
