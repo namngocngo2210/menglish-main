@@ -263,6 +263,11 @@
                     "description": "Lưu hoặc xóa khoảng nghỉ hè của học viên để trừ số buổi cần thu."
                 },
                 {
+                    "key": "opening_sessions",
+                    "label": "Nhập buổi dư đầu kỳ",
+                    "description": "Nhập hoặc sửa buổi dư đầu kỳ của học viên cũ trong phạm vi dữ liệu."
+                },
+                {
                     "key": "change_status",
                     "label": "Đổi trạng thái học tập",
                     "description": "Đổi trạng thái (bảo lưu, nghỉ hè, thôi học…), kết thúc bảo lưu."
@@ -1882,6 +1887,7 @@
             "label": "Kế toán (Accountant)",
             "short_label": "Kế toán",
             "defaults": [
+                "student.opening_sessions",
                 "tuition.view",
                 "tuition.create",
                 "tuition.mark_contacted",
@@ -2006,6 +2012,7 @@
                 "promotion.manage",
                 "student.*",
                 "student.summer_break",
+                "student.opening_sessions",
                 "class.*",
                 "class.assist",
                 "attendance_student.*",

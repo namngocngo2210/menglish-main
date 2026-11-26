@@ -272,6 +272,26 @@ class StudentProfileController extends Controller
             ->with('status', 'Đã xếp lớp. Học vụ cần hoàn tất checklist giáo trình và nhóm lớp.');
     }
 
+    public function openingSessions(Request $request, $id)
+    {
+        $student = $this->findVisibleStudent($request->user(), $id);
+        $data = $request->validate([
+            'sessions' => ['required', 'integer', 'min:0', 'max:4294967295'],
+        ], [
+            'sessions.required' => 'Vui lòng nhập số buổi dư đầu kỳ.',
+            'sessions.integer' => 'Số buổi dư đầu kỳ phải là số nguyên từ 0 đến 4294967295.',
+            'sessions.min' => 'Số buổi dư đầu kỳ phải là số nguyên từ 0 đến 4294967295.',
+            'sessions.max' => 'Số buổi dư đầu kỳ phải là số nguyên từ 0 đến 4294967295.',
+        ]);
+
+        DB::transaction(function () use ($student, $request, $data) {
+            $locked = Student::visibleTo($request->user())->whereKey($student->id)->lockForUpdate()->firstOrFail();
+            $locked->update(['opening_sessions' => (int) $data['sessions'], 'opening_sessions_set_at' => now()]);
+        });
+
+        return back()->with('success', 'Đã lưu buổi dư đầu kỳ.');
+    }
+
     public function summerBreak(Request $request, $id)
     {
         $student = $this->findVisibleStudent($request->user(), $id);
@@ -604,6 +624,8 @@ class StudentProfileController extends Controller
                 'updated_label' => $student->updated_at ? ($student->updated_at->isToday() ? 'Hôm nay, '.$student->updated_at->format('H:i') : $student->updated_at->format('d/m/Y H:i')) : '—',
                 'summer_break_from' => $student->summer_break_from?->toDateString(),
                 'summer_break_to' => $student->summer_break_to?->toDateString(),
+                'opening_sessions' => $student->opening_sessions,
+                'opening_sessions_set' => $student->opening_sessions_set_at !== null,
                 'status' => $student->status,
                 'status_label' => $student->status_label,
                 'status_color' => $student->status_color,

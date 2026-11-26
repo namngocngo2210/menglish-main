@@ -67,7 +67,7 @@ function openApprove(rq) {
 const canApprove = (rq) => props.approvableTypes.includes(rq.type);
 
 // ── Bảng tính hoàn phí / chuyển nhượng (refundTransferManager) ──────────
-const empty = { has_tuition: false, paid: 0, contract: 0, debt: 0, total_sessions: null, attended_sessions: 0, remaining_sessions: null, unit_price: 0 };
+const empty = { has_tuition: false, carry: 0, paid: 0, contract: 0, debt: 0, total_sessions: null, attended_sessions: 0, remaining_sessions: null, unit_price: 0 };
 const fold = (v) =>
     (v || '')
         .toLowerCase()
@@ -294,6 +294,7 @@ const inputClass =
                         <p class="font-label text-label uppercase text-on-surface-variant">Buổi dư</p>
                         <p class="font-body-medium text-body-medium text-primary">{{ basis.total_sessions ? remainingLessons + ' buổi' : '—' }}</p>
                         <p v-show="basis.total_sessions" class="font-caption text-caption text-on-surface-variant">Đã học {{ calc.attendedLessons }} / {{ basis.total_sessions }}</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Buổi dư (carry): {{ basis.carry }} buổi</p>
                     </div>
                     <div>
                         <p class="font-label text-label uppercase text-on-surface-variant">Đã thu</p>
