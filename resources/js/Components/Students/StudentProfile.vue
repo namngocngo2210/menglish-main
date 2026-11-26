@@ -222,6 +222,14 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
             </div>
         </section>
 
+        <section v-if="can('student.opening_sessions')" :class="[card, 'space-y-md p-md']" aria-labelledby="opening-sessions-heading">
+            <h2 id="opening-sessions-heading" :class="sectionTitle">Buổi dư đầu kỳ</h2>
+            <UiForm :key="`${student.id}-${student.opening_sessions}-${student.opening_sessions_set}`" :action="route('students.opening-sessions', student.id)" method="post" class="grid grid-cols-1 items-end gap-md sm:grid-cols-2">
+                <UiInput id="opening-sessions" name="sessions" type="number" label="Số buổi dư đầu kỳ" min="0" max="4294967295" step="1" :value="student.opening_sessions" required hint="Chỉ nhập một lần khi đưa dữ liệu học viên cũ vào; học viên mới tự tính theo lịch sử." />
+                <UiButton type="submit" icon="save">Lưu buổi dư</UiButton>
+            </UiForm>
+        </section>
+
         <section v-if="can('student.summer_break')" :class="[card, 'space-y-md p-md']" aria-labelledby="summer-break-heading">
             <h2 id="summer-break-heading" :class="sectionTitle">Khoảng nghỉ hè</h2>
             <p class="font-body-small text-body-small text-on-surface-variant">Chỉ trừ buổi chính khóa / học bù chưa diễn ra, chưa hủy trong lớp hiện tại. Lưu lại sẽ thay thế khoảng cũ.</p>
@@ -269,7 +277,7 @@ const offScheduleAttendances = computed(() => props.attendances.filter((a) => a.
                     <p class="font-body-small text-body-small text-on-surface-variant">Buổi tồn</p>
                     <template v-if="tuition.sessions">
                         <p :class="['font-h3 text-h3 font-bold', tuition.sessions.balance < 0 ? 'text-error' : 'text-on-surface']">{{ tuition.sessions.balance }} buổi</p>
-                        <p class="font-caption text-caption text-on-surface-variant">Đã đóng {{ tuition.sessions.paid }} · đã trừ {{ tuition.sessions.used }}</p>
+                        <p class="font-caption text-caption text-on-surface-variant">Dư đầu kỳ {{ tuition.sessions.opening }} · Đã đóng {{ tuition.sessions.paid }} · đã trừ {{ tuition.sessions.used }}</p>
                     </template>
                     <p v-else class="font-h3 text-h3 font-bold text-on-surface-variant">—</p>
                 </button>

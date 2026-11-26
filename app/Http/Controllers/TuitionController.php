@@ -170,7 +170,11 @@ class TuitionController extends Controller
         abort_unless($model, 404);
 
         return $this->modalPage('Tuition/StudentPayments', [
-            'student' => $this->studentBrief($model),
+            'student' => [
+                ...$this->studentBrief($model),
+                'opening_sessions' => $model->opening_sessions,
+                'opening_sessions_set' => $model->opening_sessions_set_at !== null,
+            ],
             ...TuitionPaymentHistory::forStudent($model, forStaff: true),
         ]);
     }
@@ -183,7 +187,10 @@ class TuitionController extends Controller
      */
     private function dueGroupProps(array $groups): array
     {
-        $row = function (StudentTuition $t) {
+        $studentIds = $groups['seriousOverdue']->concat($groups['newOverdue'])
+            ->concat($groups['upcoming']->items())->concat($groups['paused'])->pluck('student_id')->unique();
+        $ledgers = app(SessionLedger::class)->forStudents($studentIds);
+        $row = function (StudentTuition $t) use ($ledgers) {
             $stats = $t->session_stats;
 
             return [
@@ -196,11 +203,14 @@ class TuitionController extends Controller
                 'debt_amount' => (float) $t->debt_amount,
                 'due_date' => $t->due_date?->format('d/m/Y'),
                 'days_overdue' => $t->days_overdue,
-                'session_lines' => $stats ? [
-                    ['label' => 'Số buổi còn tồn', 'value' => $t->frozen_remaining_sessions ?? $stats['remaining']],
-                    ['label' => 'Số buổi đã trừ (vắng vẫn trừ)', 'value' => $stats['attended']],
-                    ['label' => 'Tổng số buổi', 'value' => $stats['total']],
-                ] : [],
+                'session_lines' => [
+                    ...($stats ? [
+                        ['label' => 'Số buổi còn tồn', 'value' => $t->frozen_remaining_sessions ?? $stats['remaining']],
+                        ['label' => 'Số buổi đã trừ (vắng vẫn trừ)', 'value' => $stats['attended']],
+                        ['label' => 'Tổng số buổi', 'value' => $stats['total']],
+                    ] : []),
+                    ['label' => 'Buổi dư (carry)', 'value' => max(0, $ledgers[$t->student_id]['balance'])],
+                ],
                 'last_contact' => $t->last_contact ? [
                     'at' => $t->last_contact->contacted_at?->format('d/m H:i'),
                     'user_name' => $t->last_contact->user?->name,
@@ -2526,9 +2536,11 @@ class TuitionController extends Controller
             ->whereIn('status', ['studying', 'waiting_start'])
             ->whereHas('tuition', fn ($q) => $q->where('debt_amount', '>', 0))
             ->orderBy('name')->orderBy('id')->get(['id', 'code', 'name', 'current_class_id'])->groupBy('current_class_id');
+        $ledgers = app(SessionLedger::class)->forStudents($students->pluck('id'));
         $studentFinance = $students->mapWithKeys(fn (Student $student) => [
             $student->id => $this->refundBasis(
                 $student,
+                max(0, $ledgers[$student->id]['balance']),
                 $classmates->get($student->current_class_id, collect())->reject(fn (Student $s) => $s->id === $student->id)->take(10)
                     ->map(fn (Student $s) => ['id' => $s->id, 'code' => $s->code, 'name' => $s->name])->values()->all(),
             ),
@@ -2603,7 +2615,7 @@ class TuitionController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function refundBasis(Student $student, array $classmateSuggestions = []): array
+    private function refundBasis(Student $student, int $carry, array $classmateSuggestions = []): array
     {
         $tuition = $student->tuition;
         $stats = $tuition?->sessionStats();
@@ -2619,6 +2631,7 @@ class TuitionController extends Controller
         return [
             'classmate_suggestions' => $classmateSuggestions,
             'has_tuition' => (bool) $tuition,
+            'carry' => $carry,
             'paid' => $paid,
             'contract' => $contract,
             'debt' => (float) ($tuition?->debt_amount ?? 0),
@@ -2679,12 +2692,12 @@ class TuitionController extends Controller
             return redirect()->back()->withErrors(['extended_due_date' => 'Hạn mới phải sau hạn đóng hiện tại ('.$student->tuition->due_date->format('d/m/Y').').'])->withInput();
         }
 
-        $basis = $student ? $this->refundBasis($student) : [];
+        $basis = $student ? $this->refundBasis($student, max(0, app(SessionLedger::class)->forStudent($student)['balance'])) : [];
         $totalPaid = $validated['total_paid'] ?? ($student?->tuition?->paid_amount ?? ($validated['refund_amount'] ?? 0));
 
         if ($type === TuitionRefundRequest::TYPE_TRANSFER) {
             $transfer = $student?->tuition?->transferValue() ?? ['sessions' => 0, 'amount' => 0.0];
-            $balance = max(0, app(SessionLedger::class)->forStudent($student)['balance']);
+            $balance = $basis['carry'];
             if ($transfer['sessions'] > $balance) {
                 throw ValidationException::withMessages(['student_id' => "Số buổi chuyển nhượng vượt số buổi còn lại thực tế của học viên ({$balance} buổi)."]);
             }

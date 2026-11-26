@@ -346,6 +346,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/end-deferral', [StudentProfileController::class, 'endDeferral'])->middleware('can:student.change_status')->name('end-deferral');
         Route::post('/{id}/link-class', [StudentProfileController::class, 'linkClass'])->middleware('can:student.assign_class')->name('link-class');
         Route::post('/{id}/summer-break', [StudentProfileController::class, 'summerBreak'])->middleware('can:student.summer_break')->name('summer-break');
+        // Accountants edit from tuition history without access to student profiles.
+        Route::post('/{id}/opening-sessions', [StudentProfileController::class, 'openingSessions'])
+            ->withoutMiddleware('can:student.view')->middleware('can:student.opening_sessions')->name('opening-sessions');
         Route::post('/{id}/transfer-class', [StudentProfileController::class, 'transferClass'])->middleware('can:student.assign_class')->name('transfer-class');
         Route::delete('/{id}', [StudentProfileController::class, 'destroyStudent'])->middleware('can:student.delete')->name('destroy');
         Route::get('/{id}/scoped', [StudentProfileController::class, 'scoped'])->name('scoped');

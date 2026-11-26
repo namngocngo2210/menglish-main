@@ -1,9 +1,15 @@
-# Số buổi dư đầu kỳ và nghỉ hè (TK-2026-0172)
+# Số buổi dư đầu kỳ và nghỉ hè (TK-2026-0172, TK-2026-0174)
 
 Sổ buổi theo học viên: **balance = opening_sessions + buổi đã đóng − buổi đã dùng**. Chuyển lớp giữ nguyên số dư này. File nhập học phí có hai cột tùy chọn “Số buổi” và “Đã học”: dư đầu kỳ = max(0, Số buổi − Đã học). Cả hai phải là số nguyên không âm, Đã học không vượt Số buổi. Chỉ áp dụng một lần cho mỗi học viên, kể cả dư bằng 0; dòng cũ không có hai cột hoặc để trống cả hai không thay đổi dư đầu kỳ. Có thể nhập riêng hai cột này mà không tạo hợp đồng học phí.
+
+**Nguồn dữ liệu duy nhất là `students.opening_sessions`**, kèm `opening_sessions_set_at` đánh dấu lần lưu gần nhất. Học viên mới mặc định dư đầu kỳ 0, chưa đánh dấu nhập; số dư tự tính từ lịch sử đóng / học. Học vụ, Kế toán và Admin có quyền `student.opening_sessions` (“Nhập buổi dư đầu kỳ”) theo mặc định; các vai trò khác không có. Phạm vi chi nhánh vẫn áp dụng. Học vụ nhập tại mục “Buổi dư đầu kỳ” trong hồ sơ; Kế toán không có quyền xem hồ sơ học viên nên nhập tại modal “Lịch sử thu học phí” mở từ danh sách học phí. Cả hai form gửi `POST /students/{id}/opening-sessions`, nhận số nguyên 0–4294967295 và lưu cùng cột với Excel.
+
+Chỉ nhập số dư khi đưa dữ liệu học viên cũ vào, không cộng thêm mỗi khóa. Có thể lưu lại để **sửa thay thế** số đã nhập, kể cả sau khi nhập Excel. Lưu thủ công và nhập Excel đều khóa dòng học viên trong transaction; Excel từ chối học viên đã có `opening_sessions_set_at`, kể cả bản xem trước được tạo trước lần lưu thủ công. Nhật ký thay đổi model ghi người thực hiện, thời điểm, giá trị cũ và mới; job nhập Excel chạy dưới danh nghĩa người nhập nên cũng có đủ nhật ký này.
 
 Học vụ và Admin khai báo hoặc xóa một khoảng nghỉ hè trên hồ sơ học viên. Lưu lại **thay thế** khoảng cũ, không cộng dồn. Chỉ tính buổi chính khóa / học bù chưa hủy của lớp hiện tại, trong khoảng ngày bao gồm hai đầu và chưa tới giờ bắt đầu. Buổi đã diễn ra đã giảm số buổi còn lại của khóa, không trừ hè thêm lần nữa; ngày lễ không có buổi hoặc buổi đã hủy không được tính.
 
 **Buổi cần thu = max(0, còn lại của khóa − balance − buổi hè)**. Chặn buổi hè ở số buổi còn lại của khóa; hè không tạo thêm dư. Dư chuyển tiếp giữ công thức **max(0, balance − còn lại)**: dư lớn hơn khóa thì thu 0 và giữ phần thừa cho khóa sau. Balance âm vẫn được giữ để không xóa thiếu hụt, còn “Buổi dư” hiển thị tối thiểu 0.
 
 Dư đầu kỳ, dư chuyển tiếp và trừ hè đều chỉ là số buổi, không đổi ra tiền. Đơn giá giữ theo lớp (hoặc hợp đồng đang thu theo quy tắc hiện có); tiền buổi = số buổi thu × đơn giá. Giới hạn buổi thu sau trừ hè không được coi là đã thu hết số buổi chưa đóng thực của hợp đồng để thu toàn bộ tiền còn nợ. Chuyển nhượng bị chặn nếu số buổi chuyển vượt max(0, balance) thực tế của học viên.
+
+Danh sách đến hạn thu và bảng cơ sở hoàn phí / chuyển nhượng hiển thị “Buổi dư (carry)” = **max(0, balance)**, khớp `quote.carry` trên form phiếu thu. Giá trị này không cộng vào số tiền hoàn / chuyển nhượng. Gia hạn khóa bằng phiếu thu được duyệt chỉ tăng buổi đã đóng; chuyển lớp chỉ thay đổi lịch sử lớp / buổi sử dụng hợp lệ, không ghi lại dư đầu kỳ và không quy đổi dư thành tiền.

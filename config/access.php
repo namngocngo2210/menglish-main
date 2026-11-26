@@ -40,7 +40,7 @@ return [
             'lead.view', 'lead.create', 'lead.update', 'lead.delete', 'lead.assign', 'lead.convert', 'lead.mark_lost',
             'lead.stage_forward', 'lead.trial_feedback',
             'entrance_test.*', 'entrance_test.examine',
-            // Enumerate student actions so student.summer_break stays exclusive to academic staff and Admin by default.
+            // Enumerate student actions to keep summer break and opening balance restricted by default.
             'student.view', 'student.update', 'student.delete', 'student.change_status', 'student.assign_class', 'student.manage_account',
             'class.*', 'class.teach', 'attendance_student.*',
             'placement_test.view', 'placement_test.grade',
@@ -83,6 +83,7 @@ return [
         // được lập yêu cầu. Quyền duyệt dưới đây chỉ có hiệu lực với vai trò này (AdminOnlyApprovals::ACCOUNTANT_PERMISSIONS).
         // Không có quản lý nhân sự / lớp / CRM; dữ liệu theo chi nhánh của mình (Admin cấp "Toàn hệ thống" theo người cho kế toán tổng).
         'accountant' => [
+            'student.opening_sessions',
             'tuition.view', 'tuition.create', 'tuition.mark_contacted', 'tuition.report_overdue', 'tuition.confirm_deposit',
             'tuition.approve', 'tuition.reject',
             'invoice.request_cancel', 'invoice.approve_cancel',
@@ -108,7 +109,7 @@ return [
             // Chủ dự án 29/09/2026: người phụ trách khách = Học vụ (cùng Admin).
             'lead.be_assigned',
             'promotion.manage',
-            'student.*', 'student.summer_break', 'class.*', 'class.assist', 'attendance_student.*',
+            'student.*', 'student.summer_break', 'student.opening_sessions', 'class.*', 'class.assist', 'attendance_student.*',
             'attendance_staff.view', 'attendance_staff.manual_record',
             // Học vụ không duyệt (syllabus.approve_adjustment, big_test.approve chỉ dành cho Học thuật + Admin).
             'level.*', 'syllabus.view', 'syllabus.update', 'syllabus.manage', 'syllabus.upload', 'syllabus.library_view', 'syllabus.propose_adjustment',
