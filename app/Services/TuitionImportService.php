@@ -39,6 +39,8 @@ class TuitionImportService
         'transaction_code' => 'Mã giao dịch',
         'payment_date' => 'Ngày đóng',
         'notes' => 'Ghi chú',
+        'so_buoi' => 'Số buổi',
+        'da_hoc' => 'Đã học',
     ];
 
     /** Tiêu đề cột (đã slug) được chấp nhận => key nội bộ. */
@@ -54,6 +56,8 @@ class TuitionImportService
         'ma_giao_dich' => 'transaction_code', 'ma_gd' => 'transaction_code', 'transaction_code' => 'transaction_code',
         'ngay_dong' => 'payment_date', 'ngay_thu' => 'payment_date', 'payment_date' => 'payment_date',
         'ghi_chu' => 'notes', 'notes' => 'notes',
+        'so_buoi' => 'so_buoi', 'tong_so_buoi' => 'so_buoi',
+        'da_hoc' => 'da_hoc', 'so_buoi_da_hoc' => 'da_hoc',
     ];
 
     private const METHOD_ALIASES = [
@@ -96,6 +100,7 @@ class TuitionImportService
         $newTuitionFor = [];      // mã HV đã có dòng tạo hồ sơ trong file
         $plannedDebt = [];        // công nợ còn lại dự kiến theo HV (sau các dòng trước trong file)
         $referencesInFile = [];
+        $openingFor = [];
 
         foreach ($raw as $offset => $cells) {
             $line = $offset + 2; // dòng 1 là tiêu đề
@@ -114,6 +119,24 @@ class TuitionImportService
                 $errors[] = "Không tìm thấy học viên mã {$code}.";
             } elseif ((int) $student->branch_id !== $branchId) {
                 $errors[] = "Học viên {$code} không thuộc chi nhánh đã chọn.";
+            }
+
+            // Blank optional cells leave the opening balance untouched, including in the extended template.
+            $hasOpening = filled($data['so_buoi'] ?? null) || filled($data['da_hoc'] ?? null);
+            $totalSessions = $usedSessions = $opening = null;
+            if ($hasOpening) {
+                $totalSessions = $this->sessionCount($data['so_buoi'] ?? null, 'Số buổi', $errors);
+                $usedSessions = $this->sessionCount($data['da_hoc'] ?? null, 'Đã học', $errors);
+                if ($totalSessions !== null && $usedSessions !== null) {
+                    if ($usedSessions > $totalSessions) {
+                        $errors[] = 'Đã học không được lớn hơn Số buổi.';
+                    } else {
+                        $opening = max(0, $totalSessions - $usedSessions);
+                    }
+                }
+                if ($student?->opening_sessions_set_at !== null || isset($openingFor[$code])) {
+                    $errors[] = 'Học viên đã có số buổi dư đầu kỳ';
+                }
             }
 
             $class = null;
@@ -140,6 +163,8 @@ class TuitionImportService
                     if ($total !== null && $total > 0) {
                         $errors[] = 'Học viên đã có hồ sơ học phí — không ghi đè giá trị hợp đồng, chỉ nhập "Số tiền đã đóng".';
                     }
+                } elseif ($hasOpening && $opening !== null && $total === null && $paid <= 0) {
+                    // Opening-only rows do not create a tuition contract.
                 } elseif ($total === null || $total <= 0) {
                     $errors[] = 'Học viên chưa có hồ sơ học phí: bắt buộc nhập "Học phí niêm yết" > 0.';
                 } else {
@@ -180,6 +205,9 @@ class TuitionImportService
             }
 
             if ($errors === []) {
+                if ($hasOpening) {
+                    $openingFor[$code] = true;
+                }
                 if ($createsTuition) {
                     $newTuitionFor[$code] = true;
                 }
@@ -191,6 +219,9 @@ class TuitionImportService
 
             $rows[] = [
                 'line' => $line,
+                'so_buoi' => $totalSessions,
+                'da_hoc' => $usedSessions,
+                'opening_sessions' => $opening,
                 'student_id' => $student?->id,
                 'student_code' => $code,
                 'student_name' => $student?->name,
@@ -231,7 +262,19 @@ class TuitionImportService
 
             try {
                 DB::transaction(function () use ($row, $branchId, $user, &$result) {
-                    $student = Student::query()->findOrFail($row['student_id']);
+                    $student = Student::query()->lockForUpdate()->findOrFail($row['student_id']);
+                    if (isset($row['opening_sessions'])) {
+                        if ($student->opening_sessions_set_at !== null) {
+                            throw new \RuntimeException('Học viên đã có số buổi dư đầu kỳ');
+                        }
+                        $errors = [];
+                        $total = $this->sessionCount($row['so_buoi'] ?? null, 'Số buổi', $errors);
+                        $used = $this->sessionCount($row['da_hoc'] ?? null, 'Đã học', $errors);
+                        if ($errors !== [] || $used > $total) {
+                            throw new \RuntimeException('Số buổi và Đã học phải là số nguyên không âm; Đã học không vượt Số buổi.');
+                        }
+                        $student->update(['opening_sessions' => max(0, $total - $used), 'opening_sessions_set_at' => now()]);
+                    }
                     $tuition = StudentTuition::query()->where('student_id', $student->id)->lockForUpdate()->first();
 
                     if ($row['creates_tuition']) {
@@ -283,6 +326,19 @@ class TuitionImportService
         }
 
         return $result;
+    }
+
+    private function sessionCount(mixed $value, string $label, array &$errors): ?int
+    {
+        $digits = is_scalar($value) && ! is_bool($value) ? (string) $value : '';
+        $normalized = ltrim($digits, '0');
+        if (! ctype_digit($digits) || strlen($normalized) > 10 || (strlen($normalized) === 10 && strcmp($normalized, '4294967295') > 0)) {
+            $errors[] = "{$label} phải là số nguyên từ 0 đến 4294967295.";
+
+            return null;
+        }
+
+        return (int) $digits;
     }
 
     private function money(mixed $value, string $label, array &$errors): ?float

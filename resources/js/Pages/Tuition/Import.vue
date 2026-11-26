@@ -185,6 +185,9 @@ async function submit(event) {
                                 <th>Học viên</th>
                                 <th>Hồ sơ học phí</th>
                                 <th class="text-right">Phải thu</th>
+                                <th>Số buổi</th>
+                                <th>Đã học</th>
+                                <th>Dư đầu kỳ (buổi)</th>
                                 <th>Hạn đóng</th>
                                 <th class="text-right">Đã đóng</th>
                                 <th>Hình thức / Mã GD</th>
@@ -203,9 +206,12 @@ async function submit(event) {
                                         <UiBadge color="info">Tạo mới</UiBadge>
                                         <div v-if="row.class_code" class="font-caption text-caption">Lớp {{ row.class_code }}</div>
                                     </template>
-                                    <span v-else class="text-on-surface-variant">Đã có</span>
+                                    <span v-else class="text-on-surface-variant">Giữ nguyên</span>
                                 </td>
                                 <td><UiMoney :value="row.final_amount" /></td>
+                                <td class="font-code">{{ row.so_buoi ?? '—' }}</td>
+                                <td class="font-code">{{ row.da_hoc ?? '—' }}</td>
+                                <td class="font-code">{{ row.opening_sessions ?? '—' }}</td>
                                 <td class="font-code">{{ row.due_date ?? '—' }}</td>
                                 <td><UiMoney :value="row.paid_amount || null" /></td>
                                 <td class="font-caption text-caption">

@@ -121,6 +121,7 @@ return [
                 'view' => ['Xem học viên', 'Xem danh sách, hồ sơ học viên (trong phạm vi dữ liệu).'],
                 'update' => ['Sửa học viên', 'Sửa thông tin hồ sơ học viên.'],
                 'delete' => ['Xóa học viên', 'Xóa hồ sơ học viên.'],
+                'summer_break' => ['Khai báo nghỉ hè', 'Lưu hoặc xóa khoảng nghỉ hè của học viên để trừ số buổi cần thu.'],
                 'change_status' => ['Đổi trạng thái học tập', 'Đổi trạng thái (bảo lưu, nghỉ hè, thôi học…), kết thúc bảo lưu.'],
                 'assign_class' => ['Xếp lớp / xác nhận nhập học', 'Xếp lớp, liên kết lớp, xác nhận chính thức, bàn giao nhập học.'],
                 'manage_account' => ['Quản lý tài khoản học viên', 'Tạo tài khoản cổng học viên / cấp lại mật khẩu tạm theo lô và tải file đăng nhập (trong phạm vi dữ liệu).'],

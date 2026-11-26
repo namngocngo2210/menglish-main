@@ -272,6 +272,30 @@ class StudentProfileController extends Controller
             ->with('status', 'Đã xếp lớp. Học vụ cần hoàn tất checklist giáo trình và nhóm lớp.');
     }
 
+    public function summerBreak(Request $request, $id)
+    {
+        $student = $this->findVisibleStudent($request->user(), $id);
+        $data = $request->validate([
+            'clear' => ['sometimes', 'boolean'],
+            'from' => [Rule::excludeIf($request->boolean('clear')), 'required', 'date'],
+            'to' => [Rule::excludeIf($request->boolean('clear')), 'required', 'date', 'after_or_equal:from'],
+        ], [
+            'from.required' => 'Vui lòng chọn ngày bắt đầu nghỉ hè.',
+            'from.date' => 'Ngày bắt đầu nghỉ hè không hợp lệ.',
+            'to.required' => 'Vui lòng chọn ngày kết thúc nghỉ hè.',
+            'to.date' => 'Ngày kết thúc nghỉ hè không hợp lệ.',
+            'to.after_or_equal' => 'Ngày kết thúc phải từ ngày bắt đầu nghỉ hè trở đi.',
+        ]);
+        $clear = $request->boolean('clear');
+        $student->update([
+            'summer_break_from' => $clear ? null : $data['from'],
+            'summer_break_to' => $clear ? null : $data['to'],
+            'summer_break_set_at' => $clear ? null : now(),
+        ]);
+
+        return back()->with('success', $clear ? 'Đã xóa khoảng nghỉ hè.' : 'Đã lưu khoảng nghỉ hè.');
+    }
+
     /**
      * "Chuyển lớp" trên hồ sơ: đổi lớp chính từ ngày chuyển (cho chọn ngày đã qua khi cập nhật trễ). Lớp cũ thành
      * "Đã chuyển lớp" từ ngày đó (ra khỏi danh sách lớp, ngừng trừ buổi), lớp mới trừ buổi từ ngày đó; buổi tồn giữ nguyên.
@@ -578,6 +602,8 @@ class StudentProfileController extends Controller
                 'long_term' => $student->isLongTermStudent(),
                 'today' => today()->toDateString(),
                 'updated_label' => $student->updated_at ? ($student->updated_at->isToday() ? 'Hôm nay, '.$student->updated_at->format('H:i') : $student->updated_at->format('d/m/Y H:i')) : '—',
+                'summer_break_from' => $student->summer_break_from?->toDateString(),
+                'summer_break_to' => $student->summer_break_to?->toDateString(),
                 'status' => $student->status,
                 'status_label' => $student->status_label,
                 'status_color' => $student->status_color,

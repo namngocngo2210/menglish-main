@@ -152,8 +152,8 @@ onBeforeUnmount(() => desktopQuery?.removeEventListener('change', expandDesktopS
                             <span class="text-lg font-bold text-tertiary">{{ q.used }}</span>
                         </div>
                         <div class="p-4">
-                            <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Buổi tồn</span>
-                            <span :class="['text-lg font-bold', q.balance < 0 ? 'text-error' : 'text-primary']">{{ q.balance }}</span>
+                            <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Buổi dư (carry)</span>
+                            <span class="text-lg font-bold text-primary">{{ q.carry ?? Math.max(0, q.balance) }}</span>
                         </div>
                         <div class="p-4">
                             <span class="mb-1 block text-xs font-semibold uppercase text-on-surface-subtle">Trạng thái học</span>
@@ -164,16 +164,24 @@ onBeforeUnmount(() => desktopQuery?.removeEventListener('change', expandDesktopS
                     <div class="space-y-4 bg-surface-container-low/50 p-5">
                         <div class="space-y-1.5 rounded-xl border border-surface-container-highest bg-surface-container-lowest p-3.5 text-xs">
                             <div class="flex flex-wrap justify-between gap-x-3">
-                                <span class="text-on-surface-variant">Khóa hiện tại {{ q.class_name ? '(lớp ' + q.class_name + ')' : '(chưa xếp lớp)' }}</span>
+                                <span class="text-on-surface-variant">Số buổi khóa {{ q.class_name ? '(lớp ' + q.class_name + ')' : '(chưa xếp lớp)' }}</span>
                                 <span class="font-code text-on-surface">{{ q.course_sessions }} buổi · đã diễn ra {{ q.held }}</span>
                             </div>
                             <div class="flex flex-wrap justify-between gap-x-3">
                                 <span class="text-on-surface-variant">Buổi còn lại của khóa</span>
                                 <span class="font-code font-bold text-on-surface">{{ q.course_sessions }} − {{ q.held }} = {{ q.remaining }}</span>
                             </div>
+                            <div class="flex flex-wrap justify-between gap-x-3">
+                                <span class="text-on-surface-variant">Buổi dư (carry)</span>
+                                <span class="font-code text-on-surface">{{ q.carry ?? Math.max(0, q.balance) }} buổi</span>
+                            </div>
+                            <div class="flex flex-wrap justify-between gap-x-3">
+                                <span class="text-on-surface-variant">Trừ nghỉ hè (buổi)</span>
+                                <span class="font-code text-on-surface">{{ q.summer_sessions ?? 0 }} buổi</span>
+                            </div>
                             <div class="flex flex-wrap justify-between gap-x-3 border-t border-dashed border-surface-container-highest pt-1.5">
-                                <span class="font-bold text-on-surface">Buổi cần thu = MAX(còn lại − tồn, 0)</span>
-                                <span class="font-code font-bold text-primary">MAX({{ q.remaining }} − {{ q.balance }}, 0) = {{ q.needed }}</span>
+                                <span class="font-bold text-on-surface">Số buổi cần thu = MAX(còn lại − tồn − nghỉ hè, 0)</span>
+                                <span class="font-code font-bold text-primary">MAX({{ q.remaining }} − {{ q.balance }} − {{ q.summer_sessions ?? 0 }}, 0) = {{ q.needed }}</span>
                             </div>
                             <p v-if="q.carry_over > 0" class="text-tertiary">Buổi tồn nhiều hơn số buổi còn lại: thu 0 buổi, dư {{ q.carry_over }} buổi tự trừ vào khóa kế tiếp.</p>
                         </div>
