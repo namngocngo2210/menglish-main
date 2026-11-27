@@ -305,10 +305,10 @@ class CrmController extends Controller
      *
      * @return array{filterBranches: list<array{value: mixed, label: mixed}>, filterSales: list<array{value: mixed, label: mixed}>, filterSources: list<string>}
      */
-    protected function listFilterOptions(): array
+    protected function listFilterOptions(?Builder $visibleCustomers = null): array
     {
         $user = Auth::user();
-        $scopedIds = $this->scopeCustomerQuery()->select('id');
+        $scopedIds = (clone ($visibleCustomers ?? $this->scopeCustomerQuery()))->select('id');
 
         $leadScope = $user ? DataScope::level($user, 'lead') : null;
 
@@ -2203,19 +2203,26 @@ class CrmController extends Controller
 
     public function wonCustomers(Request $request)
     {
-        $query = $this->scopeCustomerQuery()->where('stage', 'won');
+        $query = CrmCustomer::query()->wonVisibleTo($request->user())->where('stage', 'won');
+        $leadScope = DataScope::level($request->user(), 'lead');
+        if ($request->filled('branch_id') && ($leadScope === DataScope::ALL
+            || $leadScope === DataScope::BRANCH && in_array($request->integer('branch_id'), $request->user()->branchIds(), true))) {
+            $query->whereWonBranch([$request->integer('branch_id')]);
+        }
+        $filterQuery = clone $query;
         // Lọc lớp chỉ trong các lớp của khách đã chốt mình được xem (mockup: Chi nhánh / Lớp học / Tìm kiếm).
         $filterClasses = ClassModel::query()
             ->whereIn('id', Student::query()->whereIn('id', (clone $query)->whereNotNull('converted_student_id')->select('converted_student_id'))
                 ->whereNotNull('current_class_id')->select('current_class_id'))
             ->orderBy('name')->get(['id', 'name', 'code']);
-        $this->applyListFilters($query, $request, 'converted_at');
+        // The won branch filter is already applied using the effective branch above.
+        $this->applyListFilters($query, $request->duplicate($request->except('branch_id')), 'converted_at');
         if ($request->filled('class_id')) {
             $query->whereHas('convertedStudent', fn (Builder $student) => $student->where('current_class_id', $request->integer('class_id')));
         }
 
         if (in_array($request->input('export'), ['xlsx', 'csv'], true)) {
-            return $this->exportWon((clone $query)->with(['branch', 'assignedUser', 'convertedStudent.tuition', 'convertedStudent.currentClass'])->latest('converted_at')->get(), $request->input('export'));
+            return $this->exportWon((clone $query)->with(['branch', 'assignedUser', 'convertedStudent.tuition', 'convertedStudent.currentClass.branch'])->latest('converted_at')->get(), $request->input('export'));
         }
 
         $studentIds = (clone $query)->whereNotNull('converted_student_id')->select('converted_student_id');
@@ -2225,7 +2232,7 @@ class CrmController extends Controller
         $totalDebtAmount = (float) StudentTuition::whereIn('student_id', $studentIds)->sum('debt_amount');
 
         $wonCustomers = $query
-            ->with(['branch', 'assignedUser', 'convertedStudent.tuition.receipts', 'convertedStudent.currentClass', 'convertedStudent.enrollments'])
+            ->with(['branch', 'assignedUser', 'convertedStudent.tuition.receipts', 'convertedStudent.currentClass.branch', 'convertedStudent.enrollments'])
             ->latest('converted_at')->latest()
             ->paginate($request->perPage(20))->withQueryString()
             ->through(function (CrmCustomer $wc) {
@@ -2240,7 +2247,7 @@ class CrmController extends Controller
                     'phone' => $wc->phone,
                     'course_interest' => $wc->course_interest,
                     'assigned_user' => $wc->assignedUser?->name,
-                    'branch' => $wc->branch?->name,
+                    'branch' => ($class?->branch ?? $wc->branch)?->name,
                     'class' => $class ? ['name' => $class->name, 'code' => $class->code] : null,
                     'converted_at' => $wc->converted_at?->format('H:i d/m/Y'),
                     'tuition_badge' => $pendingAmount > 0 ? 'bg-warning-container text-on-warning-container border-warning/30'
@@ -2269,7 +2276,7 @@ class CrmController extends Controller
                     'password' => session('temporary_password'),
                 ] : null,
             ],
-        ] + $this->waitingClassCount() + $this->listFilterOptions());
+        ] + $this->waitingClassCount() + $this->listFilterOptions($filterQuery));
     }
 
     protected function exportWon(Collection $customers, string $format)
@@ -2279,7 +2286,7 @@ class CrmController extends Controller
             $c->name,
             $c->phone,
             $c->parent_name,
-            $c->branch?->name,
+            ($c->convertedStudent?->currentClass?->branch ?? $c->branch)?->name,
             $c->source,
             $c->course_interest,
             $c->convertedStudent?->currentClass?->name ?? 'Chưa xếp lớp',

@@ -237,6 +237,26 @@ class CrmCustomer extends Model
         );
     }
 
+    /** Won visibility follows the current class branch; own scope remains assignment-based. */
+    public function scopeWonVisibleTo(Builder $query, ?User $user): Builder
+    {
+        return DataScope::apply(
+            $query, $user, 'lead',
+            fn (Builder $q) => $q->where($this->qualifyColumn('assigned_user_id'), $user?->id),
+            fn (Builder $q, array $branchIds) => $q->whereWonBranch($branchIds),
+        );
+    }
+
+    /** Use the CRM branch only when no extant current class branch exists. */
+    public function scopeWhereWonBranch(Builder $query, array $branchIds): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereHas('convertedStudent.currentClass.branch', fn (Builder $branch) => $branch->whereIn('branches.id', $branchIds))
+            ->orWhere(fn (Builder $fallback) => $fallback
+                ->whereDoesntHave('convertedStudent.currentClass.branch')
+                ->whereIn($this->qualifyColumn('branch_id'), $branchIds)));
+    }
+
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
